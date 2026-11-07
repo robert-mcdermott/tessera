@@ -117,7 +117,7 @@ Requirements delivered: REC-01–06, REC-09, CUR-01–04, CUR-07, DIS-01–03, C
 
 ## Slice 7: Release prep ☐
 
-- [ ] Docs: README quickstart, configuration reference, organization profile guide, curation guide
+- [ ] Docs: README quickstart, configuration reference, organization profile guide, curation guide, as Markdown in `docs/` written so the future documentation site can be built from it unchanged (see the roadmap)
 - [ ] Run the evaluation on pilot data and record the summary (without identifying data) in the release notes
 - [ ] Private-terms check over the whole repository; dependency and license review
 - [ ] `CHANGELOG.md` for 0.1.0; version bump to `0.1.0`
@@ -136,4 +136,5 @@ Requirements delivered: REC-01–06, REC-09, CUR-01–04, CUR-07, DIS-01–03, C
 | 2026-11-07 | Slice 3 done. Multi-PI co-investigators are not presumed members; lone-initial person searches dropped (≈5× noise in a live check); preprint servers and megajournals excluded from journal history; seed threshold 0.90 with two rounds. |
 | 2026-11-07 | Slice 4 done. `derived/search.db` doubles as the serving index for lists and summaries; detail pages read the lake by key. Person topics ranked by TF-IDF, with model organisms and methods treated as non-topics. Response schemas in OpenAPI are minimal for now (parameters and bodies are documented). |
 | 2026-11-07 | Slice 5 done. No build step: ES modules, strict CSP with no inline code, data only ever inserted as text. Icons are an original JS module (no sprite). Grant and registry text is reflowed into paragraphs, and all-capital source names are shown in name case. Studies with phase "not applicable" show no phase. |
+| 2026-11-07 | Planned a documentation site (generator, screenshot capture from a fictional demo organization, `gh-pages` publishing) for after wave 2; see the roadmap. Wave 1 docs are Markdown written so that site can use them unchanged. |
 | 2026-11-07 | To revisit: Starlette's test client now prefers a successor to `httpx` (warning silenced in pytest config); FastAPI pulls in the inert `opentelemetry-api` package (no exporter, nothing is sent). |
