@@ -31,7 +31,13 @@ exclusions = ["Example University of Technology"]
 # Re-branding. Everything here is optional.
 [branding]
 product_name = "Tessera"
-accent_color = "#4F46E5"
+# The color palette everyone sees by default: "tessera" (calm neutrals, indigo accent),
+# "harbor" (deep navy, teal, bright blue, purple, and gold), or "cassette" (label paper
+# and rainbow stripes; black labels and a sunset after dark). Each has light and dark
+# versions, and each viewer can choose another under Appearance.
+theme = "tessera"
+# Replace the palette's accent with your own color (hex, a color name, or oklch()).
+# accent_color = "#4F46E5"
 # logo_light = "branding/logo-light.svg"
 # logo_dark = "branding/logo-dark.svg"
 show_powered_by = true

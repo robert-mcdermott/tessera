@@ -111,7 +111,7 @@ The capability catalog. IDs are stable: code, tests, and changelog entries can c
 
 | ID | Pri | Requirement | Acceptance | Wave |
 |---|---|---|---|---|
-| UX-01 | M | Light, dark, and system themes | Both themes pass AA contrast; theme choice persists | 1 |
+| UX-01 | M | Light, dark, and system themes, with selectable palettes | Every palette passes AA contrast in both modes; choices persist per viewer; the organization sets the default | 1 |
 | UX-02 | M | URL-addressable state | Search, filters, tabs, and sort survive reload and Back | 1 |
 | UX-03 | M | Keyboard accessible | All features usable by keyboard; visible focus | 1 |
 | UX-04 | M | Responsive | Usable from 360 px to wide desktop | 1 |

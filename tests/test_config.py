@@ -153,3 +153,18 @@ def test_accent_color_must_be_a_color(tmp_path: Path, value: str, ok: bool) -> N
         with pytest.raises(ConfigError) as caught:
             load_config(write(tmp_path, text), env={})
         assert any("accent_color" in p for p in caught.value.problems)
+
+
+@pytest.mark.parametrize(
+    ("theme", "ok"), [("tessera", True), ("harbor", True), ("cassette", True), ("neon", False)]
+)
+def test_theme_must_be_a_known_palette(tmp_path: Path, theme: str, ok: bool) -> None:
+    text = '[organization]\nname = "Example Institute"\naliases = ["Example Institute"]\n'
+    text += f'[branding]\ntheme = "{theme}"\n'
+    if ok:
+        config = load_config(write(tmp_path, text), env={})
+        assert config.branding.theme == theme and config.branding.accent_color is None
+    else:
+        with pytest.raises(ConfigError) as caught:
+            load_config(write(tmp_path, text), env={})
+        assert any("branding.theme" in p for p in caught.value.problems)

@@ -34,6 +34,8 @@ _CSS_COLOR = re.compile(
     r"^(#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|[a-zA-Z]{3,30}"
     r"|(rgba?|hsla?|hwb|lab|lch|oklab|oklch)\([0-9a-zA-Z.,%/ +-]{1,80}\))$"
 )
+# Color palettes the web app ships (web/static/css/palettes.css); "tessera" is the default.
+PALETTES = ("tessera", "harbor", "cassette")
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _DOMAIN = re.compile(r"^(?=.{1,253}$)([a-z0-9-]{1,63}\.)+[a-z]{2,63}$")
 
@@ -56,7 +58,8 @@ class OrganizationConfig:
 @dataclass(frozen=True)
 class BrandingConfig:
     product_name: str = "Tessera"
-    accent_color: str = "#4F46E5"
+    theme: str = "tessera"  # the default palette for everyone (see PALETTES)
+    accent_color: str | None = None  # replaces the palette's accent when set
     logo_light: Path | None = None
     logo_dark: Path | None = None
     show_powered_by: bool = True
@@ -364,8 +367,10 @@ def validate(config: Config) -> list[str]:
     brand = config.branding
     if not brand.product_name or _UNSAFE_CSS.search(brand.product_name):
         problems.append("branding.product_name must be non-empty plain text")
-    if not _CSS_COLOR.match(brand.accent_color or ""):
+    if brand.accent_color is not None and not _CSS_COLOR.match(brand.accent_color):
         problems.append("branding.accent_color must be a CSS color such as #4F46E5")
+    if brand.theme not in PALETTES:
+        problems.append(f"branding.theme must be one of {', '.join(PALETTES)}")
     for label, logo in (("logo_light", brand.logo_light), ("logo_dark", brand.logo_dark)):
         if logo is not None and not logo.is_file():
             problems.append(f"branding.{label}: file not found: {logo}")

@@ -16,7 +16,7 @@ body {
 }
 
 h1, h2, h3, h4 { margin: 0; line-height: 1.25; font-weight: 600; letter-spacing: -0.012em; }
-h1 { font-size: var(--fs-4xl); letter-spacing: -0.022em; }
+h1 { font-size: var(--fs-4xl); font-weight: var(--title-weight); letter-spacing: var(--title-tracking); }
 h2 { font-size: var(--fs-xl); }
 h3 { font-size: var(--fs-lg); }
 p { margin: 0; }
@@ -103,6 +103,12 @@ kbd {
   grid-template-rows: var(--topbar-height) minmax(0, 1fr);
   grid-template-areas: "sidebar topbar" "sidebar main";
   min-height: 100vh;
+  padding-top: var(--signature-height);
+}
+/* A palette's signature stripe along the top of the window (zero height by default). */
+.shell::before {
+  content: ""; position: fixed; inset: 0 0 auto 0; z-index: 45; pointer-events: none;
+  height: var(--signature-height); background: var(--signature);
 }
 .shell[data-collapsed] { --sidebar-width: 72px; }
 .shell-main { grid-area: main; min-width: 0; }

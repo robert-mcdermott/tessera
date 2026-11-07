@@ -29,16 +29,17 @@ Each entity type has one hue, used consistently in chips, icons, graph nodes, an
 
 ### Tokens
 
-All visual values are CSS custom properties defined once in `tokens.css`, using `oklch()` so the light and dark palettes stay perceptually balanced.
+All visual values are CSS custom properties defined once in `tokens.css`. Colors are `light-dark()` pairs in `oklch()` (or the hex values a palette is built from), so every color has a day and a night value side by side and the two stay perceptually balanced.
 
 - **Surfaces:** `--bg`, `--surface-1..3`, `--border`, `--border-strong`
 - **Text:** `--text`, `--text-muted`, `--text-subtle`, `--text-inverse`
-- **Brand:** `--accent`, `--accent-hover`, `--accent-contrast` (set from branding configuration)
+- **Accent:** `--accent`, `--accent-hover`, `--accent-strong` (accent text on accent tints), `--accent-soft`, `--on-accent`; the palette's accent unless configuration sets one
 - **Entities:** `--ent-person`, `--ent-pub`, `--ent-grant`, `--ent-study`, `--ent-concept`, `--ent-unit`, each with a `-soft` tint for backgrounds
 - **Status:** `--ok`, `--warn`, `--danger`, `--info`; and evidence states `--accepted`, `--suggested`, `--rejected`
 - **Spacing:** 4 px base scale (`--space-1` = 4 px … `--space-10` = 64 px)
 - **Radius:** `--radius-s` 6 px, `--radius-m` 10 px, `--radius-l` 16 px
-- **Elevation:** three shadow levels, softened in dark mode
+- **Elevation:** three shadow levels, deeper in dark mode
+- **Signature:** `--band-1..5`, `--signature`, and `--signature-height`: a palette's stripe along the top of the window and the art in the home page's hero; `--hue-0..5` color avatar tiles
 - **Motion:** `--ease-out`, durations 120/200/320 ms, all disabled under `prefers-reduced-motion`
 
 ### Typography
@@ -47,25 +48,34 @@ All visual values are CSS custom properties defined once in `tokens.css`, using 
 - **Scale:** 12 / 13 / 14 (body) / 16 / 18 / 20 / 24 / 30 / 36 px, with line heights from 1.25 (headings) to 1.55 (body).
 - **Weights:** 400, 500, 600. Headings avoid 700+ for a calmer look.
 
-### Themes
+### Themes: mode and palette
 
-- **Light, dark, and system.** The theme follows the operating system by default; a toggle in the top bar overrides it and is remembered.
-- Implemented with `:root[data-theme="dark"]` token overrides plus a `prefers-color-scheme` default. No component has theme-specific CSS.
-- Both themes are checked for AA contrast, including entity tints and chart colors.
+Appearance has two independent choices, both under **Appearance** in the top bar (and in the command palette):
+
+- **Mode: light, dark, or system.** System follows the operating system. Implemented by `color-scheme` on `<html>` (`data-theme`), which every `light-dark()` token follows; there are no duplicated dark-mode blocks.
+- **Palette.** A named set of colors with a day and a night version. The organization picks the default with `branding.theme`; each viewer may choose another, remembered in that browser. Palettes override color tokens only (`palettes.css`), plus a few printed-label details where a palette has a strong identity.
+
+| Palette | By day | After dark |
+|---|---|---|
+| **Tessera** (default) | Calm cool neutrals, indigo accent, mosaic motif | Neutral graphite, soft indigo accent |
+| **Harbor** | White and light grey, dark navy text, teal actions; a navy, bright blue, purple, and gold rule | Deep navy surfaces, bright blue actions, gold and purple accents |
+| **Cassette** | Cream label paper, red-orange accent, rainbow stripes along the top and across the hero, heavy italic wordmark, small spaced capitals on card titles | Black labels, orange accent, sunset stripes |
+
+- Every palette and mode is checked for WCAG AA by sampling the rendered text of the main pages against its actual background, including chips, marks, badges, and tinted rows. Accent text on accent tints uses `--accent-strong`.
 
 ### Branding (white-label)
 
-An adopting organization sets its product name, organization name, logo (light and dark variants), favicon, and accent color in `tessera.toml`. The server generates `theme.css` from these settings. No code changes are needed, and "Tessera" appears only in a small "Powered by Tessera" footer link, which can be turned off.
+An adopting organization sets its product name, organization name, logo (light and dark variants), favicon, default palette, and optionally its own accent color in `tessera.toml`. The server generates `theme.css` from these settings: a configured accent replaces the palette's accent by day and is lightened for dark mode, with text on it chosen for contrast. No code changes are needed, and "Tessera" appears only in a small "Powered by Tessera" footer link, which can be turned off.
 
 ## Information architecture
 
 ```text
-Top bar:  [logo / product name]   [ ⌘K  Search everything… ]   [theme] [operator / user]
+Top bar:  [logo / product name]   [ ⌘K  Search everything… ]   [appearance] [operator / user]
 Sidebar:  Home · People · Publications · Grants · Studies · Discover (w2) · Labs (w3)
           Insights (w4) · Opportunities (w5) ─── Review queue (badge) · Admin
 ```
 
-- **Command palette (⌘K / Ctrl-K):** search all entities, jump to pages, and run actions ("Review suggestions for…", "Toggle theme").
+- **Command palette (⌘K / Ctrl-K):** search all entities, jump to pages, and run actions ("Appearance…", "Switch light or dark").
 - **Sidebar** collapses to icons on narrow screens and becomes a drawer on mobile.
 
 ## Key screens (wave 1)

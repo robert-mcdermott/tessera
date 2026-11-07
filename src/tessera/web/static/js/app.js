@@ -2,8 +2,9 @@
 
 import { get } from "./core/api.js";
 import { h } from "./core/dom.js";
-import { applyTheme, currentTheme, THEMES, write } from "./core/prefs.js";
+import { applyAppearance, applyTheme, currentTheme, setOrganizationPalette, THEMES, write } from "./core/prefs.js";
 import { fallback, route, start } from "./core/router.js";
+import { openAppearance } from "./components/appearance.js";
 import { closeDrawer } from "./components/drawer.js";
 import { openPalette } from "./components/palette.js";
 import { mountShell } from "./components/shell.js";
@@ -19,7 +20,7 @@ import { review } from "./pages/review.js";
 import { searchPage } from "./pages/search.js";
 import { sources } from "./pages/sources.js";
 
-applyTheme(currentTheme());
+applyAppearance();
 
 async function boot() {
   const root = document.getElementById("app");
@@ -32,13 +33,15 @@ async function boot() {
     return;
   }
   setProduct(meta.product.name);
-  const palette = () => openPalette({ actions: [{
-    group: "Actions", title: "Toggle theme", iconName: "moon", run: () => {
+  setOrganizationPalette(meta.product.theme ?? "tessera");
+  const palette = () => openPalette({ actions: [
+    { group: "Actions", title: "Appearance…", iconName: "palette", run: () => openAppearance() },
+    { group: "Actions", title: "Switch light or dark", iconName: "moon", run: () => {
       const next = THEMES[(THEMES.indexOf(currentTheme()) + 1) % THEMES.length];
       write("theme", next);
       applyTheme(next);
-    },
-  }] });
+    } },
+  ] });
   const { main } = mountShell(root, meta, { onSearch: palette });
 
   route("/", () => home(main, meta));

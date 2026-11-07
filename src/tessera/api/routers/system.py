@@ -53,6 +53,7 @@ def meta(request: Request) -> dict[str, Any]:
                 "name": config.branding.product_name,
                 "tagline": TAGLINE,
                 "version": __version__,
+                "theme": config.branding.theme,
                 "accent_color": config.branding.accent_color,
                 "show_powered_by": config.branding.show_powered_by,
             },

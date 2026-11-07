@@ -52,6 +52,8 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 
 ### Changed
 
+- Appearance has two choices under a new Appearance panel (and the command palette): light, dark, or system, and a color palette. Three palettes ship, each with day and night versions: **Tessera** (the default; its dark mode is now a neutral graphite instead of blue-navy), **Harbor** (deep navy, teal, bright blue, purple, and gold), and **Cassette** (label paper and rainbow stripes by day, black labels and a sunset at night). The organization sets the default with `branding.theme`; each viewer can choose another. Every palette passes WCAG AA in both modes.
+- `branding.accent_color` is now optional and, when set, replaces the palette's accent (lightened after dark, with text on it chosen for contrast).
 - Decisions update the search index in place (member lists, person facets and counts, directory membership), so lists and search reflect them on the next request without a rebuild.
 - `branding.accent_color` must be a CSS color (hex, keyword, or a color function); anything else is a configuration error.
 - Ledger migrations on SQLite run with foreign keys off and verify every reference before committing, so a migration that rebuilds a table keeps the rows that point at it.

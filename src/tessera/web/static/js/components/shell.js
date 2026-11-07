@@ -3,8 +3,8 @@
 import { get } from "../core/api.js";
 import { h, icon, iconButton } from "../core/dom.js";
 import { compact } from "../core/format.js";
-import { applyTheme, currentTheme, THEMES, write } from "../core/prefs.js";
 import { onNavigate } from "../core/router.js";
+import { openAppearance } from "./appearance.js";
 import { avatar } from "./ui.js";
 
 const NAV = [
@@ -28,8 +28,6 @@ const NAV = [
     { href: "/api/docs", label: "API reference", iconName: "api", match: () => false, external: true },
   ] },
 ];
-
-const THEME_ICONS = { system: "system", light: "sun", dark: "moon" };
 
 export function mountShell(root, meta, { onSearch }) {
   const product = meta.product;
@@ -55,16 +53,7 @@ export function mountShell(root, meta, { onSearch }) {
         ? h("span", {}, "Powered by ", h("a", { href: "/api/docs" }, `Tessera ${product.version}`))
         : null));
 
-  const themeButton = iconButton(THEME_ICONS[currentTheme()], `Theme: ${currentTheme()}`, {
-    onclick: () => {
-      const next = THEMES[(THEMES.indexOf(currentTheme()) + 1) % THEMES.length];
-      write("theme", next);
-      applyTheme(next);
-      themeButton.replaceChildren(icon(THEME_ICONS[next]));
-      themeButton.setAttribute("aria-label", `Theme: ${next}`);
-      themeButton.title = `Theme: ${next}`;
-    },
-  });
+  const appearanceButton = iconButton("palette", "Appearance", { onclick: () => openAppearance() });
 
   let backdrop = null;
   let menuButton = null;
@@ -102,7 +91,7 @@ export function mountShell(root, meta, { onSearch }) {
       icon("search", "icon icon-sm"), h("span", { class: "grow" }, "Search people, papers, grants, studies…"),
       h("kbd", {}, isMac ? "⌘K" : "Ctrl K")),
     h("div", { class: "topbar-actions" },
-      themeButton,
+      appearanceButton,
       h("span", { class: "operator", title: "Single-operator mode: decisions are recorded under this name" },
         avatar(meta.mode.operator, "sm"), h("span", { class: "operator-name" }, meta.mode.operator))));
 

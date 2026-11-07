@@ -137,21 +137,50 @@ def test_app_shell_fits_the_budget() -> None:
     assert total <= SHELL_BUDGET_BYTES, f"app shell is {total:,} bytes gzipped"
 
 
-def test_theme_css_uses_configured_accent(config_file: Path, instance: object) -> None:
-    text = config_file.read_text("utf-8")
-    config_file.write_text(
-        re.sub(r'accent_color\s*=\s*"[^"]*"', 'accent_color = "oklch(0.6 0.2 150)"', text),
-        "utf-8",
-    )
+def _client_with(config_file: Path, branding: str) -> TestClient:
     from tessera.api.app import create_app
 
-    with TestClient(create_app(load_config(config_file, env={}))) as client:
-        response = client.get("/theme.css")
+    text = config_file.read_text("utf-8").replace('theme = "tessera"\n', branding, 1)
+    config_file.write_text(text, "utf-8")
+    return TestClient(create_app(load_config(config_file, env={})))
+
+
+def test_theme_css_without_an_accent(client: TestClient) -> None:
+    response = client.get("/theme.css")
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/css")
-    assert response.text == ":root { --brand: oklch(0.6 0.2 150); }\n"
+    assert "--brand-accent" not in response.text  # the palette's accent applies
     for name, value in SECURITY_HEADERS.items():
         assert response.headers[name] == value
+
+
+def test_theme_css_uses_configured_accent(config_file: Path, instance: object) -> None:
+    with _client_with(
+        config_file, 'theme = "cassette"\naccent_color = "oklch(0.6 0.2 150)"\n'
+    ) as client:
+        css = client.get("/theme.css").text
+        meta = client.get("/api/v1/meta").json()["data"]["product"]
+    accent = "oklch(0.6 0.2 150)"
+    assert f"--brand-accent: light-dark({accent}, color-mix(in oklch, {accent} 58%, white));" in css
+    assert "--brand-on-accent: light-dark(#ffffff," in css
+    assert meta["theme"] == "cassette" and meta["accent_color"] == "oklch(0.6 0.2 150)"
+
+
+def test_light_accent_gets_dark_text(config_file: Path, instance: object) -> None:
+    with _client_with(config_file, 'theme = "tessera"\naccent_color = "#FFD84D"\n') as client:
+        css = client.get("/theme.css").text
+    assert "--brand-on-accent: light-dark(oklch(18% 0.02 265)," in css
+
+
+def test_every_configurable_palette_is_styled() -> None:
+    from tessera.config import PALETTES
+
+    css = (CSS_ROOT / "palettes.css").read_text("utf-8")
+    prefs = (JS_ROOT / "core" / "prefs.js").read_text("utf-8")
+    for name in PALETTES:
+        assert f'id: "{name}"' in prefs, name
+        if name != "tessera":  # the default lives in tokens.css
+            assert f':root[data-palette="{name}"]' in css, name
 
 
 def test_api_reference_page(client: TestClient) -> None:
