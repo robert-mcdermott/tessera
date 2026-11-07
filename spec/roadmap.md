@@ -30,7 +30,7 @@ Status key: ☐ planned · ◐ in progress · ☑ done
 | 3 | Evidence engine v1 | People bootstrap, name handling, candidate retrieval, `authorship/v1` scoring, source-reported links, assertions with evidence, `tessera sync` | ☑ |
 | 4 | API and search | `/api/v1` for people, publications, grants, studies, assertions, and sources; FTS5 search with facets | ☑ |
 | 5 | Web app and design system | Vanilla JS shell, tokens, light/dark themes, branding, command palette; Home, Search, People, profile, and detail pages; source health | ☐☑ |
-| 6 | Curation | Review queue with evidence drawer, keyboard flow, bulk within band, undo, manual additions, discovered-people queue | ☐ |
+| 6 | Curation | Review queue with evidence drawer, keyboard flow, bulk within band, undo, manual additions, discovered-people queue | ☐☑ |
 | 7 | Release prep | Docs, quickstart, changelog, version bump, evaluation report, release | ☐ |
 
 Detail: [waves/wave-1.md](waves/wave-1.md)

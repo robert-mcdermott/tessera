@@ -122,3 +122,7 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
+.stack-xs { display: flex; flex-direction: column; gap: 2px; }
+.row-xs { display: inline-flex; align-items: center; gap: var(--space-1); }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.strong { font-weight: 600; }

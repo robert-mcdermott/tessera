@@ -484,8 +484,8 @@ def _print_build(result: dict) -> None:  # type: ignore[type-arg]
     docs = result.get("documents", {})
     print(
         f"search index: {docs.get('person', 0):,} people, {docs.get('publication', 0):,} "
-        f"publications, {docs.get('grant', 0):,} grants, {docs.get('study', 0):,} studies "
-        f"in {result.get('seconds', 0)}s"
+        f"publications, {docs.get('grant', 0):,} grants, {docs.get('study', 0):,} studies, "
+        f"{docs.get('candidate', 0):,} discovered people in {result.get('seconds', 0)}s"
     )
 
 

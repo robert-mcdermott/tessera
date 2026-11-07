@@ -42,3 +42,16 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 - Status marks on every suggested or confirmed link, opening an evidence drawer that explains the score feature by feature and records accept, reject, defer, and undo decisions with an undo toast.
 - Accessibility: keyboard operation throughout, focus trapping in dialogs, live-region announcements, data tables behind every chart, reduced-motion support, and AA contrast in both themes.
 - Web tests: no inline code, no resources from other origins, no HTML parsing of data, every module import resolves, an app-shell size budget, and JavaScript unit tests (run when Node.js is installed).
+- Review queue page: suggestions in priority order beside an evidence panel that highlights the matched author and their affiliation on the paper; keyboard flow (`j`/`k` to move, `a` accept, `r` reject, `d` defer, `u` undo, `o` open, `p` one person, `?` keys); the next items prefetched; accept all strong matches for a person, undone together in one step.
+- Discovered people: people found in the data who are not in the directory, with the evidence for each (affiliated papers and years, recent titles, NIH grants, affiliation), search and filters, and promote or dismiss one at a time or in bulk, all reversible. Dismissed people are not proposed again.
+- Decision log page and `GET /api/v1/decisions`: every decision about links and people, newest first.
+- API: `GET /api/v1/candidates`, `POST /api/v1/candidates/decisions`, and `POST /api/v1/assertions/decisions` (one decision for many assertions, used for bulk undo).
+- "Add a publication" on profiles (by PubMed ID), "Review suggestions" for one person, and promote or dismiss on a discovered person's profile.
+- Sidebar counts of suggestions and discovered people waiting, kept current as decisions are made.
+- Ledger migration 0002: the `dismissed` person status and the `person_event` log.
+
+### Changed
+
+- Decisions update the search index in place (member lists, person facets and counts, directory membership), so lists and search reflect them on the next request without a rebuild.
+- `branding.accent_color` must be a CSS color (hex, keyword, or a color function); anything else is a configuration error.
+- Ledger migrations on SQLite run with foreign keys off and verify every reference before committing, so a migration that rebuilds a table keeps the rows that point at it.

@@ -8,6 +8,7 @@ from tessera import __version__
 from tessera.cli import EXIT_ERROR, EXIT_OK, main
 from tessera.lake import LakeWriter
 from tessera.lake.schemas import ICITE
+from tessera.ledger import migrate
 
 from .conftest import Instance
 
@@ -40,7 +41,7 @@ def test_init_creates_everything(tmp_path: Path, capsys: pytest.CaptureFixture[s
     for sub in ("raw", "lake", "derived", "logs"):
         assert (home / sub).is_dir()
     assert (home / "ledger.db").is_file()
-    assert "Ledger ready (revision 0001)" in out
+    assert f"Ledger ready (revision {migrate.head_revision()})" in out
 
     config.write_text(config.read_text().replace('name = "Example University"', 'name = "Kept"'))
     code, out = run(capsys, "--config", str(config), "init")
@@ -84,7 +85,7 @@ def test_db_commands(config_file: Path, capsys: pytest.CaptureFixture[str]) -> N
     assert "none" in out
     code, out = run(capsys, "--config", str(config_file), "db", "upgrade")
     assert code == EXIT_OK
-    assert "revision 0001" in out
+    assert f"revision {migrate.head_revision()}" in out
     code, out = run(capsys, "--config", str(config_file), "db", "current")
     assert code == EXIT_OK
     assert "up to date" in out

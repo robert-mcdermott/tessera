@@ -2,7 +2,7 @@
 
 **Goal:** prove that a useful, trustworthy research graph can be built from public data alone, with evidence on every link.
 
-**Branch:** `wave-1` · **Target version:** `0.1.0` · **Status:** ◐ slices 1–5 done, slice 6 next
+**Branch:** `wave-1` · **Target version:** `0.1.0` · **Status:** ◐ slices 1–6 done, slice 7 (release prep) next
 
 ## Exit criteria
 
@@ -101,19 +101,19 @@ Requirements delivered: REC-01–06, REC-09, CUR-01–04, CUR-07, DIS-01–03, C
 
 **Acceptance (met):** every page checked in light and dark themes on live data; an automated contrast sweep of rendered text over four pages in both themes found nothing under WCAG AA (lowest body-text token 4.87:1); no console errors; app shell 50 KB gzipped (budget 100 KB, enforced by a test); no horizontal scrolling at 360 px. Keyboard: palette, drawer (focus trap, Escape, focus return), mobile menu, and skip link all work without a mouse. The curation half of the exit-criteria walkthrough moves to slice 6 with the review queue. No screen-reader software has been run yet; markup uses labelled controls, live regions, and text alternatives for charts.
 
-## Slice 6: Curation ☐
+## Slice 6: Curation ☑
 
 **Goal:** curators clear suggestions quickly and confidently.
 
-- [ ] Review queue page: split view, prioritized list, evidence panel with author-slot highlight, keyboard flow (`j k a r d u`), prefetching
-- [ ] Bulk accept of strong suggestions within one person, logged per assertion
-- [ ] Undo toast and decision history
-- [ ] Manual addition of a paper by PMID to a person
-- [ ] Discovered-people queue: promote or dismiss singly or in bulk with filters
-- [ ] Single-operator mode: actor name from config on every curation event; server bound to localhost by default
-- [ ] Profile and search reflect decisions on the next request (search index updated incrementally)
+- [x] Review queue page: split view, prioritized list grouped by person for strong matches, evidence panel with the author slot and its affiliation highlighted, keyboard flow (`j k a r d u`, plus `o`, `p`, `?`), next five items prefetched, decisions saved in the background
+- [x] Bulk accept of strong suggestions within one person, logged per assertion, with a one-step undo of the whole batch
+- [x] Undo toast and decision history: per item, per session (`u`), on profiles, and a decision log page across the organization
+- [x] Manual addition of a paper by PMID from the person's profile
+- [x] Discovered-people queue: evidence for each person (affiliated papers, years, recent titles, NIH grants, affiliation), search and filters, promote or dismiss singly or in bulk, undo or restore; dismissed people are not proposed again
+- [x] Single-operator mode: actor name from config on every curation event; server bound to localhost by default
+- [x] Profile and search reflect decisions on the next request: the search index is updated in place, by the same rules as a full build (a test checks they agree)
 
-**Acceptance:** a curator can process 100 suggestions in under 10 minutes on the fixture data; every action is reversible and logged.
+**Acceptance (met):** on live data, 100 decisions made by keyboard took 3.8 s of machine time: the next suggestion's evidence was on screen in 22 ms (p95 47 ms) and each decision saved in 56 ms (p95 81 ms), leaving the whole 10-minute budget for reading (about 6 s a suggestion). Every action is reversible and logged: link decisions in `curation_event`, people decisions in the new `person_event`, both shown in the decision log. Decisions survive `resolve` and a full index rebuild (tested).
 
 ## Slice 7: Release prep ☐
 
@@ -137,4 +137,5 @@ Requirements delivered: REC-01–06, REC-09, CUR-01–04, CUR-07, DIS-01–03, C
 | 2026-11-07 | Slice 4 done. `derived/search.db` doubles as the serving index for lists and summaries; detail pages read the lake by key. Person topics ranked by TF-IDF, with model organisms and methods treated as non-topics. Response schemas in OpenAPI are minimal for now (parameters and bodies are documented). |
 | 2026-11-07 | Slice 5 done. No build step: ES modules, strict CSP with no inline code, data only ever inserted as text. Icons are an original JS module (no sprite). Grant and registry text is reflowed into paragraphs, and all-capital source names are shown in name case. Studies with phase "not applicable" show no phase. |
 | 2026-11-07 | Planned a documentation site (generator, screenshot capture from a fictional demo organization, `gh-pages` publishing) for after wave 2; see the roadmap. Wave 1 docs are Markdown written so that site can use them unchanged. |
+| 2026-11-07 | Slice 6 done. Ledger migration 0002 adds the `dismissed` person status and `person_event`. Found while testing: on SQLite, rebuilding a table to change a constraint cascade-deleted the rows that reference it (names, identifiers), because foreign keys were on. Migrations now run with foreign keys off and a `foreign_key_check` before commit, as SQLite prescribes; a test fills a ledger and checks nothing is lost across upgrade and downgrade on both databases. Promoted people get suggestions at the next resolve or sync (resolve took 7.6 s on the pilot data); running it from the web app waits for a later wave. |
 | 2026-11-07 | To revisit: Starlette's test client now prefers a successor to `httpx` (warning silenced in pytest config); FastAPI pulls in the inert `opentelemetry-api` package (no exporter, nothing is sent). |

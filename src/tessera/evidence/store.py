@@ -4,7 +4,8 @@ The rules from ADR-0006 are enforced here, in one place:
 
 * automation never changes the status of a locked (human-decided) assertion;
 * automation never deletes an assertion; links no longer produced are marked unreported;
-* every status change by a person is an append-only curation event, and undo is an event.
+* every status change by a person is an append-only curation event, and undo is an event;
+* decisions about people (promote, dismiss) follow the same rules in person_event.
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ from tessera.ledger.tables import (
     assertion,
     curation_event,
     person,
+    person_event,
     person_identifier,
     person_name,
     unit,
@@ -140,6 +142,63 @@ def set_status(conn: Connection, person_id: str, status: str) -> None:
     conn.execute(
         update(person).where(person.c.id == person_id).values(status=status, updated_at=utc_now())
     )
+
+
+# A curator's decisions about people. Promote makes a candidate (or a dismissed person) a
+# member of the directory; dismiss says a candidate is not one. Automation never reverses
+# either: it only ever promotes candidates, and discovery skips dismissed people.
+PERSON_DECISIONS = {
+    "promote": ({"candidate", "dismissed"}, "active"),
+    "dismiss": ({"candidate"}, "dismissed"),
+}
+
+
+def decide_person(
+    engine: Engine, person_id: str, action: str, actor: str, note: str | None = None
+) -> dict[str, Any]:
+    """Promote, dismiss, or undo the latest decision about a person. Logged in person_event."""
+    with engine.begin() as conn:
+        current = conn.execute(select(person.c.status).where(person.c.id == person_id)).scalar()
+        if current is None:
+            raise TesseraError(f"No person {person_id}")
+        if action == "undo":
+            events = conn.execute(
+                select(person_event)
+                .where(person_event.c.person_id == person_id)
+                .order_by(person_event.c.id)
+            ).mappings()
+            stack: list[Any] = []
+            for event in events:
+                if event["action"] == "undo":
+                    if stack:
+                        stack.pop()
+                else:
+                    stack.append(event)
+            if not stack:
+                raise TesseraError("Nothing to undo for this person.")
+            new_status = stack[-1]["from_status"] or "candidate"
+        elif action in PERSON_DECISIONS:
+            allowed, new_status = PERSON_DECISIONS[action]
+            if current not in allowed:
+                raise TesseraError(f"Cannot {action} a person who is {current}.")
+        else:
+            raise TesseraError(f"Unknown action {action!r}; use promote, dismiss, or undo")
+        now = utc_now()
+        conn.execute(
+            update(person).where(person.c.id == person_id).values(status=new_status, updated_at=now)
+        )
+        conn.execute(
+            insert(person_event).values(
+                person_id=person_id,
+                actor=actor,
+                action=action,
+                from_status=current,
+                to_status=new_status,
+                note=note,
+                at=now,
+            )
+        )
+    return {"id": person_id, "status": new_status, "previous": current}
 
 
 def load_people(

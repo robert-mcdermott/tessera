@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from tessera.core.errors import TesseraError
-from tessera.search.index import KINDS
+from tessera.search.index import ALL_KINDS, KINDS
 
 MARK_START, MARK_END = "", ""
 MAX_TERMS = 12
@@ -27,13 +27,21 @@ SORTS = {
     "publication": {"year": "d.sort_key", "citations": "d.weight DESC, d.sort_key"},
     "grant": {"year": "d.sort_key", "amount": "d.weight DESC, d.sort_key"},
     "study": {"year": "d.sort_key"},
+    "candidate": {"evidence": "d.weight DESC, d.sort_key", "name": "d.sort_key"},
 }
-DEFAULT_SORT = {"person": "name", "publication": "year", "grant": "year", "study": "year"}
+DEFAULT_SORT = {
+    "person": "name",
+    "publication": "year",
+    "grant": "year",
+    "study": "year",
+    "candidate": "evidence",
+}
 FACETS = {
     "person": ("status", "unit"),
     "publication": ("year", "journal", "type", "flag"),
     "grant": ("status", "activity", "institute", "year"),
     "study": ("status", "phase", "type", "year"),
+    "candidate": ("status", "source"),
 }
 
 
@@ -113,8 +121,8 @@ class SearchIndex:
         offset: int = 0,
         with_facets: bool = True,
     ) -> SearchResult:
-        if kind not in KINDS:
-            raise TesseraError(f"Unknown kind {kind!r}; choose from {', '.join(KINDS)}")
+        if kind not in ALL_KINDS:
+            raise TesseraError(f"Unknown kind {kind!r}; choose from {', '.join(ALL_KINDS)}")
         fts = to_fts_query(query)
         where, params = self._filters(kind, filters or {})
         con = self.connect()
@@ -176,6 +184,7 @@ class SearchIndex:
         results = {kind: SearchResult([], 0) for kind in KINDS}
         if not fts:
             return results
+        kinds = ", ".join("?" for _ in KINDS)  # members' records only, never candidates
         con = self.connect()
         try:
             # FTS5 ranking functions cannot sit inside a window function, so rank first.
@@ -185,9 +194,9 @@ class SearchIndex:
                 "FROM doc_fts WHERE doc_fts MATCH ?), "
                 "ranked AS (SELECT d.*, row_number() OVER (PARTITION BY d.kind ORDER BY h.rank) "
                 "AS rn, count(*) OVER (PARTITION BY d.kind) AS total "
-                "FROM hits h JOIN doc d ON d.id = h.id) "
+                f"FROM hits h JOIN doc d ON d.id = h.id WHERE d.kind IN ({kinds})) "
                 "SELECT * FROM ranked WHERE rn <= ? ORDER BY kind, rn",
-                [fts, per_kind],
+                [fts, *KINDS, per_kind],
             ).fetchall()
             marks = self._highlights(con, fts, [r["id"] for r in rows])
         except sqlite3.OperationalError as exc:

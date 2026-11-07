@@ -1,12 +1,13 @@
 // A person's profile: identity, topics, activity, and every linked record with evidence.
 
-import { get } from "../core/api.js";
+import { get, post } from "../core/api.js";
 import { h, icon } from "../core/dom.js";
 import { enumLabel, number, relative } from "../core/format.js";
 import { query, setQuery } from "../core/router.js";
-import { openEvidence } from "../components/drawer.js";
+import { openDrawer, openEvidence } from "../components/drawer.js";
+import { toast } from "../components/toast.js";
 import { grantItem, publicationItem, studyItem } from "../components/items.js";
-import { avatar, barChart, card, emptyState, kv, pageHeader, pager, pill, segmented, statTile, tabs, topicChips } from "../components/ui.js";
+import { avatar, barChart, callout, card, emptyState, kv, pageHeader, pager, pill, segmented, statTile, tabs, topicChips } from "../components/ui.js";
 import { show } from "./page.js";
 
 const LIMIT = 20;
@@ -45,6 +46,7 @@ export function person(main, params, { samePage = false } = {}) {
       const c = profile.counts;
       const pubs = c.publications ?? {};
       const suggested = (c.suggested_by_band?.strong ?? 0) + (c.suggested_by_band?.possible ?? 0);
+      const member = profile.status === "active" || profile.status === "former";
       const orcid = profile.identifiers.find((i) => i.scheme === "orcid" && i.status === "accepted");
       const header = pageHeader({
         lead: avatar(profile.name, "lg"),
@@ -56,7 +58,19 @@ export function person(main, params, { samePage = false } = {}) {
             icon("orcid", "icon icon-sm"), orcid.value) : null,
           profile.concepts.length ? h("span", { class: "muted" }, profile.concepts.slice(0, 3).join(" · ")) : null,
         ],
+        actions: member ? [
+          suggested ? h("a", { class: "btn", href: `/review?person=${encodeURIComponent(profile.id)}` }, icon("review", "icon icon-sm"), "Review suggestions") : null,
+          h("button", { type: "button", class: "btn", onclick: () => addPublication(profile, refresh) }, icon("publication", "icon icon-sm"), "Add a publication"),
+        ] : null,
       });
+      const candidateNote = member ? null : h("div", { class: "callout", role: "note" },
+        icon("info", "icon icon-sm"),
+        h("div", { class: "grow" }, profile.status === "dismissed"
+          ? "A curator dismissed this person as not a member of the organization."
+          : "Tessera found this person in the data. They are not in the directory until a curator promotes them."),
+        h("div", { class: "row-sm" },
+          h("button", { type: "button", class: "btn btn-sm btn-accept", onclick: () => decidePerson(profile, "promote", refresh) }, "Promote"),
+          profile.status === "candidate" ? h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => decidePerson(profile, "dismiss", refresh) }, "Dismiss") : null));
 
       const stats = h("div", { class: "stats" },
         statTile({ kind: "publication", label: "Confirmed papers", value: pubs.accepted ?? 0 }),
@@ -93,7 +107,7 @@ export function person(main, params, { samePage = false } = {}) {
         profile.names.length > 1 ? card({ title: "Names in the data", pad: true,
           body: h("div", { class: "chips" }, profile.names.map((n) => h("span", { class: "chip chip-plain" }, `${n.given ? `${n.given} ` : ""}${n.family}`))) }) : null);
 
-      return h("div", { class: "stack-lg" }, header, stats,
+      return h("div", { class: "stack-lg" }, header, candidateNote, stats,
         h("div", { class: "grid-main" }, h("div", {}, tabBar, panel), side));
     },
   });
@@ -150,4 +164,66 @@ function historyPanel(events) {
       h("div", {}, `${VERBS[e.action] ?? e.action} `, h("a", { href: e.object_id.startsWith("pub:") ? `/publications/${e.object_id.slice(4)}` : "#" }, e.object_id),
         e.note ? h("span", { class: "muted" }, ` — “${e.note}”`) : null),
       h("div", { class: "item-meta" }, h("span", {}, e.actor), h("span", { class: "sep" }), h("span", {}, relative(e.at))))))) });
+}
+
+async function decidePerson(profile, action, refresh) {
+  try {
+    await post("/api/v1/candidates/decisions", { ids: [profile.id], action });
+  } catch (error) {
+    toast(error.detail || "That did not work.");
+    return;
+  }
+  refresh();
+  toast(action === "promote" ? `${profile.name} is now in the directory.` : `${profile.name} was dismissed.`, {
+    action: { label: "Undo", run: async () => {
+      await post("/api/v1/candidates/decisions", { ids: [profile.id], action: "undo" });
+      refresh();
+    } },
+  });
+}
+
+/** A form to attach a paper the evidence engine missed, by PubMed ID. */
+function addPublication(profile, refresh) {
+  openDrawer({
+    title: "Add a publication",
+    subtitle: profile.name,
+    label: "Add a publication",
+    render: (body, footer, close) => {
+      const pmid = h("input", { class: "input", id: "add-pmid", inputmode: "numeric", autocomplete: "off",
+        pattern: "[1-9][0-9]{0,8}", required: true, placeholder: "e.g. 31452104" });
+      const note = h("textarea", { class: "input", id: "add-note", rows: 2, placeholder: "Why this paper belongs here (optional)" });
+      const error = h("p", { class: "field-error", role: "alert", hidden: true });
+      const submit = h("button", { type: "submit", class: "btn btn-primary" }, "Add publication");
+      const form = h("form", { class: "stack", novalidate: true, onsubmit: async (event) => {
+        event.preventDefault();
+        const value = pmid.value.trim().replace(/^pmid:?\s*/i, "");
+        if (!/^[1-9][0-9]{0,8}$/.test(value)) {
+          error.textContent = "Enter a PubMed ID: digits only, such as 31452104.";
+          error.hidden = false;
+          pmid.focus();
+          return;
+        }
+        submit.disabled = true;
+        submit.textContent = "Adding…";
+        try {
+          await post(`/api/v1/people/${encodeURIComponent(profile.id)}/publications`, { pmid: value, note: note.value.trim() || null });
+        } catch (failure) {
+          error.textContent = failure.detail || "The paper could not be added.";
+          error.hidden = false;
+          submit.disabled = false;
+          submit.textContent = "Add publication";
+          return;
+        }
+        close();
+        refresh();
+        toast(`Added PMID ${value} to ${profile.name}'s publications.`);
+      } },
+      h("p", { class: "muted" }, "For a paper the evidence engine missed. Tessera fetches it from PubMed if needed and records it as confirmed, entered by you."),
+      h("div", { class: "field" }, h("label", { for: "add-pmid" }, "PubMed ID"), pmid),
+      h("div", { class: "field" }, h("label", { for: "add-note" }, "Note"), note),
+      error,
+      h("div", { class: "row-sm" }, submit, h("button", { type: "button", class: "btn btn-ghost", onclick: close }, "Cancel")));
+      body.append(form);
+    },
+  });
 }

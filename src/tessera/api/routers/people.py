@@ -21,6 +21,7 @@ from tessera.api.common import (
     page,
     pick_fields,
     publication_summaries,
+    refresh_index,
     split_values,
 )
 from tessera.core.clock import utc_now
@@ -312,6 +313,7 @@ def add_publication(request: Request, person_id: str, body: ManualPublication) -
             )
     if existing is None or existing["status"] != "accepted":
         store.decide(engine, aid, "accept", actor, body.note)
+    refresh_index(request, people=[person_id], records=[object_id])
     row = store.assertions_for(
         engine, subject_id=person_id, predicate="authored", reported_only=False
     )

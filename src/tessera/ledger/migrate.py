@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from alembic import command
 from alembic.config import Config as AlembicConfig
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy.engine import Engine
+
+from tessera.core.errors import LedgerError
 
 SCRIPT_LOCATION = "tessera.ledger:migrations"
 
@@ -29,11 +33,45 @@ def current_revision(engine: Engine) -> str | None:
         return MigrationContext.configure(conn).get_current_revision()
 
 
-def upgrade(engine: Engine, revision: str = "head") -> None:
+def _run(engine: Engine, step: Callable[[AlembicConfig, str], None], revision: str) -> None:
+    """Run a migration step in one transaction.
+
+    SQLite cannot alter a constraint in place, so a migration rebuilds the table (create,
+    copy, drop, rename). With foreign keys on, dropping the old table would cascade-delete
+    every row that references it (names, identifiers). Foreign keys are therefore switched
+    off for the migration, as SQLite's documentation prescribes for table rebuilds, and the
+    result is checked before it is committed.
+    """
     cfg = alembic_config(engine.url.render_as_string(hide_password=False))
-    with engine.begin() as conn:
-        cfg.attributes["connection"] = conn
-        command.upgrade(cfg, revision)
+    with engine.connect() as conn:
+        sqlite = conn.dialect.name == "sqlite"
+        if sqlite:  # a no-op inside a transaction, so it must come first
+            conn.exec_driver_sql("PRAGMA foreign_keys=OFF")
+            conn.commit()
+        try:
+            with conn.begin():
+                cfg.attributes["connection"] = conn
+                step(cfg, revision)
+                if sqlite:
+                    broken = conn.exec_driver_sql("PRAGMA foreign_key_check").all()
+                    if broken:
+                        raise LedgerError(
+                            f"Migration to {revision} left {len(broken)} rows with broken "
+                            f"references (first: {tuple(broken[0])}); nothing was changed."
+                        )
+        finally:
+            if sqlite:
+                conn.exec_driver_sql("PRAGMA foreign_keys=ON")
+                conn.commit()
+
+
+def upgrade(engine: Engine, revision: str = "head") -> None:
+    _run(engine, command.upgrade, revision)
+
+
+def downgrade(engine: Engine, revision: str) -> None:
+    """Step the schema back (used by tests and by operators rolling back an upgrade)."""
+    _run(engine, command.downgrade, revision)
 
 
 def is_current(engine: Engine) -> bool:

@@ -75,7 +75,7 @@ function weightBar(weight) {
     h("span", { class: "weight-value" }, `${weight > 0 ? "+" : ""}${weight}`), bar);
 }
 
-const ACTION_LABELS = { accept: "Accepted", reject: "Rejected", defer: "Deferred", undo: "Undone" };
+export const ACTION_LABELS = { accept: "Accepted", reject: "Rejected", defer: "Deferred", undo: "Undone" };
 
 /**
  * Show why Tessera believes an assertion, with its history and decision buttons.
@@ -111,7 +111,8 @@ const PREDICATES = {
   acknowledges: "acknowledges", references: "cites", funded_by: "is funded by", member_of: "is a member of",
 };
 
-function draw(body, footer, a, onChange) {
+/** The claim, likelihood, evidence, and history of an assertion (drawer and review panel). */
+export function assertionDetail(a) {
   const band = a.band;
   const meter = a.score != null ? h("div", { class: "stack-sm" },
     h("div", { class: "row" }, h("strong", {}, `${scoreLabel(a.score)} likely`),
@@ -122,7 +123,7 @@ function draw(body, footer, a, onChange) {
       return h("div", { class: "meter", "data-band": band }, fill);
     })()) : h("div", { class: "muted" }, `${a.origin === "source" ? "Stated by the source record" : "Entered by a person"} · ${a.method}`);
 
-  body.replaceChildren(
+  return [
     h("section", { class: "stack-sm" },
       h("div", { class: "row wrap" }, statusMark(a), a.reported === false ? h("span", { class: "pill pill-warn" }, "No longer reported") : null),
       h("p", {}, entityLink(a.subject), ` ${PREDICATES[a.predicate] ?? a.predicate} `, entityLink(a.object),
@@ -142,7 +143,17 @@ function draw(body, footer, a, onChange) {
           icon(event.action === "undo" ? "undo" : event.action === "reject" ? "close" : "check", "icon icon-sm"),
           h("span", {}, `${ACTION_LABELS[event.action] ?? event.action} by ${event.actor} · ${relative(event.at)}`,
             event.note ? ` — “${event.note}”` : ""))))
-        : h("p", { class: "muted" }, `First seen ${date(a.first_seen_at)}. No decisions yet.`)));
+        : h("p", { class: "muted" }, `First seen ${date(a.first_seen_at)}. No decisions yet.`)),
+  ];
+}
+
+/** Whether "undo" has a decision to reverse (the server's rule: undos pop a stack). */
+export function canUndo(a) {
+  return (a.history ?? []).reduce((depth, e) => (e.action === "undo" ? Math.max(0, depth - 1) : depth + 1), 0) > 0;
+}
+
+function draw(body, footer, a, onChange) {
+  body.replaceChildren(...assertionDetail(a));
 
   if (a.predicate === "authored" || a.predicate === "official_of") {
     const note = h("textarea", { class: "input", rows: 2, placeholder: "Optional note", "aria-label": "Note" });
@@ -166,12 +177,43 @@ function draw(body, footer, a, onChange) {
     if (a.status !== "accepted") buttons.push(h("button", { type: "button", class: "btn btn-accept", onclick: () => act("accept") }, icon("check", "icon icon-sm"), "Accept"));
     if (a.status !== "rejected") buttons.push(h("button", { type: "button", class: "btn btn-reject", onclick: () => act("reject") }, icon("close", "icon icon-sm"), "Reject"));
     if (a.status === "suggested") buttons.push(h("button", { type: "button", class: "btn btn-ghost", onclick: () => act("defer") }, "Defer"));
-    // Same rule as the server: each undo cancels the latest decision not yet undone.
-    const undoable = (a.history ?? []).reduce((depth, e) => (e.action === "undo" ? Math.max(0, depth - 1) : depth + 1), 0) > 0;
-    if (undoable) buttons.push(h("button", { type: "button", class: "btn btn-ghost", onclick: () => act("undo") }, icon("undo", "icon icon-sm"), "Undo last"));
+    if (canUndo(a)) buttons.push(h("button", { type: "button", class: "btn btn-ghost", onclick: () => act("undo") }, icon("undo", "icon icon-sm"), "Undo last"));
     footer.replaceChildren(note, h("div", { class: "row wrap" }, buttons));
     footer.hidden = false;
   } else {
     footer.hidden = true;
   }
+}
+
+/**
+ * Ask before a change that touches many records. run() is awaited after the drawer closes;
+ * text may be a string or nodes.
+ */
+export function confirmAction({ title, text, confirmLabel, tone = "primary", run }) {
+  openDrawer({
+    title,
+    label: title,
+    render: (body, footer, close) => {
+      body.append(h("div", { class: "stack" }, text));
+      footer.replaceChildren(h("div", { class: "row wrap" },
+        h("button", { type: "button", class: `btn btn-${tone}`, onclick: async () => {
+          close();
+          await run();
+        } }, confirmLabel),
+        h("button", { type: "button", class: "btn btn-ghost", onclick: close }, "Cancel")));
+      footer.hidden = false;
+    },
+  });
+}
+
+/** A list of keyboard shortcuts, as a drawer. keys: [[keys, what]]. */
+export function showShortcuts(title, keys) {
+  openDrawer({
+    title,
+    label: title,
+    render: (body) => {
+      body.append(h("table", { class: "table shortcuts" }, h("tbody", {}, keys.map(([combo, what]) =>
+        h("tr", {}, h("td", {}, combo.split(" / ").map((k, i) => [i ? " or " : null, h("kbd", {}, k)])), h("td", {}, what))))));
+    },
+  });
 }

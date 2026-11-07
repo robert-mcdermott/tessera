@@ -67,12 +67,13 @@ The ledger is relational and portable across SQLite and PostgreSQL. JSON fields 
 
 | Table | Purpose | Key columns |
 |---|---|---|
-| `person` | One row per real person | `id`, `display_name`, `family_name`, `given_name`, `status` (`active`, `candidate`, `former`), `created_at`, `updated_at` |
+| `person` | One row per real person | `id`, `display_name`, `family_name`, `given_name`, `status` (`active`, `former`, `candidate` for people discovered in the data, `dismissed` for candidates a curator judged not to be members), `created_at`, `updated_at` |
 | `person_name` | Name variants used for matching | `person_id`, `family`, `given`, `initials`, `kind` (`primary`, `variant`, `former`), `source` |
 | `person_identifier` | External IDs | `person_id`, `scheme` (`orcid`, `nih_profile`, `email`, `local`), `value`, `status`, `source` |
 | `unit` | Organizational units | `id`, `name`, `kind`, `parent_id`, `code` |
 | `assertion` | All typed links (see above) | as above; unique on (`subject_id`, `predicate`, `object_id`, qualifier key) |
 | `curation_event` | Append-only decision log | `id`, `assertion_id`, `actor`, `action`, `from_status`, `to_status`, `note`, `at` |
+| `person_event` | Append-only log of decisions about people | `id`, `person_id`, `actor`, `action` (`promote`, `dismiss`, `undo`), `from_status`, `to_status`, `note`, `at`. Automation only ever promotes candidates, and discovery treats dismissed people as known, so a curator's decision is never reversed by a sync |
 | `ingest_run` | One row per connector or job run | `id`, `source`, `kind`, `started_at`, `finished_at`, `status`, `params`, `counts`, `error` |
 | `source_checkpoint` | Incremental watermarks | `source`, `scope`, `watermark`, `updated_at` |
 | `setting` | Runtime settings editable in the app | `key`, `value`, `updated_by`, `updated_at` |
@@ -117,7 +118,7 @@ Contact details from registry records (emails, phone numbers) are **not** stored
 
 | Artifact | Built from | Purpose |
 |---|---|---|
-| `derived/search.db` | Lake content + ledger people and links | The **search and serving index**. `doc` holds one row per organization-relevant person, publication, grant, and study with a JSON display summary; `doc_fts` is an FTS5 index (porter + unicode61, diacritics removed) over title, people, terms, and body; `facet` holds (doc, name, value) rows for filters and counts. Publications are included only if a member authored them (accepted, or suggested at or above the review threshold), an author lists the organization, or a grant or study cites them; papers that name searches fetched for other people stay out. Person topics are ranked by TF-IDF across the directory |
+| `derived/search.db` | Lake content + ledger people and links | The **search and serving index**. `doc` holds one row per organization-relevant person, publication, grant, and study with a JSON display summary; `doc_fts` is an FTS5 index (porter + unicode61, diacritics removed) over title, people, terms, and body; `facet` holds (doc, name, value) rows for filters and counts. Publications are included only if a member authored them (accepted, or suggested at or above the review threshold), an author lists the organization, or a grant or study cites them; papers that name searches fetched for other people stay out. Person topics are ranked by TF-IDF across the directory. `candidate` documents describe discovered people (affiliated papers, years, recent titles, grants, affiliations) for the curation queue; they never appear in the directory or in "everything" search. Decisions rewrite only the documents they touch (member lists, person facets, counts, directory membership) in place, using the same rules as a full build, so lists are current on the next request; topics refresh at the next build |
 
 Later: `concept_profile`, `similarity_pair`, `coauthor_edge` (wave 2); `metric_*` tables and frozen `snapshot/<id>/` folders (wave 4).
 

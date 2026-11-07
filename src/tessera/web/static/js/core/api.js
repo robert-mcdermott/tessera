@@ -52,21 +52,38 @@ async function request(method, path, { params, body, signal } = {}) {
   return payload;
 }
 
-export async function get(path, params, { fresh = false, signal } = {}) {
+/** GET with a short-lived cache. Concurrent requests for the same URL share one fetch. */
+export function get(path, params, { fresh = false, signal } = {}) {
   const key = buildUrl(path, params);
   const hit = cache.get(key);
-  if (!fresh && hit && Date.now() - hit.at < TTL_MS) return hit.value;
-  const value = await request("GET", path, { params, signal });
-  cache.set(key, { at: Date.now(), value });
-  return value;
+  if (!fresh && hit && Date.now() - hit.at < TTL_MS) return hit.promise;
+  const promise = request("GET", path, { params, signal });
+  cache.set(key, { at: Date.now(), promise });
+  promise.catch(() => {
+    if (cache.get(key)?.promise === promise) cache.delete(key);
+  });
+  return promise;
 }
 
-export async function post(path, body) {
+/** Warm the cache for a page the person is likely to open next. Errors are ignored. */
+export function prefetch(path, params) {
+  get(path, params).catch(() => {});
+}
+
+/**
+ * POST, then drop cached responses (decisions change counts and lists everywhere).
+ * keep(url) may spare entries known to be unaffected, such as prefetched records.
+ * Listeners on "tessera:changed" (the sidebar's counts) hear about every change.
+ */
+export async function post(path, body, { keep = null } = {}) {
   const value = await request("POST", path, { body });
-  cache.clear(); // decisions change counts and lists everywhere
+  invalidate(keep);
+  window.dispatchEvent(new CustomEvent("tessera:changed", { detail: { path } }));
   return value;
 }
 
-export function invalidate() {
-  cache.clear();
+export function invalidate(keep = null) {
+  for (const key of [...cache.keys()]) {
+    if (!keep?.(key)) cache.delete(key);
+  }
 }

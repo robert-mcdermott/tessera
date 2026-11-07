@@ -8,7 +8,10 @@ Everything is invented. The world contains:
   affiliation or missing affiliation); author names appear in full or as initials only;
 * decoys: outside researchers who share an insider's family name and first initial, and
   some who share the *exact* full name, with different topics and coauthors;
-* grants, RePORTER publication links, and a few registry studies with officials.
+* grants, RePORTER publication links, and a few registry studies with officials;
+* optionally (``newcomers``), affiliated authors on no roster or grant, whom discovery should
+  propose (all but the last, who has a single paper), and one co-investigator on an
+  insider's grant who starts as a candidate.
 """
 
 from __future__ import annotations
@@ -146,6 +149,9 @@ FAMILIES = [
     "Kowalczyk",
     "Andersen",
 ]
+# Family names no insider or decoy uses, for people discovery should find.
+NEWCOMER_FAMILIES = ["Lindqvist", "Abernathy", "Takahara", "Ostrowski", "Varga", "Quillon"]
+
 GIVENS = [
     "Ada",
     "Bao",
@@ -216,6 +222,8 @@ class World:
     reporter: list[dict[str, Any]]
     links: list[dict[str, Any]]
     studies: list[dict[str, Any]]
+    newcomers: list[Researcher] = field(default_factory=list)
+    co_investigator: Researcher | None = None
 
     def insider(self, key: str) -> Researcher:
         return next(r for r in self.insiders if r.key == key)
@@ -230,8 +238,14 @@ def _ui(descriptor: str) -> str:
     return f"D{zlib.crc32(descriptor.encode()) % 10**6:06d}"
 
 
-def build(tmp: Path, seed: int = 7, insiders: int = 40, hard: bool = False) -> World:
-    """``hard``: name twins work in the insider's own field and publish in the same journals."""
+def build(
+    tmp: Path, seed: int = 7, insiders: int = 40, hard: bool = False, newcomers: int = 0
+) -> World:
+    """``hard``: name twins work in the insider's own field and publish in the same journals.
+
+    ``newcomers`` adds discoverable people. It draws from a separate random stream, so the
+    rest of the world is identical with or without them.
+    """
     rng = random.Random(seed)
     people: list[Researcher] = []
     families = rng.sample(FAMILIES, insiders)
@@ -426,6 +440,57 @@ def build(tmp: Path, seed: int = 7, insiders: int = 40, hard: bool = False) -> W
             rng.shuffle(authors)
             article(authors, rng.sample(topic, k=4), rng.randint(2022, 2026), [], journal)
 
+    arrivals: list[Researcher] = []
+    co_investigator: Researcher | None = None
+    if newcomers:
+        extra = random.Random(seed + 104_729)
+        used = set(FAMILIES)
+        spare = [f for f in NEWCOMER_FAMILIES if f not in used]
+        topic = next(iter(TOPICS))
+        for n in range(newcomers):
+            nc = Researcher(
+                f"new{n:02d}",
+                spare[n],
+                GIVENS[(n * 7 + 3) % len(GIVENS)],
+                extra.choice("ABCDEFGH"),
+                topic,
+                insider=True,
+                orcid=_orcid(extra) if n == 0 else None,
+                dept="Pathology",
+            )
+            for _ in range(1 if n == newcomers - 1 else 3 + n):
+                authors = [
+                    {
+                        "family": nc.family,
+                        "given": f"{nc.given} {nc.middle}",
+                        "initials": f"{nc.given[0]}{nc.middle}",
+                        "orcid": nc.orcid,
+                        "affiliations": [ORG_AFFILIATION.format(dept=nc.dept)],
+                    },
+                    *(
+                        {
+                            "family": f,
+                            "given": g,
+                            "initials": g[0],
+                            "orcid": None,
+                            "affiliations": [OTHER_AFFILIATIONS[0]],
+                        }
+                        for f, g in extra.sample(externals[topic], k=2)
+                    ),
+                ]
+                record = article(
+                    authors,
+                    extra.sample(TOPICS[topic], k=4),
+                    extra.randint(2023, 2026),
+                    [],
+                    "J New",
+                )
+                nc.papers.append(record["pmid"])
+            arrivals.append(nc)
+        co_investigator = Researcher(
+            "coinv", spare[newcomers], "Quentin", "Z", topic, insider=False, profile_id=20_000
+        )
+
     reporter_records = []
     for r in people:
         if not r.grant:
@@ -457,6 +522,17 @@ def build(tmp: Path, seed: int = 7, insiders: int = 40, hard: bool = False) -> W
                     ],
                 }
             )
+            if co_investigator is not None and r is people[0]:
+                reporter_records[-1]["investigators"].append(
+                    {
+                        "profile_id": co_investigator.profile_id,
+                        "full_name": f"{co_investigator.given} {co_investigator.family}",
+                        "family": co_investigator.family,
+                        "given": co_investigator.given,
+                        "middle": co_investigator.middle,
+                        "is_contact_pi": False,
+                    }
+                )
 
     studies = []
     for i, r in enumerate(people[:4]):
@@ -499,7 +575,18 @@ def build(tmp: Path, seed: int = 7, insiders: int = 40, hard: bool = False) -> W
             f"Department of {r.dept}"
         )
     roster.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return World(people, decoys, truth, roster, articles, reporter_records, reporter_links, studies)
+    return World(
+        people,
+        decoys,
+        truth,
+        roster,
+        articles,
+        reporter_records,
+        reporter_links,
+        studies,
+        arrivals,
+        co_investigator,
+    )
 
 
 def load(world: World, lake_root: Path) -> None:

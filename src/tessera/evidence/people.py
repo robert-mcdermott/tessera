@@ -352,7 +352,8 @@ def discover_candidates(
 ) -> DiscoveryStats:
     """Propose people for affiliated authors who match nobody in the directory yet."""
     stats = DiscoveryStats(affiliated_slots=len(slots))
-    everyone = store.load_people(engine, ("active", "former", "candidate"))
+    # Dismissed people count as known, so a curator's "not a member" is not proposed again.
+    everyone = store.load_people(engine, ("active", "former", "candidate", "dismissed"))
     index: dict[str, list[store.PersonRecord]] = defaultdict(list)
     known_orcids = {o for p in everyone for o in p.ids("orcid")}
     for record in everyone:

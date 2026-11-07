@@ -161,7 +161,7 @@ select.input { appearance: none; padding-right: 32px;
 .page-title { font-size: var(--fs-4xl); }
 .page-title:focus { outline: none; }
 .page-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); color: var(--text-muted); font-size: var(--fs-sm); }
-.page-actions { display: flex; gap: var(--space-2); flex: none; }
+.page-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); flex: none; max-width: 100%; }
 @media (max-width: 640px) {
   .page-header { flex-direction: column; }
   .page-title { font-size: var(--fs-3xl); }
@@ -495,3 +495,26 @@ a.item-title:hover { color: var(--accent); text-decoration: none; }
 .toolbar .search-field .input { width: 100%; }
 
 .chart-figure { position: relative; margin: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+
+/* ---------- Curation ---------- */
+.toolbar > input[type="search"].input { flex: 1 1 260px; width: auto; }
+.bulk-bar {
+  position: sticky; top: calc(var(--topbar-height) + var(--space-2)); z-index: 5;
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) var(--space-4); border-radius: var(--radius-l);
+  background: var(--surface-1); border: 1px solid var(--border);
+}
+.bulk-bar[data-active] {
+  background: color-mix(in oklch, var(--accent) 10%, var(--surface-1));
+  border-color: color-mix(in oklch, var(--accent) 30%, transparent); box-shadow: var(--shadow-2);
+}
+.table th.check, .table td.check { width: 36px; padding-right: 0; }
+.table td.actions, .table th.actions { width: 1%; white-space: nowrap; text-align: right; }
+.candidates-table td { vertical-align: top; }
+.plain-list.compact { gap: 2px; }
+.shortcuts td:first-child { width: 40%; white-space: nowrap; }
+.btn kbd { margin-left: var(--space-1); opacity: 0.75; font-size: 11px; padding: 0 5px; }
+.field-error { margin: 0; color: var(--danger); font-size: var(--fs-sm); }
+.callout > .row-sm { align-self: center; }
+.segmented { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.segmented > button { white-space: nowrap; flex: none; }

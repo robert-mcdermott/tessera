@@ -13,6 +13,7 @@ from __future__ import annotations
 import base64
 import binascii
 import json
+import logging
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
@@ -27,6 +28,8 @@ from tessera.search.index import index_path
 from tessera.search.query import SearchIndex
 
 MAX_LIMIT = 200
+
+log = logging.getLogger("tessera.api")
 
 
 def config_of(request: Request) -> Config:
@@ -53,6 +56,25 @@ class Page:
     def next_cursor(self, total: int) -> str | None:
         following = self.offset + self.limit
         return encode_cursor(following) if following < total else None
+
+
+def refresh_index(
+    request: Request, *, people: Iterable[str] = (), records: Iterable[str] = ()
+) -> None:
+    """Update the search documents a decision touched. The ledger is the source of truth, so
+    a failure here is logged and the next full build repairs it; the decision stands."""
+    from tessera.search import update
+
+    try:
+        update.apply(
+            config_of(request),
+            request.app.state.home,
+            engine_of(request),
+            people=people,
+            records=records,
+        )
+    except Exception:  # never fail a recorded decision over a derived index
+        log.warning("search index update failed; the next build will repair it", exc_info=True)
 
 
 def encode_cursor(offset: int) -> str:

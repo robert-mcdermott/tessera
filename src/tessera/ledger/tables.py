@@ -39,7 +39,10 @@ metadata = MetaData(
 ID = String(40)  # typed IDs such as per_0J8ZQ3W5T4K2M9B7XHRC1DGFNE
 ENTITY_REF = String(120)  # typed IDs or natural keys such as pub:12345678
 
-PERSON_STATUSES = ("active", "candidate", "former")
+# "dismissed": a discovered candidate a curator decided is not a member. Kept (not deleted)
+# so that discovery does not propose the same person again.
+PERSON_STATUSES = ("active", "candidate", "former", "dismissed")
+PERSON_ACTIONS = ("promote", "dismiss", "undo")
 ASSERTION_STATUSES = ("suggested", "accepted", "rejected", "deferred")
 ASSERTION_ORIGINS = ("source", "inferred", "human")
 RUN_STATUSES = ("running", "succeeded", "partial", "failed")
@@ -160,6 +163,24 @@ curation_event = Table(
 )
 Index(None, curation_event.c.assertion_id)
 Index(None, curation_event.c.at)
+
+# Decisions about people (promote a discovered candidate, dismiss one), append-only like
+# curation_event so that every change can be traced and undone.
+person_event = Table(
+    "person_event",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("person_id", ID, ForeignKey("person.id", ondelete="CASCADE"), nullable=False),
+    Column("actor", String(200), nullable=False),
+    Column("action", String(20), nullable=False),
+    Column("from_status", String(16)),
+    Column("to_status", String(16)),
+    Column("note", Text),
+    Column("at", UtcDateTime, nullable=False),
+    CheckConstraint(_in("action", PERSON_ACTIONS), name="action"),
+)
+Index(None, person_event.c.person_id)
+Index(None, person_event.c.at)
 
 ingest_run = Table(
     "ingest_run",

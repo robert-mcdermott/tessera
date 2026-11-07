@@ -7,6 +7,11 @@ One SQLite file with:
 * ``doc_fts``: an FTS5 full-text index over titles, people, terms, and body text;
 * ``facet``: (doc, name, value) rows for faceted filtering and counts.
 
+It also holds ``candidate`` documents: people discovered in the data who await a curator's
+decision (and dismissed ones, so they can be restored), with the evidence for each. They
+are not organization members and never appear in the directory or "everything" search.
+Decisions update the affected documents in place (``search.update``) between rebuilds.
+
 The lake holds everything fetched, including papers pulled in by name searches that turn
 out to be other people's. The index holds only what is relevant to the organization:
 members' papers (accepted, or suggested at or above the review threshold), papers with an
@@ -37,7 +42,9 @@ from tessera.core.clock import isoformat, utc_now
 from tessera.core.fsutil import fsync_dir
 from tessera.evidence import store
 from tessera.evidence.authorship import CHECK_TAGS
+from tessera.evidence.names import Match, best_match
 from tessera.evidence.orgmatch import OrgMatcher
+from tessera.evidence.people import AffiliatedSlot, affiliated_slots
 from tessera.home import DataHome
 from tessera.lake import Lake
 from tessera.ledger.tables import unit
@@ -45,8 +52,17 @@ from tessera.ledger.tables import unit
 log = logging.getLogger("tessera.search")
 
 INDEX_NAME = "search.db"
-SCHEMA_VERSION = 1
-KINDS = ("person", "publication", "grant", "study")
+SCHEMA_VERSION = 2
+KINDS = ("person", "publication", "grant", "study")  # what "everything" search covers
+ALL_KINDS = (*KINDS, "candidate")
+
+# The member list each record's summary carries, by the predicate that links people to it.
+LINKS = {
+    "authored": ("publication", "members"),
+    "investigator_on": ("grant", "investigators"),
+    "official_of": ("study", "officials"),
+}
+MEMBER_STATUSES = ("active", "former")
 
 SCHEMA = """
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -100,6 +116,67 @@ def _authors_display(authors: list[tuple[int, str | None, str | None, str | None
     return ", ".join(names[:6]) + (", et al." if len(names) > 6 else "")
 
 
+def candidate_ref(person_id: str) -> str:
+    """Candidate documents sit beside the person's directory document once promoted."""
+    return f"candidate:{person_id}"
+
+
+def counts_as_member_link(row: dict[str, Any], review_threshold: float) -> bool:
+    """Whether a link from a directory member shows on records: accepted, or likely enough."""
+    return row["status"] != "rejected" and (
+        row["status"] == "accepted" or row["score"] is None or row["score"] >= review_threshold
+    )
+
+
+def member_entry(predicate: str, row: dict[str, Any], name: str) -> dict[str, Any]:
+    """One person in a record's member list (the same shape in full and in-place builds)."""
+    qualifiers = row["qualifiers"] or {}
+    entry: dict[str, Any] = {"id": row["subject_id"], "name": name}
+    if predicate == "authored":
+        entry |= {
+            "status": row["status"],
+            "score": row["score"],
+            "position": qualifiers.get("author_position"),
+        }
+    elif predicate == "official_of":
+        entry |= {"status": row["status"], "score": row["score"], "role": qualifiers.get("role")}
+    else:
+        entry["role"] = qualifiers.get("role")
+    return entry
+
+
+def sort_members(predicate: str, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if predicate == "authored":
+        return sorted(entries, key=lambda m: m.get("position") or 0)
+    return entries
+
+
+def insert_doc(con: sqlite3.Connection, doc_id: int, doc: Doc) -> None:
+    con.execute(
+        "INSERT INTO doc VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            doc_id,
+            doc.kind,
+            doc.ref,
+            doc.title,
+            doc.subtitle,
+            doc.year,
+            doc.sort_key,
+            doc.weight,
+            json.dumps(doc.summary, default=str),
+        ),
+    )
+    con.execute(
+        "INSERT INTO doc_fts (rowid, title, people, terms, body) VALUES (?, ?, ?, ?, ?)",
+        (doc_id, doc.title, doc.people, doc.terms, doc.body),
+    )
+    if doc.facets:
+        con.executemany(
+            "INSERT INTO facet VALUES (?, ?, ?)",
+            [(doc_id, name, value) for name, value in dict.fromkeys(doc.facets)],
+        )
+
+
 def _pmids_table(pmids: set[str]) -> pa.Table:
     return pa.table({"pmid": pa.array(sorted(pmids), pa.string())})
 
@@ -130,9 +207,16 @@ class _Builder:
         return [
             r
             for r in self.assertions[predicate]
-            if r["subject_id"] in self.people
-            and (r["status"] == "accepted" or (r["score"] is None or r["score"] >= self.review))
+            if r["subject_id"] in self.people and counts_as_member_link(r, self.review)
         ]
+
+    def member_lists(self, predicate: str) -> dict[str, list[dict[str, Any]]]:
+        """Each record's member list, keyed by the record's ref (pub:…, grt:…, stu:…)."""
+        lists: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for r in self.member_links(predicate):
+            name = self.people[r["subject_id"]].display_name
+            lists[r["object_id"]].append(member_entry(predicate, r, name))
+        return {ref: sort_members(predicate, entries) for ref, entries in lists.items()}
 
     # -- publications -----------------------------------------------------------------------
 
@@ -147,20 +231,13 @@ class _Builder:
             if row["pmid"] not in relevant and self.matcher.match_any(row["affiliations"]):
                 relevant.add(row["pmid"])
         self.relevant_pmids = relevant
-        if not relevant:
-            return
-        members: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        for r in authored:
-            person = self.people[r["subject_id"]]
-            members[r["object_id"].removeprefix("pub:")].append(
-                {
-                    "id": person.id,
-                    "name": person.display_name,
-                    "status": r["status"],
-                    "score": r["score"],
-                    "position": (r["qualifiers"] or {}).get("author_position"),
-                }
-            )
+        if relevant:
+            self.publication_docs(relevant, self.member_lists("authored"))
+
+    def publication_docs(
+        self, relevant: set[str], members: dict[str, list[dict[str, Any]]]
+    ) -> None:
+        """Documents for these PMIDs (those in the lake), with the given member lists."""
         cur = self.lake.cursor()
         try:
             cur.register("_pmids", _pmids_table(relevant))
@@ -214,7 +291,7 @@ class _Builder:
                 "is_retracted": bool(retracted),
                 "citation_count": citations,
                 "relative_citation_ratio": round(rcr, 2) if rcr is not None else None,
-                "members": sorted(members.get(pmid, []), key=lambda m: m["position"] or 0),
+                "members": members.get(f"pub:{pmid}", []),
             }
             facets = [("type", t) for t in (types or [])]
             if year:
@@ -245,16 +322,10 @@ class _Builder:
     # -- grants -----------------------------------------------------------------------------
 
     def grants(self) -> None:
-        investigators: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        for r in self.member_links("investigator_on"):
-            person = self.people[r["subject_id"]]
-            investigators[r["object_id"].removeprefix("grt:")].append(
-                {
-                    "id": person.id,
-                    "name": person.display_name,
-                    "role": (r["qualifiers"] or {}).get("role"),
-                }
-            )
+        investigators = {
+            ref.removeprefix("grt:"): entries
+            for ref, entries in self.member_lists("investigator_on").items()
+        }
         rows = self.lake.rows(
             "SELECT core_project_num, fiscal_year, title, abstract, activity_code, "
             "agency_ic_admin, org_name, award_amount, subproject_id, project_start, project_end, "
@@ -337,18 +408,10 @@ class _Builder:
     # -- studies ----------------------------------------------------------------------------
 
     def studies(self) -> None:
-        officials: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        for r in self.member_links("official_of"):
-            person = self.people[r["subject_id"]]
-            officials[r["object_id"].removeprefix("stu:")].append(
-                {
-                    "id": person.id,
-                    "name": person.display_name,
-                    "status": r["status"],
-                    "score": r["score"],
-                    "role": (r["qualifiers"] or {}).get("role"),
-                }
-            )
+        officials = {
+            ref.removeprefix("stu:"): entries
+            for ref, entries in self.member_lists("official_of").items()
+        }
         names: dict[str, list[str]] = defaultdict(list)
         for r in self.lake.rows("SELECT nct_id, name FROM ctgov_official"):
             if r["name"]:
@@ -490,6 +553,107 @@ class _Builder:
                 )
             )
 
+    # -- discovered people ------------------------------------------------------------------
+
+    def candidates(self) -> None:
+        """People found in the data who await a curator, with the evidence for each."""
+        pool = store.load_people(self.engine, ("candidate", "dismissed"))
+        if not pool:
+            return
+        slots = affiliated_slots(self.lake, self.matcher, self.config)
+        by_family: dict[str, list[AffiliatedSlot]] = defaultdict(list)
+        by_orcid: dict[str, list[AffiliatedSlot]] = defaultdict(list)
+        for slot in slots:
+            by_family[slot.name.family_key].append(slot)
+            if slot.orcid:
+                by_orcid[slot.orcid].append(slot)
+        grants: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
+        for r in self.lake.rows(
+            "SELECT i.profile_id, i.is_contact_pi, p.core_project_num, p.title, p.org_name, "
+            "p.fiscal_year FROM reporter_investigator i JOIN reporter_project p USING (appl_id) "
+            "WHERE p.core_project_num IS NOT NULL ORDER BY p.fiscal_year"
+        ):
+            if self.matcher.matches(r["org_name"]):
+                grants[str(r["profile_id"])][r["core_project_num"]] = {
+                    "core_project_num": r["core_project_num"],
+                    "title": r["title"],
+                    "contact_pi": bool(r["is_contact_pi"]),
+                    "fiscal_year": r["fiscal_year"],
+                }
+        found: dict[str, list[AffiliatedSlot]] = {}
+        for record in pool:
+            matched = {
+                (s.pmid, s.position): s
+                for name in record.names
+                for s in by_family.get(name.family_key, [])
+                if best_match(record.names, s.name) is Match.FULL
+            }
+            for orcid in record.ids("orcid"):
+                matched |= {(s.pmid, s.position): s for s in by_orcid.get(orcid, [])}
+            found[record.id] = list(matched.values())
+        pmids = {s.pmid for group in found.values() for s in group}
+        articles: dict[str, tuple[str, int | None]] = {}
+        if pmids:
+            cur = self.lake.cursor()
+            try:
+                cur.register("_pmids", _pmids_table(pmids))
+                for pmid, title, year in cur.execute(
+                    "SELECT pmid, title, pub_year FROM pubmed_article JOIN _pmids USING (pmid)"
+                ).fetchall():
+                    articles[pmid] = (title or "(untitled)", year)
+            finally:
+                cur.close()
+        for record in pool:
+            group = found[record.id]
+            papers = sorted(
+                {s.pmid for s in group if s.pmid in articles},
+                key=lambda pmid: (-(articles[pmid][1] or 0), pmid),
+            )
+            years = [articles[pmid][1] for pmid in papers if articles[pmid][1]]
+            awarded = [
+                g for profile in record.ids("nih_profile") for g in grants.get(profile, {}).values()
+            ]
+            awarded.sort(key=lambda g: -(g["fiscal_year"] or 0))
+            source = "grants" if record.ids("nih_profile") else "publications"
+            affiliations = Counter(s.affiliation for s in group if s.affiliation)
+            summary = {
+                "id": record.id,
+                "name": record.display_name,
+                "status": record.status,
+                "source": source,
+                "orcid": next(iter(sorted(record.ids("orcid"))), None),
+                "papers": len(papers),
+                "years": [min(years), max(years)] if years else None,
+                "recent": [
+                    {"pmid": pmid, "title": articles[pmid][0], "year": articles[pmid][1]}
+                    for pmid in papers[:3]
+                ],
+                "affiliations": [a for a, _ in affiliations.most_common(2)],
+                "grants": awarded[:3],
+                "grant_count": len(awarded),
+                "names": sorted({n.display for n in record.names} - {record.display_name}),
+            }
+            primary = record.names[0] if record.names else None
+            self.docs.append(
+                Doc(
+                    "candidate",
+                    candidate_ref(record.id),
+                    record.display_name,
+                    summary["affiliations"][0] if summary["affiliations"] else None,
+                    max(years) if years else None,
+                    sort_key=(
+                        f"{primary.family_key if primary else record.display_name.lower()}"
+                        f" {record.display_name.lower()}"
+                    ),
+                    weight=float(len(papers) + 5 * len(awarded)),
+                    summary=summary,
+                    people="; ".join(sorted({n.display for n in record.names})),
+                    terms="; ".join(summary["affiliations"]),
+                    body=" ".join(t for t, _ in (articles[p] for p in papers[:20])),
+                    facets=[("status", record.status), ("source", source)],
+                )
+            )
+
     # -- write ------------------------------------------------------------------------------
 
     def write(self, path: Path) -> dict[str, int]:
@@ -501,30 +665,7 @@ class _Builder:
             con = sqlite3.connect(tmp)
             con.executescript(SCHEMA)
             for doc_id, doc in enumerate(self.docs, start=1):
-                con.execute(
-                    "INSERT INTO doc VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    (
-                        doc_id,
-                        doc.kind,
-                        doc.ref,
-                        doc.title,
-                        doc.subtitle,
-                        doc.year,
-                        doc.sort_key,
-                        doc.weight,
-                        json.dumps(doc.summary, default=str),
-                    ),
-                )
-                con.execute(
-                    "INSERT INTO doc_fts (rowid, title, people, terms, body) "
-                    "VALUES (?, ?, ?, ?, ?)",
-                    (doc_id, doc.title, doc.people, doc.terms, doc.body),
-                )
-                if doc.facets:
-                    con.executemany(
-                        "INSERT INTO facet VALUES (?, ?, ?)",
-                        [(doc_id, name, value) for name, value in dict.fromkeys(doc.facets)],
-                    )
+                insert_doc(con, doc_id, doc)
             counts = Counter(d.kind for d in self.docs)
             con.executemany(
                 "INSERT INTO meta VALUES (?, ?)",
@@ -532,7 +673,7 @@ class _Builder:
                     ("schema_version", str(SCHEMA_VERSION)),
                     ("built_at", isoformat(utc_now())),
                     ("organization", self.config.organization.name),
-                    *((f"count:{k}", str(counts.get(k, 0))) for k in KINDS),
+                    *((f"count:{k}", str(counts.get(k, 0))) for k in ALL_KINDS),
                 ],
             )
             con.execute("INSERT INTO doc_fts (doc_fts) VALUES ('optimize')")
@@ -544,7 +685,7 @@ class _Builder:
         except BaseException:
             tmp.unlink(missing_ok=True)
             raise
-        return {k: counts.get(k, 0) for k in KINDS}
+        return {k: counts.get(k, 0) for k in ALL_KINDS}
 
 
 def build_index(config: Config, home: DataHome, engine: Engine) -> dict[str, Any]:
@@ -558,6 +699,7 @@ def build_index(config: Config, home: DataHome, engine: Engine) -> dict[str, Any
         builder.grants()
         builder.studies()
         builder.persons()
+        builder.candidates()
         counts = builder.write(index_path(home))
     elapsed = round(time.monotonic() - started, 2)
     log.info("search index built in %.2fs: %s", elapsed, counts)

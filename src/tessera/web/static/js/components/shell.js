@@ -1,6 +1,8 @@
 // The app shell: sidebar navigation, top bar, theme toggle, and mobile menu.
 
+import { get } from "../core/api.js";
 import { h, icon, iconButton } from "../core/dom.js";
+import { compact } from "../core/format.js";
 import { applyTheme, currentTheme, THEMES, write } from "../core/prefs.js";
 import { onNavigate } from "../core/router.js";
 import { avatar } from "./ui.js";
@@ -15,6 +17,11 @@ const NAV = [
     { href: "/publications", label: "Publications", iconName: "publication", match: (p) => p.startsWith("/publications") },
     { href: "/grants", label: "Grants", iconName: "grant", match: (p) => p.startsWith("/grants") },
     { href: "/studies", label: "Studies", iconName: "study", match: (p) => p.startsWith("/studies") },
+  ] },
+  { section: "Curate", items: [
+    { href: "/review", label: "Review queue", iconName: "review", badge: "review", match: (p) => p === "/review" },
+    { href: "/review/people", label: "Discovered people", iconName: "userPlus", badge: "candidates", match: (p) => p.startsWith("/review/people") },
+    { href: "/review/log", label: "Decision log", iconName: "history", match: (p) => p.startsWith("/review/log") },
   ] },
   { section: "Admin", items: [
     { href: "/admin/sources", label: "Sources", iconName: "sources", match: (p) => p.startsWith("/admin/sources") },
@@ -36,9 +43,10 @@ export function mountShell(root, meta, { onSearch }) {
     NAV.map((group) => h("div", { class: "nav" },
       group.section ? h("div", { class: "nav-section" }, group.section) : null,
       group.items.map((item) => {
+        const badge = item.badge ? h("span", { class: "badge", hidden: true }) : null;
         const node = h("a", { class: "nav-item", href: item.href, title: item.label },
-          icon(item.iconName), h("span", { class: "nav-label" }, item.label));
-        navItems.push({ node, item });
+          icon(item.iconName), h("span", { class: "nav-label" }, item.label), badge);
+        navItems.push({ node, item, badge });
         return node;
       }))),
     h("div", { class: "sidebar-footer" },
@@ -101,6 +109,32 @@ export function mountShell(root, meta, { onSearch }) {
   const main = h("main", { class: "shell-main", id: "main" });
   const shell = h("div", { class: "shell" }, sidebar, topbar, main);
   root.replaceChildren(shell);
+
+  // Work waiting for a curator, shown beside Review queue and Discovered people. Refreshed
+  // after every change anywhere in the app.
+  let pending = null;
+  const refreshCounts = () => {
+    clearTimeout(pending);
+    pending = setTimeout(async () => {
+      const [queue, found] = await Promise.all([
+        get("/api/v1/review", { limit: 1 }, { fresh: true }).catch(() => null),
+        get("/api/v1/candidates", { limit: 1 }, { fresh: true }).catch(() => null),
+      ]);
+      const counts = {
+        review: queue ? (queue.meta.bands?.strong ?? 0) + (queue.meta.bands?.possible ?? 0) : null,
+        candidates: found ? found.meta.total : null,
+      };
+      for (const { item, badge } of navItems) {
+        if (!badge) continue;
+        const value = counts[item.badge];
+        badge.hidden = !value;
+        badge.textContent = value ? compact(value) : "";
+        badge.title = value ? `${value.toLocaleString()} waiting` : "";
+      }
+    }, 400);
+  };
+  window.addEventListener("tessera:changed", refreshCounts);
+  refreshCounts();
 
   onNavigate((current) => {
     for (const { node, item } of navItems) {

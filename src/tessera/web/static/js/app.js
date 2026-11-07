@@ -9,10 +9,13 @@ import { openPalette } from "./components/palette.js";
 import { mountShell } from "./components/shell.js";
 import { emptyState } from "./components/ui.js";
 import { browse } from "./pages/browse.js";
+import { candidates } from "./pages/candidates.js";
+import { decisions } from "./pages/decisions.js";
 import { home } from "./pages/home.js";
 import { setProduct, setTitle } from "./pages/page.js";
 import { person } from "./pages/person.js";
 import { grant, publication, study } from "./pages/records.js";
+import { review } from "./pages/review.js";
 import { searchPage } from "./pages/search.js";
 import { sources } from "./pages/sources.js";
 
@@ -48,6 +51,9 @@ async function boot() {
   route("/grants/:core", (params) => grant(main, params));
   route("/studies", (_, ctx) => browse(main, "study", ctx));
   route("/studies/:nct", (params) => study(main, params));
+  route("/review", () => review(main));
+  route("/review/people", (_, ctx) => candidates(main, ctx));
+  route("/review/log", (_, ctx) => decisions(main, ctx));
   route("/admin/sources", () => sources(main));
   fallback(() => {
     setTitle("Not found");

@@ -20,11 +20,12 @@ from tessera.api.common import (
     lake_of,
     page,
     publication_summaries,
+    refresh_index,
     split_values,
 )
 from tessera.core.errors import TesseraError
 from tessera.evidence import store
-from tessera.ledger.tables import assertion, curation_event, person
+from tessera.ledger.tables import assertion, curation_event, person, person_event
 
 router = APIRouter(prefix="/api/v1", tags=["curation"])
 
@@ -83,7 +84,50 @@ def decide(request: Request, assertion_id: str, body: Decision) -> dict[str, Any
         if message.startswith("No assertion"):
             raise HTTPException(status_code=404, detail="No such assertion.") from None
         raise HTTPException(status_code=409, detail=message) from None
+    _refresh_for(request, [assertion_id])
     return get_assertion(request, assertion_id)
+
+
+def _refresh_for(request: Request, assertion_ids: list[str]) -> None:
+    """Update the search documents of the people and records these assertions link."""
+    if not assertion_ids:
+        return
+    with engine_of(request).connect() as conn:
+        rows = conn.execute(
+            select(assertion.c.subject_id, assertion.c.object_id).where(
+                assertion.c.id.in_(assertion_ids)
+            )
+        ).all()
+    refresh_index(
+        request,
+        people={r[0] for r in rows if r[0].startswith("per_")},
+        records={r[1] for r in rows},
+    )
+
+
+class BatchDecision(BaseModel):
+    ids: list[str] = Field(min_length=1, max_length=500)
+    action: Literal["accept", "reject", "defer", "undo"]
+    note: str | None = Field(None, max_length=2000)
+
+
+@router.post(
+    "/assertions/decisions",
+    summary="Apply one decision to several assertions (each logged; used for bulk undo)",
+)
+def decide_many(request: Request, body: BatchDecision) -> dict[str, Any]:
+    engine, config = engine_of(request), config_of(request)
+    done: list[dict[str, Any]] = []
+    failed: list[dict[str, str]] = []
+    for assertion_id in dict.fromkeys(body.ids):
+        try:
+            done.append(
+                store.decide(engine, assertion_id, body.action, config.server.operator, body.note)
+            )
+        except TesseraError as exc:
+            failed.append({"id": assertion_id, "detail": str(exc)})
+    _refresh_for(request, [d["id"] for d in done])
+    return envelope({"decided": len(done), "results": done, "failed": failed})
 
 
 def _directory(engine) -> dict[str, str]:  # type: ignore[no-untyped-def]
@@ -206,6 +250,9 @@ def bulk_decide(request: Request, body: BulkDecision) -> dict[str, Any]:
     ]
     for row in rows:
         store.decide(engine, row["id"], body.action, config.server.operator, body.note)
+    refresh_index(
+        request, people=[body.person_id] if rows else [], records={r["object_id"] for r in rows}
+    )
     return envelope(
         {
             "decided": len(rows),
@@ -213,3 +260,79 @@ def bulk_decide(request: Request, body: BulkDecision) -> dict[str, Any]:
             "status": "accepted" if body.action == "accept" else "rejected",
         }
     )
+
+
+@router.get("/decisions", summary="Recent decisions about links and people, newest first")
+def recent_decisions(
+    request: Request,
+    p: Annotated[Page, Depends(page)],
+) -> dict[str, Any]:
+    """The curation log across the organization: what was decided, by whom, and when."""
+    engine, index = engine_of(request), index_of(request)
+    window = p.offset + p.limit
+    with engine.connect() as conn:
+        link_events = [
+            dict(r)
+            for r in conn.execute(
+                select(
+                    curation_event,
+                    assertion.c.subject_id,
+                    assertion.c.predicate,
+                    assertion.c.object_id,
+                    assertion.c.status.label("current_status"),
+                )
+                .join(assertion, assertion.c.id == curation_event.c.assertion_id)
+                .order_by(curation_event.c.at.desc(), curation_event.c.id.desc())
+                .limit(window)
+            ).mappings()
+        ]
+        people_events = [
+            dict(r)
+            for r in conn.execute(
+                select(person_event, person.c.display_name, person.c.status.label("current_status"))
+                .join(person, person.c.id == person_event.c.person_id)
+                .order_by(person_event.c.at.desc(), person_event.c.id.desc())
+                .limit(window)
+            ).mappings()
+        ]
+        total = (conn.execute(select(func.count()).select_from(curation_event)).scalar() or 0) + (
+            conn.execute(select(func.count()).select_from(person_event)).scalar() or 0
+        )
+    merged = sorted(
+        [("link", e) for e in link_events] + [("person", e) for e in people_events],
+        key=lambda item: (item[1]["at"], item[1]["id"]),
+        reverse=True,
+    )[p.offset : window]
+    subjects = {e["subject_id"] for kind, e in merged if kind == "link"}
+    names = store.display_names(engine, subjects)
+    try:
+        titles = index.summaries([e["object_id"] for kind, e in merged if kind == "link"])
+    except Exception:  # the index is optional for this log
+        titles = {}
+    items: list[dict[str, Any]] = []
+    for kind, e in merged:
+        base = {
+            "kind": kind,
+            "action": e["action"],
+            "from_status": e["from_status"],
+            "to_status": e["to_status"],
+            "actor": e["actor"],
+            "note": e["note"],
+            "at": e["at"],
+        }
+        if kind == "link":
+            summary = titles.get(e["object_id"], {})
+            base |= {
+                "assertion_id": e["assertion_id"],
+                "predicate": e["predicate"],
+                "status": e["current_status"],
+                "subject": {"id": e["subject_id"], "label": names.get(e["subject_id"])},
+                "object": {"id": e["object_id"], "label": summary.get("title")},
+            }
+        else:
+            base |= {
+                "status": e["current_status"],
+                "subject": {"id": e["person_id"], "label": e["display_name"]},
+            }
+        items.append(base)
+    return envelope(items, total=total, limit=p.limit, next_cursor=p.next_cursor(total))
