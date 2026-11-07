@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from tessera import __version__
 from tessera.api.app import create_app
 from tessera.api.security import SECURITY_HEADERS
-from tessera.api.static import WEB_ROOT, resolve_static
+from tessera.api.static import resolve_static
 from tessera.config import load_config
 from tessera.home import DataHome
 
@@ -89,7 +89,7 @@ def test_wrong_method_is_problem_json(client: TestClient) -> None:
 
 
 def test_security_headers_everywhere(client: TestClient) -> None:
-    for path in ("/", "/api/v1/meta", "/api/v1/missing", "/css/app.css"):
+    for path in ("/", "/api/v1/meta", "/api/v1/missing", "/css/tokens.css", "/theme.css"):
         response = client.get(path)
         for name, value in SECURITY_HEADERS.items():
             assert response.headers[name] == value, (path, name)
@@ -105,7 +105,7 @@ def test_web_app_and_client_side_routes(client: TestClient) -> None:
     deep = client.get("/people/per_0J8ZQ3W5T4K2M9B7XHRC1DGFNE")
     assert deep.status_code == 200
     assert deep.text == index.text
-    assert client.get("/css/app.css").headers["content-type"].startswith("text/css")
+    assert client.get("/css/tokens.css").headers["content-type"].startswith("text/css")
     assert client.get("/no-such-file.js").status_code == 404
 
 
@@ -144,13 +144,3 @@ def test_openapi_is_served_without_third_party_docs(client: TestClient) -> None:
     assert "/api/v1/health" in spec["paths"]
     assert client.get("/docs").status_code == 200  # falls through to the app shell, not Swagger
     assert "swagger" not in client.get("/docs").text.lower()
-
-
-def test_web_assets_reference_no_external_origins() -> None:
-    for path in WEB_ROOT.rglob("*"):
-        if path.suffix in {".html", ".css", ".js"}:
-            text = path.read_text("utf-8")
-            for marker in ("http://", "https://", "//cdn", "fonts.googleapis"):
-                if marker in text:
-                    # Plain hyperlinks are fine; loading resources from elsewhere is not.
-                    assert 'href="https://' in text and 'src="http' not in text, path

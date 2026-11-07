@@ -122,7 +122,7 @@ class PubMedConnector(Connector):
             missing = [p for p in pmids if p not in returned]
             if missing and not report.failures:
                 report.note(
-                    f"PubMed returned no record for {len(missing)} PMID(s) "
+                    f"PubMed returned no record for {_count(len(missing), 'PMID')} "
                     f"(deleted or not yet public): {', '.join(missing[:10])}"
                 )
             return
@@ -181,8 +181,10 @@ class PubMedConnector(Connector):
             else:
                 accepted.append(window)
         if skipped:
+            verb = "matches" if len(skipped) == 1 else "match"
             report.note(
-                f"PubMed: {len(skipped)} name(s) match too many papers to search by name alone "
+                f"PubMed: {_count(len(skipped), 'name')} {verb} "
+                f"too many papers to search by name alone "
                 f"(over {PERSON_LIMIT:,}); their papers come from the affiliation sweep and grant "
                 f"links instead."
             )
@@ -361,6 +363,10 @@ def normalize_pmids(values: list[str]) -> list[str]:
     if bad:
         raise TesseraError(f"Invalid PMID(s): {', '.join(bad[:5])}")
     return list(dict.fromkeys(pmids))
+
+
+def _count(n: int, noun: str) -> str:
+    return f"{n:,} {noun}" if n == 1 else f"{n:,} {noun}s"
 
 
 def _phrase(value: str) -> str:

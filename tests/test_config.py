@@ -125,3 +125,31 @@ def test_warnings_for_public_bind_and_missing_contact(tmp_path: Path) -> None:
     warnings = config_warnings(load_config(write(tmp_path, text), env={}))
     assert any("contact_email" in w for w in warnings)
     assert any("no sign-in" in w for w in warnings)
+
+
+@pytest.mark.parametrize(
+    ("value", "ok"),
+    [
+        ("#4F46E5", True),
+        ("#abc", True),
+        ("teal", True),
+        ("oklch(0.55 0.2 270)", True),
+        ("rgb(79, 70, 229)", True),
+        ("hsl(243 75% 59% / 0.9)", True),
+        ("red; background: url(x)", False),
+        ("url(https://example.org/x.png)", False),
+        ("var(--other)", False),
+        ("#12345g", False),
+        ("#12345", False),
+        ("", False),
+    ],
+)
+def test_accent_color_must_be_a_color(tmp_path: Path, value: str, ok: bool) -> None:
+    text = '[organization]\nname = "Example Institute"\naliases = ["Example Institute"]\n'
+    text += f'[branding]\naccent_color = "{value}"\n'
+    if ok:
+        assert load_config(write(tmp_path, text), env={}).branding.accent_color == value
+    else:
+        with pytest.raises(ConfigError) as caught:
+            load_config(write(tmp_path, text), env={})
+        assert any("accent_color" in p for p in caught.value.problems)

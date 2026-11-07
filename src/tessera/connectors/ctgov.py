@@ -147,7 +147,8 @@ class CtgovConnector(Connector):
         missing = [i for i in ids if i not in found]
         if missing:
             report.note(
-                f"ClinicalTrials.gov: {len(missing)} NCT ID(s) not found: {', '.join(missing[:10])}"
+                f"ClinicalTrials.gov: {len(missing)} NCT {'ID' if len(missing) == 1 else 'IDs'} "
+                f"not found: {', '.join(missing[:10])}"
             )
 
     @classmethod

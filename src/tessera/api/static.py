@@ -22,6 +22,16 @@ def resolve_static(root: Path, request_path: str) -> Path | None:
     return candidate if candidate.is_file() else None
 
 
+def install_theme(app: FastAPI) -> None:
+    """``/theme.css``: the brand color from configuration (validated as plain CSS text)."""
+
+    @app.get("/theme.css", include_in_schema=False)
+    async def theme(request: Request) -> Response:
+        accent = request.app.state.config.branding.accent_color
+        body = f":root {{ --brand: {accent}; }}\n"
+        return Response(body, media_type="text/css", headers={"Cache-Control": "no-cache"})
+
+
 def install_api_reference(app: FastAPI, root: Path = WEB_ROOT) -> None:
     """A self-hosted API reference at /api/docs (no third-party assets, unlike stock docs)."""
 

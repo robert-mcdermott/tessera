@@ -518,7 +518,11 @@ def _seed_features(
             "coauthor_overlap",
             weight,
             len(shared),
-            f"{len(shared)} coauthor(s) also appear on this person's other papers",
+            (
+                "1 coauthor also appears on this person's other papers"
+                if len(shared) == 1
+                else f"{len(shared)} coauthors also appear on this person's other papers"
+            ),
             ref,
         )
     elif coauthors:

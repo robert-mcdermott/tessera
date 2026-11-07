@@ -14,7 +14,6 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 - Parquet lake with crash-safe writes, per-table manifests, current-version views in DuckDB, unchanged-record skipping, compaction, and garbage collection. DuckDB never downloads extensions.
 - API skeleton: `/api/v1/health`, `/api/v1/meta`, `/api/openapi.json`, RFC 9457 problem responses, strict security headers, and confined static file serving with client-side route fallback.
 - CLI: `tessera init`, `doctor` (with `--online`), `db upgrade|current`, `lake status|compact|gc`, `serve`.
-- Placeholder web page with light, dark, and system themes.
 - Development tools: private-terms check with optional git hooks, and a disposable PostgreSQL container script.
 - Connectors for PubMed, iCite, NIH RePORTER, and ClinicalTrials.gov: a shared HTTP client with per-source rate limits, retries with backoff and `Retry-After`, and contact-identifying `User-Agent`; fetch and parse kept separate so raw payloads can be replayed offline.
 - PubMed: organization affiliation sweep, query, ID, and "linked" modes; automatic date-window splitting past the 10,000-record limit; parsing of authors (with ORCID iDs and affiliations), MeSH headings, grants, retractions, and book chapters.
@@ -37,3 +36,9 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 - API `/api/v1`: people (directory, profile, publications, grants, studies, history, manual addition), publications, grants, and studies (lists with facets; details with connected records, metrics with definitions, counting rules, and provenance), assertions and decisions, review queue with bulk decisions, unified search, stats, sources, and runs. Envelopes, cursor paging, sparse field sets, and problem responses throughout.
 - Self-hosted API reference at `/api/docs`.
 - Person topics ranked by distinctiveness (TF-IDF); common model-organism and method headings no longer count as topics.
+- Web app (no build step, no frameworks): design tokens in `oklch` with light, dark, and system themes; brand accent from configuration via `/theme.css`; original mark, favicon, and icons.
+- App shell with sidebar, top bar, URL-driven router, skip link, focus management, and a mobile menu; command palette (⌘K / Ctrl-K or `/`) searching everything.
+- Pages: Home (stats, recent publications, publications by year, largest active grants, source freshness), Search, People directory (cards or table), person profile (publications by status, grants, studies, decision history, topics, activity), publication, grant, and study details with connections and provenance, and Admin → Sources.
+- Status marks on every suggested or confirmed link, opening an evidence drawer that explains the score feature by feature and records accept, reject, defer, and undo decisions with an undo toast.
+- Accessibility: keyboard operation throughout, focus trapping in dialogs, live-region announcements, data tables behind every chart, reduced-motion support, and AA contrast in both themes.
+- Web tests: no inline code, no resources from other origins, no HTML parsing of data, every module import resolves, an app-shell size budget, and JavaScript unit tests (run when Node.js is installed).

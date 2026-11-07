@@ -1,0 +1,205 @@
+/* Tessera design tokens. Every visual value lives here; components never hard-code colors.
+   Light is the default; dark applies via prefers-color-scheme unless the user picked a
+   theme (data-theme on <html>). The brand color comes from /theme.css (configuration). */
+
+:root {
+  color-scheme: light;
+  --brand: #4f46e5;
+
+  /* Surfaces */
+  --bg: oklch(98.4% 0.003 265);
+  --surface-1: oklch(100% 0 0);
+  --surface-2: oklch(97.4% 0.004 265);
+  --surface-3: oklch(94.8% 0.006 265);
+  --overlay: oklch(20% 0.02 265 / 0.38);
+  --border: oklch(91.6% 0.007 265);
+  --border-strong: oklch(85.5% 0.01 265);
+
+  /* Text */
+  --text: oklch(21% 0.02 265);
+  --text-muted: oklch(45% 0.02 265);
+  --text-subtle: oklch(53% 0.018 265);
+  --text-inverse: oklch(98% 0.003 265);
+
+  /* Brand */
+  --accent: var(--brand);
+  --accent-hover: color-mix(in oklch, var(--brand) 86%, black);
+  --accent-soft: color-mix(in oklch, var(--brand) 11%, transparent);
+  --accent-softer: color-mix(in oklch, var(--brand) 6%, transparent);
+  --on-accent: oklch(99% 0 0);
+  --focus: color-mix(in oklch, var(--brand) 70%, white);
+
+  /* Entities: strong (text/icons) and soft (backgrounds) */
+  --ent-person: oklch(50% 0.19 277);
+  --ent-person-soft: oklch(95.5% 0.03 277);
+  --ent-pub: oklch(48% 0.085 192);
+  --ent-pub-soft: oklch(95.5% 0.025 192);
+  --ent-grant: oklch(50% 0.115 60);
+  --ent-grant-soft: oklch(95.8% 0.045 80);
+  --ent-study: oklch(51% 0.18 15);
+  --ent-study-soft: oklch(95.6% 0.025 15);
+  --ent-concept: oklch(49% 0.19 302);
+  --ent-concept-soft: oklch(95.6% 0.028 302);
+  --ent-unit: oklch(46% 0.03 265);
+  --ent-unit-soft: oklch(95% 0.008 265);
+
+  /* Status */
+  --ok: oklch(48% 0.12 155);
+  --ok-soft: oklch(95.5% 0.04 155);
+  --warn: oklch(52% 0.12 70);
+  --warn-soft: oklch(96% 0.05 85);
+  --danger: oklch(52% 0.19 25);
+  --danger-soft: oklch(95.8% 0.03 25);
+  --info: oklch(50% 0.13 245);
+  --info-soft: oklch(95.6% 0.03 245);
+  --accepted: var(--ok);
+  --suggested: var(--warn);
+  --rejected: var(--danger);
+
+  /* Type */
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 18px;
+  --fs-2xl: 20px;
+  --fs-3xl: 24px;
+  --fs-4xl: 30px;
+  --fs-5xl: 36px;
+
+  /* Space (4 px scale) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 48px;
+  --space-10: 64px;
+
+  /* Shape */
+  --radius-xs: 4px;
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --radius-l: 14px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+
+  /* Elevation */
+  --shadow-1: 0 1px 2px oklch(20% 0.02 265 / 0.05);
+  --shadow-2: 0 1px 2px oklch(20% 0.02 265 / 0.05), 0 6px 18px oklch(20% 0.02 265 / 0.07);
+  --shadow-3: 0 2px 6px oklch(20% 0.02 265 / 0.08), 0 24px 56px oklch(20% 0.02 265 / 0.18);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --dur-3: 320ms;
+
+  /* Layout */
+  --sidebar-width: 244px;
+  --topbar-height: 60px;
+  --content-max: 1240px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: oklch(16.5% 0.012 265);
+    --surface-1: oklch(19.8% 0.014 265);
+    --surface-2: oklch(22.8% 0.016 265);
+    --surface-3: oklch(26.5% 0.018 265);
+    --overlay: oklch(5% 0.01 265 / 0.6);
+    --border: oklch(29.5% 0.016 265);
+    --border-strong: oklch(37% 0.018 265);
+    --text: oklch(95% 0.006 265);
+    --text-muted: oklch(76% 0.015 265);
+    --text-subtle: oklch(67% 0.015 265);
+    --text-inverse: oklch(18% 0.02 265);
+    --accent: color-mix(in oklch, var(--brand) 58%, white);
+    --accent-hover: color-mix(in oklch, var(--brand) 45%, white);
+    --accent-soft: color-mix(in oklch, var(--brand) 26%, transparent);
+    --accent-softer: color-mix(in oklch, var(--brand) 14%, transparent);
+    --on-accent: oklch(17% 0.03 265);
+    --focus: color-mix(in oklch, var(--brand) 50%, white);
+    --ent-person: oklch(78% 0.11 277);
+    --ent-person-soft: oklch(30% 0.06 277);
+    --ent-pub: oklch(80% 0.09 192);
+    --ent-pub-soft: oklch(29% 0.04 192);
+    --ent-grant: oklch(83% 0.11 80);
+    --ent-grant-soft: oklch(30% 0.045 70);
+    --ent-study: oklch(78% 0.12 15);
+    --ent-study-soft: oklch(30% 0.05 15);
+    --ent-concept: oklch(79% 0.12 302);
+    --ent-concept-soft: oklch(30% 0.06 302);
+    --ent-unit: oklch(80% 0.02 265);
+    --ent-unit-soft: oklch(28% 0.012 265);
+    --ok: oklch(78% 0.13 155);
+    --ok-soft: oklch(29% 0.05 155);
+    --warn: oklch(83% 0.12 80);
+    --warn-soft: oklch(30% 0.05 75);
+    --danger: oklch(76% 0.13 25);
+    --danger-soft: oklch(30% 0.06 25);
+    --info: oklch(78% 0.1 245);
+    --info-soft: oklch(29% 0.05 245);
+    --shadow-1: 0 1px 2px oklch(0% 0 0 / 0.3);
+    --shadow-2: 0 1px 2px oklch(0% 0 0 / 0.3), 0 8px 24px oklch(0% 0 0 / 0.32);
+    --shadow-3: 0 2px 8px oklch(0% 0 0 / 0.4), 0 28px 64px oklch(0% 0 0 / 0.55);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: oklch(16.5% 0.012 265);
+  --surface-1: oklch(19.8% 0.014 265);
+  --surface-2: oklch(22.8% 0.016 265);
+  --surface-3: oklch(26.5% 0.018 265);
+  --overlay: oklch(5% 0.01 265 / 0.6);
+  --border: oklch(29.5% 0.016 265);
+  --border-strong: oklch(37% 0.018 265);
+  --text: oklch(95% 0.006 265);
+  --text-muted: oklch(76% 0.015 265);
+  --text-subtle: oklch(67% 0.015 265);
+  --text-inverse: oklch(18% 0.02 265);
+  --accent: color-mix(in oklch, var(--brand) 58%, white);
+  --accent-hover: color-mix(in oklch, var(--brand) 45%, white);
+  --accent-soft: color-mix(in oklch, var(--brand) 26%, transparent);
+  --accent-softer: color-mix(in oklch, var(--brand) 14%, transparent);
+  --on-accent: oklch(17% 0.03 265);
+  --focus: color-mix(in oklch, var(--brand) 50%, white);
+  --ent-person: oklch(78% 0.11 277);
+  --ent-person-soft: oklch(30% 0.06 277);
+  --ent-pub: oklch(80% 0.09 192);
+  --ent-pub-soft: oklch(29% 0.04 192);
+  --ent-grant: oklch(83% 0.11 80);
+  --ent-grant-soft: oklch(30% 0.045 70);
+  --ent-study: oklch(78% 0.12 15);
+  --ent-study-soft: oklch(30% 0.05 15);
+  --ent-concept: oklch(79% 0.12 302);
+  --ent-concept-soft: oklch(30% 0.06 302);
+  --ent-unit: oklch(80% 0.02 265);
+  --ent-unit-soft: oklch(28% 0.012 265);
+  --ok: oklch(78% 0.13 155);
+  --ok-soft: oklch(29% 0.05 155);
+  --warn: oklch(83% 0.12 80);
+  --warn-soft: oklch(30% 0.05 75);
+  --danger: oklch(76% 0.13 25);
+  --danger-soft: oklch(30% 0.06 25);
+  --info: oklch(78% 0.1 245);
+  --info-soft: oklch(29% 0.05 245);
+  --shadow-1: 0 1px 2px oklch(0% 0 0 / 0.3);
+  --shadow-2: 0 1px 2px oklch(0% 0 0 / 0.3), 0 8px 24px oklch(0% 0 0 / 0.32);
+  --shadow-3: 0 2px 8px oklch(0% 0 0 / 0.4), 0 28px 64px oklch(0% 0 0 / 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-1: 0ms;
+    --dur-2: 0ms;
+    --dur-3: 0ms;
+  }
+}

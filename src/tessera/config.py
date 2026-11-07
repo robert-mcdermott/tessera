@@ -28,6 +28,12 @@ ENV_PREFIX = "TESSERA_"
 # Characters that could escape a CSS declaration or an HTML attribute. Branding values
 # are injected into generated CSS, so they are validated strictly.
 _UNSAFE_CSS = re.compile(r"[;{}<>\\\"'`\n\r]")
+# The accent color becomes a CSS custom property in /theme.css, so it must be a color and
+# nothing else: a hex value, a color keyword, or a color function of plain numbers.
+_CSS_COLOR = re.compile(
+    r"^(#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|[a-zA-Z]{3,30}"
+    r"|(rgba?|hsla?|hwb|lab|lch|oklab|oklch)\([0-9a-zA-Z.,%/ +-]{1,80}\))$"
+)
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _DOMAIN = re.compile(r"^(?=.{1,253}$)([a-z0-9-]{1,63}\.)+[a-z]{2,63}$")
 
@@ -358,7 +364,7 @@ def validate(config: Config) -> list[str]:
     brand = config.branding
     if not brand.product_name or _UNSAFE_CSS.search(brand.product_name):
         problems.append("branding.product_name must be non-empty plain text")
-    if not brand.accent_color or _UNSAFE_CSS.search(brand.accent_color):
+    if not _CSS_COLOR.match(brand.accent_color or ""):
         problems.append("branding.accent_color must be a CSS color such as #4F46E5")
     for label, logo in (("logo_light", brand.logo_light), ("logo_dark", brand.logo_dark)):
         if logo is not None and not logo.is_file():

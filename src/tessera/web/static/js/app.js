@@ -1,74 +1,73 @@
-// Tessera placeholder page. The full single-page app arrives in wave 1, slice 5.
+// Tessera web app bootstrap: shell, routes, and global shortcuts.
 
-const THEMES = ["system", "light", "dark"];
-const THEME_KEY = "tessera.theme";
+import { get } from "./core/api.js";
+import { h } from "./core/dom.js";
+import { applyTheme, currentTheme, THEMES, write } from "./core/prefs.js";
+import { fallback, route, start } from "./core/router.js";
+import { closeDrawer } from "./components/drawer.js";
+import { openPalette } from "./components/palette.js";
+import { mountShell } from "./components/shell.js";
+import { emptyState } from "./components/ui.js";
+import { browse } from "./pages/browse.js";
+import { home } from "./pages/home.js";
+import { setProduct, setTitle } from "./pages/page.js";
+import { person } from "./pages/person.js";
+import { grant, publication, study } from "./pages/records.js";
+import { searchPage } from "./pages/search.js";
+import { sources } from "./pages/sources.js";
 
-function readTheme() {
+applyTheme(currentTheme());
+
+async function boot() {
+  const root = document.getElementById("app");
+  let meta;
   try {
-    const stored = localStorage.getItem(THEME_KEY);
-    return THEMES.includes(stored) ? stored : "system";
+    meta = (await get("/api/v1/meta")).data;
   } catch {
-    return "system";
+    root.replaceChildren(h("div", { class: "page" }, emptyState({ iconName: "warning", title: "Tessera is not responding",
+      text: "The server could not be reached. Check that `tessera serve` is running, then reload." })));
+    return;
   }
+  setProduct(meta.product.name);
+  const palette = () => openPalette({ actions: [{
+    group: "Actions", title: "Toggle theme", iconName: "moon", run: () => {
+      const next = THEMES[(THEMES.indexOf(currentTheme()) + 1) % THEMES.length];
+      write("theme", next);
+      applyTheme(next);
+    },
+  }] });
+  const { main } = mountShell(root, meta, { onSearch: palette });
+
+  route("/", () => home(main, meta));
+  route("/search", (_, ctx) => searchPage(main, ctx));
+  route("/people", (_, ctx) => browse(main, "person", ctx));
+  route("/people/:id", (params, ctx) => person(main, params, ctx));
+  route("/publications", (_, ctx) => browse(main, "publication", ctx));
+  route("/publications/:pmid", (params) => publication(main, params));
+  route("/grants", (_, ctx) => browse(main, "grant", ctx));
+  route("/grants/:core", (params) => grant(main, params));
+  route("/studies", (_, ctx) => browse(main, "study", ctx));
+  route("/studies/:nct", (params) => study(main, params));
+  route("/admin/sources", () => sources(main));
+  fallback(() => {
+    setTitle("Not found");
+    main.replaceChildren(h("div", { class: "page" }, emptyState({ iconName: "search", title: "Page not found",
+      text: "That address does not match any page.", action: h("a", { class: "btn", href: "/" }, "Go home") })));
+  });
+
+  document.addEventListener("keydown", (event) => {
+    const typing = event.target.closest?.("input, textarea, select, [contenteditable]");
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      closeDrawer();
+      palette();
+    } else if (event.key === "/" && !typing) {
+      event.preventDefault();
+      palette();
+    }
+  });
+
+  await start();
 }
 
-function applyTheme(theme) {
-  const root = document.documentElement;
-  if (theme === "system") root.removeAttribute("data-theme");
-  else root.setAttribute("data-theme", theme);
-  const label = document.querySelector(".theme-toggle-label");
-  if (label) label.textContent = `Theme: ${theme}`;
-}
-
-function bind(name, value) {
-  for (const el of document.querySelectorAll(`[data-bind="${name}"]`)) el.textContent = value;
-}
-
-async function getJson(url) {
-  const response = await fetch(url, { headers: { Accept: "application/json" } });
-  return { ok: response.ok, body: await response.json() };
-}
-
-async function loadMeta() {
-  try {
-    const { body } = await getJson("/api/v1/meta");
-    const { product, organization, mode } = body.data;
-    bind("product-name", product.name);
-    bind("tagline", product.tagline);
-    bind("organization", organization.name);
-    bind("version", product.version);
-    bind("mode", mode.accounts ? "Accounts" : "Single operator");
-    document.title = `${product.name} · ${organization.short_name || organization.name}`;
-    const footer = document.querySelector('[data-bind="powered-by"]');
-    if (footer) footer.hidden = !product.show_powered_by;
-  } catch {
-    bind("version", "unavailable");
-  }
-}
-
-async function loadHealth() {
-  const pill = document.querySelector('[data-bind="health"]');
-  try {
-    const { ok, body } = await getJson("/api/v1/health");
-    pill.textContent = ok ? "Healthy" : "Degraded";
-    pill.dataset.state = ok ? "ok" : "warn";
-  } catch {
-    pill.textContent = "Unreachable";
-    pill.dataset.state = "warn";
-  }
-}
-
-let theme = readTheme();
-applyTheme(theme);
-document.querySelector('[data-action="toggle-theme"]')?.addEventListener("click", () => {
-  theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
-  applyTheme(theme);
-  try {
-    localStorage.setItem(THEME_KEY, theme);
-  } catch {
-    /* storage unavailable: the choice lasts for this page only */
-  }
-});
-
-loadMeta();
-loadHealth();
+boot();

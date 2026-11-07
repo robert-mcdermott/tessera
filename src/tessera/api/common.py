@@ -76,8 +76,9 @@ def decode_cursor(cursor: str | None) -> int:
 def page(
     limit: int = Query(20, ge=1, le=MAX_LIMIT, description="Items per page"),
     cursor: str | None = Query(None, description="Opaque cursor from meta.next_cursor"),
+    offset: int = Query(0, ge=0, le=1_000_000, description="Items to skip (without a cursor)"),
 ) -> Page:
-    return Page(limit, decode_cursor(cursor))
+    return Page(limit, decode_cursor(cursor) if cursor else offset)
 
 
 def pick_fields(items: list[dict[str, Any]], fields: str | None) -> list[dict[str, Any]]:

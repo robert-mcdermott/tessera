@@ -2,7 +2,7 @@
 
 **Goal:** prove that a useful, trustworthy research graph can be built from public data alone, with evidence on every link.
 
-**Branch:** `wave-1` · **Target version:** `0.1.0` · **Status:** ◐ slices 1–4 done, slice 5 next
+**Branch:** `wave-1` · **Target version:** `0.1.0` · **Status:** ◐ slices 1–5 done, slice 6 next
 
 ## Exit criteria
 
@@ -86,20 +86,20 @@ Requirements delivered: REC-01–06, REC-09, CUR-01–04, CUR-07, DIS-01–03, C
 
 **Acceptance (met):** API tests cover every endpoint (48 tests on a synthetic organization); on live data for a mid-sized institute, profile p95 6 ms and search p95 20 ms (targets 300 ms and 200 ms); 28 hostile search strings (FTS operators, quotes, SQL, NUL, 600-character input) never produce a server error. The 5,000-person, 300,000-paper target remains to be measured at that scale; lookups are indexed, and the review queue filters by score in SQL.
 
-## Slice 5: Web app and design system ☐
+## Slice 5: Web app and design system ☑
 
 **Goal:** a beautiful, fast, accessible app with no frameworks. See [ux.md](../ux.md).
 
-- [ ] `tokens.css` (oklch, light/dark/system), base styles, component styles; generated `theme.css` from branding config
-- [ ] Tessera mark and favicon (original SVG, mosaic tile motif); icon sprite (original SVGs)
-- [ ] App shell: sidebar, top bar, theme toggle, router with URL state, skip link, focus management
-- [ ] Components: entity card and chip, data table (sort, column chooser, dense mode, virtual rows), facets, tabs, drawer, modal, toast, skeleton, empty state, stat tile with sparkline, SVG bar and line charts
-- [ ] Command palette (⌘K / Ctrl-K)
-- [ ] Pages: Home, Search, People directory, Person profile, Publication, Grant, Study, Admin → Sources
-- [ ] Status marks and the evidence drawer on every linked item
-- [ ] Responsive layout from 360 px; keyboard and screen-reader pass; reduced-motion support
+- [x] `tokens.css` (oklch, light/dark/system), base styles, component styles; generated `/theme.css` from branding config (the accent must be a plain CSS color)
+- [x] Tessera mark and favicon (original SVG, mosaic tile motif); original line icons, built as inline SVG by a small module rather than a sprite file
+- [x] App shell: sidebar, top bar, theme toggle, router with URL state, skip link, focus management
+- [x] Components: entity card and chip, data table (sort, dense mode), facets, tabs, drawer, palette dialog, toast, skeleton, empty state, stat tile with sparkline, SVG bar charts with data-table fallbacks. Lists page through results rather than virtualizing rows; a column chooser waits until a table needs one.
+- [x] Command palette (⌘K / Ctrl-K, or `/`)
+- [x] Pages: Home, Search, People directory, Person profile, Publication, Grant, Study, Admin → Sources
+- [x] Status marks and the evidence drawer (with accept, reject, defer, and undo) on every linked item
+- [x] Responsive layout from 360 px; keyboard pass; reduced-motion support
 
-**Acceptance:** every page works in light and dark themes with AA contrast; no console errors; app shell ≤ 100 KB gzipped; keyboard-only walkthrough of the exit criteria succeeds.
+**Acceptance (met):** every page checked in light and dark themes on live data; an automated contrast sweep of rendered text over four pages in both themes found nothing under WCAG AA (lowest body-text token 4.87:1); no console errors; app shell 50 KB gzipped (budget 100 KB, enforced by a test); no horizontal scrolling at 360 px. Keyboard: palette, drawer (focus trap, Escape, focus return), mobile menu, and skip link all work without a mouse. The curation half of the exit-criteria walkthrough moves to slice 6 with the review queue. No screen-reader software has been run yet; markup uses labelled controls, live regions, and text alternatives for charts.
 
 ## Slice 6: Curation ☐
 
@@ -135,4 +135,5 @@ Requirements delivered: REC-01–06, REC-09, CUR-01–04, CUR-07, DIS-01–03, C
 | 2026-11-07 | Slice 2 done. NIH *contracts* (e.g. `75N9…`, `HHSN…`) are not normalized as grants; month ranges in PubMed dates ("Nov-Dec") keep only the year rather than claim false precision. |
 | 2026-11-07 | Slice 3 done. Multi-PI co-investigators are not presumed members; lone-initial person searches dropped (≈5× noise in a live check); preprint servers and megajournals excluded from journal history; seed threshold 0.90 with two rounds. |
 | 2026-11-07 | Slice 4 done. `derived/search.db` doubles as the serving index for lists and summaries; detail pages read the lake by key. Person topics ranked by TF-IDF, with model organisms and methods treated as non-topics. Response schemas in OpenAPI are minimal for now (parameters and bodies are documented). |
+| 2026-11-07 | Slice 5 done. No build step: ES modules, strict CSP with no inline code, data only ever inserted as text. Icons are an original JS module (no sprite). Grant and registry text is reflowed into paragraphs, and all-capital source names are shown in name case. Studies with phase "not applicable" show no phase. |
 | 2026-11-07 | To revisit: Starlette's test client now prefers a successor to `httpx` (warning silenced in pytest config); FastAPI pulls in the inert `opentelemetry-api` package (no exporter, nothing is sent). |
