@@ -16,3 +16,12 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 - CLI: `tessera init`, `doctor` (with `--online`), `db upgrade|current`, `lake status|compact|gc`, `serve`.
 - Placeholder web page with light, dark, and system themes.
 - Development tools: private-terms check with optional git hooks, and a disposable PostgreSQL container script.
+- Connectors for PubMed, iCite, NIH RePORTER, and ClinicalTrials.gov: a shared HTTP client with per-source rate limits, retries with backoff and `Retry-After`, and contact-identifying `User-Agent`; fetch and parse kept separate so raw payloads can be replayed offline.
+- PubMed: organization affiliation sweep, query, ID, and "linked" modes; automatic date-window splitting past the 10,000-record limit; parsing of authors (with ORCID iDs and affiliations), MeSH headings, grants, retractions, and book chapters.
+- NIH RePORTER: organization, investigator, ID, and validated-criteria modes; splitting past the 15,000-record limit; the grant-to-publication link table with batch halving and failure narrowing.
+- ClinicalTrials.gov: organization search across sponsors, collaborators, sites, and official affiliations; incremental updates by last-update date; contact details removed before storage.
+- iCite: citation metrics for publications that lack them or whose metrics are over 30 days old.
+- NIH grant-number normalization to core project numbers (and institute + serial when the activity code is missing).
+- `tessera ingest` (one source or `all`), `tessera replay`, and `tessera runs`; run records and incremental checkpoints in the ledger; checkpoints advance only after complete runs; one data job at a time per data home.
+- `/api/v1/meta` reports each source's last successful fetch and whether it is stale.
+- Opt-in live contract tests for every source (`pytest -m network`).

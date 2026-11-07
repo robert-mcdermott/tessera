@@ -267,3 +267,19 @@ def test_lake_never_downloads_extensions(root: Path) -> None:
         "autoinstall_known_extensions": "false",
         "autoload_known_extensions": "false",
     }
+
+
+def test_publish_makes_data_visible_mid_run(root: Path) -> None:
+    writer = LakeWriter(root, PUBMED, "run_1")
+    writer.add([article("100")])
+    writer.publish()
+    with Lake(root) as lake:
+        assert lake.scalar("SELECT count(*) FROM pubmed_article") == 1
+    writer.add([article("200"), article("100")])  # 100 is unchanged within the run
+    stats = writer.commit()
+    assert stats.written == {"pubmed_author": 2, "pubmed_mesh": 2, "pubmed_article": 2}
+    assert stats.unchanged == 1
+    manifest = read_manifest(root, "pubmed_article", 1)
+    assert manifest.generation == 2 and len(manifest.files) == 2
+    with Lake(root) as lake:
+        assert lake.scalar("SELECT count(*) FROM pubmed_article") == 2

@@ -90,6 +90,7 @@ PUBMED = DatasetSpec(
         key=("pmid",),
         columns=(
             f("pmid", STR, False),
+            f("record_type", STR),  # journal_article | book
             f("doi", STR),
             f("pmcid", STR),
             f("title", STR),
@@ -155,7 +156,8 @@ PUBMED = DatasetSpec(
                 f("pmid", STR, False),
                 f("seq", I16, False),
                 f("grant_id_raw", STR),
-                f("core_project_num", STR),
+                f("core_project_num", STR),  # e.g. R01CA123456, when recognizable
+                f("ic_serial", STR),  # e.g. CA123456, also when the activity code is missing
                 f("acronym", STR),
                 f("agency", STR),
                 f("country", STR),
@@ -352,6 +354,7 @@ CTGOV = DatasetSpec(
                 f("id", STR),
                 f("type", STR),
                 f("core_project_num", STR),
+                f("ic_serial", STR),
             ),
         ),
     ),

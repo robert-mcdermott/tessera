@@ -17,7 +17,7 @@ Tessera uses **free, public data sources only**. No source needs a paid subscrip
 1. **Be a good citizen.** Respect each source's published rate limit with a shared, thread-safe limiter. Back off on 429 and 5xx responses and honor `Retry-After`. Run large backfills off-peak where the source asks for that.
 2. **Identify ourselves.** Send a `User-Agent` naming Tessera, its version, and the adopter's configured contact address. For NCBI, also send the `tool` and `email` parameters.
 3. **Validate before calling.** Several APIs silently ignore unknown parameters and return everything. Connectors validate queries against known criteria before any request.
-4. **Capture raw, then normalize.** The verbatim payload goes to the raw zone before parsing, so a parser fix can be replayed without re-fetching.
+4. **Capture raw, then normalize.** Each response body goes to the raw zone before parsing, so a parser fix can be replayed without re-fetching. Parsing is a pure function of the stored payload, so replay and ingest cannot disagree.
 5. **Never advance a checkpoint on a partial run.** If any batch failed or a result was truncated, the watermark stays put and the run is recorded as partial.
 6. **Fail softly.** One source failing never blocks the others. The last good data stays in service, and the UI shows the staleness.
 7. **Store no contact details** (emails, phone numbers) from registry records.
@@ -53,7 +53,8 @@ Tessera uses **free, public data sources only**. No source needs a paid subscrip
   - *Organization sweep:* projects at the organization's configured names, which seeds investigators (with stable NIH profile IDs) and their grants.
   - *Investigator follow:* all projects for known profile IDs, including those at previous institutions, which helps authorship matching.
   - *Publication links:* the project-to-PMID table, a strong, source-reported grant ↔ publication link.
-- **Incremental field:** `date_added` only catches new records. Amounts and dates on existing records can change, so the current and previous fiscal years are fully refreshed on each weekly run.
+- **Incremental runs:** `date_added` only catches new records, while amounts and dates on recent awards keep changing. So every incremental run re-reads the previous, current, and next fiscal years in full (cheap: a few thousand records at most for a large organization). Older years are re-read with `--full`.
+- **Contracts:** NIH contract numbers (`75N9…`, `HHSN…`, `N01-…`) are not grants and are not normalized as core project numbers.
 - **Counting:** each record is one fiscal year of one project. See the counting rules in [data-model.md](data-model.md).
 
 ## ClinicalTrials.gov
@@ -63,7 +64,7 @@ Tessera uses **free, public data sources only**. No source needs a paid subscrip
 - **Use in Tessera:** studies whose sponsors, collaborators, or sites match the organization's configured names; study officials (name, affiliation, role) for person matching; references to PMIDs; NIH grant numbers in secondary IDs.
 - **Incremental field:** last update posted date.
 - **Safety rule:** a study's *overall* registry status is never presented as the organization's local recruitment status. Views say "Registry status" and link to the official record.
-- **Excluded:** results sections and documents are not stored in wave 1. Contact names, emails, and phone numbers are dropped at parse time.
+- **Excluded:** results sections and documents are not requested. Central and site contacts (names, emails, phone numbers) are removed from each response *before* it is stored anywhere, including the raw zone; study officials keep only name, affiliation, and role.
 
 ## ORCID (wave 2)
 

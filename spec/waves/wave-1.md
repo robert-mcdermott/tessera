@@ -2,7 +2,7 @@
 
 **Goal:** prove that a useful, trustworthy research graph can be built from public data alone, with evidence on every link.
 
-**Branch:** `wave-1` · **Target version:** `0.1.0` · **Status:** ◐ slice 1 done, slice 2 next
+**Branch:** `wave-1` · **Target version:** `0.1.0` · **Status:** ◐ slices 1–2 done, slice 3 next
 
 ## Exit criteria
 
@@ -37,21 +37,21 @@ Requirements delivered: REC-01–06, REC-09, CUR-01–04, CUR-07, DIS-01–03, C
 
 **Acceptance (met):** `uv run pytest` and `uv run ruff check` pass; `tessera init && tessera serve` serves a placeholder page and `/api/v1/health`; lake writer is crash-safe in tests (kill between rename and manifest swap leaves readable prior state).
 
-## Slice 2: Connectors ☐
+## Slice 2: Connectors ☑
 
 **Goal:** reliable, polite, incremental ingestion of all four wave-1 sources.
 
-- [ ] Shared HTTP client (`httpx`): thread-safe rate limiter per source, retries with exponential backoff and jitter, `Retry-After`, timeouts, `User-Agent` with configured contact, raw payload capture
-- [ ] Connector protocol: `search(spec) → batches`, `fetch_ids(ids)`, `count(spec)`, `data_version()`, checkpoint read/write; run records in `ingest_run`
-- [ ] **PubMed:** esearch/history + efetch XML; recursive date-window splitting for the 10k cap; affiliation-sweep, person-search, and by-ID modes; XML parser to `pubmed_article`, `pubmed_author`, `pubmed_mesh`, `pubmed_grant`; grant-string normalization to core project numbers
-- [ ] **iCite:** batched metrics for PMIDs in the lake
-- [ ] **RePORTER:** project search with fiscal-year/agency splitting for the offset cap; publication-link search with batch halving and narrowing; parser to `reporter_project`, `reporter_investigator`, `reporter_publication_link`
-- [ ] **ClinicalTrials.gov:** study search with page tokens and ID lookup; parser to `ctgov_*` tables; contact details dropped
-- [ ] Incremental checkpoints per source and scope; checkpoints never advance on partial runs; weekly full refresh of current fiscal years for RePORTER
-- [ ] `tessera ingest <source> [--since] [--ids]` and `tessera replay <source> <run>` (rebuild lake from raw)
-- [ ] Fixtures: synthetic or scrubbed recorded payloads; parser tests; paging and splitting tests against a fake transport; opt-in live contract tests
+- [x] Shared HTTP client (`httpx`): thread-safe rate limiter per source, retries with exponential backoff and jitter, `Retry-After`, timeouts, `User-Agent` with configured contact; raw payload capture with a per-run index
+- [x] Connector protocol: `plan(options, checkpoint)`, `fetch(plan) → payloads` (network), and a pure `parse(payload) → records`, so replay uses exactly the ingest parser; run records in `ingest_run`; one data job at a time per data home
+- [x] **PubMed:** esearch/history + efetch XML; recursive date-window splitting for the 10k cap; affiliation-sweep (`org`), `query` (for person searches), `ids`, and `linked` (PMIDs that grants or studies cite but the lake lacks) modes; XML parser to `pubmed_article`, `pubmed_author`, `pubmed_mesh`, `pubmed_grant`; grant-string normalization to core project numbers and institute + serial
+- [x] **iCite:** batched metrics for PMIDs in the lake that lack metrics or have metrics older than 30 days
+- [x] **RePORTER:** project search with fiscal-year/agency splitting for the offset cap; publication-link search with batch halving and narrowing; `org`, `pi`, `ids`, and `query` (validated criteria) modes; parser to `reporter_project`, `reporter_investigator`, `reporter_publication_link`
+- [x] **ClinicalTrials.gov:** study search with page tokens and ID lookup; organization search across lead sponsor, collaborators, sites, and official affiliations; parser to `ctgov_*` tables; contact details removed before anything is stored, including the raw zone
+- [x] Incremental checkpoints per source and scope; checkpoints never advance on partial, failed, or capped runs; RePORTER re-reads the previous, current, and next fiscal years on every incremental run (amounts and dates on recent awards change)
+- [x] `tessera ingest <source|all> [--mode] [--ids] [--query] [--since] [--until] [--full] [--max-results]`, `tessera replay <source> <run>`, and `tessera runs`; long runs publish to the lake every 25 payloads
+- [x] Fixtures: synthetic payloads only; parser tests; paging, splitting, halving, and narrowing tests against a fake transport; opt-in live contract tests (`-m network`)
 
-**Acceptance:** each connector ingests a fixture corpus into the lake idempotently (running twice adds no rows to the current view); interrupted runs resume; a replay from raw produces identical lake content.
+**Acceptance (met):** each connector ingests a fixture corpus into the lake idempotently (running twice writes nothing); an interrupted run keeps what it fetched and the next run continues from the last checkpoint without duplicates; a replay from raw into a fresh data home produces identical lake content. Also verified against the live APIs: 78 grant-years → 1,210 grant–publication links → 1,208 papers fetched, 1,156 of which acknowledge the same grant in PubMed.
 
 ## Slice 3: Evidence engine v1 ☐
 
@@ -132,4 +132,5 @@ Requirements delivered: REC-01–06, REC-09, CUR-01–04, CUR-07, DIS-01–03, C
 |---|---|
 | 2026-11-07 | Wave planned. Pilot runs on a laptop or single VM; internal-first; AI deferred to wave 5 and optional; extra public sources approved: iCite and grant–publication links (wave 1), ORCID (wave 2), Grants.gov (wave 5) |
 | 2026-11-07 | Slice 1 done. PostgreSQL is tested in a disposable podman/docker container rather than deferred to wave 6. DuckDB runs with extension auto-install and auto-load disabled. |
+| 2026-11-07 | Slice 2 done. NIH *contracts* (e.g. `75N9…`, `HHSN…`) are not normalized as grants; month ranges in PubMed dates ("Nov-Dec") keep only the year rather than claim false precision. |
 | 2026-11-07 | To revisit: Starlette's test client now prefers a successor to `httpx` (warning silenced in pytest config); FastAPI pulls in the inert `opentelemetry-api` package (no exporter, nothing is sent). |

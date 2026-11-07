@@ -10,7 +10,7 @@ import logging
 import os
 import sys
 from collections.abc import Sequence
-from datetime import timedelta
+from datetime import date, timedelta
 from pathlib import Path
 
 from tessera import PRODUCT_NAME, TAGLINE, __version__
@@ -81,6 +81,42 @@ def build_parser() -> argparse.ArgumentParser:
     gc.add_argument("--retention-days", type=float, default=7.0, metavar="DAYS")
     gc.set_defaults(handler=cmd_lake_gc)
 
+    ingest = commands.add_parser(
+        "ingest",
+        help="fetch public data into the lake",
+        description="Fetch from a public source. SOURCE is pubmed, icite, reporter, ctgov, "
+        "or 'all' (every enabled source in a sensible order). Without --mode, an "
+        "organization sweep is run (or an ID fetch if --ids is given).",
+    )
+    ingest.add_argument("source", help="pubmed | icite | reporter | ctgov | all")
+    ingest.add_argument(
+        "--mode",
+        default="auto",
+        help="org | query | ids | linked (pubmed) | pi (reporter) | refresh (icite)",
+    )
+    ingest.add_argument("--ids", nargs="+", default=[], metavar="ID", help="IDs to fetch")
+    ingest.add_argument("--ids-file", metavar="PATH", help="file with one ID per line")
+    ingest.add_argument("--query", help="source query (PubMed syntax, Essie, or RePORTER JSON)")
+    ingest.add_argument("--since", type=_date_arg, metavar="YYYY-MM-DD")
+    ingest.add_argument("--until", type=_date_arg, metavar="YYYY-MM-DD")
+    ingest.add_argument("--full", action="store_true", help="ignore the saved checkpoint")
+    ingest.add_argument(
+        "--max-results", type=int, metavar="N", help="stop after N records (for quick checks)"
+    )
+    ingest.set_defaults(handler=cmd_ingest)
+
+    replay_cmd = commands.add_parser(
+        "replay", help="rebuild lake records from a run's raw payloads"
+    )
+    replay_cmd.add_argument("source")
+    replay_cmd.add_argument("run_id")
+    replay_cmd.set_defaults(handler=cmd_replay)
+
+    runs_cmd = commands.add_parser("runs", help="recent ingest runs")
+    runs_cmd.add_argument("--source")
+    runs_cmd.add_argument("--limit", type=int, default=20)
+    runs_cmd.set_defaults(handler=cmd_runs)
+
     serve = commands.add_parser("serve", help="run the web app and API")
     serve.add_argument("--host", help="override server.host")
     serve.add_argument("--port", type=int, help="override server.port")
@@ -115,6 +151,46 @@ def _load(args: argparse.Namespace):  # type: ignore[no-untyped-def]
     if home.logs.is_dir():
         configure_logging(-1 if args.quiet else args.verbose, home.logs)
     return config, home
+
+
+def _date_arg(value: str) -> date:
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{value!r} is not a YYYY-MM-DD date") from None
+
+
+def _engine(config):  # type: ignore[no-untyped-def]
+    from tessera.ledger import migrate
+    from tessera.ledger.db import make_engine
+
+    engine = make_engine(config.ledger_url)
+    if not migrate.is_current(engine):
+        engine.dispose()
+        raise TesseraError("The ledger schema is not current; run `tessera db upgrade`.")
+    return engine
+
+
+def _print_result(result) -> None:  # type: ignore[no-untyped-def]
+    report = result.report
+    found = "" if report.total_found is None else f", {report.total_found:,} found"
+    written = sum(
+        sum(stats.get("written", {}).values()) for stats in result.counts.get("lake", {}).values()
+    )
+    unchanged = sum(stats.get("unchanged", 0) for stats in result.counts.get("lake", {}).values())
+    label = result.source if not result.plan else f"{result.source} ({result.plan.mode})"
+    print(
+        f"{label}: {result.status}{found}, {report.payloads} payloads, "
+        f"{written:,} rows written, {unchanged:,} records unchanged  [{result.run_id or '-'}]"
+    )
+    for failure in report.failures[:5]:
+        print(f"  failed batch: {failure}")
+    if len(report.failures) > 5:
+        print(f"  ... and {len(report.failures) - 5} more failed batches")
+    for note in report.notes[:5]:
+        print(f"  note: {note}")
+    if result.error:
+        print(f"  error: {result.error}")
 
 
 # --- commands -------------------------------------------------------------------------
@@ -241,6 +317,85 @@ def cmd_lake_gc(args: argparse.Namespace) -> int:
     print(
         f"Removed {result['files']} superseded files and {result['staging_folders']} "
         "abandoned staging folders"
+    )
+    return EXIT_OK
+
+
+def cmd_ingest(args: argparse.Namespace) -> int:
+    from tessera.connectors.base import IngestOptions
+    from tessera.jobs.ingest import ingest, ingest_many
+
+    config, home = _load(args)
+    home.require()
+    ids = list(args.ids)
+    if args.ids_file:
+        ids += [
+            line.strip() for line in Path(args.ids_file).read_text().splitlines() if line.strip()
+        ]
+    options = IngestOptions(
+        mode=args.mode,
+        ids=ids,
+        query=args.query,
+        since=args.since,
+        until=args.until,
+        full=args.full,
+        max_results=args.max_results,
+    )
+    engine = _engine(config)
+    try:
+        if args.source == "all":
+            if ids or args.query or args.mode != "auto":
+                raise TesseraError("`ingest all` takes no --ids, --query, or --mode.")
+            results = ingest_many(config, home, engine, options=options)
+        else:
+            results = [ingest(config, home, engine, args.source, options)]
+    finally:
+        engine.dispose()
+    for result in results:
+        _print_result(result)
+    statuses = {r.status for r in results}
+    if statuses <= {"succeeded"}:
+        return EXIT_OK
+    return EXIT_ERROR if statuses == {"failed"} else EXIT_PARTIAL
+
+
+def cmd_replay(args: argparse.Namespace) -> int:
+    from tessera.jobs.ingest import replay
+
+    config, home = _load(args)
+    engine = _engine(config)
+    try:
+        result = replay(config, home, engine, args.source, args.run_id)
+    finally:
+        engine.dispose()
+    _print_result(result)
+    return EXIT_OK
+
+
+def cmd_runs(args: argparse.Namespace) -> int:
+    from tessera.core.clock import isoformat
+    from tessera.jobs.runs import recent_runs
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    try:
+        rows = recent_runs(engine, args.source, args.limit)
+    finally:
+        engine.dispose()
+    table(
+        [
+            (
+                r["id"],
+                r["source"],
+                r["kind"],
+                (r.get("params") or {}).get("mode", "-"),
+                r["status"],
+                isoformat(r["started_at"])[:19].replace("T", " "),
+                (r.get("error") or "")[:60],
+            )
+            for r in rows
+        ],
+        headers=("run", "source", "kind", "mode", "status", "started (UTC)", "error"),
     )
     return EXIT_OK
 

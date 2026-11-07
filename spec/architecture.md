@@ -42,7 +42,7 @@ Tessera separates data by **how it can be recovered**. This is the core architec
 
 | Tier | Holds | Technology | Recoverable from | Back up? |
 |---|---|---|---|---|
-| **Raw zone** | Verbatim API payloads, one folder per ingest run | gzip files on disk | Re-fetching the public APIs | Optional (saves re-fetch time) |
+| **Raw zone** | API response bodies as received (registry contact details removed), one folder per ingest run | gzip files on disk | Re-fetching the public APIs | Optional (saves re-fetch time) |
 | **Lake** | Normalized source records: articles, authors, grants, investigators, studies, citation metrics | Parquet (pyarrow), queried with DuckDB | Replaying the raw zone | Optional |
 | **Ledger** | Everything humans decide or own: people, identifiers, assertions and their review history, units, settings, ingest runs, users | SQLite in WAL mode by default; PostgreSQL option | **Nothing.** This is the irreplaceable tier | **Yes, always** |
 | **Derived** | Search index, concept profiles, similarity pairs, metric tables, reporting snapshots | SQLite FTS5 and Parquet | Rebuilding from lake + ledger | No |

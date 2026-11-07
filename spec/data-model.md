@@ -85,10 +85,10 @@ Every lake table has these bookkeeping columns: `_run_id`, `_retrieved_at`, `_co
 
 | Table | Key | Main columns |
 |---|---|---|
-| `pubmed_article` | `pmid` | `doi`, `pmcid`, `title`, `abstract`, `journal`, `journal_abbrev`, `issn`, `pub_date`, `pub_year`, `date_precision`, `publication_types[]`, `languages[]`, `keywords[]`, `is_retracted`, `comments_corrections[]` |
+| `pubmed_article` | `pmid` | `record_type` (journal article or book), `doi`, `pmcid`, `title`, `abstract`, `journal`, `journal_abbrev`, `issn`, `pub_date`, `pub_year`, `date_precision`, `publication_types[]`, `languages[]`, `keywords[]`, `is_retracted`, `comments_corrections[]` |
 | `pubmed_author` | (`pmid`, `position`) | `family`, `given`, `initials`, `collective_name`, `orcid`, `affiliations[]`, `is_first`, `is_last`, `author_count` |
 | `pubmed_mesh` | (`pmid`, `descriptor_ui`) | `descriptor`, `major_topic`, `qualifiers[]` |
-| `pubmed_grant` | (`pmid`, `seq`) | `grant_id_raw`, `core_project_num` (normalized when recognizable), `agency`, `country` |
+| `pubmed_grant` | (`pmid`, `seq`) | `grant_id_raw`, `core_project_num` (e.g. `R01CA123456`, when recognizable), `ic_serial` (e.g. `CA123456`, also when the activity code is missing), `agency`, `country` |
 | `icite_metrics` | `pmid` | `citation_count`, `relative_citation_ratio`, `nih_percentile`, `field_citation_rate`, `expected_citations_per_year`, `citations_per_year`, `apt`, `is_clinical`, `is_research_article` |
 | `reporter_project` | `appl_id` | `project_num`, `core_project_num`, `subproject_id`, `fiscal_year`, `title`, `abstract`, `phr`, `activity_code`, `agency_ic_admin`, `award_amount`, `direct_cost`, `indirect_cost`, `project_start`, `project_end`, `budget_start`, `budget_end`, `is_active`, `org_name`, `org_city`, `org_state`, `org_country`, `org_uei`, `terms[]`, `spending_categories[]` |
 | `reporter_investigator` | (`appl_id`, `profile_id`) | `full_name`, `family`, `given`, `middle`, `is_contact_pi`, `title` |
@@ -97,9 +97,13 @@ Every lake table has these bookkeeping columns: `_run_id`, `_retrieved_at`, `_co
 | `ctgov_official` | (`nct_id`, `seq`) | `name`, `affiliation`, `role` |
 | `ctgov_site` | (`nct_id`, `seq`) | `facility`, `status`, `city`, `state`, `country`, `latitude`, `longitude` |
 | `ctgov_reference` | (`nct_id`, `pmid`) | `type` (`result`, `background`, `derived`), `citation` |
-| `ctgov_secondary_id` | (`nct_id`, `seq`) | `id`, `type`, `core_project_num` (normalized when NIH) |
+| `ctgov_secondary_id` | (`nct_id`, `seq`) | `id`, `type`, `core_project_num` and `ic_serial` (normalized when NIH) |
 
 Contact details from registry records (emails, phone numbers) are **not** stored.
+
+### Raw zone layout
+
+`raw/<source>/<run_id>/` holds one gzip file per record-bearing response (`00001-efetch.xml.gz`, `00002-projects.json.gz`, …) and `index.jsonl`, one line per payload with its kind, retrieval time, request summary, and the source's data version. `tessera replay <source> <run>` reads this folder and runs the same parser as ingestion.
 
 ### Lake write protocol
 

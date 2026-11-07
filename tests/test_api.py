@@ -44,6 +44,32 @@ def test_meta(client: TestClient) -> None:
     assert data["product"]["version"] == __version__
     assert data["organization"] == {"name": "Example University", "short_name": "EXU"}
     assert data["mode"] == {"accounts": False, "operator": "Operator"}
+    sources = {s["name"]: s for s in data["sources"]}
+    assert set(sources) == {"pubmed", "icite", "reporter", "ctgov"}
+    assert sources["pubmed"] == {
+        "name": "pubmed",
+        "label": "PubMed",
+        "enabled": True,
+        "last_success_at": None,
+        "stale": True,
+    }
+
+
+def test_meta_reports_freshness(client: TestClient) -> None:
+    from datetime import UTC, datetime
+
+    from tessera.jobs import runs
+
+    engine = client.app.state.engine
+    run_id = runs.start_run(engine, "ctgov", "fetch", {})
+    runs.finish_run(engine, run_id, "succeeded", {})
+    replayed = runs.start_run(engine, "pubmed", "replay", {})
+    runs.finish_run(engine, replayed, "succeeded", {})
+    sources = {s["name"]: s for s in client.get("/api/v1/meta").json()["data"]["sources"]}
+    assert sources["ctgov"]["stale"] is False
+    stamp = datetime.fromisoformat(sources["ctgov"]["last_success_at"].replace("Z", "+00:00"))
+    assert (datetime.now(UTC) - stamp).total_seconds() < 60
+    assert sources["pubmed"]["last_success_at"] is None  # replays are not fetches
 
 
 def test_unknown_api_route_is_problem_json(client: TestClient) -> None:

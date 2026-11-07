@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -10,6 +11,10 @@ from sqlalchemy import text
 
 from tessera import TAGLINE, __version__
 from tessera.config import Config
+from tessera.connectors import CONNECTORS
+from tessera.core.clock import isoformat, utc_now
+from tessera.jobs import runs
+from tessera.jobs.ingest import expected_days
 from tessera.ledger import migrate
 
 router = APIRouter(prefix="/api/v1", tags=["system"])
@@ -56,5 +61,32 @@ def meta(request: Request) -> dict[str, Any]:
                 "short_name": config.organization.short_name,
             },
             "mode": {"accounts": False, "operator": config.server.operator},
+            "sources": _freshness(request, config),
         }
     }
+
+
+def _freshness(request: Request, config: Config) -> list[dict[str, Any]]:
+    """Each source's last successful fetch, and whether it is older than expected."""
+    try:
+        last = runs.last_success(request.app.state.engine)
+    except Exception:  # meta must answer even when the ledger is unavailable
+        last = {}
+    now = utc_now()
+    out = []
+    for name, connector in CONNECTORS.items():
+        finished = last.get(name)
+        enabled = getattr(config.sources, name).enabled
+        out.append(
+            {
+                "name": name,
+                "label": connector.label,
+                "enabled": enabled,
+                "last_success_at": isoformat(finished) if finished else None,
+                "stale": bool(
+                    enabled
+                    and (finished is None or now - finished > timedelta(days=expected_days(name)))
+                ),
+            }
+        )
+    return out

@@ -1,0 +1,147 @@
+<?xml version="1.0" ?>
+<!-- Synthetic PubMed efetch response for tests. All people, organizations, and identifiers are invented. -->
+<PubmedArticleSet>
+  <PubmedArticle>
+    <MedlineCitation Status="MEDLINE" Owner="NLM">
+      <PMID Version="1">31000001</PMID>
+      <Article PubModel="Print-Electronic">
+        <Journal>
+          <ISSN IssnType="Electronic">1234-5678</ISSN>
+          <JournalIssue CitedMedium="Internet">
+            <Volume>12</Volume>
+            <Issue>3</Issue>
+            <PubDate><Year>2024</Year><Month>Mar</Month><Day>15</Day></PubDate>
+          </JournalIssue>
+          <Title>Journal of Example Studies</Title>
+          <ISOAbbreviation>J Ex Stud</ISOAbbreviation>
+        </Journal>
+        <ArticleTitle>Mapping <i>tiles</i> in   research mosaics.</ArticleTitle>
+        <Pagination><MedlinePgn>101-110</MedlinePgn></Pagination>
+        <ELocationID EIdType="doi" ValidYN="Y">10.5555/jes.2024.001</ELocationID>
+        <Abstract>
+          <AbstractText Label="BACKGROUND" NlmCategory="BACKGROUND">Tiles matter.</AbstractText>
+          <AbstractText Label="RESULTS" NlmCategory="RESULTS">They connect.</AbstractText>
+        </Abstract>
+        <AuthorList CompleteYN="Y">
+          <Author ValidYN="Y">
+            <LastName>Okafor</LastName><ForeName>Ada B</ForeName><Initials>AB</Initials>
+            <Identifier Source="ORCID">https://orcid.org/0000-0002-1825-009x</Identifier>
+            <AffiliationInfo><Affiliation>Department of Medicine, Example University, Example City, USA.</Affiliation></AffiliationInfo>
+            <AffiliationInfo><Affiliation>Example University Medical Center, Example City, USA. ada.okafor@example.edu.</Affiliation></AffiliationInfo>
+          </Author>
+          <Author ValidYN="Y">
+            <LastName>Nguyen</LastName><ForeName>Bao</ForeName><Initials>B</Initials><Suffix>Jr</Suffix>
+            <AffiliationInfo><Affiliation>Other Institute of Science, Elsewhere.</Affiliation></AffiliationInfo>
+          </Author>
+          <Author ValidYN="Y">
+            <CollectiveName>Mosaic Consortium Investigators</CollectiveName>
+          </Author>
+        </AuthorList>
+        <Language>eng</Language>
+        <GrantList CompleteYN="Y">
+          <Grant><GrantID>R01 CA123456</GrantID><Acronym>CA</Acronym><Agency>NCI NIH HHS</Agency><Country>United States</Country></Grant>
+          <Grant><GrantID>CA15704</GrantID><Acronym>CA</Acronym><Agency>NCI NIH HHS</Agency><Country>United States</Country></Grant>
+          <Grant><GrantID>WT-2020-77</GrantID><Agency>Example Charitable Trust</Agency><Country>United Kingdom</Country></Grant>
+        </GrantList>
+        <PublicationTypeList>
+          <PublicationType UI="D016428">Journal Article</PublicationType>
+          <PublicationType UI="D052061">Research Support, N.I.H., Extramural</PublicationType>
+        </PublicationTypeList>
+        <ArticleDate DateType="Electronic"><Year>2024</Year><Month>02</Month><Day>01</Day></ArticleDate>
+      </Article>
+      <MedlineJournalInfo><MedlineTA>J Ex Stud</MedlineTA></MedlineJournalInfo>
+      <CommentsCorrectionsList>
+        <CommentsCorrections RefType="CommentIn"><RefSource>J Ex Stud. 2024;12:200</RefSource><PMID Version="1">31000099</PMID></CommentsCorrections>
+      </CommentsCorrectionsList>
+      <MeshHeadingList>
+        <MeshHeading><DescriptorName UI="D006801" MajorTopicYN="N">Humans</DescriptorName></MeshHeading>
+        <MeshHeading>
+          <DescriptorName UI="D012107" MajorTopicYN="N">Research</DescriptorName>
+          <QualifierName UI="Q000379" MajorTopicYN="Y">methods</QualifierName>
+        </MeshHeading>
+        <MeshHeading>
+          <DescriptorName UI="D012107" MajorTopicYN="N">Research</DescriptorName>
+          <QualifierName UI="Q000639" MajorTopicYN="N">trends</QualifierName>
+        </MeshHeading>
+        <MeshHeading><DescriptorName MajorTopicYN="N">No identifier</DescriptorName></MeshHeading>
+      </MeshHeadingList>
+      <KeywordList Owner="NOTNLM"><Keyword MajorTopicYN="N">mosaic</Keyword><Keyword MajorTopicYN="N">tiles</Keyword></KeywordList>
+    </MedlineCitation>
+    <PubmedData>
+      <PublicationStatus>ppublish</PublicationStatus>
+      <ArticleIdList>
+        <ArticleId IdType="pubmed">31000001</ArticleId>
+        <ArticleId IdType="doi">10.5555/jes.2024.001</ArticleId>
+        <ArticleId IdType="pmc">PMC9000001</ArticleId>
+      </ArticleIdList>
+    </PubmedData>
+  </PubmedArticle>
+
+  <PubmedArticle>
+    <MedlineCitation Status="MEDLINE" Owner="NLM">
+      <PMID Version="1">31000002</PMID>
+      <Article PubModel="Print">
+        <Journal>
+          <JournalIssue CitedMedium="Print">
+            <PubDate><MedlineDate>2019 Nov-Dec</MedlineDate></PubDate>
+          </JournalIssue>
+          <Title>Annals of Example Medicine</Title>
+        </Journal>
+        <ArticleTitle>A retracted finding.</ArticleTitle>
+        <AuthorList CompleteYN="Y">
+          <Author ValidYN="Y"><LastName>Okafor</LastName><ForeName>A</ForeName><Initials>A</Initials></Author>
+        </AuthorList>
+        <Language>eng</Language>
+        <PublicationTypeList><PublicationType UI="D016428">Journal Article</PublicationType></PublicationTypeList>
+      </Article>
+      <MedlineJournalInfo><MedlineTA>Ann Ex Med</MedlineTA></MedlineJournalInfo>
+      <CommentsCorrectionsList>
+        <CommentsCorrections RefType="RetractionIn"><RefSource>Ann Ex Med. 2021;5:1</RefSource><PMID Version="1">31000077</PMID></CommentsCorrections>
+      </CommentsCorrectionsList>
+    </MedlineCitation>
+    <PubmedData>
+      <PublicationStatus>ppublish</PublicationStatus>
+      <ArticleIdList><ArticleId IdType="pubmed">31000002</ArticleId></ArticleIdList>
+    </PubmedData>
+  </PubmedArticle>
+
+  <PubmedArticle>
+    <MedlineCitation Status="MEDLINE" Owner="NLM">
+      <PMID Version="1">31000003</PMID>
+      <Article PubModel="Print">
+        <Journal>
+          <JournalIssue CitedMedium="Print"><PubDate><Year>2021</Year><Season>Winter</Season></PubDate></JournalIssue>
+          <Title>Example Quarterly</Title>
+        </Journal>
+        <ArticleTitle>Seasonal dates.</ArticleTitle>
+        <Language>eng</Language>
+        <PublicationTypeList><PublicationType UI="D016428">Journal Article</PublicationType></PublicationTypeList>
+      </Article>
+    </MedlineCitation>
+  </PubmedArticle>
+
+  <PubmedBookArticle>
+    <BookDocument>
+      <PMID Version="1">31000004</PMID>
+      <ArticleIdList><ArticleId IdType="bookaccession">NBK000001</ArticleId></ArticleIdList>
+      <Book>
+        <Publisher><PublisherName>Example Press</PublisherName></Publisher>
+        <BookTitle>The Example Handbook</BookTitle>
+        <PubDate><Year>2020</Year></PubDate>
+      </Book>
+      <ArticleTitle>Chapter one.</ArticleTitle>
+      <Language>eng</Language>
+      <AuthorList Type="authors">
+        <Author ValidYN="Y"><LastName>Silva</LastName><ForeName>Carla</ForeName><Initials>C</Initials></Author>
+      </AuthorList>
+      <PublicationType UI="D016454">Review</PublicationType>
+    </BookDocument>
+    <PubmedBookData><PublicationStatus>ppublish</PublicationStatus></PubmedBookData>
+  </PubmedBookArticle>
+
+  <PubmedArticle>
+    <MedlineCitation Status="MEDLINE" Owner="NLM">
+      <PMID Version="1">not-a-pmid</PMID>
+    </MedlineCitation>
+  </PubmedArticle>
+</PubmedArticleSet>

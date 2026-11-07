@@ -85,6 +85,7 @@ class LakeWriter:
         self._buffers: dict[str, list[dict[str, Any]]] = {t.name: [] for t in dataset.tables}
         self._parts: dict[str, list[tuple[Path, int]]] = {t.name: [] for t in dataset.tables}
         self._run_hashes: dict[tuple[Any, ...], str] = {}
+        self._part_seq = 0
         self._last_retrieved: datetime | None = None
         self._reader: Lake | None = None
         self._closed = False
@@ -125,7 +126,16 @@ class LakeWriter:
         return accepted
 
     def commit(self) -> WriteStats:
-        """Publish everything written by this writer."""
+        """Publish everything written by this writer and close it."""
+        self.publish()
+        self._finish()
+        return self.stats
+
+    def publish(self) -> None:
+        """Make everything added so far visible to readers; the writer stays open.
+
+        Long ingest runs call this periodically so an interruption loses little work.
+        """
         if self._closed:
             raise LakeError("writer already committed or aborted")
         self._flush()
@@ -141,6 +151,8 @@ class LakeWriter:
                 added_at = isoformat(utc_now())
                 for staged, rows in parts:
                     target = data_dir / f"{self.run_id}-{staged.stem.split('-')[-1]}.parquet"
+                    if target.exists():  # never overwrite published data
+                        raise LakeError(f"refusing to overwrite {target}")
                     staged.replace(target)
                     manifest.files.append(
                         FileEntry(
@@ -152,9 +164,10 @@ class LakeWriter:
                     )
                 fsync_dir(data_dir)
                 write_manifest(self.root, manifest)
-            self.stats.written[spec.name] = sum(rows for _, rows in parts)
-        self._finish()
-        return self.stats
+            self.stats.written[spec.name] = self.stats.written.get(spec.name, 0) + sum(
+                rows for _, rows in parts
+            )
+            self._parts[spec.name] = []
 
     def abort(self) -> None:
         """Discard everything staged by this writer."""
@@ -237,7 +250,8 @@ class LakeWriter:
             table = table.sort_by(sort_keys)
             staging = table_dir(self.root, spec.name) / STAGING / self.run_id
             staging.mkdir(parents=True, exist_ok=True)
-            part = staging / f"part-{len(self._parts[spec.name]) + 1:04d}.parquet"
+            self._part_seq += 1
+            part = staging / f"part-{self._part_seq:04d}.parquet"
             pq.write_table(table, part, compression="zstd")
             fsync_file(part)
             self._parts[spec.name].append((part, table.num_rows))

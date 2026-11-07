@@ -18,7 +18,7 @@
 | **Missed connection** | Two people with strongly overlapping concepts and no shared papers, grants, or studies |
 | **Organization profile** | Configuration that tells Tessera how the organization appears in public data: names, aliases, affiliation patterns, and email domains |
 | **Origin** | Where an assertion came from: `source` (a public record states it), `inferred` (Tessera computed it), or `human` (a person entered it) |
-| **Raw zone** | Verbatim API payloads, kept so the lake can be rebuilt without re-fetching |
+| **Raw zone** | API response bodies as received (registry contact details removed), kept so the lake can be rebuilt without re-fetching |
 | **Registry status** | The overall status of a study in the public registry. It is not the organization's local recruitment status |
 | **Roster file** | An optional CSV of people that an administrator imports. A file, not a live integration |
 | **Single-operator mode** | Wave 1 operating mode with no sign-in. The server binds to localhost and curation is attributed to a configured operator name |
