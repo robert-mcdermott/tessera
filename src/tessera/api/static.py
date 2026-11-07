@@ -66,6 +66,25 @@ def install_theme(app: FastAPI) -> None:
         )
 
 
+def install_branding(app: FastAPI) -> None:
+    """``/branding/logo-light`` and ``/branding/logo-dark``: the configured logo files."""
+    from tessera.config import LOGO_TYPES
+
+    @app.get("/branding/{variant}", include_in_schema=False)
+    async def logo(request: Request, variant: str) -> Response:
+        brand = request.app.state.config.branding
+        path = {
+            "logo-light": brand.logo_light,
+            "logo-dark": brand.logo_dark or brand.logo_light,
+        }.get(variant)
+        if path is None or not path.is_file():
+            raise HTTPException(status_code=404, detail="No such logo.")
+        media_type = LOGO_TYPES.get(path.suffix.lower())
+        if media_type is None:
+            raise HTTPException(status_code=404, detail="No such logo.")
+        return FileResponse(path, media_type=media_type, headers={"Cache-Control": "no-cache"})
+
+
 def install_api_reference(app: FastAPI, root: Path = WEB_ROOT) -> None:
     """A self-hosted API reference at /api/docs (no third-party assets, unlike stock docs)."""
 

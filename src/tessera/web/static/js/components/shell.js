@@ -34,10 +34,15 @@ export function mountShell(root, meta, { onSearch }) {
   const org = meta.organization;
   const navItems = [];
   const sidebar = h("nav", { class: "sidebar", "aria-label": "Main" },
-    h("a", { class: "brand", href: "/" },
-      h("img", { class: "brand-mark", src: "/img/tessera-mark.svg", alt: "", width: 26, height: 26 }),
-      h("span", { class: "brand-text" }, h("span", {}, product.name),
-        h("span", { class: "brand-org" }, org.short_name || org.name))),
+    // An organization's own logo replaces the mark and name (light and dark versions).
+    product.logo
+      ? h("a", { class: "brand brand-has-logo", href: "/", "aria-label": `${product.name} home` },
+        h("img", { class: "brand-logo brand-logo-light", src: product.logo.light, alt: product.name }),
+        h("img", { class: "brand-logo brand-logo-dark", src: product.logo.dark, alt: "" }))
+      : h("a", { class: "brand", href: "/" },
+        h("img", { class: "brand-mark", src: "/img/tessera-mark.svg", alt: "", width: 26, height: 26 }),
+        h("span", { class: "brand-text" }, h("span", {}, product.name),
+          h("span", { class: "brand-org" }, org.short_name || org.name))),
     NAV.map((group) => h("div", { class: "nav" },
       group.section ? h("div", { class: "nav-section" }, group.section) : null,
       group.items.map((item) => {

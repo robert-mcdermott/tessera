@@ -34,6 +34,18 @@ TESSERA_TEST_POSTGRES_URL=<url> uv run --extra postgres pytest -m postgres
 scripts/dev-postgres.sh stop
 ```
 
+### Web app tests
+
+The web app has no build step. `tests/test_web.py` checks its safety rules (no inline code, no resources from other origins, no HTML parsing of data), that every module import resolves, and the size budget. When Node.js is installed it also syntax-checks every module and runs the JavaScript unit tests in `tests/js` (`node --test tests/js/*.test.mjs`).
+
+### Documentation
+
+User guides live in [`docs/`](docs/README.md) as plain Markdown that reads well on GitHub; a future product site is built from the same files. Write links between guides as relative links, with anchors where useful. Tests check that every relative link and anchor resolves, and that the generated [command reference](docs/cli.md) and [OpenAPI document](docs/openapi.json) are current. After changing a command or an endpoint, regenerate them:
+
+```bash
+UPDATE_DOCS=1 uv run pytest tests/test_docs.py
+```
+
 ### Live API tests
 
 Tests that call public APIs are marked `network` and are skipped by default. Run them deliberately with `uv run pytest -m network`.

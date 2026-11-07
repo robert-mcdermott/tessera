@@ -543,3 +543,14 @@ a.item-title:hover { color: var(--accent); text-decoration: none; }
 .swatch-dot { height: 5px; width: 14px; border-radius: 3px; background: var(--sw-accent); }
 .swatch-bands { display: flex; height: 6px; }
 .swatch-bands > span { flex: 1; }
+
+/* An organization's logo in the sidebar: the dark version shows in dark mode. */
+.brand-logo { max-height: 30px; max-width: 190px; width: auto; object-fit: contain; }
+.brand-logo-dark { display: none; }
+:root[data-theme="dark"] .brand-logo-light { display: none; }
+:root[data-theme="dark"] .brand-logo-dark { display: block; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .brand-logo-light { display: none; }
+  :root:not([data-theme="light"]) .brand-logo-dark { display: block; }
+}
+.shell[data-collapsed] .brand-logo { max-width: 40px; }

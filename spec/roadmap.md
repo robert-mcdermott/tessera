@@ -31,7 +31,7 @@ Status key: ☐ planned · ◐ in progress · ☑ done
 | 4 | API and search | `/api/v1` for people, publications, grants, studies, assertions, and sources; FTS5 search with facets | ☑ |
 | 5 | Web app and design system | Vanilla JS shell, tokens, light/dark themes, branding, command palette; Home, Search, People, profile, and detail pages; source health | ☑ |
 | 6 | Curation | Review queue with evidence drawer, keyboard flow, bulk within band, undo, manual additions, discovered-people queue | ☑ |
-| 7 | Release prep | Docs, quickstart, changelog, version bump, evaluation report, release | ☐ |
+| 7 | Release prep | Docs, quickstart, changelog, version bump, evaluation report, release | ◐ |
 
 Detail: [waves/wave-1.md](waves/wave-1.md)
 
@@ -43,7 +43,7 @@ Detail: [waves/wave-1.md](waves/wave-1.md)
 - Expert finder and "similar people" with shared-concept explanations
 - Collaboration graph: person focus, collaboration network, concept landscape; canvas renderer with worker layout and list fallback
 - Missed connections and bridges; unit-by-unit matrix
-- ORCID connector as strong authorship evidence; identifier claims
+- ORCID connector as strong authorship evidence; identifier claims; ORCID consistency across a person's own papers as evidence, allowing for people with more than one iD (see the v0.1.0 pilot check in evidence-engine.md)
 - Local accounts, sessions, and roles (admin, curator, researcher, viewer); researchers review their own suggestions; scoped curators
 - Reversible person merges; dated unit memberships
 - Safe auto-accept gated by evaluation; first learned weights (`authorship/v2`)

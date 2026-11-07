@@ -34,6 +34,14 @@ _CSS_COLOR = re.compile(
     r"^(#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|[a-zA-Z]{3,30}"
     r"|(rgba?|hsla?|hwb|lab|lch|oklab|oklch)\([0-9a-zA-Z.,%/ +-]{1,80}\))$"
 )
+# Logo files the web app can show, by extension.
+LOGO_TYPES = {
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+}
 # Color palettes the web app ships (web/static/css/palettes.css); "tessera" is the default.
 PALETTES = ("tessera", "harbor", "cassette")
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -109,7 +117,6 @@ class EvidenceConfig:
     strong_threshold: float = 0.95  # "strong" band
     review_threshold: float = 0.60  # below this, suggestions are "unlikely" and hidden
     store_threshold: float = 0.05  # candidates scoring lower are not recorded at all
-    auto_accept: bool = False  # accept strong suggestions without review (off by default)
     discover_min_papers: int = 2  # affiliated papers needed to propose a discovered person
 
 
@@ -374,6 +381,8 @@ def validate(config: Config) -> list[str]:
     for label, logo in (("logo_light", brand.logo_light), ("logo_dark", brand.logo_dark)):
         if logo is not None and not logo.is_file():
             problems.append(f"branding.{label}: file not found: {logo}")
+        elif logo is not None and logo.suffix.lower() not in LOGO_TYPES:
+            problems.append(f"branding.{label}: use an SVG, PNG, JPEG, or WebP image")
 
     server = config.server
     if not 1 <= server.port <= 65535:

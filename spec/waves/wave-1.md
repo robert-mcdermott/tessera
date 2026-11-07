@@ -2,7 +2,7 @@
 
 **Goal:** prove that a useful, trustworthy research graph can be built from public data alone, with evidence on every link.
 
-**Branch:** `wave-1` · **Target version:** `0.1.0` · **Status:** ◐ slices 1–6 done, slice 7 (release prep) next
+**Branch:** `wave-1` · **Target version:** `0.1.0` · **Status:** ◐ slices 1–6 done; slice 7 ready, awaiting merge and release
 
 ## Exit criteria
 
@@ -115,14 +115,17 @@ Requirements delivered: REC-01–06, REC-09, CUR-01–04, CUR-07, DIS-01–03, C
 
 **Acceptance (met):** on live data, 100 decisions made by keyboard took 3.8 s of machine time: the next suggestion's evidence was on screen in 22 ms (p95 47 ms) and each decision saved in 56 ms (p95 81 ms), leaving the whole 10-minute budget for reading (about 6 s a suggestion). Every action is reversible and logged: link decisions in `curation_event`, people decisions in the new `person_event`, both shown in the decision log. Decisions survive `resolve` and a full index rebuild (tested).
 
-## Slice 7: Release prep ☐
+## Slice 7: Release prep ◐
 
-- [ ] Docs: README quickstart, configuration reference, organization profile guide, curation guide, as Markdown in `docs/` written so the future documentation site can be built from it unchanged (see the roadmap)
-- [ ] Run the evaluation on pilot data and record the summary (without identifying data) in the release notes
-- [ ] Private-terms check over the whole repository; dependency and license review
-- [ ] `CHANGELOG.md` for 0.1.0; version bump to `0.1.0`
-- [ ] Update this file and the roadmap status
-- [ ] PR `wave-1` → `main`, merge, pull, tag `v0.1.0`, publish the release
+- [x] Docs: README quickstart and guides in `docs/` (getting started, describing your organization, curating, configuration, running Tessera, the API), written so the future documentation site can be built from them unchanged; a command reference generated from the commands and the OpenAPI document, both kept current by tests, and a check of every link in the README, guides, changelog, and spec
+- [x] Run the evaluation on pilot data and record the summary (without identifying data) in the release notes: no curator decisions existed yet, so matches were checked against ORCID iDs printed on the papers (see [evidence-engine.md](../evidence-engine.md#pilot-check-against-orcid-ids-v010))
+- [x] Private-terms check over the whole repository; dependency and license review (in the changelog)
+- [x] `CHANGELOG.md` for 0.1.0; version bump to `0.1.0`
+- [x] Update this file and the roadmap status
+- [x] Settings that were documented but not built were finished or removed: the organization's logo now shows in the sidebar; `evidence.auto_accept` was removed until evaluated auto-accept arrives in wave 2 (CUR-05)
+- [ ] PR `wave-1` → `main` (opened), then merge, pull, tag `v0.1.0`, and publish the release, on the maintainer's go-ahead
+
+**Acceptance:** fresh-clone install and quickstart verified; test suite, lint, and the private-terms check pass; every link in the docs and spec resolves.
 
 ---
 

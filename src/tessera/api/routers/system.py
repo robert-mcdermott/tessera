@@ -55,6 +55,12 @@ def meta(request: Request) -> dict[str, Any]:
                 "version": __version__,
                 "theme": config.branding.theme,
                 "accent_color": config.branding.accent_color,
+                "logo": {
+                    "light": "/branding/logo-light",
+                    "dark": "/branding/logo-dark",
+                }
+                if config.branding.logo_light or config.branding.logo_dark
+                else None,
                 "show_powered_by": config.branding.show_powered_by,
             },
             "organization": {

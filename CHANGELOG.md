@@ -4,6 +4,24 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 
 ## Unreleased
 
+Nothing yet.
+
+## 0.1.0 (2026-11-07)
+
+The first release. Tessera builds an organization's research graph from public data, with the evidence for every link, and gives curators fast tools to confirm it. It runs on a laptop or a single server.
+
+**Highlights:** connectors for PubMed, iCite, NIH RePORTER, and ClinicalTrials.gov; a people directory from grant investigators, an optional roster, and discovered authors; explainable authorship suggestions; links between papers, grants, and studies; a fast, accessible web app in three palettes with light and dark versions; a keyboard-driven review queue; a JSON API; and user guides.
+
+### Evaluation
+
+- **Pilot check against ORCID iDs** at a mid-sized research institute (70 directory members, about 2,400 publications over five years; 588 matched papers labeled by the ORCID iD printed on them): the strong band was 98.3% precise at 93.7% recall (target 99%), and suggestions above the review threshold were 97.9% precise at 95.8% recall (target 90%). Seven of the nine strong-band disagreements appear to be people with a second ORCID iD rather than wrong matches. Details are in [spec/evidence-engine.md](spec/evidence-engine.md#pilot-check-against-orcid-ids-v010).
+- **Synthetic organization with known answers:** the strong band is 100% precise with at least 99.8% recall, and candidate retrieval recall is 100%.
+- **Speed on the pilot:** profile pages in 6 ms and search in 20 ms at the 95th percentile; in the review queue, the next suggestion's evidence appears in 22 ms and a decision is saved in 56 ms.
+
+### Dependencies and licenses
+
+Runtime dependencies: Alembic, DuckDB, FastAPI (with Starlette and Pydantic), HTTPX, PyArrow, SQLAlchemy, and Uvicorn, plus psycopg for the optional `postgres` extra. All are permissively licensed (MIT, BSD, Apache-2.0, PSF), except certifi (MPL-2.0, used unmodified) and psycopg (LGPL-3.0, optional and not bundled), both compatible with distributing Tessera under Apache-2.0. The web app ships no third-party code, fonts, or images.
+
 ### Added
 
 - Product specification in `spec/`: vision, requirements, architecture, data model, data sources, evidence engine, discovery, UX, roadmap, process, glossary, and ADRs 0001–0008.
@@ -49,6 +67,8 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 - "Add a publication" on profiles (by PubMed ID), "Review suggestions" for one person, and promote or dismiss on a discovered person's profile.
 - Sidebar counts of suggestions and discovered people waiting, kept current as decisions are made.
 - Ledger migration 0002: the `dismissed` person status and the `person_event` log.
+- Your organization's logo in the sidebar (`branding.logo_light` and `logo_dark`).
+- User guides in `docs/`: getting started, describing your organization, curating, configuration, running Tessera, the API, and a command reference generated from the commands. Tests keep the command reference and the OpenAPI document current and check every link.
 
 ### Changed
 

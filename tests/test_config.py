@@ -168,3 +168,14 @@ def test_theme_must_be_a_known_palette(tmp_path: Path, theme: str, ok: bool) -> 
         with pytest.raises(ConfigError) as caught:
             load_config(write(tmp_path, text), env={})
         assert any("branding.theme" in p for p in caught.value.problems)
+
+
+def test_logo_must_be_an_image(tmp_path: Path) -> None:
+    (tmp_path / "logo.gif").write_bytes(b"GIF89a")
+    text = '[organization]\nname = "Example Institute"\naliases = ["Example Institute"]\n'
+    text += '[branding]\nlogo_light = "logo.gif"\nlogo_dark = "missing.svg"\n'
+    with pytest.raises(ConfigError) as caught:
+        load_config(write(tmp_path, text), env={})
+    problems = caught.value.problems
+    assert any("logo_light" in p and "SVG, PNG" in p for p in problems)
+    assert any("logo_dark" in p and "not found" in p for p in problems)

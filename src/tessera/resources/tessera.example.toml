@@ -38,6 +38,8 @@ product_name = "Tessera"
 theme = "tessera"
 # Replace the palette's accent with your own color (hex, a color name, or oklch()).
 # accent_color = "#4F46E5"
+# Your logo in the sidebar, in place of the Tessera mark and name (SVG, PNG, JPEG, or
+# WebP; about 190 x 30 pixels shows best). The dark version is optional.
 # logo_light = "branding/logo-light.svg"
 # logo_dark = "branding/logo-dark.svg"
 show_powered_by = true
@@ -84,5 +86,4 @@ window_years = 5
 [evidence]
 strong_threshold = 0.95   # "strong" suggestions, listed first for quick confirmation
 review_threshold = 0.60   # below this, suggestions are "unlikely" and hidden by default
-auto_accept = false       # accept strong suggestions without review; enable only after evaluation
 discover_min_papers = 2   # affiliated papers needed before proposing a newly discovered person

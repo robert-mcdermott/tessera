@@ -209,3 +209,23 @@ def test_javascript_unit_tests() -> None:
     assert files
     result = subprocess.run([NODE, "--test", *files], capture_output=True, timeout=120, check=False)
     assert result.returncode == 0, result.stdout.decode("utf-8", "replace")[-4000:]
+
+
+def test_configured_logo_is_served(config_file: Path, instance: object) -> None:
+    logo = config_file.parent / "logo.svg"
+    logo.write_text('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>', "utf-8")
+    with _client_with(config_file, 'theme = "tessera"\nlogo_light = "logo.svg"\n') as client:
+        meta = client.get("/api/v1/meta").json()["data"]["product"]
+        light = client.get("/branding/logo-light")
+        dark = client.get("/branding/logo-dark")  # falls back to the light version
+        other = client.get("/branding/anything")
+    assert meta["logo"] == {"light": "/branding/logo-light", "dark": "/branding/logo-dark"}
+    assert light.status_code == 200 and light.headers["content-type"].startswith("image/svg+xml")
+    assert dark.status_code == 200 and dark.content == light.content
+    assert other.status_code == 404
+    assert light.headers["content-security-policy"] == SECURITY_HEADERS["Content-Security-Policy"]
+
+
+def test_no_logo_by_default(client: TestClient) -> None:
+    assert client.get("/api/v1/meta").json()["data"]["product"]["logo"] is None
+    assert client.get("/branding/logo-light").status_code == 404

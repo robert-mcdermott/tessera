@@ -78,7 +78,13 @@ def build_parser() -> argparse.ArgumentParser:
     compact.add_argument("datasets", nargs="*", help="datasets to compact (default: all)")
     compact.set_defaults(handler=cmd_lake_compact)
     gc = lake_commands.add_parser("gc", help="delete superseded files past retention")
-    gc.add_argument("--retention-days", type=float, default=7.0, metavar="DAYS")
+    gc.add_argument(
+        "--retention-days",
+        type=float,
+        default=7.0,
+        metavar="DAYS",
+        help="keep superseded files younger than this (default: 7)",
+    )
     gc.set_defaults(handler=cmd_lake_gc)
 
     ingest = commands.add_parser(
@@ -92,13 +98,17 @@ def build_parser() -> argparse.ArgumentParser:
     ingest.add_argument(
         "--mode",
         default="auto",
-        help="org | query | ids | linked (pubmed) | pi (reporter) | refresh (icite)",
+        help="org | query | ids | linked or people (pubmed) | pi (reporter) | refresh (icite)",
     )
     ingest.add_argument("--ids", nargs="+", default=[], metavar="ID", help="IDs to fetch")
     ingest.add_argument("--ids-file", metavar="PATH", help="file with one ID per line")
     ingest.add_argument("--query", help="source query (PubMed syntax, Essie, or RePORTER JSON)")
-    ingest.add_argument("--since", type=_date_arg, metavar="YYYY-MM-DD")
-    ingest.add_argument("--until", type=_date_arg, metavar="YYYY-MM-DD")
+    ingest.add_argument(
+        "--since", type=_date_arg, metavar="YYYY-MM-DD", help="start of the window to fetch"
+    )
+    ingest.add_argument(
+        "--until", type=_date_arg, metavar="YYYY-MM-DD", help="end of the window to fetch"
+    )
     ingest.add_argument("--full", action="store_true", help="ignore the saved checkpoint")
     ingest.add_argument(
         "--max-results", type=int, metavar="N", help="stop after N records (for quick checks)"
@@ -108,8 +118,8 @@ def build_parser() -> argparse.ArgumentParser:
     replay_cmd = commands.add_parser(
         "replay", help="rebuild lake records from a run's raw payloads"
     )
-    replay_cmd.add_argument("source")
-    replay_cmd.add_argument("run_id")
+    replay_cmd.add_argument("source", help="pubmed | icite | reporter | ctgov")
+    replay_cmd.add_argument("run_id", help="the run to replay (see `tessera runs`)")
     replay_cmd.set_defaults(handler=cmd_replay)
 
     resolve_cmd = commands.add_parser(
@@ -136,11 +146,11 @@ def build_parser() -> argparse.ArgumentParser:
         dest="people_command", metavar="ACTION", required=True
     )
     importer = people_actions.add_parser("import", help="import a roster CSV file")
-    importer.add_argument("path", type=Path)
+    importer.add_argument("path", type=Path, help="CSV file with a header row")
     importer.set_defaults(handler=cmd_people_import)
     lister = people_actions.add_parser("list", help="list people")
     lister.add_argument("--status", default="active", help="active | former | candidate | all")
-    lister.add_argument("--limit", type=int, default=50)
+    lister.add_argument("--limit", type=int, default=50, help="at most this many (default: 50)")
     lister.set_defaults(handler=cmd_people_list)
 
     eval_cmd = commands.add_parser("eval", help="evaluate matching quality")
@@ -154,8 +164,8 @@ def build_parser() -> argparse.ArgumentParser:
     eval_authorship.set_defaults(handler=cmd_eval_authorship)
 
     runs_cmd = commands.add_parser("runs", help="recent ingest runs")
-    runs_cmd.add_argument("--source")
-    runs_cmd.add_argument("--limit", type=int, default=20)
+    runs_cmd.add_argument("--source", help="only this source")
+    runs_cmd.add_argument("--limit", type=int, default=20, help="at most this many (default: 20)")
     runs_cmd.set_defaults(handler=cmd_runs)
 
     serve = commands.add_parser("serve", help="run the web app and API")

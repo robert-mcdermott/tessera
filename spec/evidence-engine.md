@@ -85,7 +85,7 @@ Accepting a paper therefore strengthens later scores, and rejections teach the e
 
 | Band | Score | Default handling |
 |---|---|---|
-| **Strong** | ≥ 0.95 | Suggested at the top of the queue. Can be auto-accepted only if the admin enables auto-accept *and* the latest evaluation shows ≥ 99% precision at that threshold |
+| **Strong** | ≥ 0.95 | Suggested at the top of the queue. From wave 2, can be auto-accepted only if the admin enables auto-accept *and* the latest evaluation shows ≥ 99% precision at that threshold |
 | **Possible** | 0.60–0.95 | Suggested; needs review |
 | **Unlikely** | < 0.60 | Hidden by default; available behind a "show unlikely" toggle |
 
@@ -121,6 +121,17 @@ Tessera must be able to prove how well it matches, on the adopter's own data.
 ### Synthetic acceptance test
 
 The test suite builds a synthetic organization with known answers: 40 members (30 grant holders, 10 roster-only), about 540 papers with and without the organization's affiliation and with full or initials-only names, and 16 outside "decoys" who share a member's family name and first initial, including exact full-name twins. Across several random worlds, the strong band is 100% precise with ≥ 99.8% recall, and retrieval recall is 100%. In the harder variant, where the twins work in the member's own field and journals, the strong band stays 100% precise; the twins' papers land in the *possible* band (precision ≈ 98–99%) for a curator to judge, which is the intended behavior. Synthetic results are a floor for correctness, not an estimate of real-world accuracy; `tessera eval authorship` measures that on local decisions.
+
+### Pilot check against ORCID iDs (v0.1.0)
+
+Before any curator decisions existed, the pilot (a mid-sized research institute: 70 directory members, about 2,400 publications over five years) was checked against ORCID iDs printed on the papers. No member had an ORCID iD on record, so the model never used ORCID for them and the printed iDs are independent of its scores. For 43 people whose matched papers mostly carry one ORCID iD (at least three papers and more than half of those with any iD), each matched paper was labeled correct when the author's printed iD agreed and wrong when it differed: 588 labels, 19 of them wrong. `tessera eval authorship --gold` then reported:
+
+| Measure | Result | Target |
+|---|---|---|
+| Precision of the *Strong* band | 98.3% (recall 93.7%) | ≥ 99% |
+| Precision at the review threshold | 97.9% (recall 95.8%) | ≥ 90% |
+
+Seven of the nine strong-band disagreements carry the person's grant acknowledgment and the organization's affiliation on that paper, with shared coauthors, and appear to be the same person under a second ORCID iD, a known weakness of this check. The other two sit just above the strong threshold on coauthor evidence alone for a short, common given name, and are genuine near misses. Two lessons for wave 2: ORCID consistency across a person's own papers is useful evidence the model does not use yet, provided it allows for people with more than one iD; and a short given name that many people share should weigh more heavily against a match.
 
 ### Targets (to validate during the pilot)
 

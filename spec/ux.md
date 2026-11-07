@@ -65,7 +65,7 @@ Appearance has two independent choices, both under **Appearance** in the top bar
 
 ### Branding (white-label)
 
-An adopting organization sets its product name, organization name, logo (light and dark variants), favicon, default palette, and optionally its own accent color in `tessera.toml`. The server generates `theme.css` from these settings: a configured accent replaces the palette's accent by day and is lightened for dark mode, with text on it chosen for contrast. No code changes are needed, and "Tessera" appears only in a small "Powered by Tessera" footer link, which can be turned off.
+An adopting organization sets its product name, organization name, logo (light and dark variants, shown in place of the Tessera mark and name), default palette, and optionally its own accent color in `tessera.toml`. The server generates `theme.css` from these settings: a configured accent replaces the palette's accent by day and is lightened for dark mode, with text on it chosen for contrast. A custom favicon comes with the white-label kit (wave 6). No code changes are needed, and "Tessera" appears only in a small "Powered by Tessera" footer link, which can be turned off.
 
 ## Information architecture
 
