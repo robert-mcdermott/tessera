@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Tessera</title>
+  <link rel="icon" type="image/svg+xml" href="/img/tessera-mark.svg">
+  <link rel="stylesheet" href="/css/app.css">
+  <script type="module" src="/js/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="topbar">
+    <div class="brand">
+      <img class="brand-mark" src="/img/tessera-mark.svg" alt="" width="28" height="28">
+      <span class="brand-name" data-bind="product-name">Tessera</span>
+    </div>
+    <button class="theme-toggle" type="button" aria-live="polite" data-action="toggle-theme">
+      <span class="theme-toggle-label">Theme: system</span>
+    </button>
+  </header>
+
+  <main id="main" class="hero">
+    <div class="mosaic" aria-hidden="true">
+      <span></span><span></span><span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <p class="eyebrow" data-bind="organization">Research intelligence</p>
+    <h1 class="title" data-bind="product-name">Tessera</h1>
+    <p class="tagline" data-bind="tagline">Every contribution, connected.</p>
+    <p class="lede">
+      People, publications, grants, and clinical studies, connected from public data
+      with evidence behind every link.
+    </p>
+    <dl class="status" aria-label="System status">
+      <div class="status-item">
+        <dt>Server</dt>
+        <dd><span class="pill" data-bind="health">Checking…</span></dd>
+      </div>
+      <div class="status-item">
+        <dt>Version</dt>
+        <dd data-bind="version">–</dd>
+      </div>
+      <div class="status-item">
+        <dt>Mode</dt>
+        <dd data-bind="mode">–</dd>
+      </div>
+    </dl>
+    <p class="note">The full application is being built in wave 1. This page confirms the server is running.</p>
+  </main>
+
+  <footer class="footer" data-bind="powered-by">
+    Powered by <a href="https://www.apache.org/licenses/LICENSE-2.0">open-source</a> Tessera
+  </footer>
+</body>
+</html>

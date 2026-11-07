@@ -12,6 +12,20 @@ Tessera is an open research intelligence platform for academic research organiza
 
 > **Status:** early development. Wave 1 (v0.1.0) is in progress. See the [roadmap](spec/roadmap.md).
 
+## Quickstart
+
+Requires [uv](https://docs.astral.sh/uv/). Tessera runs on a single machine with Python 3.12+.
+
+```bash
+git clone <this repository> && cd tessera
+uv sync
+uv run tessera init      # writes tessera.toml and a data home in ./var
+uv run tessera doctor    # checks the installation
+uv run tessera serve     # http://127.0.0.1:8000
+```
+
+Edit the `[organization]` section of `tessera.toml` to describe how your organization appears in public records. Data ingestion arrives later in wave 1.
+
 ## Documentation
 
 The [`spec/`](spec/) folder holds the product vision, architecture, data model, roadmap, and design decisions. Start with [spec/README.md](spec/README.md).

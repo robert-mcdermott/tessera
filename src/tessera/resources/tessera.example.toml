@@ -1,0 +1,73 @@
+# Tessera configuration
+#
+# Copy this file to tessera.toml (or run `tessera init`) and edit it.
+# Relative paths are resolved against the directory containing this file.
+# Scalar settings can be overridden by environment variables named
+# TESSERA_<SECTION>_<KEY>, e.g. TESSERA_SERVER_PORT=9000.
+
+# How your organization appears in public records. Tessera uses these to find your
+# researchers, publications, grants, and studies. Include every common spelling.
+[organization]
+name = "Example University"
+short_name = "EXU"
+# Names as written in publication affiliations, trial records, and so on.
+aliases = [
+  "Example University",
+  "Example Univ",
+  "Example University School of Medicine",
+]
+# Case-insensitive patterns matched against PubMed author affiliations.
+# "*" matches any run of characters.
+affiliation_patterns = ["example univ*", "exu medical center"]
+# Organization names exactly as they appear in NIH RePORTER grant records.
+reporter_org_names = ["EXAMPLE UNIVERSITY"]
+# Sponsor, collaborator, and site names as they appear in ClinicalTrials.gov.
+ctgov_org_names = ["Example University", "Example University Medical Center"]
+# Email domains of the organization (used as matching evidence).
+email_domains = ["example.edu"]
+
+# Re-branding. Everything here is optional.
+[branding]
+product_name = "Tessera"
+accent_color = "#4F46E5"
+# logo_light = "branding/logo-light.svg"
+# logo_dark = "branding/logo-dark.svg"
+show_powered_by = true
+
+[data]
+# Where Tessera keeps raw payloads, the Parquet lake, the ledger, derived data, and logs.
+home = "var"
+
+[server]
+# Tessera has no sign-in until accounts arrive, so it listens on this machine only.
+host = "127.0.0.1"
+port = 8000
+# Name recorded on curation actions while running without accounts.
+operator = "Operator"
+
+[ledger]
+# Leave empty to use SQLite at <data home>/ledger.db.
+# PostgreSQL: "postgresql+psycopg://user@host/dbname" (install with the `postgres` extra).
+url = ""
+
+[sources]
+# Contact address sent to public APIs with each request, as their usage policies ask.
+contact_email = "research-it@example.edu"
+
+[sources.pubmed]
+enabled = true
+# Optional NCBI API key, read from this environment variable (never put keys in this file).
+api_key_env = "NCBI_API_KEY"
+
+[sources.icite]
+enabled = true
+
+[sources.reporter]
+enabled = true
+
+[sources.ctgov]
+enabled = true
+
+[sync]
+# How many years of history the first sync collects.
+window_years = 5

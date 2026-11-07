@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Tessera">
+  <title>Tessera</title>
+  <rect x="4" y="4" width="17" height="17" rx="4.5" fill="#4F46E5"/>
+  <rect x="23.5" y="4" width="17" height="17" rx="4.5" fill="#0D9488"/>
+  <rect x="43" y="4" width="17" height="17" rx="4.5" fill="#4F46E5" fill-opacity=".32"/>
+  <rect x="4" y="23.5" width="17" height="17" rx="4.5" fill="#D97706" fill-opacity=".32"/>
+  <rect x="23.5" y="23.5" width="17" height="17" rx="4.5" fill="#7C3AED"/>
+  <rect x="43" y="23.5" width="17" height="17" rx="4.5" fill="#E11D48"/>
+  <rect x="4" y="43" width="17" height="17" rx="4.5" fill="#0D9488" fill-opacity=".32"/>
+  <rect x="23.5" y="43" width="17" height="17" rx="4.5" fill="#D97706"/>
+  <rect x="43" y="43" width="17" height="17" rx="4.5" fill="#7C3AED" fill-opacity=".32"/>
+</svg>

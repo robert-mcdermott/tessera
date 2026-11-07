@@ -1,4 +1,5 @@
 product_research/
+.claude
 
 # Local instance configuration and data (never committed)
 tessera.toml

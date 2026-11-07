@@ -2,7 +2,7 @@
 
 **Goal:** prove that a useful, trustworthy research graph can be built from public data alone, with evidence on every link.
 
-**Branch:** `wave-1` · **Target version:** `0.1.0` · **Status:** ◐ planning complete, slice 1 next
+**Branch:** `wave-1` · **Target version:** `0.1.0` · **Status:** ◐ slice 1 done, slice 2 next
 
 ## Exit criteria
 
@@ -18,24 +18,24 @@ Requirements delivered: REC-01–06, REC-09, CUR-01–04, CUR-07, DIS-01–03, C
 
 ---
 
-## Slice 1: Foundation ☐
+## Slice 1: Foundation ☑
 
 **Goal:** a clean, tested skeleton that every later slice builds on.
 
-- [ ] `uv init` package layout (`src/tessera`), Python 3.13, `pyproject.toml` with the runtime dependency budget from [architecture.md](../architecture.md)
-- [ ] `LICENSE` (Apache 2.0), `NOTICE`, `README.md` (pitch + quickstart stub), `CHANGELOG.md`, `CONTRIBUTING.md`
-- [ ] Tooling: `ruff` (lint + format) and `pytest` config; a `network` marker for opt-in live tests that is skipped by default
-- [ ] Private-terms check: `scripts/check_terms.py` scans tracked files and staged changes against a local, untracked term list (`.private/terms.txt`) and fails on a match
-- [ ] Config: `tessera.example.toml` (Example University); loader with `tomllib`, `TESSERA_*` env overrides, validation with clear errors
-- [ ] Data home layout (`raw/`, `lake/`, `ledger.db`, `derived/`, `logs/`) and `tessera init`
-- [ ] Core utilities: typed IDs (uuid7), UTC clock, structured logging, error types
-- [ ] Ledger: SQLAlchemy Core tables from [data-model.md](../data-model.md), Alembic baseline migration, `tessera db upgrade`
-- [ ] Lake: Arrow schemas, atomic writer with staging and manifest, DuckDB reader with `current` views, `tessera lake compact`
-- [ ] API skeleton: app factory, `/api/v1/health`, `/api/v1/meta` (version, branding, data timestamps), problem+json errors, static file serving confined to the web root, security headers (CSP)
-- [ ] CLI skeleton: `tessera init | doctor | db | lake | serve`, exit codes 0/1/2
-- [ ] `tessera doctor`: checks Python version, config validity, data home permissions, FTS5 availability, and outbound reachability (opt-in)
+- [x] `uv init` package layout (`src/tessera`), Python 3.13, `pyproject.toml` with the runtime dependency budget from [architecture.md](../architecture.md)
+- [x] `LICENSE` (Apache 2.0), `NOTICE`, `README.md` (pitch + quickstart stub), `CHANGELOG.md`, `CONTRIBUTING.md`
+- [x] Tooling: `ruff` (lint + format) and `pytest` config; a `network` marker for opt-in live tests that is skipped by default
+- [x] Private-terms check: `scripts/check_terms.py` scans the working tree, staged changes, or a commit message against a local, untracked term list (`.private/terms.txt`) and fails on a match; `--install-hooks` adds optional git hooks
+- [x] Config: `tessera.example.toml` (Example University); loader with `tomllib`, `TESSERA_*` env overrides, validation with clear errors
+- [x] Data home layout (`raw/`, `lake/`, `ledger.db`, `derived/`, `logs/`) and `tessera init`
+- [x] Core utilities: typed IDs (uuid7), UTC clock, structured logging, error types
+- [x] Ledger: SQLAlchemy Core tables from [data-model.md](../data-model.md), Alembic baseline migration, `tessera db upgrade`; verified on SQLite and on PostgreSQL 16 (`scripts/dev-postgres.sh`)
+- [x] Lake: Arrow schemas, atomic writer with staging and manifest, DuckDB reader with `current` views, `tessera lake compact`
+- [x] API skeleton: app factory, `/api/v1/health`, `/api/v1/meta` (version, branding, organization, mode), `/api/openapi.json`, problem+json errors, static file serving confined to the web root, security headers (CSP). Data timestamps join `/meta` with the connectors in slice 2
+- [x] CLI skeleton: `tessera init | doctor | db | lake | serve`, exit codes 0/1/2
+- [x] `tessera doctor`: checks Python version, config validity, data home permissions, FTS5 availability, and outbound reachability (opt-in)
 
-**Acceptance:** `uv run pytest` and `uv run ruff check` pass; `tessera init && tessera serve` serves a placeholder page and `/api/v1/health`; lake writer is crash-safe in tests (kill between rename and manifest swap leaves readable prior state).
+**Acceptance (met):** `uv run pytest` and `uv run ruff check` pass; `tessera init && tessera serve` serves a placeholder page and `/api/v1/health`; lake writer is crash-safe in tests (kill between rename and manifest swap leaves readable prior state).
 
 ## Slice 2: Connectors ☐
 
@@ -82,7 +82,7 @@ Requirements delivered: REC-01–06, REC-09, CUR-01–04, CUR-07, DIS-01–03, C
 - [ ] Review queue endpoint with prioritization and prefetch hints
 - [ ] Sources: health, runs, checkpoints, freshness
 - [ ] Search: FTS5 index build (`tessera build search`), query sanitization, grouped results, facets with counts, highlighting
-- [ ] OpenAPI docs reachable at `/api/docs`
+- [ ] Self-hosted API reference page (the stock interactive docs load third-party assets, which the CSP forbids); OpenAPI JSON is already at `/api/openapi.json`
 
 **Acceptance:** API tests cover every endpoint; profile p95 < 300 ms and search p95 < 200 ms on the benchmark fixture; malformed search input never produces a server error.
 
@@ -131,3 +131,5 @@ Requirements delivered: REC-01–06, REC-09, CUR-01–04, CUR-07, DIS-01–03, C
 | Date | Note |
 |---|---|
 | 2026-11-07 | Wave planned. Pilot runs on a laptop or single VM; internal-first; AI deferred to wave 5 and optional; extra public sources approved: iCite and grant–publication links (wave 1), ORCID (wave 2), Grants.gov (wave 5) |
+| 2026-11-07 | Slice 1 done. PostgreSQL is tested in a disposable podman/docker container rather than deferred to wave 6. DuckDB runs with extension auto-install and auto-load disabled. |
+| 2026-11-07 | To revisit: Starlette's test client now prefers a successor to `httpx` (warning silenced in pytest config); FastAPI pulls in the inert `opentelemetry-api` package (no exporter, nothing is sent). |

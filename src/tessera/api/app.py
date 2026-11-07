@@ -1,0 +1,58 @@
+"""FastAPI application factory."""
+
+from __future__ import annotations
+
+import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+
+from tessera import PRODUCT_NAME, __version__
+from tessera.api.problems import install_problem_handlers
+from tessera.api.routers import system
+from tessera.api.security import install_security_headers
+from tessera.api.static import install_static
+from tessera.config import ENV_CONFIG_PATH, Config, load_config
+from tessera.home import DataHome
+from tessera.lake import Lake
+from tessera.ledger.db import make_engine
+
+
+def create_app(config: Config) -> FastAPI:
+    home = DataHome(config.data.home)
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        home.require()
+        app.state.engine = make_engine(config.ledger_url)
+        app.state.lake = Lake(home.lake)
+        try:
+            yield
+        finally:
+            app.state.lake.close()
+            app.state.engine.dispose()
+
+    app = FastAPI(
+        title=f"{PRODUCT_NAME} API",
+        version=__version__,
+        summary="People, publications, grants, and clinical studies, connected with evidence.",
+        lifespan=lifespan,
+        # The interactive docs UI loads third-party assets, which the CSP forbids.
+        # The OpenAPI document itself is served; a self-hosted reference page comes later.
+        docs_url=None,
+        redoc_url=None,
+        openapi_url="/api/openapi.json",
+    )
+    app.state.config = config
+    app.state.home = home
+    install_security_headers(app)
+    install_problem_handlers(app)
+    app.include_router(system.router)
+    install_static(app)  # last: its catch-all route must not shadow the API
+    return app
+
+
+def create_app_from_env() -> FastAPI:
+    """Factory for ``uvicorn --factory``: reads the config path from ``$TESSERA_CONFIG``."""
+    return create_app(load_config(os.environ.get(ENV_CONFIG_PATH)))
