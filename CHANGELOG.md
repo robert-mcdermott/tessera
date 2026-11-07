@@ -33,3 +33,7 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 - PubMed person search (`ingest pubmed --mode people`) with batch splitting and skipping of names too common to search.
 - `tessera resolve`, `tessera sync`, `tessera people import|list`, and `tessera eval authorship` (precision, recall, calibration, and slices on local decisions).
 - Configuration: `organization.exclusions` and an `[evidence]` section for thresholds.
+- Search and serving index (`derived/search.db`, SQLite FTS5): organization-relevant people, publications, grants, and studies with summaries, facets, and highlights; rebuilt by `tessera build search` and at the end of `sync`. User input is sanitized so it can never act as query syntax.
+- API `/api/v1`: people (directory, profile, publications, grants, studies, history, manual addition), publications, grants, and studies (lists with facets; details with connected records, metrics with definitions, counting rules, and provenance), assertions and decisions, review queue with bulk decisions, unified search, stats, sources, and runs. Envelopes, cursor paging, sparse field sets, and problem responses throughout.
+- Self-hosted API reference at `/api/docs`.
+- Person topics ranked by distinctiveness (TF-IDF); common model-organism and method headings no longer count as topics.

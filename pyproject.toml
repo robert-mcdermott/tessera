@@ -61,6 +61,8 @@ ignore = [
 # Lake SQL is assembled from the internal schema registry (quoted identifiers) and manifest
 # file paths (escaped literals). User-supplied values are always bound as parameters.
 "src/tessera/lake/**" = ["S608"]
+# Search SQL varies only by runs of "?" placeholders and constant weights; values are bound.
+"src/tessera/search/query.py" = ["S608"]
 # PubMed XML is parsed with ElementTree, which is safe given expat 2.4.1+ (checked at import).
 "src/tessera/connectors/pubmed.py" = ["S314"]
 "tests/**" = ["S105", "S106", "S108", "S311", "S314", "S608"]

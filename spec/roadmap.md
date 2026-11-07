@@ -27,7 +27,7 @@ Status key: ☐ planned · ◐ in progress · ☑ done
 | 1 | Foundation | Project skeleton, config, data home, ledger and migrations, lake writer and reader, CLI and API skeletons, tooling | ☑ |
 | 2 | Connectors | Shared HTTP client; PubMed, iCite, RePORTER, and ClinicalTrials.gov connectors into the raw zone and lake; run records; incremental checkpoints | ☑ |
 | 3 | Evidence engine v1 | People bootstrap, name handling, candidate retrieval, `authorship/v1` scoring, source-reported links, assertions with evidence, `tessera sync` | ☑ |
-| 4 | API and search | `/api/v1` for people, publications, grants, studies, assertions, and sources; FTS5 search with facets | ☐ |
+| 4 | API and search | `/api/v1` for people, publications, grants, studies, assertions, and sources; FTS5 search with facets | ☑ |
 | 5 | Web app and design system | Vanilla JS shell, tokens, light/dark themes, branding, command palette; Home, Search, People, profile, and detail pages; source health | ☐ |
 | 6 | Curation | Review queue with evidence drawer, keyboard flow, bulk within band, undo, manual additions, discovered-people queue | ☐ |
 | 7 | Release prep | Docs, quickstart, changelog, version bump, evaluation report, release | ☐ |

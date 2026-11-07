@@ -29,7 +29,7 @@ Edit the `[organization]` section of `tessera.toml` to describe how your organiz
 uv run tessera sync          # fetch public data, find people, suggest authorships with evidence
 uv run tessera people list   # who was found, with accepted and suggested papers
 uv run tessera runs          # what was fetched, and whether each run completed
-uv run tessera serve         # http://127.0.0.1:8000
+uv run tessera serve         # http://127.0.0.1:8000 (API reference at /api/docs)
 ```
 
 Optional: import a roster (`uv run tessera people import roster.csv`) and set `NCBI_API_KEY` in your environment for faster PubMed requests. Later syncs are incremental.

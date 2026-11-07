@@ -12,6 +12,8 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from tessera.core.errors import LedgerError, TesseraError
+from tessera.jobs.lock import JobLockedError
+from tessera.search.query import SearchUnavailable
 
 PROBLEM_JSON = "application/problem+json"
 log = logging.getLogger("tessera.api")
@@ -50,6 +52,14 @@ def install_problem_handlers(app: FastAPI) -> None:
     async def ledger_error(request: Request, exc: LedgerError) -> JSONResponse:
         log.error("ledger unavailable: %s", exc)
         return problem(503, "The ledger database is unavailable.", instance=request.url.path)
+
+    @app.exception_handler(SearchUnavailable)
+    async def search_unavailable(request: Request, exc: SearchUnavailable) -> JSONResponse:
+        return problem(503, str(exc), instance=request.url.path)
+
+    @app.exception_handler(JobLockedError)
+    async def job_locked(request: Request, exc: JobLockedError) -> JSONResponse:
+        return problem(409, str(exc), instance=request.url.path)
 
     @app.exception_handler(TesseraError)
     async def tessera_error(request: Request, exc: TesseraError) -> JSONResponse:

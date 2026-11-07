@@ -2,7 +2,7 @@
 
 **Goal:** prove that a useful, trustworthy research graph can be built from public data alone, with evidence on every link.
 
-**Branch:** `wave-1` · **Target version:** `0.1.0` · **Status:** ◐ slices 1–3 done, slice 4 next
+**Branch:** `wave-1` · **Target version:** `0.1.0` · **Status:** ◐ slices 1–4 done, slice 5 next
 
 ## Exit criteria
 
@@ -71,20 +71,20 @@ Requirements delivered: REC-01–06, REC-09, CUR-01–04, CUR-07, DIS-01–03, C
 
 **Acceptance (met):** on a synthetic organization with known answers, strong-band precision 100% and retrieval recall 100% (targets 99% and 95%), also in a harder same-field-twins variant; re-resolving after curation leaves every decision intact (accept, reject, defer, and undo); every assertion carries at least one evidence item with an explanation. Live check on a mid-sized institute (two-year window): full `tessera sync` in about 100 seconds, 70 active investigators with 1,655 strong suggestions, 2,150 grant–publication links, about 965 discovered people for review.
 
-## Slice 4: API and search ☐
+## Slice 4: API and search ☑
 
 **Goal:** a clean, documented API that the web app (and others) can build on.
 
-- [ ] Response conventions: `{data, meta}` envelopes, cursor pagination, sparse field sets, problem+json errors
-- [ ] People: list (filters, sort, facets), detail with identifiers, units, and linked items grouped by status
-- [ ] Publications, grants, and studies: list and detail with connected entities and provenance
-- [ ] Assertions: get with evidence and history; decide (accept/reject/defer/undo) with note; manual add by PMID
-- [ ] Review queue endpoint with prioritization and prefetch hints
-- [ ] Sources: health, runs, checkpoints, freshness
-- [ ] Search: FTS5 index build (`tessera build search`), query sanitization, grouped results, facets with counts, highlighting
-- [ ] Self-hosted API reference page (the stock interactive docs load third-party assets, which the CSP forbids); OpenAPI JSON is already at `/api/openapi.json`
+- [x] Response conventions: `{data, meta}` envelopes, cursor pagination, sparse field sets, problem+json errors
+- [x] People: list (filters, sort, facets), detail with identifiers, units, and linked items grouped by status
+- [x] Publications, grants, and studies: list and detail with connected entities and provenance
+- [x] Assertions: get with evidence and history; decide (accept/reject/defer/undo) with note; manual add by PMID (fetched from PubMed if not in the lake)
+- [x] Review queue endpoint with prioritization (strong by person, then conflicts, then ambiguous names) and prefetch hints; bulk decisions within one person and band
+- [x] Sources: health, runs, checkpoints, freshness, evidence and index status, lake tables; `/api/v1/stats` for the home page
+- [x] Search: FTS5 search and serving index (`tessera build search`, also run by `sync`), query sanitization, grouped results, facets with counts, highlighting with private-use markers rather than HTML
+- [x] Self-hosted API reference page at `/api/docs` (the stock interactive docs load third-party assets, which the CSP forbids); OpenAPI JSON at `/api/openapi.json`
 
-**Acceptance:** API tests cover every endpoint; profile p95 < 300 ms and search p95 < 200 ms on the benchmark fixture; malformed search input never produces a server error.
+**Acceptance (met):** API tests cover every endpoint (48 tests on a synthetic organization); on live data for a mid-sized institute, profile p95 6 ms and search p95 20 ms (targets 300 ms and 200 ms); 28 hostile search strings (FTS operators, quotes, SQL, NUL, 600-character input) never produce a server error. The 5,000-person, 300,000-paper target remains to be measured at that scale; lookups are indexed, and the review queue filters by score in SQL.
 
 ## Slice 5: Web app and design system ☐
 
@@ -134,4 +134,5 @@ Requirements delivered: REC-01–06, REC-09, CUR-01–04, CUR-07, DIS-01–03, C
 | 2026-11-07 | Slice 1 done. PostgreSQL is tested in a disposable podman/docker container rather than deferred to wave 6. DuckDB runs with extension auto-install and auto-load disabled. |
 | 2026-11-07 | Slice 2 done. NIH *contracts* (e.g. `75N9…`, `HHSN…`) are not normalized as grants; month ranges in PubMed dates ("Nov-Dec") keep only the year rather than claim false precision. |
 | 2026-11-07 | Slice 3 done. Multi-PI co-investigators are not presumed members; lone-initial person searches dropped (≈5× noise in a live check); preprint servers and megajournals excluded from journal history; seed threshold 0.90 with two rounds. |
+| 2026-11-07 | Slice 4 done. `derived/search.db` doubles as the serving index for lists and summaries; detail pages read the lake by key. Person topics ranked by TF-IDF, with model organisms and methods treated as non-topics. Response schemas in OpenAPI are minimal for now (parameters and bodies are documented). |
 | 2026-11-07 | To revisit: Starlette's test client now prefers a successor to `httpx` (warning silenced in pytest config); FastAPI pulls in the inert `opentelemetry-api` package (no exporter, nothing is sent). |

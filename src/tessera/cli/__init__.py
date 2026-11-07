@@ -118,6 +118,12 @@ def build_parser() -> argparse.ArgumentParser:
     resolve_cmd.add_argument("--people-only", action="store_true", help="stop after people")
     resolve_cmd.set_defaults(handler=cmd_resolve)
 
+    build_cmd = commands.add_parser("build", help="rebuild derived artifacts")
+    build_actions = build_cmd.add_subparsers(dest="build_command", metavar="WHAT", required=True)
+    build_actions.add_parser("search", help="the search and serving index").set_defaults(
+        handler=cmd_build_search
+    )
+
     sync_cmd = commands.add_parser(
         "sync", help="fetch every source and resolve, in the right order (the usual command)"
     )
@@ -474,6 +480,28 @@ def cmd_resolve(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _print_build(result: dict) -> None:  # type: ignore[type-arg]
+    docs = result.get("documents", {})
+    print(
+        f"search index: {docs.get('person', 0):,} people, {docs.get('publication', 0):,} "
+        f"publications, {docs.get('grant', 0):,} grants, {docs.get('study', 0):,} studies "
+        f"in {result.get('seconds', 0)}s"
+    )
+
+
+def cmd_build_search(args: argparse.Namespace) -> int:
+    from tessera.jobs.build import build_search
+
+    config, home = _load(args)
+    engine = _engine(config)
+    try:
+        result = build_search(config, home, engine)
+    finally:
+        engine.dispose()
+    _print_build(result)
+    return EXIT_OK
+
+
 def cmd_sync(args: argparse.Namespace) -> int:
     from tessera.connectors.base import IngestOptions
     from tessera.jobs.sync import sync
@@ -490,6 +518,7 @@ def cmd_sync(args: argparse.Namespace) -> int:
     for run in result.ingests:
         _print_result(run)
     _print_resolve(result.resolves[-1])
+    _print_build(result.build)
     return {"succeeded": EXIT_OK, "partial": EXIT_PARTIAL}.get(result.status, EXIT_ERROR)
 
 

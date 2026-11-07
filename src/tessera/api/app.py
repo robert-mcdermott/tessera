@@ -10,9 +10,9 @@ from fastapi import FastAPI
 
 from tessera import PRODUCT_NAME, __version__
 from tessera.api.problems import install_problem_handlers
-from tessera.api.routers import system
+from tessera.api.routers import curation, overview, people, records, system
 from tessera.api.security import install_security_headers
-from tessera.api.static import install_static
+from tessera.api.static import install_api_reference, install_static
 from tessera.config import ENV_CONFIG_PATH, Config, load_config
 from tessera.home import DataHome
 from tessera.lake import Lake
@@ -48,7 +48,9 @@ def create_app(config: Config) -> FastAPI:
     app.state.home = home
     install_security_headers(app)
     install_problem_handlers(app)
-    app.include_router(system.router)
+    for module in (system, overview, people, records, curation):
+        app.include_router(module.router)
+    install_api_reference(app)
     install_static(app)  # last: its catch-all route must not shadow the API
     return app
 

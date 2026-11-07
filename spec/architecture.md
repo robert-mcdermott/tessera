@@ -82,10 +82,14 @@ Each step can also run alone (`tessera ingest pubmed`, `tessera resolve`, `tesse
 
 ## Request flow: a profile page
 
-1. The browser asks `GET /api/v1/people/{id}`.
+1. The browser asks `GET /api/v1/people/{id}`, then `GET /api/v1/people/{id}/publications`.
 2. The API reads the person, their identifiers, and their assertions (with statuses) from the **ledger**. These are live, so a curator's decision shows on the next request.
-3. It looks up the content for the linked publications, grants, and studies in the **lake** by key, through an in-process DuckDB connection over the current Parquet files.
+3. It takes display summaries for the linked publications, grants, and studies from the **serving index** (`derived/search.db`), falling back to the **lake** for anything not indexed (such as unlikely suggestions).
 4. It returns one JSON document. The browser renders it.
+
+Detail pages (`/publications/{pmid}`, `/grants/{core}`, `/studies/{nct}`) read full content from the lake by key. DuckDB pushes the key filter through the current-version view into the Parquet scan, so lookups use file statistics rather than scanning tables. Lists, facets, and search come from the serving index.
+
+Measured on live data for a mid-sized research institute (about 70 people, 6,000 papers in the lake, 2,400 indexed): profile p95 6 ms, search p95 20 ms, publication detail p95 113 ms, review queue p95 47 ms.
 
 DuckDB is opened **in-memory per API process**, with read-only views over Parquet. No process ever holds a write lock on the lake, so the CLI can ingest while the server is running, and several API workers can run side by side.
 

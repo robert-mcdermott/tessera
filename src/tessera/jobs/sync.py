@@ -4,6 +4,7 @@
 2. Resolve people (so they can be searched for by name).
 3. Search PubMed by person name, then fetch citation metrics.
 4. Resolve everything: links, authorship suggestions, study officials.
+5. Rebuild the search and serving index.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from tessera.config import Config
 from tessera.connectors.base import IngestOptions
 from tessera.evidence.resolve import ResolveResult, resolve
 from tessera.home import DataHome
+from tessera.jobs.build import build_search
 from tessera.jobs.ingest import RunResult, ingest_many
 
 FIRST = ("reporter", "ctgov", "pubmed", "pubmed:linked")
@@ -28,6 +30,7 @@ SECOND = ("pubmed:people", "icite")
 class SyncResult:
     ingests: list[RunResult] = field(default_factory=list)
     resolves: list[ResolveResult] = field(default_factory=list)
+    build: dict[str, Any] = field(default_factory=dict)
 
     @property
     def status(self) -> str:
@@ -58,4 +61,5 @@ def sync(
             config, home, engine, SECOND, options=options, today=today, **ingest_kwargs
         )
     result.resolves.append(resolve(config, home, engine, today=today))
+    result.build = build_search(config, home, engine)
     return result

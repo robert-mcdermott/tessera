@@ -66,6 +66,11 @@ CHECK_TAGS = frozenset({
     "Mice", "Rats", "Pregnancy", "Cattle", "Dogs", "Swine", "Rabbits", "Cats", "Horses",
     "Sheep", "Guinea Pigs", "Cricetinae", "Chick Embryo", "Retrospective Studies",
     "Prospective Studies", "Cohort Studies", "Follow-Up Studies", "Cross-Sectional Studies",
+    # Model organisms, cell models, and methods that describe how, not what.
+    "Mice, Inbred C57BL", "Mice, Knockout", "Mice, Transgenic", "Mice, Inbred BALB C",
+    "Disease Models, Animal", "Cells, Cultured", "Cell Line", "Cell Line, Tumor", "HEK293 Cells",
+    "Amino Acid Sequence", "Molecular Sequence Data", "Base Sequence", "Models, Biological",
+    "Time Factors", "Treatment Outcome", "Reproducibility of Results",
 })  # fmt: skip
 
 # Preprint servers and very broad journals say little about who wrote a paper.

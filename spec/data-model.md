@@ -117,7 +117,7 @@ Contact details from registry records (emails, phone numbers) are **not** stored
 
 | Artifact | Built from | Purpose |
 |---|---|---|
-| `derived/search.db` | Lake content + ledger people and accepted links | Full-text search (SQLite FTS5, porter + unicode61 tokenizer) across people, publications, grants, studies; facet columns for filtering |
+| `derived/search.db` | Lake content + ledger people and links | The **search and serving index**. `doc` holds one row per organization-relevant person, publication, grant, and study with a JSON display summary; `doc_fts` is an FTS5 index (porter + unicode61, diacritics removed) over title, people, terms, and body; `facet` holds (doc, name, value) rows for filters and counts. Publications are included only if a member authored them (accepted, or suggested at or above the review threshold), an author lists the organization, or a grant or study cites them; papers that name searches fetched for other people stay out. Person topics are ranked by TF-IDF across the directory |
 
 Later: `concept_profile`, `similarity_pair`, `coauthor_edge` (wave 2); `metric_*` tables and frozen `snapshot/<id>/` folders (wave 4).
 

@@ -22,6 +22,14 @@ def resolve_static(root: Path, request_path: str) -> Path | None:
     return candidate if candidate.is_file() else None
 
 
+def install_api_reference(app: FastAPI, root: Path = WEB_ROOT) -> None:
+    """A self-hosted API reference at /api/docs (no third-party assets, unlike stock docs)."""
+
+    @app.get("/api/docs", include_in_schema=False)
+    async def api_reference() -> Response:
+        return FileResponse(root / "api-docs.html", headers={"Cache-Control": "no-cache"})
+
+
 def install_static(app: FastAPI, root: Path = WEB_ROOT) -> None:
     index = root / "index.html"
 

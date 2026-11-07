@@ -438,17 +438,57 @@ def assertions_for(
     *,
     predicate: str | None = None,
     subject_id: str | None = None,
+    object_id: str | None = None,
     statuses: Iterable[str] | None = None,
     reported_only: bool = True,
+    min_score: float | None = None,
 ) -> list[dict[str, Any]]:
     query = select(assertion)
+    if min_score is not None:
+        query = query.where(assertion.c.score >= min_score)
     if predicate:
         query = query.where(assertion.c.predicate == predicate)
     if subject_id:
         query = query.where(assertion.c.subject_id == subject_id)
+    if object_id:
+        query = query.where(assertion.c.object_id == object_id)
     if statuses:
         query = query.where(assertion.c.status.in_(tuple(statuses)))
     if reported_only:
         query = query.where(assertion.c.reported.is_(True))
     with engine.connect() as conn:
         return [dict(r) for r in conn.execute(query).mappings()]
+
+
+def display_names(engine: Engine, person_ids: Iterable[str]) -> dict[str, str]:
+    ids = sorted(set(person_ids))
+    out: dict[str, str] = {}
+    with engine.connect() as conn:
+        for start in range(0, len(ids), 500):
+            chunk = ids[start : start + 500]
+            out.update(
+                conn.execute(
+                    select(person.c.id, person.c.display_name).where(person.c.id.in_(chunk))
+                ).all()
+            )
+    return out
+
+
+def people_by_identifier(engine: Engine, scheme: str, values: Iterable[str]) -> dict[str, str]:
+    """Map identifier values (e.g. NIH profile IDs) to person IDs."""
+    wanted = sorted({str(v) for v in values})
+    out: dict[str, str] = {}
+    with engine.connect() as conn:
+        for start in range(0, len(wanted), 500):
+            chunk = wanted[start : start + 500]
+            out.update(
+                conn.execute(
+                    select(person_identifier.c.value, person_identifier.c.person_id).where(
+                        and_(
+                            person_identifier.c.scheme == scheme,
+                            person_identifier.c.value.in_(chunk),
+                        )
+                    )
+                ).all()
+            )
+    return out
