@@ -43,6 +43,8 @@ class OrganizationConfig:
     reporter_org_names: tuple[str, ...] = ()
     ctgov_org_names: tuple[str, ...] = ()
     email_domains: tuple[str, ...] = ()
+    # Look-alike names that contain an alias but are a different organization.
+    exclusions: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -92,6 +94,17 @@ class SyncConfig:
 
 
 @dataclass(frozen=True)
+class EvidenceConfig:
+    """Thresholds for suggested links. See spec/evidence-engine.md."""
+
+    strong_threshold: float = 0.95  # "strong" band
+    review_threshold: float = 0.60  # below this, suggestions are "unlikely" and hidden
+    store_threshold: float = 0.05  # candidates scoring lower are not recorded at all
+    auto_accept: bool = False  # accept strong suggestions without review (off by default)
+    discover_min_papers: int = 2  # affiliated papers needed to propose a discovered person
+
+
+@dataclass(frozen=True)
 class Config:
     organization: OrganizationConfig = field(default_factory=OrganizationConfig)
     branding: BrandingConfig = field(default_factory=BrandingConfig)
@@ -100,6 +113,7 @@ class Config:
     ledger: LedgerConfig = field(default_factory=LedgerConfig)
     sources: SourcesConfig = field(default_factory=SourcesConfig)
     sync: SyncConfig = field(default_factory=SyncConfig)
+    evidence: EvidenceConfig = field(default_factory=EvidenceConfig)
     path: Path | None = None  # the file this configuration was loaded from
 
     @property
@@ -117,6 +131,7 @@ _SECTIONS: dict[str, type] = {
     "ledger": LedgerConfig,
     "sources": SourcesConfig,
     "sync": SyncConfig,
+    "evidence": EvidenceConfig,
 }
 _SOURCE_NAMES = ("pubmed", "icite", "reporter", "ctgov")
 _PATH_FIELDS = {("data", "home"), ("branding", "logo_light"), ("branding", "logo_dark")}
@@ -204,7 +219,7 @@ def _apply_env(
 
 def _scalar_type(annotation: Any) -> type | None:
     text = str(annotation)
-    for kind in (bool, int, str):
+    for kind in (bool, int, float, str):
         if text == kind.__name__:
             return kind
     if text.startswith("Path"):
@@ -226,6 +241,12 @@ def _coerce_env(value: str, kind: type, var: str, problems: list[str]) -> Any:
             return int(value)
         except ValueError:
             problems.append(f"{var} must be an integer, got {value!r}")
+            return None
+    if kind is float:
+        try:
+            return float(value)
+        except ValueError:
+            problems.append(f"{var} must be a number, got {value!r}")
             return None
     return value
 
@@ -269,6 +290,11 @@ def _convert(value: Any, expected: str, label: str, problems: list[str]) -> Any:
             problems.append(f"{label} must be an integer")
             return None
         return value
+    if expected == "float":
+        if isinstance(value, bool) or not isinstance(value, int | float):
+            problems.append(f"{label} must be a number")
+            return None
+        return float(value)
     if expected == "str":
         if not isinstance(value, str):
             problems.append(f"{label} must be a string")
@@ -356,6 +382,15 @@ def validate(config: Config) -> list[str]:
 
     if not 1 <= config.sync.window_years <= 50:
         problems.append("sync.window_years must be between 1 and 50")
+
+    ev = config.evidence
+    if not 0 <= ev.store_threshold <= ev.review_threshold <= ev.strong_threshold <= 1:
+        problems.append(
+            "evidence thresholds must satisfy 0 <= store_threshold <= review_threshold "
+            "<= strong_threshold <= 1"
+        )
+    if ev.discover_min_papers < 1:
+        problems.append("evidence.discover_min_papers must be at least 1")
     return problems
 
 

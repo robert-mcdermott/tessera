@@ -112,6 +112,41 @@ def build_parser() -> argparse.ArgumentParser:
     replay_cmd.add_argument("run_id")
     replay_cmd.set_defaults(handler=cmd_replay)
 
+    resolve_cmd = commands.add_parser(
+        "resolve", help="update people, links, and authorship suggestions from the lake"
+    )
+    resolve_cmd.add_argument("--people-only", action="store_true", help="stop after people")
+    resolve_cmd.set_defaults(handler=cmd_resolve)
+
+    sync_cmd = commands.add_parser(
+        "sync", help="fetch every source and resolve, in the right order (the usual command)"
+    )
+    sync_cmd.add_argument("--no-fetch", action="store_true", help="only resolve the lake")
+    sync_cmd.add_argument("--full", action="store_true", help="ignore saved checkpoints")
+    sync_cmd.set_defaults(handler=cmd_sync)
+
+    people_cmd = commands.add_parser("people", help="the people directory")
+    people_actions = people_cmd.add_subparsers(
+        dest="people_command", metavar="ACTION", required=True
+    )
+    importer = people_actions.add_parser("import", help="import a roster CSV file")
+    importer.add_argument("path", type=Path)
+    importer.set_defaults(handler=cmd_people_import)
+    lister = people_actions.add_parser("list", help="list people")
+    lister.add_argument("--status", default="active", help="active | former | candidate | all")
+    lister.add_argument("--limit", type=int, default=50)
+    lister.set_defaults(handler=cmd_people_list)
+
+    eval_cmd = commands.add_parser("eval", help="evaluate matching quality")
+    eval_actions = eval_cmd.add_subparsers(dest="eval_command", metavar="WHAT", required=True)
+    eval_authorship = eval_actions.add_parser(
+        "authorship", help="precision, recall, and calibration of authorship suggestions"
+    )
+    eval_authorship.add_argument(
+        "--gold", type=Path, metavar="CSV", help="adjudicated pairs: person,pmid,label"
+    )
+    eval_authorship.set_defaults(handler=cmd_eval_authorship)
+
     runs_cmd = commands.add_parser("runs", help="recent ingest runs")
     runs_cmd.add_argument("--source")
     runs_cmd.add_argument("--limit", type=int, default=20)
@@ -397,6 +432,141 @@ def cmd_runs(args: argparse.Namespace) -> int:
         ],
         headers=("run", "source", "kind", "mode", "status", "started (UTC)", "error"),
     )
+    return EXIT_OK
+
+
+def _print_resolve(result) -> None:  # type: ignore[no-untyped-def]
+    counts = result.counts
+    people = counts.get("people", {})
+    discovery = counts.get("discovery", {})
+    print(f"resolve: {result.status}  [{result.run_id}]")
+    directory = counts.get("directory", {})
+    print(
+        f"  people: {directory.get('active', 0):,} active, {directory.get('former', 0):,} "
+        f"former, {directory.get('candidate', 0):,} candidates awaiting review "
+        f"({people.get('created', 0)} new from grants, {people.get('promoted', 0)} promoted by "
+        f"affiliated papers, {discovery.get('candidates_created', 0)} newly discovered)"
+    )
+    if "authorship" in counts:
+        a = counts["authorship"]
+        stored = a.get("store", {})
+        print(
+            f"  authorship: {a['candidates']:,} candidates for {a['people']:,} people: "
+            f"{a['strong']:,} strong, {a['possible']:,} possible, {a['unlikely']:,} unlikely "
+            f"({stored.get('inserted', 0):,} new, {stored.get('updated', 0):,} updated)"
+        )
+    for predicate, stats in counts.get("links", {}).items():
+        if stats:
+            total = stats.get("inserted", 0) + stats.get("updated", 0) + stats.get("unchanged", 0)
+            print(f"  {predicate}: {total:,} links ({stats.get('inserted', 0):,} new)")
+
+
+def cmd_resolve(args: argparse.Namespace) -> int:
+    from tessera.evidence.resolve import resolve
+
+    config, home = _load(args)
+    engine = _engine(config)
+    try:
+        result = resolve(config, home, engine, people_only=args.people_only)
+    finally:
+        engine.dispose()
+    _print_resolve(result)
+    return EXIT_OK
+
+
+def cmd_sync(args: argparse.Namespace) -> int:
+    from tessera.connectors.base import IngestOptions
+    from tessera.jobs.sync import sync
+
+    config, home = _load(args)
+    home.require()
+    engine = _engine(config)
+    try:
+        result = sync(
+            config, home, engine, fetch=not args.no_fetch, options=IngestOptions(full=args.full)
+        )
+    finally:
+        engine.dispose()
+    for run in result.ingests:
+        _print_result(run)
+    _print_resolve(result.resolves[-1])
+    return {"succeeded": EXIT_OK, "partial": EXIT_PARTIAL}.get(result.status, EXIT_ERROR)
+
+
+def cmd_people_import(args: argparse.Namespace) -> int:
+    from tessera.evidence.people import import_roster
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    try:
+        stats = import_roster(engine, args.path)
+    finally:
+        engine.dispose()
+    print(f"roster: {stats.rows} rows, {stats.created} people created, {stats.matched} matched")
+    for problem in stats.skipped[:10]:
+        print(f"  skipped {problem}")
+    return EXIT_OK if not stats.skipped else EXIT_PARTIAL
+
+
+def cmd_people_list(args: argparse.Namespace) -> int:
+    from sqlalchemy import func, select
+
+    from tessera.ledger.tables import assertion, person
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    statuses = ("active", "former", "candidate") if args.status == "all" else (args.status,)
+    papers = (
+        select(assertion.c.subject_id, func.count().label("n"))
+        .where(assertion.c.predicate == "authored", assertion.c.status == "accepted")
+        .group_by(assertion.c.subject_id)
+        .subquery()
+    )
+    suggested = (
+        select(assertion.c.subject_id, func.count().label("n"))
+        .where(
+            assertion.c.predicate == "authored",
+            assertion.c.status == "suggested",
+            assertion.c.reported.is_(True),
+        )
+        .group_by(assertion.c.subject_id)
+        .subquery()
+    )
+    query = (
+        select(
+            person.c.id,
+            person.c.display_name,
+            person.c.status,
+            func.coalesce(papers.c.n, 0),
+            func.coalesce(suggested.c.n, 0),
+        )
+        .outerjoin(papers, papers.c.subject_id == person.c.id)
+        .outerjoin(suggested, suggested.c.subject_id == person.c.id)
+        .where(person.c.status.in_(statuses))
+        .order_by(person.c.display_name)
+        .limit(args.limit)
+    )
+    try:
+        with engine.connect() as conn:
+            rows = conn.execute(query).all()
+    finally:
+        engine.dispose()
+    table(rows, headers=("id", "name", "status", "accepted papers", "suggested"))
+    return EXIT_OK
+
+
+def cmd_eval_authorship(args: argparse.Namespace) -> int:
+    from tessera.evidence.evaluate import evaluate, render_markdown, write_report
+
+    config, home = _load(args)
+    engine = _engine(config)
+    try:
+        report = evaluate(engine, config, args.gold)
+    finally:
+        engine.dispose()
+    json_path, md_path = write_report(report, home.derived / "eval")
+    print(render_markdown(report))
+    print(f"Report written to {md_path} and {json_path}")
     return EXIT_OK
 
 

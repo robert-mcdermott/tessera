@@ -44,7 +44,7 @@ Each **evidence item** is a small record: `{feature, value, weight, explanation,
 
 | Predicate | Subject → Object | Origin in wave 1 | Default status |
 |---|---|---|---|
-| `authored` | person → publication | inferred (evidence engine) | `suggested`; auto-accept is configurable and off by default |
+| `authored` | person → publication | inferred (evidence engine) | `suggested`; auto-accept is configurable and off by default. One per person and paper; the matched author position, author count, and name as printed are qualifiers |
 | `investigator_on` | person → grant | source (grant record, keyed by NIH profile ID) | `accepted` |
 | `official_of` | person → study | inferred (name and affiliation match) | `suggested` |
 | `acknowledges` | publication → grant | source (grant link table, publication grant list) | `accepted` |

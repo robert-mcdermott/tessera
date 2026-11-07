@@ -1,0 +1,454 @@
+"""Ledger access for people, units, and assertions.
+
+The rules from ADR-0006 are enforced here, in one place:
+
+* automation never changes the status of a locked (human-decided) assertion;
+* automation never deletes an assertion; links no longer produced are marked unreported;
+* every status change by a person is an append-only curation event, and undo is an event.
+"""
+
+from __future__ import annotations
+
+import json
+import math
+from collections.abc import Iterable
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any
+
+from sqlalchemy import and_, bindparam, insert, select, update
+from sqlalchemy.engine import Connection, Engine
+
+from tessera.core.clock import utc_now
+from tessera.core.errors import TesseraError
+from tessera.core.ids import new_id
+from tessera.evidence.names import Name, make_name
+from tessera.ledger.tables import (
+    assertion,
+    curation_event,
+    person,
+    person_identifier,
+    person_name,
+    unit,
+)
+
+# --- people ---------------------------------------------------------------------------------
+
+
+@dataclass
+class PersonRecord:
+    id: str
+    display_name: str
+    status: str
+    names: list[Name] = field(default_factory=list)
+    identifiers: dict[str, set[str]] = field(default_factory=dict)  # scheme -> values
+
+    def ids(self, scheme: str) -> set[str]:
+        return self.identifiers.get(scheme, set())
+
+
+def find_by_identifier(conn: Connection, scheme: str, value: str) -> str | None:
+    return conn.execute(
+        select(person_identifier.c.person_id).where(
+            and_(person_identifier.c.scheme == scheme, person_identifier.c.value == value)
+        )
+    ).scalar()
+
+
+def create_person(
+    conn: Connection, name: Name, *, status: str, source: str, display_name: str | None = None
+) -> str:
+    now = utc_now()
+    person_id = new_id("per")
+    conn.execute(
+        insert(person).values(
+            id=person_id,
+            display_name=display_name or name.display,
+            family_name=name.family,
+            given_name=name.given or None,
+            status=status,
+            created_at=now,
+            updated_at=now,
+        )
+    )
+    add_name(conn, person_id, name, kind="primary", source=source)
+    return person_id
+
+
+def add_name(conn: Connection, person_id: str, name: Name, *, kind: str, source: str) -> bool:
+    exists = conn.execute(
+        select(person_name.c.id).where(
+            and_(
+                person_name.c.person_id == person_id,
+                person_name.c.family == name.family,
+                person_name.c.given == name.given,
+            )
+        )
+    ).first()
+    if exists:
+        return False
+    conn.execute(
+        insert(person_name).values(
+            person_id=person_id,
+            family=name.family,
+            given=name.given,
+            initials=name.initials,
+            kind=kind,
+            source=source,
+            created_at=utc_now(),
+        )
+    )
+    return True
+
+
+def add_identifier(
+    conn: Connection,
+    person_id: str,
+    scheme: str,
+    value: str,
+    *,
+    source: str,
+    status: str = "accepted",
+) -> bool:
+    exists = conn.execute(
+        select(person_identifier.c.id).where(
+            and_(
+                person_identifier.c.person_id == person_id,
+                person_identifier.c.scheme == scheme,
+                person_identifier.c.value == value,
+            )
+        )
+    ).first()
+    if exists:
+        return False
+    now = utc_now()
+    conn.execute(
+        insert(person_identifier).values(
+            person_id=person_id,
+            scheme=scheme,
+            value=value,
+            status=status,
+            source=source,
+            created_at=now,
+            updated_at=now,
+        )
+    )
+    return True
+
+
+def set_status(conn: Connection, person_id: str, status: str) -> None:
+    conn.execute(
+        update(person).where(person.c.id == person_id).values(status=status, updated_at=utc_now())
+    )
+
+
+def load_people(
+    engine: Engine, statuses: Iterable[str] = ("active", "former")
+) -> list[PersonRecord]:
+    statuses = tuple(statuses)
+    with engine.connect() as conn:
+        rows = conn.execute(select(person).where(person.c.status.in_(statuses))).mappings().all()
+        people = {r["id"]: PersonRecord(r["id"], r["display_name"], r["status"]) for r in rows}
+        for r in conn.execute(select(person_name)).mappings():
+            record = people.get(r["person_id"])
+            name = make_name(r["family"], r["given"], r["initials"]) if record else None
+            if record and name:
+                record.names.append(name)
+        for r in conn.execute(
+            select(person_identifier).where(person_identifier.c.status == "accepted")
+        ).mappings():
+            if record := people.get(r["person_id"]):
+                record.identifiers.setdefault(r["scheme"], set()).add(r["value"])
+    return list(people.values())
+
+
+def get_or_create_unit(
+    conn: Connection, name: str, *, code: str | None = None, kind: str = "department"
+) -> str:
+    query = (
+        select(unit.c.id).where(unit.c.code == code)
+        if code
+        else select(unit.c.id).where(and_(unit.c.name == name, unit.c.code.is_(None)))
+    )
+    found = conn.execute(query).scalar()
+    if found:
+        return found
+    now = utc_now()
+    unit_id = new_id("unt")
+    conn.execute(
+        insert(unit).values(
+            id=unit_id, name=name, kind=kind, code=code, created_at=now, updated_at=now
+        )
+    )
+    return unit_id
+
+
+# --- assertions -----------------------------------------------------------------------------
+
+
+@dataclass
+class Draft:
+    """An assertion as automation would like it to be."""
+
+    subject_type: str
+    subject_id: str
+    predicate: str
+    object_type: str
+    object_id: str
+    origin: str
+    method: str
+    evidence: list[dict[str, Any]]
+    score: float | None = None
+    qualifiers: dict[str, Any] = field(default_factory=dict)
+    qualifier_key: str = ""
+    status: str = "suggested"  # used only when the assertion is new
+
+    @property
+    def key(self) -> tuple[str, str, str, str]:
+        return (self.subject_id, self.predicate, self.object_id, self.qualifier_key)
+
+
+@dataclass
+class SyncStats:
+    inserted: int = 0
+    updated: int = 0
+    unchanged: int = 0
+    unreported: int = 0
+    skipped_low: int = 0
+
+    def to_json(self) -> dict[str, int]:
+        return dict(vars(self))
+
+
+def _canonical(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
+
+
+def _same(existing: dict[str, Any], draft: Draft) -> bool:
+    old, new = existing["score"], draft.score
+    scores_equal = (old is None and new is None) or (
+        old is not None and new is not None and math.isclose(old, new, abs_tol=1e-6)
+    )
+    return (
+        scores_equal
+        and existing["reported"]
+        and _canonical(existing["evidence"]) == _canonical(draft.evidence)
+        and _canonical(existing["qualifiers"]) == _canonical(draft.qualifiers)
+        and existing["method"] == draft.method
+    )
+
+
+def sync_assertions(
+    engine: Engine,
+    predicate: str,
+    drafts: Iterable[Draft],
+    *,
+    origin: str,
+    min_score_for_new: float | None = None,
+    now: datetime | None = None,
+    chunk: int = 2000,
+) -> SyncStats:
+    """Make the ledger reflect automation's current view of one predicate and origin.
+
+    New assertions are inserted with their draft status. Existing ones get fresh evidence
+    and scores; their status changes only if they were never decided by a person (and even
+    then automation keeps the current status). Assertions automation no longer produces are
+    marked ``reported = false``; none are deleted.
+    """
+    now = now or utc_now()
+    stats = SyncStats()
+    by_key: dict[tuple[str, str, str, str], Draft] = {}
+    for draft in drafts:
+        if draft.predicate != predicate or draft.origin != origin:
+            raise TesseraError(f"draft {draft.key} does not belong to {predicate}/{origin}")
+        current = by_key.get(draft.key)
+        if current is None or (draft.score or 0) > (current.score or 0):
+            by_key[draft.key] = draft
+
+    columns = [
+        assertion.c[c]
+        for c in (
+            "id",
+            "subject_id",
+            "predicate",
+            "object_id",
+            "qualifier_key",
+            "score",
+            "evidence",
+            "qualifiers",
+            "method",
+            "reported",
+            "locked",
+            "status",
+        )
+    ]
+    with engine.begin() as conn:
+        existing = {
+            (r["subject_id"], r["predicate"], r["object_id"], r["qualifier_key"]): dict(r)
+            for r in conn.execute(
+                select(*columns).where(
+                    and_(assertion.c.predicate == predicate, assertion.c.origin == origin)
+                )
+            ).mappings()
+        }
+        inserts, updates = [], []
+        for key_, draft in by_key.items():
+            row = existing.get(key_)
+            if row is None:
+                if min_score_for_new is not None and (draft.score or 0) < min_score_for_new:
+                    stats.skipped_low += 1
+                    continue
+                inserts.append(
+                    {
+                        "id": new_id("asr"),
+                        "subject_type": draft.subject_type,
+                        "subject_id": draft.subject_id,
+                        "predicate": predicate,
+                        "object_type": draft.object_type,
+                        "object_id": draft.object_id,
+                        "qualifier_key": draft.qualifier_key,
+                        "qualifiers": draft.qualifiers,
+                        "origin": origin,
+                        "method": draft.method,
+                        "score": draft.score,
+                        "evidence": draft.evidence,
+                        "status": draft.status,
+                        "locked": False,
+                        "reported": True,
+                        "first_seen_at": now,
+                        "last_evaluated_at": now,
+                        "updated_at": now,
+                    }
+                )
+            elif _same(row, draft):
+                stats.unchanged += 1
+            else:
+                updates.append(
+                    {
+                        "_id": row["id"],
+                        "score": draft.score,
+                        "evidence": draft.evidence,
+                        "qualifiers": draft.qualifiers,
+                        "method": draft.method,
+                        "reported": True,
+                        "last_evaluated_at": now,
+                        "updated_at": now,
+                    }
+                )
+        stale = [
+            row["id"] for key_, row in existing.items() if key_ not in by_key and row["reported"]
+        ]
+
+        for start in range(0, len(inserts), chunk):
+            conn.execute(insert(assertion), inserts[start : start + chunk])
+        if updates:
+            statement = (
+                update(assertion)
+                .where(assertion.c.id == bindparam("_id"))
+                .values(
+                    score=bindparam("score"),
+                    evidence=bindparam("evidence"),
+                    qualifiers=bindparam("qualifiers"),
+                    method=bindparam("method"),
+                    reported=bindparam("reported"),
+                    last_evaluated_at=bindparam("last_evaluated_at"),
+                    updated_at=bindparam("updated_at"),
+                )
+            )
+            for start in range(0, len(updates), chunk):
+                conn.execute(statement, updates[start : start + chunk])
+        for start in range(0, len(stale), chunk):
+            conn.execute(
+                update(assertion)
+                .where(assertion.c.id.in_(stale[start : start + chunk]))
+                .values(reported=False, updated_at=now)
+            )
+    stats.inserted, stats.updated, stats.unreported = len(inserts), len(updates), len(stale)
+    return stats
+
+
+ACTIONS = {"accept": "accepted", "reject": "rejected", "defer": "deferred"}
+
+
+def decide(
+    engine: Engine, assertion_id: str, action: str, actor: str, note: str | None = None
+) -> dict[str, Any]:
+    """Apply a person's decision. ``undo`` restores the status before the latest decision."""
+    with engine.begin() as conn:
+        row = (
+            conn.execute(select(assertion).where(assertion.c.id == assertion_id)).mappings().first()
+        )
+        if row is None:
+            raise TesseraError(f"No assertion {assertion_id}")
+        if action == "undo":
+            events = (
+                conn.execute(
+                    select(curation_event)
+                    .where(curation_event.c.assertion_id == assertion_id)
+                    .order_by(curation_event.c.id)
+                )
+                .mappings()
+                .all()
+            )
+            stack: list[Any] = []
+            for event in events:
+                if event["action"] == "undo":
+                    if stack:
+                        stack.pop()
+                else:
+                    stack.append(event)
+            if not stack:
+                raise TesseraError("Nothing to undo for this assertion.")
+            new_status = stack[-1]["from_status"] or "suggested"
+            locked = new_status in {"accepted", "rejected"}
+        elif action in ACTIONS:
+            new_status = ACTIONS[action]
+            locked = action in {"accept", "reject"}
+        else:
+            raise TesseraError(f"Unknown action {action!r}; use accept, reject, defer, or undo")
+        now = utc_now()
+        conn.execute(
+            update(assertion)
+            .where(assertion.c.id == assertion_id)
+            .values(
+                status=new_status,
+                locked=locked,
+                decided_by=actor,
+                decided_at=now,
+                decision_note=note,
+                updated_at=now,
+            )
+        )
+        conn.execute(
+            insert(curation_event).values(
+                assertion_id=assertion_id,
+                actor=actor,
+                action=action,
+                from_status=row["status"],
+                to_status=new_status,
+                note=note,
+                at=now,
+            )
+        )
+    return {"id": assertion_id, "status": new_status, "locked": locked}
+
+
+def assertions_for(
+    engine: Engine,
+    *,
+    predicate: str | None = None,
+    subject_id: str | None = None,
+    statuses: Iterable[str] | None = None,
+    reported_only: bool = True,
+) -> list[dict[str, Any]]:
+    query = select(assertion)
+    if predicate:
+        query = query.where(assertion.c.predicate == predicate)
+    if subject_id:
+        query = query.where(assertion.c.subject_id == subject_id)
+    if statuses:
+        query = query.where(assertion.c.status.in_(tuple(statuses)))
+    if reported_only:
+        query = query.where(assertion.c.reported.is_(True))
+    with engine.connect() as conn:
+        return [dict(r) for r in conn.execute(query).mappings()]

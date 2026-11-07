@@ -2,7 +2,7 @@
 
 **Goal:** prove that a useful, trustworthy research graph can be built from public data alone, with evidence on every link.
 
-**Branch:** `wave-1` · **Target version:** `0.1.0` · **Status:** ◐ slices 1–2 done, slice 3 next
+**Branch:** `wave-1` · **Target version:** `0.1.0` · **Status:** ◐ slices 1–3 done, slice 4 next
 
 ## Exit criteria
 
@@ -53,23 +53,23 @@ Requirements delivered: REC-01–06, REC-09, CUR-01–04, CUR-07, DIS-01–03, C
 
 **Acceptance (met):** each connector ingests a fixture corpus into the lake idempotently (running twice writes nothing); an interrupted run keeps what it fetched and the next run continues from the last checkpoint without duplicates; a replay from raw into a fresh data home produces identical lake content. Also verified against the live APIs: 78 grant-years → 1,210 grant–publication links → 1,208 papers fetched, 1,156 of which acknowledge the same grant in PubMed.
 
-## Slice 3: Evidence engine v1 ☐
+## Slice 3: Evidence engine v1 ☑
 
 **Goal:** turn source records into people and evidenced links. See [evidence-engine.md](../evidence-engine.md).
 
-- [ ] Organization profile matching: alias and pattern matcher for affiliations, sponsor names, and site facilities; tested for false positives on look-alike names
-- [ ] Name normalization and compatibility; corpus name-ambiguity estimate
-- [ ] People bootstrap from grant investigators (NIH profile ID) and the optional roster CSV import
-- [ ] Discovered-people clustering from the affiliation sweep (ORCID first, then name + coauthor + topic)
-- [ ] Candidate retrieval per person (sweep, person search, grant links)
-- [ ] `authorship/v1` features and scoring; evidence items with human-readable explanations; author-slot conflict resolution
-- [ ] Source-reported links: `acknowledges`, `references`, `funded_by`, `investigator_on`
-- [ ] Inferred `official_of` person–study links
-- [ ] Assertion upsert that never changes locked assertions and marks links a source no longer reports
-- [ ] `tessera resolve`, `tessera sync` (ingest → resolve → link → build), run lock
-- [ ] `tessera eval authorship` with the metrics in the evaluation section
+- [x] Organization profile matching: alias, wildcard-pattern, and email-domain matcher for affiliations, sponsor names, and site facilities; `exclusions` for look-alike organizations
+- [x] Name normalization and compatibility; corpus name-ambiguity estimate
+- [x] People bootstrap from grant investigators (NIH profile ID; contact PIs active, co-investigators candidates until affiliated papers confirm them) and the optional roster CSV import (`tessera people import`)
+- [x] Discovered-people clustering from the affiliation sweep (ORCID first, then name + coauthor + topic)
+- [x] Candidate retrieval per person (sweep, PubMed person search mode `pubmed:people`, grant links)
+- [x] `authorship/v1` features and scoring; evidence items with human-readable explanations; author-slot conflict resolution
+- [x] Source-reported links: `acknowledges`, `references`, `funded_by`, `investigator_on`
+- [x] Inferred `official_of` person–study links
+- [x] Assertion upsert that never changes locked assertions and marks links a source no longer reports
+- [x] `tessera resolve`, `tessera sync` (ingest → resolve people → person search and metrics → resolve), run lock; `tessera people list`. Search-index build joins `sync` in slice 4
+- [x] `tessera eval authorship` with the metrics in the evaluation section
 
-**Acceptance:** on a fixture organization with known answers, strong-band precision ≥ 99% and retrieval recall ≥ 95%; re-running `sync` after curation leaves every decision intact; each assertion has at least one evidence item.
+**Acceptance (met):** on a synthetic organization with known answers, strong-band precision 100% and retrieval recall 100% (targets 99% and 95%), also in a harder same-field-twins variant; re-resolving after curation leaves every decision intact (accept, reject, defer, and undo); every assertion carries at least one evidence item with an explanation. Live check on a mid-sized institute (two-year window): full `tessera sync` in about 100 seconds, 70 active investigators with 1,655 strong suggestions, 2,150 grant–publication links, about 965 discovered people for review.
 
 ## Slice 4: API and search ☐
 
@@ -133,4 +133,5 @@ Requirements delivered: REC-01–06, REC-09, CUR-01–04, CUR-07, DIS-01–03, C
 | 2026-11-07 | Wave planned. Pilot runs on a laptop or single VM; internal-first; AI deferred to wave 5 and optional; extra public sources approved: iCite and grant–publication links (wave 1), ORCID (wave 2), Grants.gov (wave 5) |
 | 2026-11-07 | Slice 1 done. PostgreSQL is tested in a disposable podman/docker container rather than deferred to wave 6. DuckDB runs with extension auto-install and auto-load disabled. |
 | 2026-11-07 | Slice 2 done. NIH *contracts* (e.g. `75N9…`, `HHSN…`) are not normalized as grants; month ranges in PubMed dates ("Nov-Dec") keep only the year rather than claim false precision. |
+| 2026-11-07 | Slice 3 done. Multi-PI co-investigators are not presumed members; lone-initial person searches dropped (≈5× noise in a live check); preprint servers and megajournals excluded from journal history; seed threshold 0.90 with two rounds. |
 | 2026-11-07 | To revisit: Starlette's test client now prefers a successor to `httpx` (warning silenced in pytest config); FastAPI pulls in the inert `opentelemetry-api` package (no exporter, nothing is sent). |

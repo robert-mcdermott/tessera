@@ -25,3 +25,11 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 - `tessera ingest` (one source or `all`), `tessera replay`, and `tessera runs`; run records and incremental checkpoints in the ledger; checkpoints advance only after complete runs; one data job at a time per data home.
 - `/api/v1/meta` reports each source's last successful fetch and whether it is stale.
 - Opt-in live contract tests for every source (`pytest -m network`).
+- Evidence engine: name normalization and compatibility (initials, particles, hyphens, accents); organization matching with wildcard patterns, email domains, and exclusions for look-alike names.
+- People: bootstrap from NIH grant investigators (contact PIs active; co-investigators held as candidates until affiliated papers confirm them), roster CSV import with unit memberships, and discovery of affiliated authors for review.
+- Authorship suggestions from the explainable `authorship/v1` model: ORCID, email, affiliation, grant links, name agreement, name ambiguity, coauthors, topics, journals, and career window, with leave-one-out seeding and one person per author position.
+- Source-reported links (grant-publication, study-publication, study-grant, person-grant) and suggested study officials, all with evidence; human decisions are never overridden and links no longer reported are marked, not deleted.
+- Decisions with undo, recorded as curation events.
+- PubMed person search (`ingest pubmed --mode people`) with batch splitting and skipping of names too common to search.
+- `tessera resolve`, `tessera sync`, `tessera people import|list`, and `tessera eval authorship` (precision, recall, calibration, and slices on local decisions).
+- Configuration: `organization.exclusions` and an `[evidence]` section for thresholds.

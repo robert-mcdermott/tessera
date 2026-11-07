@@ -103,8 +103,12 @@ def _source_and_mode(source: str, options: IngestOptions) -> tuple[str, IngestOp
     return source, options
 
 
-def _resolve_ids(home: DataHome, source: str, options: IngestOptions) -> IngestOptions:
-    """Fill in IDs for modes that derive them from the lake."""
+def _resolve_ids(
+    home: DataHome, engine: Engine, source: str, options: IngestOptions
+) -> IngestOptions:
+    """Fill in IDs (or name terms) for modes that derive them from the lake or ledger."""
+    if source == "pubmed" and options.mode == "people" and not options.terms:
+        return IngestOptions(**{**options.__dict__, "terms": people_terms(engine)})
     if options.ids:
         return options
     if source == "icite" and options.mode in {"auto", "refresh"}:
@@ -125,6 +129,19 @@ def pmids_needing_metrics(home: DataHome, refresh_days: int = ICITE_REFRESH_DAYS
             [refresh_days],
         )
     return [r["pmid"] for r in rows]
+
+
+def people_terms(engine: Engine) -> list[tuple[str, str]]:
+    """PubMed name queries for every active person, in a stable order."""
+    from tessera.connectors.pubmed import person_terms
+    from tessera.evidence.store import load_people
+
+    terms = []
+    for record in sorted(load_people(engine, ("active",)), key=lambda r: r.id):
+        found = person_terms([(n.family, n.given, n.initials) for n in record.names])
+        if found:
+            terms.append(found)
+    return terms
 
 
 def linked_pmids_missing(home: DataHome) -> list[str]:
@@ -160,7 +177,7 @@ def ingest(
         interrupted = runs.mark_interrupted(engine)
         if interrupted:
             log.warning("marked %d interrupted run(s) as failed", interrupted)
-        options = _resolve_ids(home, source, options)
+        options = _resolve_ids(home, engine, source, options)
         http_kwargs: dict[str, Any] = {}
         if transport is not None:
             http_kwargs["transport"] = transport

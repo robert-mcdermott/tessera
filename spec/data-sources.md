@@ -90,6 +90,7 @@ affiliation_patterns = ["example univ*", "exu medical center"]   # matched again
 reporter_org_names = ["EXAMPLE UNIVERSITY"]                       # as they appear in grant records
 ctgov_org_names = ["Example University", "Example University Medical Center"]
 email_domains = ["example.edu"]
+exclusions = ["Example University of Technology"]                 # look-alikes that contain an alias
 ```
 
 An optional **roster file** (CSV: name, ORCID, email, unit, title) can be imported from the admin screen. It is a file an administrator chooses to provide, not a live integration, and Tessera works without it.

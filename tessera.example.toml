@@ -25,6 +25,8 @@ reporter_org_names = ["EXAMPLE UNIVERSITY"]
 ctgov_org_names = ["Example University", "Example University Medical Center"]
 # Email domains of the organization (used as matching evidence).
 email_domains = ["example.edu"]
+# Different organizations whose names contain one of the aliases above.
+exclusions = ["Example University of Technology"]
 
 # Re-branding. Everything here is optional.
 [branding]
@@ -71,3 +73,10 @@ enabled = true
 [sync]
 # How many years of history the first sync collects.
 window_years = 5
+
+# How confident Tessera must be before suggesting that a person wrote a paper.
+[evidence]
+strong_threshold = 0.95   # "strong" suggestions, listed first for quick confirmation
+review_threshold = 0.60   # below this, suggestions are "unlikely" and hidden by default
+auto_accept = false       # accept strong suggestions without review; enable only after evaluation
+discover_min_papers = 2   # affiliated papers needed before proposing a newly discovered person

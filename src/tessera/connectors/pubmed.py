@@ -35,6 +35,9 @@ if pyexpat.version_info < (2, 4, 1):  # pragma: no cover
     raise ImportError("Tessera needs expat 2.4.1 or newer to parse XML safely.")
 
 RECORD_LIMIT = 10_000  # E-utilities will not page past the first 10,000 records of a search
+PEOPLE_BATCH = 10  # people per name search
+PEOPLE_BATCH_LIMIT = 5_000  # results per batch before it is split
+PERSON_LIMIT = 2_000  # results for one person's name before it counts as too common
 PMID = re.compile(r"^[1-9][0-9]{0,8}$")
 
 
@@ -44,7 +47,7 @@ class PubMedConnector(Connector):
     datasets = ("pubmed",)
     base_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
     min_interval = 0.34  # 3 requests/second without an API key
-    modes = ("org", "query", "ids", "linked")
+    modes = ("org", "query", "ids", "linked", "people")
     batch_size = 200
     efetch_attempts = 2
     tool: ClassVar[str] = "tessera"
@@ -69,11 +72,19 @@ class PubMedConnector(Connector):
             if mode == "ids" and not pmids:
                 raise TesseraError("At least one PMID is required (--ids).")
             return Plan(mode, "", f"{len(pmids)} PMIDs", params={"pmids": pmids}, empty=not pmids)
-        if mode not in {"org", "query"}:
+        if mode not in {"org", "query", "people"}:
             raise TesseraError(f"PubMed has no mode {mode!r}; choose from {', '.join(self.modes)}")
-        term = (options.query or "").strip() if mode == "query" else org_term(self.config)
+        if mode == "people":
+            terms = [list(t) for t in options.terms]
+            if not terms:
+                return Plan(mode, "", "no people to search for", empty=True)
+            term = "\n".join(broad for broad, _ in terms)
+        else:
+            terms = []
+            term = (options.query or "").strip() if mode == "query" else org_term(self.config)
         if not term:
             raise TesseraError("A PubMed query is required (--query).")
+        # Adding people changes the scope, so their full history is searched next time.
         scope = f"{mode}:{hashlib.sha1(term.encode()).hexdigest()[:12]}"  # noqa: S324 - a key
         end = options.until or today
         if options.since:  # records added or changed since a date
@@ -83,9 +94,11 @@ class PubMedConnector(Connector):
         else:
             start, date_type = _years_before(end, self.config.sync.window_years), "pdat"
         watermark = None if options.max_results else end.isoformat()
-        description = f"{term} ({date_type} {start} to {end})"
+        what = f"{len(terms)} people by name" if mode == "people" else term
+        description = f"{what} ({date_type} {start} to {end})"
         params = {
             "term": term,
+            "terms": terms,
             "start": start,
             "end": end,
             "date_type": date_type,
@@ -114,6 +127,9 @@ class PubMedConnector(Connector):
                 )
             return
         p = plan.params
+        if plan.mode == "people":
+            yield from self._fetch_people(p, report)
+            return
         windows, total = self._plan_windows(p["term"], p["start"], p["end"], p["date_type"], report)
         cap = p.get("max_results")
         retrievable = sum(min(w["count"], RECORD_LIMIT) for w in windows)
@@ -136,6 +152,50 @@ class PubMedConnector(Connector):
                 }
                 where = {"window": [str(window["start"]), str(window["end"])], "retstart": retstart}
                 yield from self._efetch(params, where, report)
+
+    def _fetch_people(self, p: dict[str, Any], report: FetchReport) -> Iterator[Payload]:
+        """Search by person name in batches; skip names too common to search by name alone."""
+        start, end, date_type = p["start"], p["end"], p["date_type"]
+        pending = [
+            p["terms"][i : i + PEOPLE_BATCH] for i in range(0, len(p["terms"]), PEOPLE_BATCH)
+        ]
+        accepted: list[dict[str, Any]] = []
+        skipped: list[str] = []
+        while pending:
+            batch = pending.pop(0)
+            if len(batch) == 1:
+                broad, narrow = batch[0]
+                window = self._esearch(broad, start, end, date_type)
+                if window["count"] > PERSON_LIMIT and narrow and narrow != broad:
+                    window = self._esearch(narrow, start, end, date_type)
+                if window["count"] > PERSON_LIMIT:
+                    skipped.append(broad)
+                    continue
+                accepted.append(window)
+                continue
+            term = " OR ".join(f"({broad})" for broad, _ in batch)
+            window = self._esearch(term, start, end, date_type)
+            if window["count"] > PEOPLE_BATCH_LIMIT:
+                half = len(batch) // 2
+                pending[:0] = [batch[:half], batch[half:]]
+            else:
+                accepted.append(window)
+        if skipped:
+            report.note(
+                f"PubMed: {len(skipped)} name(s) match too many papers to search by name alone "
+                f"(over {PERSON_LIMIT:,}); their papers come from the affiliation sweep and grant "
+                f"links instead."
+            )
+        report.total_found = report.expected = sum(w["count"] for w in accepted)
+        for window in accepted:
+            for retstart in range(0, window["count"], self.batch_size):
+                params = {
+                    "WebEnv": window["webenv"],
+                    "query_key": window["query_key"],
+                    "retstart": retstart,
+                    "retmax": min(self.batch_size, window["count"] - retstart),
+                }
+                yield from self._efetch(params, {"people_window": retstart}, report)
 
     def _params(self, params: dict[str, Any]) -> dict[str, Any]:
         params = {**params, "tool": self.tool}
@@ -253,6 +313,36 @@ class PubMedConnector(Connector):
 def api_key(config: Config) -> str | None:
     name = config.sources.pubmed.api_key_env
     return (os.environ.get(name) or None) if name else None
+
+
+def person_terms(names: list[tuple[str, str, str]]) -> tuple[str, str] | None:
+    """Broad and narrow PubMed queries for one person's names: [(family, given, initials)].
+
+    PubMed author search is literal: "Okafor, Ada"[fau] does not find "Okafor, Ada B".
+    The broad query ORs full names and two-letter initials ("Okafor AB"[au]); the narrow one
+    uses full names only. A single initial ("Okafor A"[au]) is used only for people known by
+    initials alone: it matches far too many other people.
+    """
+    full, initials, single = [], [], []
+    for family, given, inits in names:
+        family = family.replace('"', " ").strip()
+        if not family:
+            continue
+        tokens = [t for t in re.split(r"[\s.]+", given or "") if t]
+        if tokens and len(tokens[0]) > 1:
+            full.append(f'"{family}, {" ".join(tokens)}"[fau]')
+            full.append(f'"{family}, {tokens[0]}"[fau]')
+        if len(inits) >= 2:
+            initials.append(f'"{family} {inits}"[au]')
+        elif inits:
+            single.append(f'"{family} {inits}"[au]')
+    full, initials, single = (list(dict.fromkeys(x)) for x in (full, initials, single))
+    if full:
+        return " OR ".join(full + initials), " OR ".join(full)
+    if initials or single:
+        query = " OR ".join(initials + single)
+        return query, " OR ".join(initials) or query
+    return None
 
 
 def returned_pmids(content: bytes) -> set[str]:

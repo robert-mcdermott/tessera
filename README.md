@@ -26,12 +26,13 @@ uv run tessera doctor    # checks the installation
 Edit the `[organization]` section of `tessera.toml` to describe how your organization appears in public records, then fetch its public footprint and start the app:
 
 ```bash
-uv run tessera ingest all   # NIH RePORTER, ClinicalTrials.gov, PubMed, iCite
-uv run tessera runs         # what was fetched, and whether each run completed
-uv run tessera serve        # http://127.0.0.1:8000
+uv run tessera sync          # fetch public data, find people, suggest authorships with evidence
+uv run tessera people list   # who was found, with accepted and suggested papers
+uv run tessera runs          # what was fetched, and whether each run completed
+uv run tessera serve         # http://127.0.0.1:8000
 ```
 
-Optional: set `NCBI_API_KEY` in your environment for faster PubMed requests. Later runs are incremental.
+Optional: import a roster (`uv run tessera people import roster.csv`) and set `NCBI_API_KEY` in your environment for faster PubMed requests. Later syncs are incremental.
 
 ## Documentation
 

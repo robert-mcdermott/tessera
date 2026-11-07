@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import UTC, date, datetime
 
 import httpx
@@ -483,3 +484,44 @@ def test_icite_parse() -> None:
     assert record["pmid"] == "5" and record["year"] == 2024
     assert record["relative_citation_ratio"] is None
     assert (record["is_clinical"], record["is_research_article"]) == (True, False)
+
+
+# --- PubMed people mode ----------------------------------------------------------------------
+
+
+def test_person_terms() -> None:
+    from tessera.connectors.pubmed import person_terms
+
+    broad, narrow = person_terms([("Okafor", "Ada B", "AB"), ("Okafor", "A", "A")])
+    assert narrow == '"Okafor, Ada B"[fau] OR "Okafor, Ada"[fau]'
+    assert broad == narrow + ' OR "Okafor AB"[au]'  # never a lone initial when a name is known
+    assert person_terms([("Okafor", "", "A")]) == ('"Okafor A"[au]', '"Okafor A"[au]')
+    assert person_terms([("Okafor", "A B", "AB")]) == ('"Okafor AB"[au]', '"Okafor AB"[au]')
+    assert person_terms([("", "Ada", "A")]) is None
+
+
+def test_pubmed_people_mode_splits_and_skips_common_names(config: Config) -> None:
+    from tessera.connectors.pubmed import person_terms
+
+    common = person_terms([("Wang", "Wei", "W")])
+    terms = [person_terms([(f"Rare{i}", "Ada", "A")]) for i in range(11)] + [common]
+
+    def esearch(request: httpx.Request) -> httpx.Response:
+        term = form(request)["term"]
+        count = 3 * len(set(re.findall(r"Rare\d+", term)))
+        if "Wang" in term:
+            count += 6000  # too common even by full name; big enough to split its batch
+        return httpx.Response(200, content=esearch_xml(count, webenv=str(abs(hash(term)))))
+
+    api = pubmed_api()
+    api.route("esearch.fcgi", esearch)
+    connector = make(PubMedConnector, config, api)
+    plan = connector.plan(IngestOptions(mode="people", terms=terms), None, TODAY)
+    assert plan.mode == "people" and plan.scope.startswith("people:")
+    payloads, report = collect(connector, plan)
+    assert report.total_found == 33  # 11 rare names x 3 papers
+    assert any("too many papers" in n for n in report.notes)
+    assert report.complete  # skipping a common name is deliberate, not a failure
+    assert payloads
+    empty = connector.plan(IngestOptions(mode="people"), None, TODAY)
+    assert empty.empty

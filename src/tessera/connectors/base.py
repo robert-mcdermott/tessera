@@ -63,6 +63,7 @@ class IngestOptions:
     until: date | None = None
     full: bool = False  # ignore the checkpoint and fetch the whole window
     max_results: int | None = None  # cap for quick checks; never advances the checkpoint
+    terms: list[tuple[str, str]] = field(default_factory=list)  # PubMed people mode
 
 
 @dataclass
