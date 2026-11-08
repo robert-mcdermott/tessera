@@ -20,7 +20,7 @@
 <a class="skip" href="#content">Skip to content</a>
 <header class="top">
   <button class="menu-button" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu">☰</button>
-  <a class="brand" href="index.html"><img src="assets/tessera-mark.svg" alt="" width="26" height="26"><span>Tessera</span><span class="version">v0.2.0</span></a>
+  <a class="brand" href="index.html"><img src="assets/tessera-mark.svg" alt="" width="26" height="26"><span>Tessera</span><span class="version">v0.3.0</span></a>
   <div class="search" role="search">
     <input id="search" type="search" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off" spellcheck="false">
     <kbd>/</kbd>
@@ -32,7 +32,7 @@
   <a class="github" href="https://github.com/robert-mcdermott/tessera" rel="noopener">GitHub</a>
 </header>
 <div class="layout">
-  <nav class="menu" id="menu" aria-label="Documentation"><div class="menu-group"><div class="menu-title">Start</div><ul><li><a href="index.html" aria-current="page">Overview</a></li><li><a href="getting-started.html">Getting started</a></li><li><a href="organization-profile.html">Describing your organization</a></li></ul></div><div class="menu-group"><div class="menu-title">Use</div><ul><li><a href="curation.html">Curating</a></li><li><a href="discovery.html">Finding experts</a></li></ul></div><div class="menu-group"><div class="menu-title">Run</div><ul><li><a href="configuration.html">Configuration</a></li><li><a href="operations.html">Running Tessera</a></li></ul></div><div class="menu-group"><div class="menu-title">Reference</div><ul><li><a href="api.html">The API</a></li><li><a href="api-reference.html">API reference</a></li><li><a href="cli.html">Command reference</a></li><li><a href="changelog.html">Changelog</a></li></ul></div></nav>
+  <nav class="menu" id="menu" aria-label="Documentation"><div class="menu-group"><div class="menu-title">Start</div><ul><li><a href="index.html" aria-current="page">Overview</a></li><li><a href="getting-started.html">Getting started</a></li><li><a href="organization-profile.html">Describing your organization</a></li></ul></div><div class="menu-group"><div class="menu-title">Use</div><ul><li><a href="curation.html">Curating</a></li><li><a href="discovery.html">Finding experts</a></li><li><a href="groups.html">Groups</a></li><li><a href="public-site.html">The public site</a></li></ul></div><div class="menu-group"><div class="menu-title">Run</div><ul><li><a href="configuration.html">Configuration</a></li><li><a href="operations.html">Running Tessera</a></li></ul></div><div class="menu-group"><div class="menu-title">Reference</div><ul><li><a href="api.html">The API</a></li><li><a href="api-reference.html">API reference</a></li><li><a href="cli.html">Command reference</a></li><li><a href="changelog.html">Changelog</a></li></ul></div></nav>
   <main id="content" class="content">
 <section class="hero">
   <p class="eyebrow">Open research intelligence for academic research organizations</p>
@@ -47,7 +47,7 @@
 </section>
 
 <section class="pillars">
-  <div><h3>Starts from public data</h3><p>PubMed, NIH RePORTER, ClinicalTrials.gov, iCite, and ORCID. No HR feeds or integrations to begin.</p></div>
+  <div><h3>Starts from public data</h3><p>PubMed, NIH RePORTER, ClinicalTrials.gov, iCite, ORCID, and MeSH. No HR feeds or integrations to begin.</p></div>
   <div><h3>Evidence on every link</h3><p>Each connection records its source, the evidence for and against it, and who decided.</p></div>
   <div><h3>Humans decide</h3><p>Automation suggests and curators confirm; decisions survive every refresh and can be undone.</p></div>
   <div><h3>Open and yours</h3><p>Apache 2.0, runs on a laptop or one server, keeps data in open formats, and takes your brand.</p></div>
@@ -103,6 +103,26 @@
   <figure class="shot"><img src="images/missed-light.webp" alt="Missed connections: pairs of researchers with the topics they share and a colleague who has worked with both" loading="lazy" class="only-light"><img src="images/missed-dark.webp" alt="Missed connections: pairs of researchers with the topics they share and a colleague who has worked with both" loading="lazy" class="only-dark"></figure>
 </section>
 
+<section class="feature">
+  <div class="feature-text">
+    <p class="eyebrow">Groups</p>
+    <h2 id="groups">A home for every lab and program</h2>
+    <p>Divisions, programs, labs, and shared resources each get a page: their leaders and people, alumni, the papers that are theirs, their grants, studies, themes, and openings. Their own managers arrange it from approved blocks and publish it, with drafts, history, and rollback, and a weekly inbox brings them what changed.</p>
+    <p><a href="groups.html">Groups →</a></p>
+  </div>
+  <figure class="shot"><img src="images/group-light.webp" alt="A program's page: the divisions it spans, what it does, its leaders, and the topics its members work on" loading="lazy" class="only-light"><img src="images/group-dark.webp" alt="A program's page: the divisions it spans, what it does, its leaders, and the topics its members work on" loading="lazy" class="only-dark"></figure>
+</section>
+
+<section class="feature">
+  <div class="feature-text">
+    <p class="eyebrow">Public</p>
+    <h2 id="public">A public site, checked</h2>
+    <p>Groups and people who opt in get plain, fast public pages in your colors: citations and links, never abstracts, and nothing that is not on an allowlist. Every build is checked for accessibility, broken links, and color contrast before it replaces the last.</p>
+    <p><a href="public-site.html">The public site →</a></p>
+  </div>
+  <figure class="shot"><img src="images/public-group-light.webp" alt="A program on the public site: what it does, its people, and its topics" loading="lazy" class="only-light"><img src="images/public-group-dark.webp" alt="A program on the public site: what it does, its people, and its topics" loading="lazy" class="only-dark"></figure>
+</section>
+
 <section class="how">
   <h2 id="how-it-works">How it works</h2>
   <p>Connectors fetch public records into a Parquet lake. The evidence engine builds the directory and suggests links, each with its evidence; curators decide in the ledger; and the search index and discovery data feed a JSON API and a fast, accessible web app.</p>
@@ -127,6 +147,8 @@ uv run tessera --config demo/tessera.toml serve</code></pre></div>
     <a href="organization-profile.html"><strong>Describing your organization</strong><span>Choose the names Tessera uses to find your people and records.</span></a>
     <a href="curation.html"><strong>Curating</strong><span>Work through suggestions, discovered people, duplicates, and ORCID iDs.</span></a>
     <a href="discovery.html"><strong>Finding experts</strong><span>Expert search, similar people, the graphs, and the unit matrix.</span></a>
+    <a href="groups.html"><strong>Groups</strong><span>Labs, programs, and divisions: members, pages, managers, and the inbox.</span></a>
+    <a href="public-site.html"><strong>The public site</strong><span>Publish pages for the groups and people who opt in.</span></a>
     <a href="configuration.html"><strong>Configuration</strong><span>Every setting, including palettes, your logo, and thresholds.</span></a>
     <a href="operations.html"><strong>Running Tessera</strong><span>Syncs, accounts, backups, upgrades, and PostgreSQL.</span></a>
     <a href="api.html"><strong>The API</strong><span>Build on the JSON API; every endpoint is in the API reference.</span></a>
@@ -135,9 +157,9 @@ uv run tessera --config demo/tessera.toml serve</code></pre></div>
 </section>
 
     <nav class="pager" aria-label="Pages"><span></span><a class="next" href="getting-started.html"><span>Next</span>Getting started</a></nav>
-    <footer class="foot">Describes Tessera 0.2.0. Apache License 2.0. Screenshots show an invented organization; every person and record in them is fictional.</footer>
+    <footer class="foot">Describes Tessera 0.3.0. Apache License 2.0. Screenshots show an invented organization; every person and record in them is fictional.</footer>
   </main>
-  <aside class="toc" aria-label="On this page"><div class="menu-title">On this page</div><ul><li class="l2"><a href="#evidence">See why, every time</a></li><li class="l2"><a href="#curate">Curate in minutes, not months</a></li><li class="l2"><a href="#experts">Who works on what</a></li><li class="l2"><a href="#connections">See the shape of your organization</a></li><li class="l2"><a href="#missed">Who should meet</a></li><li class="l2"><a href="#how-it-works">How it works</a></li><li class="l2"><a href="#try">Try it in a minute</a></li><li class="l2"><a href="#guides">The guides</a></li></ul></aside>
+  <aside class="toc" aria-label="On this page"><div class="menu-title">On this page</div><ul><li class="l2"><a href="#evidence">See why, every time</a></li><li class="l2"><a href="#curate">Curate in minutes, not months</a></li><li class="l2"><a href="#experts">Who works on what</a></li><li class="l2"><a href="#connections">See the shape of your organization</a></li><li class="l2"><a href="#missed">Who should meet</a></li><li class="l2"><a href="#groups">A home for every lab and program</a></li><li class="l2"><a href="#public">A public site, checked</a></li><li class="l2"><a href="#how-it-works">How it works</a></li><li class="l2"><a href="#try">Try it in a minute</a></li><li class="l2"><a href="#guides">The guides</a></li></ul></aside>
 </div>
 </body>
 </html>
