@@ -128,6 +128,18 @@ class EvidenceConfig:
 
 
 @dataclass(frozen=True)
+class DiscoveryConfig:
+    """Concept profiles and similarity. See spec/discovery.md."""
+
+    half_life_years: float = 5.0  # a paper's weight in a profile halves every this many years
+    likely_weight: float = (
+        0.5  # strong suggestions not yet confirmed count this much (0: not at all)
+    )
+    similarity_floor: float = 0.10  # pairs less similar than this are not kept
+    similar_per_person: int = 25  # at most this many similar people kept for each person
+
+
+@dataclass(frozen=True)
 class Config:
     organization: OrganizationConfig = field(default_factory=OrganizationConfig)
     branding: BrandingConfig = field(default_factory=BrandingConfig)
@@ -137,6 +149,7 @@ class Config:
     sources: SourcesConfig = field(default_factory=SourcesConfig)
     sync: SyncConfig = field(default_factory=SyncConfig)
     evidence: EvidenceConfig = field(default_factory=EvidenceConfig)
+    discovery: DiscoveryConfig = field(default_factory=DiscoveryConfig)
     path: Path | None = None  # the file this configuration was loaded from
 
     @property
@@ -155,6 +168,7 @@ _SECTIONS: dict[str, type] = {
     "sources": SourcesConfig,
     "sync": SyncConfig,
     "evidence": EvidenceConfig,
+    "discovery": DiscoveryConfig,
 }
 _SOURCE_NAMES = ("pubmed", "icite", "reporter", "ctgov", "orcid")
 _PATH_FIELDS = {("data", "home"), ("branding", "logo_light"), ("branding", "logo_dark")}
@@ -428,6 +442,15 @@ def validate(config: Config) -> list[str]:
         )
     if ev.discover_min_papers < 1:
         problems.append("evidence.discover_min_papers must be at least 1")
+    dis = config.discovery
+    if not 0.5 <= dis.half_life_years <= 50:
+        problems.append("discovery.half_life_years must be between 0.5 and 50")
+    if not 0 <= dis.likely_weight <= 1:
+        problems.append("discovery.likely_weight must be between 0 and 1")
+    if not 0 <= dis.similarity_floor < 1:
+        problems.append("discovery.similarity_floor must be at least 0 and below 1")
+    if not 1 <= dis.similar_per_person <= 200:
+        problems.append("discovery.similar_per_person must be between 1 and 200")
     return problems
 
 

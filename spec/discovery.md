@@ -11,35 +11,39 @@ Tessera describes research with **MeSH descriptors**, the controlled vocabulary 
 - **Consistency:** "cardiac failure" and "heart failure" are not separate free-text tags; both map to the same curated descriptor.
 - **Hierarchy:** descriptors sit in trees, so specific concepts roll up into broader areas. This needs the MeSH descriptor data (a candidate source).
 - **No model required:** concepts come from the records themselves. There is no LLM tagging step to run, pay for, or audit.
-- **Coverage gap:** new publications lack MeSH for weeks or months. Until indexing arrives, Tessera falls back to author keywords and title terms and marks those concepts as provisional.
+- **Coverage gap:** new publications lack MeSH for weeks or months, and some journals are never indexed. Until indexing arrives, author keywords that are the names of descriptors stand in at half weight, and a concept known only that way is marked as provisional. Title terms were tried and left out: matched against descriptor names, they mostly found generic headings ("Disease", "Water", "Risk") rather than topics.
 
-Grant terms and study condition/intervention MeSH terms add to a person's concepts with a lower weight.
+Study condition and intervention MeSH terms add to a person's concepts at half weight. Grant terms are machine-extracted and noisy, so they are not used.
 
 ## Concept profiles
 
-Each person gets a **concept profile**: a weighted vector over descriptors, built from their *accepted* publications (and, at lower weight, their grants and studies).
+Each person in the directory gets a **concept profile**: a weighted vector over descriptors, built from their confirmed papers, their strong suggestions at a lower weight, and the studies they are an official of.
 
 For a person *p* and descriptor *c*:
 
 ```text
-weight(p, c) = Σ over p's accepted papers containing c of
-                 major(c)     × 2.0 if c is a major topic of the paper, else 1.0
+weight(p, c) = Σ over p's papers containing c of
+                 status       × 1.0 if confirmed, 0.5 if a strong suggestion not yet confirmed
+               × major(c)     × 2.0 if c is a major topic of the paper, else 1.0
                × position     × 1.5 if p is first or last author, else 1.0
                × recency      × 0.5 ^ (age_in_years / 5)
-then           × idf(c)       = log(N_people / people_with_c)
-then normalize the vector to unit length
+               × provisional  × 0.5 if c stands in from an author keyword, else 1.0
+             + Σ over p's studies with c as a condition or intervention of 0.5 × status × recency
+then           × idf(c)       = ln((N_people + 1) / people_with_c)
+then normalize the vector to unit length, and keep the top 200 concepts
 ```
 
-- **IDF** keeps broad descriptors ("Humans", "Female", "Adult") from dominating. Check-tag descriptors are excluded outright.
+- **Status.** Most people's papers are suggestions long before anyone confirms them, so profiles that waited for confirmation would be empty for months. Strong suggestions (at or above `evidence.strong_threshold`) therefore count at half weight (`discovery.likely_weight`); setting it to 0 counts confirmed papers only. Weaker suggestions never count. A profile shows, for each concept, how many of its papers are confirmed.
+- **IDF** keeps broad descriptors from dominating; the +1 keeps a concept everyone shares from vanishing entirely. Check-tag descriptors ("Humans", "Female", "Adult") are excluded outright, and so are laboratory tools that say how rather than what ("Green Fluorescent Proteins", "Transfection", "RNA, Small Interfering").
 - **Recency decay** (5-year half-life) keeps profiles current without discarding history. The half-life is a setting.
-- Profiles are computed in DuckDB from the lake and the ledger's accepted authorships, and written to `derived/concept_profile.parquet` on each build.
+- Profiles are computed in DuckDB from the lake and the ledger's links, and written atomically to `derived/concept_profile.parquet` by `tessera sync` and `tessera build profiles`.
 
 ## Similarity
 
-- **Similarity between two people** is the cosine of their concept profiles: a 0–1 score.
+- **Similarity between two people** is the cosine of their concept profiles, each limited to its top 60 concepts: a 0–1 score.
 - **Explanation** is the list of shared descriptors ranked by their contribution (the product of the two weights). The UI shows the top five with bars, so a user can see *why* two people match.
-- **Precomputation:** all pairs above a floor (default 0.15) are computed at build time and stored in `derived/similarity_pair.parquet`. UI controls filter precomputed pairs and never trigger a recomputation.
-- **Expert search** treats a query (free text mapped to descriptors, or descriptors chosen directly) as a mini profile and ranks people by cosine similarity, showing the matching concepts for each.
+- **Precomputation:** all pairs at or above a floor (`discovery.similarity_floor`, default 0.10) are computed at build time, at most 25 per person, and stored in `derived/similarity_pair.parquet` in both directions. UI controls filter precomputed pairs and never trigger a recomputation. On the pilot organization, a floor of 0.10 gave 52 of 57 people at least one similar person; 0.15 left too many with none.
+- **Expert search** treats a query as a small profile and ranks people by the dot product with theirs, showing the matching concepts for each. Descriptors chosen directly are used as given. Words are read **through the papers they find**: without MeSH's entry terms (part of the descriptor data, a candidate source), "cancer" would never meet "Neoplasms" by name, but the organization's papers about cancer carry that descriptor. The query's concepts are the descriptors of the top 200 matching papers, weighted by IDF and by rank, plus any descriptor named exactly; the top 12 are kept and shown as "Understood as", where the reader can remove one or add another.
 
 ## Collaboration signals
 
@@ -82,5 +86,5 @@ then normalize the vector to unit length
 ## Responsible discovery
 
 - Similarity says nothing about quality or availability. Copy and layout avoid suggesting rankings.
-- People can only appear in discovery through their accepted publications, so unreviewed suggestions never drive recommendations.
-- Concept profiles are visible to their owner, who can see exactly what drives them.
+- People appear in discovery through confirmed papers and strong suggestions only. Strong suggestions count half, every profile says how many of each concept's papers are confirmed, and an organization that wants confirmed work only sets `discovery.likely_weight = 0`.
+- Concept profiles are visible to their owner (and to anyone who can read the profile), who can see exactly what drives them: each concept's weight, papers, confirmed papers, and whether it stands in for missing MeSH.

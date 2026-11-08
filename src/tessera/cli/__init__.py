@@ -136,6 +136,9 @@ def build_parser() -> argparse.ArgumentParser:
     build_actions.add_parser("search", help="the search and serving index").set_defaults(
         handler=cmd_build_search
     )
+    build_actions.add_parser(
+        "profiles", help="concept profiles and similar people (discovery)"
+    ).set_defaults(handler=cmd_build_profiles)
 
     sync_cmd = commands.add_parser(
         "sync", help="fetch every source and resolve, in the right order (the usual command)"
@@ -582,6 +585,23 @@ def _print_build(result: dict) -> None:  # type: ignore[type-arg]
         f"publications, {docs.get('grant', 0):,} grants, {docs.get('study', 0):,} studies, "
         f"{docs.get('candidate', 0):,} discovered people in {result.get('seconds', 0)}s"
     )
+
+
+def cmd_build_profiles(args: argparse.Namespace) -> int:
+    from tessera.jobs.build import build_profiles
+
+    config, home = _load(args)
+    engine = _engine(config)
+    try:
+        result = build_profiles(config, home, engine)
+    finally:
+        engine.dispose()
+    print(
+        f"concept profiles: {result['people']:,} people, {result['concepts']:,} concepts, "
+        f"{result['pairs']:,} similar pairs (from {result['papers']:,} papers, "
+        f"{result['confirmed_papers']:,} confirmed)"
+    )
+    return EXIT_OK
 
 
 def cmd_build_search(args: argparse.Namespace) -> int:

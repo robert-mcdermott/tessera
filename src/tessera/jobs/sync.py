@@ -5,7 +5,7 @@
 3. Read members' ORCID records, search PubMed by person name, fetch papers the ORCID
    records list, then fetch citation metrics.
 4. Resolve everything: links, authorship suggestions, study officials.
-5. Rebuild the search and serving index.
+5. Rebuild the search and serving index, then concept profiles and similar people.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from tessera.config import Config
 from tessera.connectors.base import IngestOptions
 from tessera.evidence.resolve import ResolveResult, resolve
 from tessera.home import DataHome
-from tessera.jobs.build import build_search
+from tessera.jobs.build import build_profiles, build_search
 from tessera.jobs.ingest import RunResult, ingest_many
 
 FIRST = ("reporter", "ctgov", "pubmed", "pubmed:linked")
@@ -63,4 +63,5 @@ def sync(
         )
     result.resolves.append(resolve(config, home, engine, today=today))
     result.build = build_search(config, home, engine)
+    result.build["profiles"] = build_profiles(config, home, engine)
     return result

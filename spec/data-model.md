@@ -125,7 +125,16 @@ Contact details from registry records (emails, phone numbers) are **not** stored
 |---|---|---|
 | `derived/search.db` | Lake content + ledger people and links | The **search and serving index**. `doc` holds one row per organization-relevant person, publication, grant, and study with a JSON display summary; `doc_fts` is an FTS5 index (porter + unicode61, diacritics removed) over title, people, terms, and body; `facet` holds (doc, name, value) rows for filters and counts. Publications are included only if a member authored them (accepted, or suggested at or above the review threshold), an author lists the organization, or a grant or study cites them; papers that name searches fetched for other people stay out. Person topics are ranked by TF-IDF across the directory. `candidate` documents describe discovered people (affiliated papers, years, recent titles, grants, affiliations) for the curation queue; they never appear in the directory or in "everything" search. Decisions rewrite only the documents they touch (member lists, person facets, counts, directory membership) in place, using the same rules as a full build, so lists are current on the next request; topics refresh at the next build |
 
-Later: `concept_profile`, `similarity_pair`, `coauthor_edge` (wave 2); `metric_*` tables and frozen `snapshot/<id>/` folders (wave 4).
+## Derived artifacts (wave 2)
+
+| Artifact | Built from | Purpose |
+|---|---|---|
+| `derived/concept_profile.parquet` | `pubmed_mesh`, `pubmed_article` keywords, `ctgov_study` MeSH, ledger links | One row per (person, descriptor): `person_id`, `descriptor_ui`, `descriptor`, `weight` (unit length per person), `raw` (before IDF), `papers` (papers and studies behind it), `confirmed` (of those, confirmed), `provisional` (known only from author keywords). Top 200 per person. See [discovery.md](discovery.md#concept-profiles) |
+| `derived/similarity_pair.parquet` | `concept_profile` | One row per direction of each similar pair at or above the floor: `person_id`, `other_id`, `score`, and `shared`, the five shared concepts contributing most (`descriptor_ui`, `descriptor`, `contribution`). At most 25 per person |
+
+Both are rewritten whole and atomically by `tessera sync` and `tessera build profiles`.
+
+Later: `coauthor_edge` (wave 2); `metric_*` tables and frozen `snapshot/<id>/` folders (wave 4).
 
 ## Counting rules (to be enforced from the first chart)
 

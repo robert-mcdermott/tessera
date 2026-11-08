@@ -124,3 +124,16 @@ Thresholds for authorship suggestions. See [Curating](curation.md#how-suggestion
 | `discover_min_papers` | number | `2` | Affiliated papers needed before a person is proposed under Discovered people, or a grant co-investigator is promoted |
 
 Changing a threshold takes effect at the next `tessera resolve` or `sync`; decisions already made are not affected.
+
+## `[discovery]`
+
+Concept profiles and similar people. See [Finding experts](discovery.md).
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `half_life_years` | 0.5 to 50 | `5.0` | A paper's weight in a profile halves every this many years |
+| `likely_weight` | 0 to 1 | `0.5` | How much a strong suggestion not yet confirmed counts, relative to a confirmed paper. `0` builds profiles from confirmed papers only |
+| `similarity_floor` | 0 to below 1 | `0.10` | Pairs of people less similar than this are not listed as similar |
+| `similar_per_person` | 1 to 200 | `25` | At most this many similar people are kept for each person |
+
+Changes take effect at the next `tessera sync` or `tessera build profiles`.

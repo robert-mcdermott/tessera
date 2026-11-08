@@ -15,6 +15,7 @@ import { browse } from "./pages/browse.js";
 import { candidates } from "./pages/candidates.js";
 import { duplicates } from "./pages/duplicates.js";
 import { evidence } from "./pages/evidence.js";
+import { experts } from "./pages/experts.js";
 import { decisions } from "./pages/decisions.js";
 import { home } from "./pages/home.js";
 import { setProduct, setTitle } from "./pages/page.js";
@@ -72,6 +73,7 @@ async function boot() {
 
   route("/", () => home(main, meta));
   route("/search", (_, ctx) => searchPage(main, ctx));
+  route("/experts", (_, ctx) => experts(main, ctx));
   route("/people", (_, ctx) => browse(main, "person", ctx));
   route("/people/:id", (params, ctx) => person(main, params, ctx));
   route("/publications", (_, ctx) => browse(main, "publication", ctx));

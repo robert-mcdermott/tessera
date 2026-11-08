@@ -97,3 +97,12 @@ window_years = 5
 strong_threshold = 0.95   # "strong" suggestions, listed first for quick confirmation
 review_threshold = 0.60   # below this, suggestions are "unlikely" and hidden by default
 discover_min_papers = 2   # affiliated papers needed before proposing a newly discovered person
+
+[discovery]
+# Concept profiles: a paper's weight halves every this many years.
+half_life_years = 5.0
+# Strong suggestions not yet confirmed count this much in profiles (0 counts confirmed only).
+likely_weight = 0.5
+# Similar people: pairs less similar than this are not kept, and at most this many per person.
+similarity_floor = 0.10
+similar_per_person = 25

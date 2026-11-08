@@ -36,15 +36,22 @@ Every change needs the session's CSRF token in `X-CSRF-Token`, and each route ne
 | Evidence model | `GET /evidence` (active model, latest evaluation, auto-accept, batches); admins: `POST /evidence/evaluate`, `/evidence/release`, `/evidence/revert`, `/evidence/auto-accept`, `/evidence/auto-accept/batches/{id}/undo` |
 | Sessions and accounts | `GET /session` (who is signed in), `POST /session` (sign in), `DELETE /session` (sign out), `POST /session/password`; admins: `GET /accounts`, `POST /accounts`, `POST /accounts/{id}` |
 | Duplicates and merges | `GET /duplicates` (possible duplicate pairs with evidence), `POST /merges` (merge two records), `POST /merges/{id}/undo` |
+| Discovery | `GET /experts` (people ranked by matching concepts, from words `q` or descriptors `concept`, with the concepts the query became in `meta.concepts`), `GET /concepts?q=` (descriptors by name), `GET /people/{id}/similar` (similar people with shared concepts), `GET /people/{id}/concepts` (what drives a profile) |
 
 All paths are under `/api/v1`.
 
 ## Examples
 
-Find people who work on a topic:
+Find people who work on a topic, with the concepts that match:
 
 ```bash
-curl -s "http://127.0.0.1:8000/api/v1/people?q=circadian&fields=id,name,concepts"
+curl -s "http://127.0.0.1:8000/api/v1/experts?q=circadian+rhythms&limit=10"
+```
+
+Or start from a MeSH descriptor (here, Neoplasms) and find who shares it:
+
+```bash
+curl -s "http://127.0.0.1:8000/api/v1/experts?concept=D009369"
 ```
 
 The organization's active grants, largest first:

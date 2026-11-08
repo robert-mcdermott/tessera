@@ -27,7 +27,11 @@ export function person(main, params, { samePage = false } = {}) {
     title: (d) => d.profile.name,
     quiet: samePage,
     load: async () => {
-      const profile = (await get(`/api/v1/people/${encodeURIComponent(id)}`, null, { fresh: samePage })).data;
+      const [profile, concepts, similar] = await Promise.all([
+        get(`/api/v1/people/${encodeURIComponent(id)}`, null, { fresh: samePage }).then((r) => r.data),
+        get(`/api/v1/people/${encodeURIComponent(id)}/concepts`).then((r) => r.data).catch(() => []),
+        get(`/api/v1/people/${encodeURIComponent(id)}/similar`).then((r) => r.data).catch(() => []),
+      ]);
       let list = null;
       if (tab === "publications") {
         const statuses = { all: ["accepted", "suggested", "deferred"], accepted: ["accepted"], suggested: ["suggested", "deferred"], rejected: ["rejected"] }[status] ?? ["accepted", "suggested"];
@@ -41,9 +45,9 @@ export function person(main, params, { samePage = false } = {}) {
       } else if (tab === "history") {
         list = await get(`/api/v1/people/${encodeURIComponent(id)}/history`, null, { fresh: true });
       }
-      return { profile, list };
+      return { profile, list, concepts, similar };
     },
-    view: ({ profile, list }) => {
+    view: ({ profile, list, concepts, similar }) => {
       const c = profile.counts;
       const pubs = c.publications ?? {};
       const suggested = (c.suggested_by_band?.strong ?? 0) + (c.suggested_by_band?.possible ?? 0);
@@ -104,9 +108,20 @@ export function person(main, params, { samePage = false } = {}) {
       else panel = historyPanel(list.data);
 
       const side = h("div", { class: "stack-lg" },
-        profile.concepts.length ? card({ title: "Topics", pad: true, attrs: { "data-entity": "concept" },
-          body: h("div", { class: "stack-sm" }, topicChips(profile.concepts, 8),
-            h("p", { class: "subtle" }, "Most distinctive MeSH topics across confirmed and strongly suggested papers.")) }) : null,
+        concepts.length ? card({ title: "Topics", pad: true, attrs: { "data-entity": "concept" },
+          action: h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => showProfile(profile, concepts) }, "How this is built"),
+          body: h("div", { class: "stack-sm" },
+            h("div", { class: "chips" }, concepts.slice(0, 8).map((c) => h("a", { class: "chip", href: `/experts?concept=${c.descriptor_ui}`,
+              title: `Find others who work on ${c.descriptor}` }, c.descriptor))),
+            h("p", { class: "subtle" }, "The most distinctive topics of their papers; select one to find others who work on it.")) })
+          : profile.concepts.length ? card({ title: "Topics", pad: true, attrs: { "data-entity": "concept" },
+            body: h("div", { class: "stack-sm" }, topicChips(profile.concepts, 8),
+              h("p", { class: "subtle" }, "Most distinctive MeSH topics across confirmed and strongly suggested papers.")) }) : null,
+        similar.length ? card({ title: "Similar people", pad: true, attrs: { "data-entity": "person" },
+          body: h("ul", { class: "plain-list similar" }, similar.slice(0, 6).map((p) => h("li", {},
+            h("div", { class: "row-sm" }, avatar(p.name, "sm"), h("div", { class: "stack-xs grow" },
+              h("a", { href: `/people/${p.id}` }, p.name),
+              h("span", { class: "subtle" }, `shares ${p.shared.slice(0, 3).map((s) => s.descriptor).join(", ")}`)))))) }) : null,
         profile.timeline.length > 1 ? card({ title: "Activity", pad: true, attrs: { "data-entity": "publication" },
           body: h("div", { class: "stack-sm" },
             barChart(profile.timeline.slice(-10).map((t) => ({ label: `’${String(t.year).slice(-2)}`, value: t.publications, secondary: t.accepted })),
@@ -332,6 +347,26 @@ function mergeWith(profile, refresh) {
       footer.replaceChildren(h("div", { class: "row wrap" }, submit, h("button", { type: "button", class: "btn btn-ghost", onclick: close }, "Cancel")));
       footer.hidden = false;
       find();
+    },
+  });
+}
+
+/** What drives a concept profile, so its owner (and anyone) can see why it says what it says. */
+function showProfile(profile, concepts) {
+  const top = concepts[0]?.weight || 1;
+  openDrawer({
+    title: "How the topics are built",
+    subtitle: profile.name,
+    label: "How the topics are built",
+    render: (body) => {
+      const rows = concepts.map((c) => h("li", { class: "concept-row" },
+        h("div", { class: "row-sm" }, h("strong", {}, c.descriptor), c.provisional ? h("span", { class: "pill" }, "from keywords") : null),
+        h("div", { class: "concept-bar-track" }, h("span", { "data-w": String(Math.max(4, Math.round((c.weight / top) * 100))) })),
+        h("span", { class: "subtle" }, `${number(c.papers)} ${c.papers === 1 ? "paper" : "papers"}${c.confirmed === c.papers ? "" : c.confirmed ? `, ${number(c.confirmed)} confirmed` : ", none confirmed yet"}`)));
+      body.append(h("div", { class: "stack" },
+        h("p", { class: "muted" }, "Each topic is a MeSH heading from their papers, counting major topics double, first and last authorship half again, and recent papers more (weight halves every five years). Papers suggested strongly but not yet confirmed count half. Topics many people share count less, so these are what set them apart."),
+        h("ol", { class: "plain-list concept-list" }, rows)));
+      for (const bar of body.querySelectorAll(".concept-bar-track > span")) bar.style.setProperty("width", `${bar.dataset.w}%`);
     },
   });
 }

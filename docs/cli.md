@@ -171,6 +171,14 @@ The search and serving index.
 usage: tessera build search [-h]
 ```
 
+### `tessera build profiles`
+
+Concept profiles and similar people (discovery).
+
+```text
+usage: tessera build profiles [-h]
+```
+
 ## `tessera sync`
 
 Fetch every source and resolve, in the right order (the usual command).

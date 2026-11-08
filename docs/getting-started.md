@@ -52,7 +52,7 @@ uv run tessera sync
 2. Builds the people directory: grant investigators, plus anyone on a roster you imported.
 3. Searches PubMed for each person by name, then fetches citation metrics from iCite and the public ORCID records of people whose ORCID iD it knows.
 4. Scores every candidate paper for every person and records suggestions with their evidence, along with links between papers, grants, and studies.
-5. Builds the search index the web app reads.
+5. Builds the search index the web app reads, and the concept profiles behind **Find experts** and similar people.
 
 Each step is recorded as a run. `uv run tessera runs` shows what was fetched and whether each run completed. Later syncs are incremental and much faster: run `sync` daily or weekly (see [Running Tessera](operations.md#keeping-data-fresh)).
 

@@ -2,7 +2,7 @@
 
 **Goal:** turn the graph into discovery: who works on what, who should meet, and why. Make the evidence stronger with ORCID, and let more than one person use Tessera, each with the right permissions.
 
-**Branch:** `wave-2` · **Target version:** `0.2.0` · **Status:** ◐ slices 1–4 done; slice 5 next
+**Branch:** `wave-2` · **Target version:** `0.2.0` · **Status:** ◐ slices 1–5 done; slice 6 next
 
 ## Exit criteria
 
@@ -67,16 +67,16 @@ Requirements delivered: REC-02 (ORCID), REC-07, REC-08, CUR-05, CUR-06, CUR-10, 
 
 **Acceptance (met):** a learned model is offered only when it beats the hand-set one on held-out people (tested both ways, and fitting recovers known weights from generated decisions); enabling auto-accept below 99% or on too few decisions is refused; on the synthetic organization with simulated decisions, auto-accept at 0.99 accepted 477 suggestions, all correct, and undoing the batch restored every one. The pilot has no curator decisions yet, so neither has been used there.
 
-## Slice 5: Concepts and expert finder ☐
+## Slice 5: Concepts and expert finder ☑
 
 **Goal:** who works on what, with reasons. See [discovery.md](../discovery.md).
 
-- [ ] Concept profiles from accepted work (DIS-04): MeSH weighted by major topic, author position, recency, and IDF; provisional concepts from keywords and title terms until MeSH indexing arrives; `derived/concept_profile.parquet`
-- [ ] Expert finder (DIS-05): a query becomes a small profile; people are ranked by similarity with the matching concepts shown
-- [ ] Similar people on every profile with shared concepts (DIS-06); pairs precomputed to `derived/similarity_pair.parquet`
-- [ ] Owners can see what drives their own profile
+- [x] Concept profiles (DIS-04): MeSH weighted by major topic, author position, recency, and IDF, from confirmed papers and, at half weight, strong suggestions (`discovery.likely_weight`, 0 for confirmed only: most papers are unconfirmed for months, and profiles that waited would be empty); author keywords stand in for missing MeSH and are marked provisional; study conditions and interventions at half weight; check tags and laboratory tools excluded; `derived/concept_profile.parquet`. Title terms were measured on the pilot and left out (they matched generic headings, not topics), and so were grant terms (noisy)
+- [x] Expert finder (DIS-05): a query in words is read through the papers it finds, becomes a small profile shown as "Understood as" (remove a concept, or add one by name), and people are ranked with the matching concepts shown; `GET /api/v1/experts`, `GET /api/v1/concepts`, and **Find experts** in the app
+- [x] Similar people on every profile with shared concepts (DIS-06); pairs above a floor of 0.10 precomputed to `derived/similarity_pair.parquet`
+- [x] What drives a profile: **How this is built** on the Topics card, and `GET /api/v1/people/{id}/concepts`
 
-**Acceptance:** on the synthetic organization, people built around a topic are found by it; every result shows its concepts.
+**Acceptance (met):** on the synthetic organization, every person's top three concepts come from their own field, searching a field's heading returns that field's people first, and at least 90% of similar pairs share a field; every result and pair shows its concepts. On the pilot, 57 people have profiles (4,849 concepts); 52 of them have at least one similar person; searches on three well-known topics there, one of them as broad as "cancer", returned the expected people at the top. Without the MeSH descriptor data, profiles are flat (no roll-up to broader areas) and words reach concepts only through papers.
 
 ## Slice 6: Collaboration graph ☐
 

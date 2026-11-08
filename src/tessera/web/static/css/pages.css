@@ -135,3 +135,24 @@ fieldset.field legend { font-size: var(--fs-sm); font-weight: 600; margin-bottom
 .user-menu-who { display: flex; flex-direction: column; gap: 2px; padding: var(--space-2) var(--space-3) var(--space-3); border-bottom: 1px solid var(--border); margin-bottom: var(--space-1); font-size: var(--fs-sm); }
 .user-menu-item { display: flex; align-items: center; gap: var(--space-2); width: 100%; padding: var(--space-2) var(--space-3); border: 0; border-radius: var(--radius-m); background: none; color: var(--text); font: inherit; font-size: var(--fs-sm); text-align: left; cursor: pointer; }
 .user-menu-item:hover, .user-menu-item:focus-visible { background: var(--surface-2); }
+
+/* Find experts and topics */
+.experts-search { display: flex; gap: var(--space-2); align-items: center; }
+.experts-search .input { flex: 1 1 auto; }
+.concept-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
+.concept-bar .chip { gap: 4px; padding-right: 4px; }
+.chip-remove { border: 0; background: none; color: inherit; cursor: pointer; font: inherit; line-height: 1; padding: 0 4px; border-radius: var(--radius-pill); }
+.chip-remove:hover { background: color-mix(in oklch, currentColor 14%, transparent); }
+.concept-add .input { width: 220px; height: 30px; }
+.expert .item-side { min-width: 110px; }
+.expert-meter, .concept-bar-track { height: 6px; width: 100px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+.expert-meter > span, .concept-bar-track > span { display: block; height: 100%; background: var(--ent-concept); }
+.concept-list { gap: var(--space-3); }
+.concept-row { display: grid; grid-template-columns: minmax(0, 1fr) 100px auto; align-items: center; gap: var(--space-3); font-size: var(--fs-sm); }
+@media (max-width: 560px) { .concept-row { grid-template-columns: minmax(0, 1fr); } }
+.similar li { padding: 2px 0; }
+@media (max-width: 560px) {
+  .expert { flex-wrap: wrap; }
+  .expert .item-main { flex-basis: calc(100% - 40px - var(--space-4)); }
+  .expert .item-side { flex-basis: 100%; flex-direction: row; align-items: center; padding-left: calc(40px + var(--space-4)); }
+}
