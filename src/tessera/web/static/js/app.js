@@ -90,6 +90,7 @@ async function boot() {
   route("/studies/:nct", (params) => study(main, params));
   const insightPages = () => import("./pages/insight.js");
   route("/insight", async (_, ctx) => (await insightPages()).insightOverview(main, ctx));
+  route("/insight/funding", async () => (await insightPages()).funding(main));
   route("/insight/definitions", async () => (await insightPages()).definitions(main));
   route("/inbox", async (_, ctx) => (await import("./pages/inbox.js")).inboxPage(main, ctx));
   route("/review", () => review(main));

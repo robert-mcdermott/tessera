@@ -100,7 +100,7 @@ Detail: [waves/wave-3.md](waves/wave-3.md)
 | Slice | Name | Delivers | Status |
 |---|---|---|---|
 | 1 | Metrics, cohorts, and the figure | Metric definitions as versioned records; cohorts (the organization, a group, picked people, a search); every figure shows definition, cohort, period, sources, and data timestamps; small-number marks | ☑ |
-| 2 | Funding portfolio | Strict counting per core project and fiscal-year record; awards by year, institute, activity, mechanism, and group; grants with upcoming end dates | ☐ |
+| 2 | Funding portfolio | Strict counting per core project and fiscal-year record; awards by year, institute, activity, mechanism, and group; grants with upcoming end dates | ☑ |
 | 3 | Topics and studies | Topic landscape and trends with small-number warnings; studies by condition, intervention, phase, sponsor class, and registry status | ☐ |
 | 4 | Reports and exports | Saved searches with new matches; reports; snapshots that regenerate exactly; evidence-carrying CSV, Parquet, and JSON exports | ☐ |
 | 5 | Backup and operations | Backup, restore (across SQLite and PostgreSQL), and full exit export; Admin → Operations; failure alerts | ☐ |

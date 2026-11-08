@@ -12,6 +12,7 @@ or group, never by person.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
@@ -35,6 +36,7 @@ class Option:
     label: str
     choices: tuple[tuple[str, str], ...]
     default: str
+    free: bool = False  # any short key is accepted (checked when the figure is computed)
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -42,6 +44,7 @@ class Option:
             "label": self.label,
             "default": self.default,
             "choices": [{"value": v, "label": label} for v, label in self.choices],
+            "free": self.free,
         }
 
     def label_of(self, value: str) -> str:
@@ -77,7 +80,7 @@ class Metric:
     counting: str  # exactly what is counted, and how
     unit: str  # papers, grants, dollars, studies
     sources: tuple[str, ...]  # connector names behind it
-    period: str = "calendar"  # calendar years, or the funder's fiscal years
+    period: str = "calendar"  # calendar years, the funder's fiscal years, or "upcoming"
     options: tuple[Option, ...] = ()
     caveats: tuple[str, ...] = ()
     needs: tuple[str, ...] = ()  # the input tables it is computed from (see inputs.py)
@@ -110,7 +113,10 @@ class Metric:
         out: dict[str, str] = {}
         for option in self.options:
             value = given.get(option.key) or option.default
-            if value not in dict(option.choices):
+            if option.free:
+                if not re.fullmatch(r"[a-z][a-z0-9_]{0,39}", value):
+                    raise MetricError(f"{option.label}: {value!r} is not a key.")
+            elif value not in dict(option.choices):
                 allowed = ", ".join(v for v, _ in option.choices)
                 raise MetricError(f"{option.label}: {value!r} is not one of {allowed}.")
             out[option.key] = value
@@ -132,7 +138,7 @@ def register(metric: Metric) -> Metric:
 
 def _load() -> None:
     """Import the modules that define metrics (they register themselves)."""
-    from tessera.insight import publications  # noqa: F401
+    from tessera.insight import funding, publications  # noqa: F401
 
 
 def get(metric_id: str) -> Metric:

@@ -272,3 +272,139 @@ def test_years_and_definitions_are_offered(demo) -> None:  # type: ignore[no-unt
     assert years["calendar"]["default"]["end"] >= years["calendar"]["default"]["start"]
     listed = client.get("/api/v1/insight/metrics").json()["data"]
     assert "publications.count/v1" in {m["ref"] for m in listed}
+
+
+# --- funding ----------------------------------------------------------------------------------
+
+
+def award(appl: int, core: str, fy: int, total: int | None, *, sub: str | None = None,
+          kind: str = "5", ours: bool = True, institute: str = "NCI", activity: str = "R01",
+          end: date | None = date(2028, 6, 30)) -> dict:  # fmt: skip
+    return {
+        "appl_id": appl, "core": core, "project_num": f"{kind}{core}-0{fy - 2020}",
+        "fiscal_year": fy, "subproject_id": sub, "title": f"Grant {core}",
+        "activity": activity, "institute": institute, "mechanism": "Non-SBIR/STTR",
+        "total": total, "direct": None if total is None else total * 2 // 3,
+        "indirect": None if total is None else total // 3, "project_start": date(2021, 7, 1),
+        "project_end": end, "organization": "OURS" if ours else "ELSEWHERE", "ours": ours,
+    }  # fmt: skip
+
+
+def funding_inputs(members: list[dict], links: list[tuple[str, str]], awards: list[dict]) -> Inputs:
+    return Inputs(
+        {
+            "members": pa.Table.from_pylist(members, schema=MEMBERS_SCHEMA),
+            "grant_links": pa.Table.from_pylist(
+                [{"person_id": p, "core": c, "assertion_id": f"asr_{p}_{c}"} for p, c in links],
+                schema=SCHEMAS["grant_links"],
+            ),
+            "awards": pa.Table.from_pylist(awards, schema=SCHEMAS["awards"]),
+        },
+        [{"source": "reporter", "label": "RePORTER", "last_success_at": "2026-11-07T03:00:00Z"}],
+        datetime(2026, 11, 7, tzinfo=UTC),
+    )
+
+
+def funding_figure(data: Inputs, metric: str, cohort: str = "group", **options: str) -> dict:
+    m = metrics.get(metric)
+    return compute(
+        m, data, {"label": "Lab", "kind": cohort, "size": 2}, Period(2022, 2026, "fiscal"),
+        m.resolve_options(options), small_number=5, today=TODAY,
+    ).to_json(records=True)  # fmt: skip
+
+
+TEAM = [{"person_id": "a", "name": "Ada", "start_year": None, "end_year": None},
+        {"person_id": "b", "name": "Ben", "start_year": 2025, "end_year": None}]  # fmt: skip
+
+
+def test_money_is_counted_once_per_record_without_subprojects() -> None:
+    data = funding_inputs(
+        TEAM,
+        [("a", "P01CA1"), ("b", "P01CA1"), ("b", "R01GM2"), ("a", "R21NS3")],
+        [
+            award(1, "P01CA1", 2024, 1_000_000, kind="1", activity="P01"),
+            award(2, "P01CA1", 2024, 300_000, sub="0001", activity="P01"),  # within the parent
+            award(3, "P01CA1", 2025, 1_050_000, activity="P01"),
+            award(4, "P01CA1", 2025, 80_000, kind="3", activity="P01"),  # a supplement
+            award(5, "R01GM2", 2024, 500_000, institute="NIGMS"),  # before Ben joined
+            award(6, "R01GM2", 2025, 510_000, institute="NIGMS"),
+            award(7, "R21NS3", 2025, 200_000, institute="NINDS", activity="R21", ours=False),
+        ],
+    )  # fmt: skip
+    out = funding_figure(data, "funding.awarded")
+    rows = {r["fiscal_year"]: r for r in out["rows"]}
+    assert rows[2024]["amount"] == 1_000_000 and rows[2024]["new"] == 1_000_000
+    assert rows[2025]["amount"] == 1_050_000 + 80_000 + 510_000
+    assert rows[2025]["supplement"] == 80_000 and rows[2025]["grants"] == 2
+    assert out["totals"]["grants"] == 2 and out["totals"]["records"] == 4
+    record = next(r for r in out["records"] if r["appl_id"] == 3)
+    assert record["members"] == ["Ada", "Ben"] and record["type"] == "Continuing years"
+    anywhere = funding_figure(data, "funding.awarded", awardee="anywhere")
+    assert anywhere["totals"]["amount"] == out["totals"]["amount"] + 200_000
+    direct = funding_figure(data, "funding.awarded", amount="direct")
+    assert direct["totals"]["amount"] == sum(
+        r["direct"] for r in out["records"]
+    ) and "direct costs" in direct["notes"][0]  # fmt: skip
+    by_institute = funding_figure(data, "funding.by_institute")
+    assert sum(r["amount"] for r in by_institute["rows"]) == out["totals"]["amount"]
+    assert [r["label"] for r in by_institute["rows"]] == ["NCI", "NIGMS"]
+    assert by_institute["rows"][0]["detail"] == "National Cancer Institute"
+
+
+def test_the_organization_counts_every_award_to_it() -> None:
+    data = funding_inputs(
+        TEAM[:1],
+        [("a", "R01CA9")],
+        [award(1, "R01CA9", 2025, 400_000), award(2, "U01AI8", 2025, 900_000),
+         award(3, "R21CA7", 2025, 150_000, ours=False)],
+    )  # fmt: skip
+    out = funding_figure(data, "funding.awarded", cohort="organization")
+    assert out["totals"]["amount"] == 1_300_000  # its own awards, with or without a member
+    missing = funding_inputs(TEAM[:1], [("a", "R01CA9")], [award(1, "R01CA9", 2025, None)])
+    noted = funding_figure(missing, "funding.awarded")
+    assert noted["totals"]["grants"] == 1 and "do not state their total cost" in noted["notes"][1]
+
+
+def test_grants_ending_soon_are_end_dates_not_gaps() -> None:
+    data = funding_inputs(
+        TEAM[:1],
+        [("a", "R01CA1"), ("a", "R01CA2"), ("a", "R01CA3")],
+        [award(1, "R01CA1", 2025, 1, end=date(2027, 3, 31)),
+         award(2, "R01CA2", 2025, 1, end=date(2028, 6, 30)),
+         award(3, "R01CA3", 2024, 1, end=date(2026, 6, 30))],
+    )  # fmt: skip
+    out = funding_figure(data, "funding.ending", months="12")
+    assert [r["core_project_num"] for r in out["rows"]] == ["R01CA1"]
+    assert out["period"]["label"] == "The next 12 months" and "not a gap" in out["notes"][0]
+    assert len(funding_figure(data, "funding.ending", months="24")["rows"]) == 2
+
+
+def test_the_demos_funding_figures_agree_to_the_dollar(demo) -> None:  # type: ignore[no-untyped-def]
+    config, client = demo
+    lake = Lake(config.data.home / "lake")
+    try:
+        subprojects = {
+            r["appl_id"]
+            for r in lake.rows(
+                "SELECT appl_id FROM reporter_project WHERE subproject_id IS NOT NULL"
+            )
+        }
+    finally:
+        lake.close()
+    assert len(subprojects) >= 6
+    awarded = figure(client, "funding.awarded", start=2021, end=2026, records="true")
+    total = awarded["totals"]["amount"]
+    assert total > 10_000_000 and awarded["metric"]["ref"] == "funding.awarded/v1"
+    assert sum(r["amount"] for r in awarded["rows"]) == total
+    for metric in ("funding.by_institute", "funding.by_activity", "funding.by_mechanism"):
+        out = figure(client, metric, start=2021, end=2026)
+        assert sum(r["amount"] for r in out["rows"]) == total, metric
+    activities = {r["label"] for r in figure(client, "funding.by_activity", start=2021,
+                                               end=2026)["rows"]}  # fmt: skip
+    assert {"P01", "P30", "T32", "K99", "R01"} <= activities
+    assert not subprojects & {r["appl_id"] for r in awarded["records"]}
+    assert any(r["type"] == "Supplements" for r in awarded["records"])
+    groups_ = figure(client, "funding.by_group", start=2021, end=2026, kind="division")
+    assert [r["group"] for r in groups_["rows"]] == sorted(
+        (r["group"] for r in groups_["rows"]), key=str.lower)  # fmt: skip
+    assert any("overlap" in n for n in groups_["notes"])

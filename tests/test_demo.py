@@ -102,7 +102,8 @@ def test_mesh_synonyms_broader_headings_and_areas(demo) -> None:  # type: ignore
 
     person = data("/api/v1/graph/network")["data"]["nodes"][0]["id"]
     areas = data(f"/api/v1/people/{person}/concepts")["meta"]["areas"]
-    assert areas and 0.99 <= sum(a["share"] for a in areas) <= 1.01
+    # Shares of the whole profile; at most eight areas are kept, so they can sum below one.
+    assert areas and len(areas) <= 8 and 0.5 <= sum(a["share"] for a in areas) <= 1.01
     assert all(a["category"] in "ABCFG" for a in areas)  # what someone studies, not methods
     landscape = data("/api/v1/graph/landscape")["data"]["nodes"]
     assert landscape and all(n["category"] for n in landscape)

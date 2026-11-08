@@ -11,6 +11,9 @@ import { callout, emptyState, entityHref, segmented } from "./ui.js";
 
 let hatchSeq = 0;
 
+// Bar shades for stacked series, from strongest to palest.
+const TONES = { solid: "bar", deep: "bar-deep", soft: "bar-soft", pale: "bar-pale" };
+
 /** Format one cell by its column's kind. */
 export function cell(column, value) {
   if (value == null || value === "") return "–";
@@ -62,7 +65,7 @@ export function yearChart(figure, series, { format = number, label = "" } = {}) 
       y -= tall;
       const isSmall = small.has(`${i}:${s.key}`);
       return svg("g", {},
-        svg("rect", { class: s.tone === "soft" ? "bar-soft" : "bar", x, y, width: barWidth, height: tall, rx: 2 }),
+        svg("rect", { class: TONES[s.tone] ?? "bar", x, y, width: barWidth, height: tall, rx: 2 }),
         isSmall ? svg("rect", { class: "bar-small", x, y, width: barWidth, height: tall, rx: 2, fill: `url(#${hatch})` }) : null);
     });
     const year = row.year ?? row.label;
@@ -83,7 +86,7 @@ export function yearChart(figure, series, { format = number, label = "" } = {}) 
   drawing.style.setProperty("max-width", `${Math.round(width * 1.4)}px`);
   return h("figure", { class: "chart-figure" }, drawing,
     h("div", { class: "figure-legend" }, series.map((s) => h("span", {},
-      h("span", { class: `figure-swatch ${s.tone === "soft" ? "swatch-soft" : "swatch-solid"}` }), s.label)),
+      h("span", { class: `figure-swatch swatch-${s.tone ?? "solid"}` }), s.label)),
     small.size ? h("span", {}, h("span", { class: "figure-swatch swatch-small" }), `Fewer than ${figure.small_number}`) : null));
 }
 
@@ -96,14 +99,15 @@ export function categoryBars(figure, { labelKey = "label", valueKey, shareKey = 
   return h("ol", { class: "category-bars" }, rows.map((row, i) => {
     const value = row[valueKey] ?? 0;
     const isSmall = small.has(`${i}:${valueKey}`);
-    const name = hrefOf?.(row) ? h("a", { href: hrefOf(row) }, row[labelKey] ?? "–") : (row[labelKey] ?? "–");
+    const text = hrefOf?.(row) ? h("a", { href: hrefOf(row) }, row[labelKey] ?? "–") : (row[labelKey] ?? "–");
+    const name = row.detail ? [text, h("span", { class: "category-detail" }, row.detail)] : text;
     const meter = h("span", { class: "category-meter", "data-small": isSmall ? "" : null });
     meter.style.setProperty("--w", `${Math.max((value / max) * 100, 0.8).toFixed(1)}%`);
     return h("li", {},
       h("span", { class: "category-name" }, name),
       h("span", { class: "category-track", "aria-hidden": "true" }, meter),
       h("span", { class: "category-value tabular" }, format(value), isSmall ? h("span", { class: "small-mark", title: `Fewer than ${figure.small_number}` }, "†") : null),
-      shareKey ? h("span", { class: "category-share tabular muted" }, row[shareKey] == null ? "" : percent(row[shareKey], 0)) : null);
+      h("span", { class: "category-share tabular muted" }, shareKey && row[shareKey] != null ? percent(row[shareKey], 0) : ""));
   }));
 }
 

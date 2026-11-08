@@ -135,6 +135,7 @@ class Figure:
     record_columns: list[Column] = field(default_factory=list)
     records: list[dict[str, Any]] = field(default_factory=list)
     sources: list[dict[str, Any]] = field(default_factory=list)
+    period_view: dict[str, Any] | None = None  # for figures about what is coming, not years
 
     @property
     def metric(self) -> Metric:
@@ -162,7 +163,7 @@ class Figure:
         return {
             "metric": self.metric.to_json(),
             "cohort": self.request.cohort,
-            "period": self.request.period.to_json(),
+            "period": self.period_view or self.request.period.to_json(),
             "options": options,
             "small_number": self.request.small_number,
             "notes": self.notes,

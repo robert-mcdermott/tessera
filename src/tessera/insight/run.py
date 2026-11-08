@@ -13,6 +13,7 @@ from typing import Any
 from sqlalchemy.engine import Engine
 
 from tessera.config import Config
+from tessera.connectors.reporter import fiscal_year
 from tessera.core.clock import utc_now
 from tessera.insight import cohorts, metrics
 from tessera.insight.figure import Figure, FigureRequest, Period
@@ -37,7 +38,8 @@ def compute(
     )
     result = metric.compute(inputs, request)
     result.sources = inputs.sources_for(metric.sources)
-    result.notes += coverage_notes(result.sources, period)
+    if metric.period != "upcoming":
+        result.notes += coverage_notes(result.sources, period)
     return result
 
 
@@ -77,7 +79,10 @@ def figure(
     metric = metrics.get(metric_id)
     chosen = metric.resolve_options(options or {})
     stamps = source_stamps(engine, metric.sources, config)
-    period = Period.make(start, end, metric.period, today=today, earliest=earliest(stamps))
+    basis = "fiscal" if metric.period == "fiscal" else "calendar"
+    if end is None and basis == "fiscal":
+        end = fiscal_year(today)  # the fiscal year under way (from October)
+    period = Period.make(start, end, basis, today=today, earliest=earliest(stamps))
     resolved = cohorts.resolve(engine, cohort, today=today, search=search)
     inputs = gather(Context(engine, lake, config, resolved), metric.needs)
     return compute(

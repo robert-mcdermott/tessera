@@ -23,6 +23,7 @@ from tessera.config import Config
 from tessera.connectors import CONNECTORS
 from tessera.connectors.reporter import fiscal_year
 from tessera.core.clock import isoformat, utc_now
+from tessera.evidence.orgmatch import OrgMatcher
 from tessera.insight.cohorts import Cohort
 from tessera.jobs.runs import last_success
 from tessera.lake import Lake
@@ -44,12 +45,30 @@ SCHEMAS: dict[str, pa.Schema] = {
         ("pmid", pa.string()), ("year", pa.int32()), ("title", pa.string()),
         ("journal", pa.string()), ("doi", pa.string()), ("retracted", pa.bool_()),
     ),
+    "grant_links": _schema(
+        ("person_id", pa.string()), ("core", pa.string()), ("assertion_id", pa.string()),
+    ),
+    "awards": _schema(
+        ("appl_id", pa.int64()), ("core", pa.string()), ("project_num", pa.string()),
+        ("fiscal_year", pa.int32()), ("subproject_id", pa.string()), ("title", pa.string()),
+        ("activity", pa.string()), ("institute", pa.string()), ("mechanism", pa.string()),
+        ("total", pa.int64()), ("direct", pa.int64()), ("indirect", pa.int64()),
+        ("project_start", pa.date32()), ("project_end", pa.date32()),
+        ("organization", pa.string()), ("ours", pa.bool_()),
+    ),
+    "group_members": _schema(
+        ("group_id", pa.string()), ("name", pa.string()), ("slug", pa.string()),
+        ("kind", pa.string()), ("person_id", pa.string()), ("start_year", pa.int32()),
+        ("end_year", pa.int32()),
+    ),
 }  # fmt: skip
 
 # Which source each table comes from, for the figure's data timestamps.
 TABLE_SOURCES: dict[str, tuple[str, ...]] = {
     "paper_links": ("pubmed",),
     "papers": ("pubmed",),
+    "grant_links": ("reporter",),
+    "awards": ("reporter",),
 }
 
 
@@ -143,11 +162,112 @@ def gather_papers(ctx: Context, tables: dict[str, pa.Table]) -> pa.Table:
     return pa.Table.from_pylist(rows, schema=SCHEMAS["papers"])
 
 
+def gather_grant_links(ctx: Context, tables: dict[str, pa.Table]) -> pa.Table:
+    """Members' grants, from the funder's investigator lists (always accepted links)."""
+    people = sorted(ctx.cohort.members)
+    rows: list[dict[str, Any]] = []
+    with ctx.engine.connect() as conn:
+        for i in range(0, len(people), CHUNK):
+            for r in conn.execute(
+                select(assertion.c.id, assertion.c.subject_id, assertion.c.object_id).where(
+                    assertion.c.predicate == "investigator_on",
+                    assertion.c.subject_id.in_(people[i : i + CHUNK]),
+                    assertion.c.status == "accepted",
+                )
+            ).mappings():
+                rows.append(
+                    {"person_id": r["subject_id"], "core": r["object_id"].removeprefix("grt:"),
+                     "assertion_id": r["id"]}
+                )  # fmt: skip
+    rows.sort(key=lambda r: r["assertion_id"])
+    return pa.Table.from_pylist(rows, schema=SCHEMAS["grant_links"])
+
+
+# A constant list of column names: the queries below are built only from these strings.
+AWARD_COLUMNS = (
+    "appl_id, core_project_num AS core, project_num, fiscal_year, subproject_id, title, "
+    "activity_code AS activity, agency_ic_admin AS institute, funding_mechanism AS mechanism, "
+    "award_amount AS total, direct_cost AS direct, indirect_cost AS indirect, project_start, "
+    "project_end, org_name AS organization"
+)
+
+
+def gather_awards(ctx: Context, tables: dict[str, pa.Table]) -> pa.Table:
+    """Fiscal-year records of the members' grants and, for the organization, every award to
+    it. ``ours`` says whether the awardee is the organization, decided here once."""
+    cores = tables["grant_links"].column("core").to_pylist() if "grant_links" in tables else []
+    rows = _lake_join(
+        ctx.lake,
+        f"SELECT {AWARD_COLUMNS} FROM reporter_project p JOIN _keys k ON k.key = "  # noqa: S608
+        "p.core_project_num",
+        cores,
+    )
+    if ctx.cohort.organization:
+        seen = {r["appl_id"] for r in rows}
+        rows += [
+            r for r in ctx.lake.rows(
+                f"SELECT {AWARD_COLUMNS} FROM reporter_project "  # noqa: S608
+                "WHERE core_project_num IS NOT NULL"
+            )
+            if r["appl_id"] not in seen
+        ]  # fmt: skip
+    matcher = OrgMatcher(ctx.config.organization)
+    verdicts: dict[str | None, bool] = {}
+    out = []
+    for r in rows:
+        name = r["organization"]
+        if name not in verdicts:
+            verdicts[name] = matcher.matches(name)
+        out.append({**r, "ours": verdicts[name]})
+    if ctx.cohort.organization:
+        out = [r for r in out if r["ours"] or r["core"] in set(cores)]
+    out.sort(key=lambda r: r["appl_id"])
+    return pa.Table.from_pylist(out, schema=SCHEMAS["awards"])
+
+
+def gather_group_members(ctx: Context, tables: dict[str, pa.Table]) -> pa.Table:
+    """Every active group's members among the cohort, with the years they were members."""
+    from tessera.groups import store as groups
+    from tessera.ledger.tables import unit
+
+    people = set(ctx.cohort.members)
+    rows: list[dict[str, Any]] = []
+    with ctx.engine.connect() as conn:
+        info = {
+            r.id: r for r in conn.execute(
+                select(unit.c.id, unit.c.name, unit.c.slug, unit.c.kind).where(
+                    unit.c.status == "active")
+            )
+        }  # fmt: skip
+        for m in groups.memberships(conn, group_ids=sorted(info)):
+            if m["subject_id"] not in people:
+                continue
+            q = m["qualifiers"] or {}
+            g = info[m["object_id"]]
+            rows.append(
+                {"group_id": g.id, "name": g.name, "slug": g.slug, "kind": g.kind,
+                 "person_id": m["subject_id"], "start_year": _year(q.get("start")),
+                 "end_year": _year(q.get("end"))}
+            )  # fmt: skip
+    rows.sort(key=lambda r: (r["group_id"], r["person_id"], r["start_year"] or 0))
+    return pa.Table.from_pylist(rows, schema=SCHEMAS["group_members"])
+
+
+def _year(text: Any) -> int | None:
+    try:
+        return int(str(text)[:4]) if text else None
+    except ValueError:
+        return None
+
+
 GATHERERS: dict[str, Callable[[Context, dict[str, pa.Table]], pa.Table]] = {
     "paper_links": gather_paper_links,
     "papers": gather_papers,
+    "grant_links": gather_grant_links,
+    "awards": gather_awards,
+    "group_members": gather_group_members,
 }
-REQUIRES: dict[str, tuple[str, ...]] = {"papers": ("paper_links",)}
+REQUIRES: dict[str, tuple[str, ...]] = {"papers": ("paper_links",), "awards": ("grant_links",)}
 
 
 def _ordered(needs: Iterable[str]) -> list[str]:

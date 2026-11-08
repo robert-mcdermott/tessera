@@ -46,17 +46,17 @@ Requirements: INT-01 to INT-07, INT-11, DIS-10, LAB-09, PLT-08, PLT-12.
 
 **Acceptance (met):** the organization's publications by year equal the distinct PMIDs that count for its members; a program's figure counts a member's paper only from the year they joined when the start date is known; a year with three papers is marked as a small number; the figure's About panel names `publications.count/v1`, the cohort with its size, the period, and PubMed's last successful fetch.
 
-## Slice 2: Funding portfolio ☐
+## Slice 2: Funding portfolio ☑
 
 **Goal:** money counted the way a sponsored-research office would count it (INT-02, INT-05).
 
-- [ ] Fiscal-year records from RePORTER: one per application, subprojects excluded from money, supplements counted once each; a grant counted once per cohort however many members are on it
-- [ ] The organization's portfolio is what was awarded to the organization; a cohort's is its members' grants awarded to the organization, or anywhere when asked
-- [ ] Awards by fiscal year (new and continuing), by institute, by activity code, and by mechanism; active grants; grants by group (overlapping, and said so); total, direct, or indirect amounts, always labeled
-- [ ] Grants with project end dates in the next 6, 12, or 24 months, labeled as end dates
-- [ ] The demo gains a center grant with subprojects, a supplement, training and career awards, and a second institute, so every rule shows
+- [x] Fiscal-year records from RePORTER: one per application, subprojects excluded from money, supplements counted once each; a grant counted once per cohort however many members are on it
+- [x] The organization's portfolio is what was awarded to the organization; a cohort's is its members' grants awarded to the organization, or anywhere when asked
+- [x] Awards by fiscal year (new and continuing), by institute, by activity code, and by mechanism; active grants; grants by group (overlapping, and said so); total, direct, or indirect amounts, always labeled
+- [x] Grants with project end dates in the next 6, 12, or 24 months, labeled as end dates
+- [x] The demo gains a center grant with subprojects, a supplement, training and career awards, and a second institute, so every rule shows
 
-**Acceptance:** on the demo, the by-year, by-institute, and by-activity totals agree to the dollar; a P01's subproject records add nothing to its total; a supplement in the same fiscal year adds once; a grant with two member investigators in one lab counts once for that lab; the about panel says which amount is shown.
+**Acceptance (met):** on the demo, the by-year, by-institute, and by-activity totals agree to the dollar; a P01's subproject records add nothing to its total; a supplement in the same fiscal year adds once; a grant with two member investigators in one lab counts once for that lab; the about panel says which amount is shown.
 
 ## Slice 3: Topics and studies ☐
 
@@ -113,5 +113,6 @@ Requirements: INT-01 to INT-07, INT-11, DIS-10, LAB-09, PLT-08, PLT-12.
 
 | Date | Note |
 |---|---|
+| 2026-11-08 | Slice 2 done. Award types come from the first digit of the project number (1 new, 2 renewal, 3 supplement; the rest continuing), which RePORTER does not state separately. The organization's portfolio is what was awarded to it, matched by the awardee's name with the same rules as everywhere else, so grants of people not yet in the directory still count; a cohort's portfolio needs a member on the grant. Grants by group are listed by name, and say that their amounts overlap, so the figure cannot be read as a ranking. Fiscal-year figures default to the fiscal year under way (October onward) and say it is incomplete. The demo's mechanisms now use RePORTER's names, labeled in words. One demo test assumed a person's research areas sum to one; they are shares of the whole profile with eight kept, so the test now checks that. |
 | 2026-11-08 | Slice 1 done. Metric definitions live in code with a version rather than in the ledger: a definition is part of what the code computes, and a snapshot records the definition it used. Figures are computed from tables gathered once for the cohort (the members with their years, links, and lake rows), so a snapshot can keep those tables and compute the figures again. Group cohorts count a member's work by year, from the year they joined to the year they left; most memberships have no dates yet, so About says how many do. The first sync's window (`sync.window_years`) makes earlier years incomplete; the default period starts at the first complete year, and figures that reach back further say so. |
 | 2026-11-08 | Wave planned, after folding the maintainer's guidance on single sign-on and the AI assistant into the roadmap (waves 6 and 5). The 0.3.0 release date was corrected to 2026-11-08 in the changelog, roadmap, and wave 3 file. |

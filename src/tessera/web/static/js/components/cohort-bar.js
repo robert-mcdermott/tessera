@@ -10,11 +10,10 @@ import { closeDrawer, openDrawer } from "./drawer.js";
 import { toast } from "./toast.js";
 import { callout, segmented } from "./ui.js";
 
-/** The figure parameters the address holds, for figureCard. */
+/** The figure parameters the address holds (cohort, years, and options), for figureCard. */
 export function insightParams() {
-  const q = query();
   const out = {};
-  for (const key of ["cohort", "start", "end", "basis"]) if (q.get(key)) out[key] = q.get(key);
+  for (const [key, value] of query()) if (value) out[key] = value;
   return out;
 }
 
@@ -117,9 +116,9 @@ function chooseCohort(currentSpec, cohort) {
   });
 }
 
-function yearSelect(label, value, first, last, onChange) {
+function yearSelect(label, value, first, last, onChange, prefix = "") {
   const options = [];
-  for (let y = last; y >= first; y -= 1) options.push(h("option", { value: y, selected: y === value || null }, String(y)));
+  for (let y = last; y >= first; y -= 1) options.push(h("option", { value: y, selected: y === value || null }, `${prefix}${y}`));
   return h("label", { class: "field-inline" }, h("span", { class: "muted" }, label),
     h("select", { class: "input input-sm", onchange: (e) => onChange(Number(e.target.value)) }, options));
 }
@@ -128,7 +127,7 @@ function yearSelect(label, value, first, last, onChange) {
  * The bar. figure: a figure already loaded (for its cohort and period), or null to load
  * just the cohort. withBasis: show the papers-and-studies choice.
  */
-export function cohortBar({ period = null, years = null, withBasis = true, fiscal = false } = {}) {
+export function cohortBar({ period = null, years = null, withBasis = true, fiscal = false, options = [] } = {}) {
   const params = insightParams();
   const chip = h("button", { type: "button", class: "btn cohort-chip", "aria-haspopup": "dialog" },
     icon("people", "icon icon-sm"), h("span", { class: "cohort-label" }, "Loading…"), icon("chevronDown", "icon icon-sm"));
@@ -149,8 +148,13 @@ export function cohortBar({ period = null, years = null, withBasis = true, fisca
     const end = Number(params.end) || period?.end || span.default.end;
     bar.append(h("div", { class: "cohort-period" }, h("span", { class: "eyebrow" }, fiscal ? "Fiscal years" : "Years"),
       h("div", { class: "row-sm" },
-        yearSelect("From", start, span.first, span.last, (v) => setQuery({ start: v, end: Math.max(v, end) })),
-        yearSelect("to", end, span.first, span.last, (v) => setQuery({ end: v, start: Math.min(v, start) })))));
+        yearSelect("From", start, span.first, span.last, (v) => setQuery({ start: v, end: Math.max(v, end) }), fiscal ? "FY" : ""),
+        yearSelect("to", end, span.first, span.last, (v) => setQuery({ end: v, start: Math.min(v, start) }), fiscal ? "FY" : ""))));
+  }
+  for (const option of options) {
+    bar.append(h("div", { class: "cohort-option" }, h("span", { class: "eyebrow" }, option.label),
+      segmented(option.choices.map((c) => ({ id: c.value, label: c.label })), params[option.key] || option.default,
+        (id) => setQuery({ [option.key]: id === option.default ? null : id }), option.label)));
   }
   if (withBasis) {
     bar.append(h("div", { class: "cohort-basis" }, h("span", { class: "eyebrow" }, "Papers and studies"),

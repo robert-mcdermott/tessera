@@ -309,7 +309,6 @@ ol.history, ul.history { margin: 0; padding: 0; list-style: none; }
   display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-4) var(--space-6);
   padding: var(--space-4) var(--space-5); border: 1px solid var(--border); border-radius: var(--radius-l);
   background: linear-gradient(180deg, var(--surface-1), var(--surface-2));
-  position: sticky; top: calc(var(--signature-height) + var(--topbar-height) + var(--space-2)); z-index: 4;
 }
 .cohort-bar > div { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
 .cohort-bar .eyebrow { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.08em; }
@@ -337,14 +336,24 @@ ol.history, ul.history { margin: 0; padding: 0; list-style: none; }
 .figure-legend { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); font-size: var(--fs-xs); color: var(--text-muted); }
 .figure-legend > span { display: inline-flex; align-items: center; gap: 6px; }
 .figure-swatch { display: inline-block; width: 11px; height: 11px; border-radius: 3px; flex: none; }
+.figure-chart .bar-soft { fill: color-mix(in srgb, var(--entity-fill, var(--entity, var(--accent))) 42%, var(--surface-3)); }
+.figure-chart .bar-deep { fill: color-mix(in srgb, var(--entity-fill, var(--entity, var(--accent))) 62%, var(--text)); }
+.figure-chart .bar-pale { fill: color-mix(in srgb, var(--entity-fill, var(--entity, var(--accent))) 16%, var(--surface-3)); stroke: color-mix(in oklch, var(--entity-fill, var(--entity, var(--accent))) 45%, transparent); stroke-width: 0.8; }
+.swatch-deep { background: color-mix(in srgb, var(--entity-fill, var(--entity, var(--accent))) 62%, var(--text)); }
+.swatch-pale { background: color-mix(in srgb, var(--entity-fill, var(--entity, var(--accent))) 16%, var(--surface-3)); border: 1px solid color-mix(in oklch, var(--entity-fill, var(--entity, var(--accent))) 45%, transparent); }
+.figure-card[data-metric^="funding."] { --entity: var(--ent-grant); --entity-fill: var(--ent-grant-fill); }
+.figure-card[data-metric^="publications."] { --entity: var(--ent-pub); }
+.figure-card[data-metric^="studies."] { --entity: var(--ent-study); }
+.figure-card[data-metric^="topics."] { --entity: var(--ent-concept); }
 .swatch-solid { background: var(--entity-fill, var(--entity, var(--accent))); }
-.swatch-soft { background: color-mix(in oklch, var(--entity-fill, var(--entity, var(--accent))) 35%, var(--surface-3)); }
+.swatch-soft { background: color-mix(in srgb, var(--entity-fill, var(--entity, var(--accent))) 42%, var(--surface-3)); }
 .swatch-small { background: repeating-linear-gradient(45deg, var(--surface-3) 0 3px, var(--text-subtle) 3px 4px); border: 1px dashed var(--text-muted); }
 .small-mark { margin-left: 2px; color: var(--warn); font-weight: 650; }
 td[data-small] { background: color-mix(in oklch, var(--warn) 8%, transparent); }
 .category-bars { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(8rem, 1.2fr) minmax(4rem, 2fr) auto auto; gap: var(--space-2) var(--space-3); align-items: center; font-size: var(--fs-sm); }
 .category-bars > li { display: contents; }
-.category-name { min-width: 0; overflow-wrap: anywhere; }
+.category-name { min-width: 0; overflow-wrap: anywhere; display: flex; flex-direction: column; }
+.category-detail { font-size: var(--fs-xs); color: var(--text-subtle); }
 .category-track { height: 10px; border-radius: 5px; background: var(--surface-3); overflow: hidden; }
 .category-meter { display: block; height: 100%; width: var(--w); border-radius: 5px; background: var(--entity-fill, var(--entity, var(--accent))); }
 .category-meter[data-small] { background: repeating-linear-gradient(45deg, var(--entity-fill, var(--entity, var(--accent))) 0 3px, transparent 3px 6px); }

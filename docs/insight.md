@@ -65,6 +65,29 @@ The cohort, the period, and the options are part of the page's address, so a vie
 
 `publications.count/v1`: the cohort's papers published in each year of the period. Each paper counts once, however many members wrote it (distinct PubMed IDs), in its year of publication. Retracted papers are not counted. PubMed covers biomedical journals; papers in venues it does not index are missing.
 
+## Funding
+
+**Insight → Funding** shows awards from NIH RePORTER (NIH and the other agencies that report to it), counted the way a sponsored-research office counts them, so that nothing is counted twice:
+
+- **Money comes from fiscal-year records.** Each record is one award action (a new award, a renewal, a continuing year, or a supplement) and counts once, in its fiscal year. Fiscal years are the funder's: FY2026 ran from October 2025 to September 2026.
+- **Subprojects are left out.** The components of multi-project awards (the projects and cores of a P01, P30, or U54) report records of their own, but the parent award's record already includes their money.
+- **A grant counts once** for a cohort, however many members are on it.
+- **The organization's portfolio is every award to the organization**, whether or not its investigators are in the directory. Another cohort's portfolio is the awards to the organization on which a member is an investigator, counted in the fiscal years the member was a member. **Awarded to: Anywhere** adds members' awards at other organizations, such as a grant that moved with a new arrival.
+- **The amount is always named**: total cost (the default), direct costs, or indirect costs. A record that does not state the chosen amount still counts as a grant and the notes say how many.
+
+| Figure | Metric | Shows |
+|---|---|---|
+| Awards by fiscal year | `funding.awarded/v1` | Money by fiscal year, split into new awards, renewals, continuing years, and supplements, with the number of grants and records |
+| Awards by funding institute | `funding.by_institute/v1` | Money by the institute or agency that administers each award, with its share |
+| Awards by activity code | `funding.by_activity/v1` | Money by activity code (R01, P30, K99, T32, …) with each code's mechanism |
+| Awards by funding mechanism | `funding.by_mechanism/v1` | Money by mechanism: research projects, research centers, training, career awards, and the rest |
+| Awards by group | `funding.by_group/v1` | Money for each group of one kind (programs, divisions, labs, …) with members in the cohort. A grant counts for every group with a member on it, so the amounts overlap; groups are listed by name |
+| Grants by project end date | `funding.ending/v1` | Grants whose projects end within the next 6, 12, or 24 months, from each grant's latest record |
+
+An ending project is not a gap in funding: projects are often renewed, extended without new money, or followed by new awards. The figure is called **Grants by project end date** for that reason.
+
+Keep in mind what RePORTER cannot show: foundation, industry, and most other federal funding are not in it; amounts are awarded, not spent; and public data holds awards only, never applications, so success rates cannot be computed. A member who leads one project of a multi-project award is linked to the whole award.
+
 ## The API
 
 Every figure is at `GET /api/v1/insight/figures/<metric>` with `cohort`, `start`, `end`, and the metric's options (such as `basis=confirmed`); `records=true` adds the records counted. `GET /api/v1/insight/metrics` lists the definitions, and `/api/v1/insight/cohorts` saves and lists cohorts. See [The API](api.md#what-is-available).

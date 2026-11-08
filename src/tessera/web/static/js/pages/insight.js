@@ -3,16 +3,41 @@
 
 import { get } from "../core/api.js";
 import { h, icon } from "../core/dom.js";
-import { enumLabel, number } from "../core/format.js";
+import { enumLabel, money, number } from "../core/format.js";
+import { query, setQuery } from "../core/router.js";
 import { cohortBar, insightParams } from "../components/cohort-bar.js";
-import { figureCard, yearChart } from "../components/figure.js";
-import { pageHeader } from "../components/ui.js";
+import { categoryBars, figureCard, yearChart } from "../components/figure.js";
+import { pageHeader, segmented } from "../components/ui.js";
 import { show } from "./page.js";
 
 export const INSIGHT_PAGES = [
   { href: "/insight", label: "Overview" },
+  { href: "/insight/funding", label: "Funding" },
   { href: "/insight/definitions", label: "Definitions" },
 ];
+
+const AMOUNT = { key: "amount", label: "Amount", default: "total",
+  choices: [{ value: "total", label: "Total" }, { value: "direct", label: "Direct" }, { value: "indirect", label: "Indirect" }] };
+const AWARDEE = { key: "awardee", label: "Awarded to", default: "organization",
+  choices: [{ value: "organization", label: "The organization" }, { value: "anywhere", label: "Anywhere" }] };
+const MONTHS = [{ id: "6", label: "6 months" }, { id: "12", label: "12 months" }, { id: "24", label: "24 months" }];
+
+const dollars = (v) => money(v, { compactForm: true });
+
+/** Awards by fiscal year, stacked by award type. */
+function awardsChart(f) {
+  return yearChart({ ...f, rows: f.rows.map((r) => ({ ...r, year: r.fiscal_year })) }, [
+    { key: "new", label: "New awards", tone: "solid" },
+    { key: "renewal", label: "Renewals", tone: "deep" },
+    { key: "continuing", label: "Continuing years", tone: "soft" },
+    { key: "supplement", label: "Supplements", tone: "pale" },
+  ].filter((s) => f.rows.some((r) => r[s.key])), { format: dollars, label: "Awards by fiscal year" });
+}
+
+function categoryCard(metric, params, labelKey = "label") {
+  return figureCard({ metric, params,
+    draw: (f) => categoryBars(f, { labelKey, valueKey: "amount", shareKey: "share", format: dollars }) });
+}
 
 /** The row of Insight's pages, under the header. */
 export function insightNav(current) {
@@ -40,12 +65,55 @@ export function insightOverview(main) {
         cohortBar({ years }),
         h("div", { class: "figure-grid" },
           figureCard({
-            metric: "publications.count", params, wide: true,
+            metric: "publications.count", params,
             draw: (f) => yearChart(f, f.options.basis?.value === "confirmed"
               ? [{ key: "confirmed", label: "Confirmed", tone: "solid" }]
               : [{ key: "confirmed", label: "Confirmed", tone: "solid" }, { key: "likely", label: "Likely", tone: "soft" }],
             { label: "Publications by year" }),
-          })));
+          }),
+          figureCard({ metric: "funding.awarded", params, draw: awardsChart })));
+    },
+  });
+}
+
+function endingCard(params) {
+  const months = query().get("months") || "12";
+  const card = figureCard({ metric: "funding.ending", params: { ...params, months }, wide: true,
+    empty: `No grant's project ends in the next ${months} months.` });
+  card.querySelector(".card-header").append(segmented(MONTHS, months, (id) => setQuery({ months: id === "12" ? null : id }), "Ending within"));
+  return card;
+}
+
+function groupCard(params, kinds) {
+  const kind = query().get("kind") || (kinds.find((k) => k.key === "program") ?? kinds[0])?.key || "program";
+  const select = h("select", { class: "input input-sm", "aria-label": "Kind of group", onchange: (e) => setQuery({ kind: e.target.value }) },
+    kinds.map((k) => h("option", { value: k.key, selected: k.key === kind || null }, k.label)));
+  const card = figureCard({ metric: "funding.by_group", params: { ...params, kind },
+    draw: (f) => categoryBars(f, { labelKey: "group", valueKey: "amount", format: dollars, hrefOf: (r) => `/groups/${r.slug}`, limit: 40 }) });
+  card.querySelector(".card-header").append(select);
+  return card;
+}
+
+export function funding(main) {
+  return show(main, {
+    title: "Funding",
+    load: () => Promise.all([get("/api/v1/insight/years"), get("/api/v1/meta")]),
+    view: ([{ data: years }, { data: meta }]) => {
+      const params = insightParams();
+      const kinds = (meta.vocabulary?.kinds ?? []).map((k) => ({ key: k.id, label: k.label }));
+      return h("div", { class: "stack-lg" },
+        pageHeader({ eyebrow: "Insight", title: "Funding" }),
+        insightNav("/insight/funding"),
+        h("p", { class: "lede" }, "Awards from NIH RePORTER, counted per grant and per fiscal-year record, so nothing is counted twice. ",
+          "Amounts are what was awarded, not what was spent, and public data has awards only, never applications."),
+        cohortBar({ years, fiscal: true, withBasis: false, options: [AMOUNT, AWARDEE] }),
+        h("div", { class: "figure-grid" },
+          figureCard({ metric: "funding.awarded", params, wide: true, draw: awardsChart }),
+          categoryCard("funding.by_institute", params),
+          categoryCard("funding.by_activity", params),
+          categoryCard("funding.by_mechanism", params),
+          groupCard(params, kinds),
+          endingCard(params)));
     },
   });
 }

@@ -243,15 +243,29 @@ def build_world(seed: int = 7, today: date | None = None, labs_per_area: int = 3
     appl = 9_900_000
 
     def add_grant(
-        contact: Person, activity: str, others: list[Person], amount: int, start: int
+        contact: Person,
+        activity: str,
+        others: list[Person],
+        amount: int,
+        start: int,
+        *,
+        mechanism: str = "Non-SBIR/STTR",
+        years: int | None = None,
+        subprojects: tuple[float, ...] = (),
+        ic: str | None = None,
+        source: random.Random | None = None,
     ) -> str:
+        """A grant's fiscal-year records. ``subprojects`` are the shares of each year's award
+        that its components report as records of their own (the parent's amount includes them).
+        """
         nonlocal serial, appl
         serial += 1
-        core = f"{activity}{contact.area.ic}{serial:06d}"
-        end = start + (4 if activity != "K99" else 1)
+        pick = source or rng
+        ic = ic or contact.area.ic
+        core = f"{activity}{ic}{serial:06d}"
+        end = start + (years if years is not None else (4 if activity != "K99" else 1))
         for fy in range(start, min(end, today.year) + 1):
             appl += 1
-            pick = rng
             reporter.append(
                 {
                     "appl_id": appl,
@@ -262,9 +276,9 @@ def build_world(seed: int = 7, today: date | None = None, labs_per_area: int = 3
                     "abstract": grant_abstract(contact.area, pick),
                     "phr": "The results will inform new ways to prevent, detect, or treat disease.",
                     "activity_code": activity,
-                    "agency_ic_admin": IC_AGENCY[contact.area.ic],
-                    "funding_mechanism": "Research Grants",
-                    "award_amount": int(amount * (0.97 + 0.06 * rng.random())),
+                    "agency_ic_admin": IC_AGENCY[ic],
+                    "funding_mechanism": mechanism,
+                    "award_amount": int(amount * (0.97 + 0.06 * pick.random())),
                     "direct_cost": int(amount * 0.66),
                     "indirect_cost": int(amount * 0.34),
                     "project_start": date(start, 7, 1),
@@ -292,6 +306,26 @@ def build_world(seed: int = 7, today: date | None = None, labs_per_area: int = 3
                     ],
                 }
             )
+            parent = reporter[-1]
+            for n, part in enumerate(subprojects, start=1):
+                appl += 1
+                lead = ([*others, contact])[(n - 1) % (len(others) + 1)]
+                reporter.append(
+                    {
+                        **parent,
+                        "appl_id": appl,
+                        "subproject_id": f"{n:04d}",
+                        "title": f"Core {n}: {parent['title']}",
+                        "award_amount": int(parent["award_amount"] * part),
+                        "direct_cost": int(parent["direct_cost"] * part),
+                        "indirect_cost": int(parent["indirect_cost"] * part),
+                        "investigators": [
+                            {**i, "is_contact_pi": True}
+                            for i in parent["investigators"]
+                            if i["profile_id"] == lead.profile_id
+                        ],
+                    }
+                )
         for p in [contact, *others]:
             p.grants.append(core)
             grant_of_lab[p.lab].append(core)
@@ -314,7 +348,44 @@ def build_world(seed: int = 7, today: date | None = None, labs_per_area: int = 3
         add_grant(pa, "U01", [pb], amounts["U01"], first_year)
     therapy = [p for p in labs.values() if p.area.key in ("immunotherapy", "immunology")][:3]
     if len(therapy) >= 2:
-        add_grant(therapy[0], "P01", therapy[1:], amounts["P01"], first_year - 1)
+        add_grant(therapy[0], "P01", therapy[1:], amounts["P01"], first_year - 1,
+                  subprojects=(0.3, 0.3, 0.2))  # fmt: skip
+
+    # Funding that shows every counting rule (a separate random stream, so that the rest of the
+    # organization is the same as before): a center grant with cores that report as
+    # subprojects, a supplement, institutional training, and a career award.
+    extra = random.Random(seed + 101)
+    oncology = sorted((p for p in labs.values() if p.area.ic == "CA"), key=lambda p: p.key)
+    if oncology:
+        add_grant(
+            oncology[0], "P30", oncology[1:3], 1_850_000, first_year - 1,
+            mechanism="Research Centers", years=5, subprojects=(0.12, 0.09), source=extra,
+        )  # fmt: skip
+    trainers = sorted(labs.values(), key=lambda p: p.key)
+    add_grant(trainers[len(trainers) // 2], "T32", [], 430_000, first_year,
+              mechanism="Training, Institutional", ic="GM", source=extra)  # fmt: skip
+    fellows = sorted((p for p in people if not p.is_pi and p.title == "Postdoctoral Fellow"
+                      and p.area.ic in IC_AGENCY), key=lambda p: p.key)  # fmt: skip
+    if fellows:
+        fellow = fellows[0]
+        fellow.profile_id = 91_500_000
+        add_grant(fellow, "K99", [], 125_000, today.year - 1,
+                  mechanism="Other Research-Related", source=extra)  # fmt: skip
+    first_r01 = next(r for r in reporter if r["activity_code"] == "R01")
+    r01_years = [r for r in reporter if r["core_project_num"] == first_r01["core_project_num"]]
+    base = r01_years[min(2, len(r01_years) - 1)]
+    appl += 1
+    reporter.append(
+        {
+            **base,
+            "appl_id": appl,
+            "project_num": "3" + base["project_num"][1:] + "S1",
+            "award_amount": 78_000 + extra.randint(0, 9) * 1000,
+            "direct_cost": 52_000,
+            "indirect_cost": 26_000 + extra.randint(0, 9) * 1000,
+            "is_new": False,
+        }
+    )
 
     # --- papers ----------------------------------------------------------------------------
     pubmed: list[dict[str, Any]] = []

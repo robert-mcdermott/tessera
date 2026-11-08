@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 
 from tessera.api.access import principal_of
 from tessera.api.common import config_of, engine_of, envelope, index_of, lake_of
+from tessera.connectors.reporter import fiscal_year
 from tessera.core.clock import isoformat
 from tessera.core.errors import TesseraError
 from tessera.insight import cohorts, metrics
@@ -210,8 +211,8 @@ def data_years(request: Request) -> dict[str, Any]:
     covered = coverage(engine_of(request), config)
     today = date.today()
 
-    def span(first_year: int | None, complete: int | None, last: int) -> dict[str, Any]:
-        default = Period.make(None, min(today.year, last), today=today, earliest=complete)
+    def span(first_year: int | None, complete: int | None, last: int, now: int) -> dict[str, Any]:
+        default = Period.make(None, now, today=today, earliest=complete)
         low = min(first_year or default.start, default.start)
         return {"first": low, "last": last, "complete_from": complete,
                 "default": {"start": default.start, "end": default.end}}  # fmt: skip
@@ -219,8 +220,8 @@ def data_years(request: Request) -> dict[str, Any]:
     return envelope(
         {
             "today": today.isoformat(),
-            "calendar": span(first, covered.get("pubmed"), today.year),
-            "fiscal": span(fiscal, covered.get("reporter"), today.year + 1),
+            "calendar": span(first, covered.get("pubmed"), today.year, today.year),
+            "fiscal": span(fiscal, covered.get("reporter"), today.year + 1, fiscal_year(today)),
         }
     )
 
