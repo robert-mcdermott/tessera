@@ -2,12 +2,20 @@
 
 from __future__ import annotations
 
+import json
+from collections.abc import Iterator, Mapping
 from typing import Any
 
+import anyio.from_thread
+import httpx
 from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
 
 from tessera.ai import log
+from tessera.ai.ask import Exchange, previous_turns
 from tessera.ai.providers import ProviderError, make
+from tessera.ai.tools import Fetch, Toolbox
 from tessera.api.access import Level, principal_of
 from tessera.api.common import config_of, engine_of, envelope
 from tessera.core.clock import utc_now
@@ -19,11 +27,17 @@ POLICIES = {
     ("GET", "/api/v1/ai/exchanges"): Level.ADMIN,
     ("GET", "/api/v1/ai/usage"): Level.ADMIN,
     ("POST", "/api/v1/ai/check"): Level.ADMIN,
+    ("POST", "/api/v1/ai/ask"): Level.READ,
 }
 
 
 def owner_of(request: Request) -> str:
     return principal_of(request).account_id or "operator"
+
+
+def transport_of(request: Request) -> httpx.BaseTransport | None:
+    """Tests stand a scripted model in for the provider here; otherwise the network."""
+    return getattr(request.app.state, "ai_transport", None)
 
 
 def may_use(request: Request) -> bool:
@@ -63,7 +77,7 @@ def check(request: Request) -> dict[str, Any]:
     config = config_of(request).ai
     started = utc_now()
     try:
-        provider = make(config)
+        provider = make(config, transport=transport_of(request))
         try:
             reply = provider.complete("Reply with one word.", [{"role": "user", "text": "Ready?"}])
         finally:
@@ -73,3 +87,63 @@ def check(request: Request) -> dict[str, Any]:
     seconds = round((utc_now() - started).total_seconds(), 2)
     return envelope({"provider": config.provider, "model": config.model, "seconds": seconds,
                      "reply": reply.text[:200], "usage": reply.usage})  # fmt: skip
+
+
+class AskBody(BaseModel):
+    question: str = Field(min_length=1, max_length=2000)
+    previous: str | None = Field(None, max_length=40, description="The exchange this follows")
+
+
+def asker_fetch(request: Request) -> Fetch:
+    """GET requests to this same app, in process, as the person asking: their session cookie
+    and the host they used, so the access middleware and every route's policy and checks apply
+    exactly as they do to their browser. Only GET is ever sent, so a tool cannot change anything.
+    """
+    app = request.app
+    headers = {"host": request.headers.get("host", "127.0.0.1")}
+    if request.headers.get("cookie"):
+        headers["cookie"] = request.headers["cookie"]
+
+    async def get(path: str, params: dict[str, Any]) -> tuple[int, Any]:
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://tessera") as client:
+            response = await client.get(path, params=params, headers=headers)
+        try:
+            return response.status_code, response.json()
+        except ValueError:
+            return response.status_code, None
+
+    def fetch(path: str, params: Mapping[str, Any]) -> tuple[int, Any]:
+        if not path.startswith("/api/v1/") or "/ai/" in path:
+            raise ValueError(f"The assistant's tools read the API only, not {path}.")
+        return anyio.from_thread.run(get, path, dict(params))
+
+    return fetch
+
+
+@router.post("/ask", summary="Ask a question; the answer streams back as JSON lines")
+def ask(request: Request, body: AskBody) -> StreamingResponse:
+    if not may_use(request):
+        raise HTTPException(status_code=403, detail="Your role does not include the assistant.")
+    config = config_of(request)
+    principal = principal_of(request)
+    engine = engine_of(request)
+    owner = owner_of(request)
+    history, inherited, previous = previous_turns(engine, body.previous, owner)
+    provider = make(config.ai, transport=transport_of(request))
+    exchange = Exchange(
+        engine=engine, config=config.ai, provider=provider,
+        toolbox=Toolbox(asker_fetch(request), inherited), owner=owner,
+        asked_by=principal.username or principal.name, organization=config.organization.name,
+        question=body.question.strip(), history=history, previous=previous,
+    )  # fmt: skip
+
+    def lines() -> Iterator[str]:
+        try:
+            for event in exchange.events():
+                yield json.dumps(event, ensure_ascii=False, default=str) + "\n"
+        finally:
+            provider.close()
+
+    headers = {"Cache-Control": "no-store", "X-Accel-Buffering": "no"}  # stream through proxies
+    return StreamingResponse(lines(), media_type="application/x-ndjson", headers=headers)

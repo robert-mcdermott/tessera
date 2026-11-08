@@ -9,6 +9,52 @@ Tessera can include an assistant that answers questions from Tessera's own recor
 - Nothing sent to a model includes contact details (email addresses, phone numbers, postal addresses) or links nobody has accepted.
 - Every exchange is logged: who asked, when, the provider and model, the prompt's version, the messages and tool calls with the records they returned, the answer, its citations, tokens, and time. Admins read the log in **Admin → Assistant**.
 
+## Asking a question
+
+With the assistant on, **Ask** appears in the top bar (and as **Ask a question…** in the command palette, ⌘K or Ctrl-K). It opens a side panel. Type a question and press Enter.
+
+- While the assistant works, the panel shows each step: "Finding who works on …", "Opening …", "Counting …".
+- The answer streams in as it is written, with numbered citations. The records it cites are listed under it; open one to see the record.
+- Ask a follow-up in the same panel and the assistant keeps the conversation. **New conversation** starts over.
+- **Stop** ends an answer early. A stopped answer is kept in the log, and its citations are not shown, since they were never checked.
+
+It answers questions such as:
+
+- Who works on a topic, and which of their papers show it
+- What a group studies, who leads it, and who is in it
+- A person's or a group's papers, grants, and studies
+- What followed a grant or a paper: the papers, studies, and clinical articles after it
+- Which open funding opportunities fit a person or a group, who fits an opportunity, and whether the organization may apply
+- Portfolio counts from Insight, such as papers by year for a group, counting confirmed work only
+
+### How answers are kept honest
+
+The assistant looks things up with read-only tools. Each tool asks Tessera's own API, in the same request the person's browser would make, with their session, so it sees exactly what they may see and nothing else. The tools:
+
+| Tool | What it reads |
+|---|---|
+| search | People, papers, grants, studies, opportunities, and groups, by words |
+| open record | One record's details |
+| experts | Who works on a topic, and their papers on it |
+| work of | A person's or group's confirmed papers, grants, and studies |
+| Insight figure | A metric over a cohort and years, counting confirmed records only |
+| impact thread | What followed a grant, a paper, or a person's work |
+| opportunity fit | Who fits an opportunity, and whether the organization may apply |
+| opportunities for | Open opportunities that fit a person or a group |
+
+Then the answer is checked before it is shown:
+
+- **Every citation is checked.** The model cites records by their identifiers. A citation is kept only if one of the tools returned that record while answering this question (or the answer before it cited it, for a follow-up). Any other citation is shown as removed.
+- **An answer with nothing left to cite is not shown.** It becomes a short decline that says what was searched: "I could not find anything in Tessera's records that answers this. I looked with: …". Text the model writes is held back until it cites a record, so an answer that will be declined never appears, not even while it streams. Admins can still read what the model wrote, in the log.
+- **Records are data, not instructions.** What a record says (a title, an abstract, a group's page) goes to the model only as a tool's result, and the instructions tell the model never to follow text inside one.
+- **Only what is reviewed.** Suggested links nobody has accepted are left out of everything a model is sent, as are contact details, draft group pages, saved searches, and teams.
+
+The instructions the model follows are versioned in the code (`assistant/v1`), and every exchange records which version it used.
+
+### From the API
+
+With the assistant on, `POST /api/v1/ai/ask` takes `{"question": "…", "previous": "<exchange ID>"}` (`previous` is optional, for a follow-up) and answers with JSON lines as they happen: `{"type": "step", "label"}` for each lookup, `{"type": "text", "text"}` as the answer streams, `{"type": "discard"}` when text written before a lookup is set aside, and last `{"type": "done", "status", "answer", "citations", "exchange", "searched"}`. `status` is `answered`, `declined`, `limited` (the daily limit), or `failed`; each citation has its `ref`, `kind`, `title`, `href`, and whether it was `removed`. `GET /api/v1/ai/status` says whether you may ask and how many questions are left today. Like every change, the request needs the session's `X-CSRF-Token` when accounts are on.
+
 ## Turning it on
 
 Add an `[ai]` section to the configuration and restart `tessera serve`. Keys are never written in the file: the configuration names the environment variable that holds one, and a key written in the file stops Tessera from starting.

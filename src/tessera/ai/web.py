@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse
 
 STATIC = Path(__file__).parent / "static"
 MODULE = "/js/ai/assistant.js"
+TYPES = {".js": "text/javascript", ".css": "text/css"}
 
 
 def install_ai(app: FastAPI) -> None:
@@ -25,9 +26,9 @@ def install_ai(app: FastAPI) -> None:
     @app.get("/js/ai/{name}", include_in_schema=False)
     async def assistant_file(name: str) -> FileResponse:
         path = STATIC / name
-        if path.suffix != ".js" or path.parent != STATIC or not path.is_file():
+        if path.suffix not in TYPES or path.parent != STATIC or not path.is_file():
             raise HTTPException(status_code=404, detail="Not found.")
-        return FileResponse(path, media_type="text/javascript",
+        return FileResponse(path, media_type=TYPES[path.suffix],
                             headers={"Cache-Control": "no-cache"})  # fmt: skip
 
 

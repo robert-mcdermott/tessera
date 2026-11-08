@@ -44,7 +44,7 @@ def upgrade() -> None:
         sa.Column("started_at", DT, nullable=False),
         sa.Column("seconds", sa.Float(), nullable=True),
         sa.CheckConstraint(
-            "status IN ('answered', 'declined', 'failed', 'limited')",
+            "status IN ('answered', 'declined', 'failed', 'limited', 'stopped')",
             name=op.f("ck_ai_exchange_status"),
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_ai_exchange")),

@@ -608,7 +608,7 @@ Index(None, team_member.c.person_id)
 # Every exchange with the optional assistant (wave 5): who asked, the provider and model, the
 # prompt's version, the messages and tool calls (with the records they returned), the answer,
 # its citations, tokens, time, and outcome. Kept ``[ai] log_days``.
-AI_STATUSES = ("answered", "declined", "failed", "limited")
+AI_STATUSES = ("answered", "declined", "failed", "limited", "stopped")
 ai_exchange = Table(
     "ai_exchange",
     metadata,
