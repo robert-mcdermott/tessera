@@ -2,6 +2,12 @@
 
 All notable changes to Tessera are recorded here. Versions follow [semantic versioning](https://semver.org/); each wave of work ships as a minor release (wave 1 → 0.1.0, wave 2 → 0.2.0).
 
+## Unreleased
+
+### Added
+
+- `tessera demo [PATH]` builds a complete installation for an invented organization, the Corvane Institute for Biomedical Research: about 100 people in 22 labs, 700 publications, grants, clinical studies, ORCID records, and a curator's decisions, so every screen has something to show. Identifiers are chosen so they can never be mistaken for real ones. It is also what the documentation's screenshots are taken from.
+
 ## 0.2.0 (2026-11-08)
 
 Connections. Tessera now helps people find who works on what and who should meet, with the reasons on screen, and lets several people curate with their own accounts and roles. ORCID strengthens the evidence, duplicate records merge reversibly, and the evidence model can learn from local decisions.

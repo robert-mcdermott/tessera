@@ -26,6 +26,17 @@ uv run tessera init
 
 This writes `tessera.toml` in the current folder and creates `./var` for data. Run `uv run tessera doctor` at any time to check the installation.
 
+## Try the demo first (optional)
+
+To see Tessera working before you describe your own organization, build the demo, an invented research institute with about 100 people, their publications, grants, and studies, and a curator's decisions:
+
+```bash
+uv run tessera demo                       # builds ./demo in a few seconds
+uv run tessera --config demo/tessera.toml serve
+```
+
+Everyone and everything in it is invented. Delete the `demo` folder when you are done; it is separate from your own installation.
+
 ## Describe your organization
 
 Tessera finds your organization in public records by name, so the `[organization]` section of `tessera.toml` matters more than anything else. Open the file and fill in:

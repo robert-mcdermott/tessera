@@ -40,7 +40,7 @@ uv run tessera sync      # fetch public data, build the directory, suggest autho
 uv run tessera serve     # open http://127.0.0.1:8000
 ```
 
-Later syncs are incremental; run `sync` daily or weekly. Optional: import a roster (`uv run tessera people import roster.csv`) and set `NCBI_API_KEY` for faster PubMed requests.
+To look around first, `uv run tessera demo` builds an invented research institute to explore (serve it with `uv run tessera --config demo/tessera.toml serve`). Later syncs are incremental; run `sync` daily or weekly. Optional: import a roster (`uv run tessera people import roster.csv`) and set `NCBI_API_KEY` for faster PubMed requests.
 
 ## Documentation
 

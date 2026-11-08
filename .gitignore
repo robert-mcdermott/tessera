@@ -5,6 +5,9 @@ product_research/
 tessera.toml
 var/
 .private/
+# The demo organization (tessera demo) and the built documentation site
+/demo/
+/site/
 
 # Python / uv
 .venv/

@@ -67,6 +67,9 @@ ignore = [
 # PubMed XML is parsed with ElementTree, which is safe given expat 2.4.1+ (checked at import).
 "src/tessera/connectors/pubmed.py" = ["S314"]
 "tests/**" = ["S105", "S106", "S108", "S311", "S314", "S608"]
+# The demo organization is invented with a seeded generator, and its vocabulary is prose.
+"src/tessera/demo/**" = ["S311"]
+"src/tessera/demo/content.py" = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

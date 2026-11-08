@@ -30,6 +30,20 @@ usage: tessera init [-h] [--force]
 |---|---|
 | `--force` | overwrite an existing config file |
 
+## `tessera demo`
+
+Build a fictional organization to explore (and to take screenshots of).
+
+```text
+usage: tessera demo [-h] [--force] [--seed SEED] [path]
+```
+
+| Argument | Meaning |
+|---|---|
+| `path` | where to build it (default: ./demo) |
+| `--force` | replace a demo already there |
+| `--seed SEED` | another seed, other people |
+
 ## `tessera doctor`
 
 Check that this installation is ready.
