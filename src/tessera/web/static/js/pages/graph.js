@@ -205,7 +205,8 @@ const LOOKS = {
   },
   focus(nodes) {
     return {
-      radius: (n) => (n.focus ? 15 : n.kind === "concept" ? 7 + Math.min(8, Math.sqrt(n.papers || 1)) : 5 + 14 * Math.sqrt(n.overlap || 0)),
+      // Topics are the hubs, so they stay larger than the people around them.
+      radius: (n) => (n.focus ? 14 : n.kind === "concept" ? 8 + Math.min(8, Math.sqrt(n.papers || 1)) : 4 + Math.min(6, 9 * Math.sqrt(n.overlap || 0))),
       color: (n) => (n.kind === "concept" ? "var(--ent-concept)" : n.focus ? "var(--accent)" : personFill(n)),
       edge: (e) => ({ color: "var(--text-subtle)", width: 0.6 + 2.5 * e.weight, alpha: 0.45 }),
       force: (e) => ({ distance: 46 + 50 * (1 - Math.min(1, e.weight * 2)), strength: 0.35 }),
@@ -294,7 +295,7 @@ function overview(state, body, look) {
         legendRow("swatch-line", "Published, funded, or ran a study together (thicker: more, and with fewer others)"),
         legendRow("swatch-dashed", "Similar interests, not yet working together"),
         bridges.length ? legendRow("swatch-ring", "Connects groups") : null,
-        legendRow("swatch-former", "Former member")),
+        body.data.nodes.some((n) => n.status === "former") ? legendRow("swatch-former", "Former member") : null),
       legend.length ? h("h3", {}, byUnit ? "Units" : "Groups that work together") : null,
       legend.length ? h("ul", { class: "legend" }, legend.slice(0, 12).map((g) => {
         const swatch = h("span", { class: "legend-swatch swatch-dot", "aria-hidden": "true" });

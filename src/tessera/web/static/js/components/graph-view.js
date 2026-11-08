@@ -80,7 +80,8 @@ export function graphView({ nodes, edges, look, on = {}, label = "Graph" }) {
   worker.postMessage({
     type: "start",
     reduced: reducedMotion(),
-    nodes: nodes.map((node, i) => ({ r: radius[i], mass: 0.6 + radius[i] / 10 })),
+    // The person in focus stays at the centre; everything else arranges around them.
+    nodes: nodes.map((node, i) => ({ r: radius[i], mass: 0.6 + radius[i] / 10, ...(node.focus ? { fx: 0, fy: 0 } : {}) })),
     links: links.map((e) => ({ source: e.s, target: e.t, ...look.force(e) })),
   });
 

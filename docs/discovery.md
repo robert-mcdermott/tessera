@@ -16,6 +16,8 @@ People are ranked by how well their topics match those concepts, and each result
 
 Reading words through papers matters because MeSH uses its own names. A search for "cancer" finds papers indexed under "Neoplasms", so it finds the people who work on them, even though the two words never meet.
 
+![Expert search for memory T cells: the concepts it was understood as, and people ranked with their matching concepts](images/experts-light.webp "Find experts")
+
 ## Topics on a profile
 
 Each profile's **Topics** card lists the person's most distinctive concepts. **How this is built** opens the full list, with, for each concept:
@@ -27,6 +29,8 @@ Each profile's **Topics** card lists the person's most distinctive concepts. **H
 A concept counts for more when it is a major topic of the paper, when the person is first or last author, and when the paper is recent: weight halves every five years. Concepts that many people in the organization share count for less, so the list shows what sets this person apart rather than what everyone has in common. Headings that describe the study rather than its subject, such as "Humans", "Female", or "Mice", are left out, as are laboratory tools such as "Green Fluorescent Proteins".
 
 Profiles use confirmed papers and, at half weight, strong suggestions that nobody has confirmed yet, so they are useful before curation catches up. Weaker suggestions never count. To use confirmed papers only, set `likely_weight = 0` in [`[discovery]`](configuration.md#discovery).
+
+![A profile: confirmed papers, grants, studies, topics, and similar people](images/profile-light.webp "A profile, with its topics and similar people")
 
 ## Similar people
 
@@ -50,13 +54,21 @@ In the graph, hover over anyone to fade everything but them and their connection
 
 People are coloured by unit when the view spans several units, and otherwise by **group**: people who work with one another more than with others, found from the network itself and named by the topics their members share most distinctively. A ring marks someone who **connects groups**: they lie on many of the shortest paths between others and work with people in more than one group. The panel beside the graph lists them by name, with the groups they work with; it is a role in the network, not a ranking.
 
+![The collaboration network: people colored by division, linked by shared work, with similar interests dashed](images/network-light.webp "Collaboration")
+
+![The concept landscape: topics linked by the people who hold them together, forming research areas](images/landscape-light.webp "Concept landscape")
+
 ### Missed connections
 
 **Missed connections** lists pairs of current members whose interests are alike but who have never published, held a grant, or run a study together, most alike first. Each pair shows the topics they share, and, when someone has worked with both, that person, who might introduce them. Limit the list to one unit, or to pairs in different units, and choose how alike they must be.
 
+![Missed connections: pairs who share topics but have not worked together, with a colleague of both](images/missed-light.webp "Missed connections")
+
 ### Units
 
 **Units** compares every pair of units (the 30 largest with at least two members, by default). In each cell, the shade shows how alike the two units' members are, and the inner square how much they work together, both per possible pair of people, so large and small units compare fairly. A strong shade with a small square marks units that share interests but rarely work together. Select a cell, or move with the arrow keys and press Enter, to see the people behind it, with what they share and whether they have worked together. The **List** view has every pair of units as a sortable table.
+
+![The unit matrix: shading for shared interests, squares for collaboration, and the pairs behind one cell](images/units-light.webp "Units")
 
 ## Keeping it current
 

@@ -17,7 +17,8 @@ export const DEFAULTS = {
 
 export class Simulation {
   /**
-   * nodes: [{ r, mass?, x?, y? }]; links: [{ source, target, distance?, strength? }] by index.
+   * nodes: [{ r, mass?, x?, y?, fx?, fy? }] (fx and fy pin a node); links: [{ source, target,
+   * distance?, strength? }] by index.
    */
   constructor(nodes, links, options = {}) {
     this.o = { ...DEFAULTS, ...options };
@@ -36,6 +37,11 @@ export class Simulation {
       this.y[i] = Number.isFinite(node.y) ? node.y : spiral * Math.sin(i * GOLDEN);
       this.r[i] = node.r ?? 6;
       this.mass[i] = node.mass ?? 1;
+      if (Number.isFinite(node.fx) && Number.isFinite(node.fy)) {
+        this.fixed[i] = 1;
+        this.x[i] = node.fx;
+        this.y[i] = node.fy;
+      }
     });
     const degree = new Float64Array(n);
     this.links = links

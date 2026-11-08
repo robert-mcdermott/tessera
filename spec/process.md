@@ -44,6 +44,28 @@ main ──●──────────────────────
 - [ ] `uv lock` up to date; fresh-clone install and quickstart verified
 - [ ] Private-terms check run over the whole repository
 - [ ] Roadmap and wave status updated
+- [ ] Documentation site: screenshots of changed screens retaken (`node docs/capture/capture.mjs SCENE…`), diagrams redrawn if the architecture changed, the guides checked against the changelog, and the site built and reviewed in both themes and at phone width
+- [ ] After the release is published: the site published (below)
+
+## The documentation site
+
+The guides in `docs/` are the source; the site is built from them and published from the `gh-pages` branch, served by GitHub Pages.
+
+```bash
+node docs/capture/capture.mjs              # retake every screenshot (or name scenes)
+node docs/capture/diagrams.mjs             # redraw the diagrams
+node docs/site/build.mjs                   # build into ./site; fails on any broken link
+python3 -m http.server -d site 8780        # review at http://127.0.0.1:8780
+```
+
+To publish, keep a worktree of the `gh-pages` branch beside the repository (once: `git worktree add ../tessera-site gh-pages`), then:
+
+```bash
+node docs/site/build.mjs --publish ../tessera-site
+cd ../tessera-site && git add -A && git commit -m "Site for vX.Y.Z" && git push origin gh-pages
+```
+
+The build writes into the worktree only with `--publish`, and nothing reaches the public site until that branch is pushed. Screenshots show the demo organization only; never take them from a real organization's data.
 
 ## Versioning
 

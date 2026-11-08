@@ -10,6 +10,13 @@ Tessera is an open research intelligence platform for academic research organiza
 - **Fast to curate.** A keyboard-driven review queue, with the evidence for each suggestion on screen.
 - **Open and portable.** Apache 2.0, runs on a laptop or a single server, data in open formats, re-brandable.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/home-dark.webp">
+    <img alt="Tessera's home page, showing an invented research institute: people, publications, active grants, and clinical studies, with recent publications and the largest grants" src="docs/images/home-light.webp" width="900">
+  </picture>
+</p>
+
 > **Status:** version 0.2.0. It builds the research graph, supports curation with accounts and roles, and adds discovery: expert finding, similar people, the collaboration graph, missed connections, and the unit matrix. Lab pages, reports, and metrics come next; see the [roadmap](spec/roadmap.md).
 
 ## What it does
@@ -40,9 +47,11 @@ uv run tessera sync      # fetch public data, build the directory, suggest autho
 uv run tessera serve     # open http://127.0.0.1:8000
 ```
 
-Later syncs are incremental; run `sync` daily or weekly. Optional: import a roster (`uv run tessera people import roster.csv`) and set `NCBI_API_KEY` for faster PubMed requests.
+To look around first, `uv run tessera demo` builds an invented research institute to explore (serve it with `uv run tessera --config demo/tessera.toml serve`). Later syncs are incremental; run `sync` daily or weekly. Optional: import a roster (`uv run tessera people import roster.csv`) and set `NCBI_API_KEY` for faster PubMed requests.
 
 ## Documentation
+
+The guides are published, with screenshots, at **[robert-mcdermott.github.io/tessera](https://robert-mcdermott.github.io/tessera/)**. In the repository:
 
 - [Getting started](docs/getting-started.md), [Describing your organization](docs/organization-profile.md), [Curating](docs/curation.md), and [Finding experts](docs/discovery.md)
 - [Configuration](docs/configuration.md), [Running Tessera](docs/operations.md), [The API](docs/api.md), and the [Command reference](docs/cli.md)

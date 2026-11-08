@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tessera social preview</title>
+<link rel="stylesheet" href="../../src/tessera/web/static/css/tokens.css">
+<style>
+  /* The card shown when the site is linked (1200 x 630). Rendered by capture.mjs. */
+  html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; color-scheme: light; }
+  body {
+    font-family: var(--font); background: var(--bg); color: var(--text); position: relative;
+    background-image: radial-gradient(color-mix(in oklch, var(--border-strong) 60%, transparent) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  .band { position: absolute; inset: 0 0 auto 0; height: 8px;
+    background: linear-gradient(90deg, var(--band-1), var(--band-2), var(--band-3), var(--band-4), var(--band-5)); }
+  .text { position: absolute; left: 72px; top: 92px; width: 470px; }
+  .brand { display: flex; align-items: center; gap: 14px; font-weight: 700; font-size: 30px; letter-spacing: -0.01em; }
+  .brand img { width: 44px; height: 44px; }
+  h1 { font-size: 58px; line-height: 1.04; letter-spacing: -0.035em; margin: 46px 0 22px; }
+  p { font-size: 22px; line-height: 1.45; color: var(--text-muted); margin: 0; }
+  .shot { position: absolute; left: 600px; top: 96px; width: 780px; border-radius: 18px; border: 1px solid var(--border);
+    box-shadow: 0 30px 60px -20px color-mix(in oklch, var(--text) 30%, transparent); }
+</style>
+</head>
+<body>
+  <div class="band"></div>
+  <div class="text">
+    <div class="brand"><img src="../../src/tessera/web/static/img/tessera-mark.svg" alt="">Tessera</div>
+    <h1>Every contribution, connected.</h1>
+    <p>Open research intelligence: people, publications, grants, and studies from public data, with the evidence behind every link.</p>
+  </div>
+  <img class="shot" src="../images/home-light.webp" alt="">
+</body>
+</html>

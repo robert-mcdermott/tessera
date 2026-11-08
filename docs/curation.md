@@ -19,11 +19,17 @@ The total becomes a likelihood, shown as a percentage, and a band:
 
 The thresholds are `strong_threshold` and `review_threshold` in `[evidence]`. Every suggestion, at every band, can be opened to see exactly why Tessera scored it as it did.
 
+![How a suggestion is scored: evidence for and against adds up to a likelihood, which sets its band; a curator makes the decision](images/evidence-light.svg "How a suggestion is scored")
+
+![The evidence drawer for one suggested paper: the likelihood, and each item of evidence with its weight and explanation](images/evidence-light.webp "The evidence behind one suggestion")
+
 ## The review queue
 
 Open **Review queue** in the sidebar. Suggestions are listed on the left in priority order: strong matches first, grouped by person so they can be confirmed quickly, then possible matches with conflicting evidence, then ambiguous names.
 
 The panel on the right shows the selected suggestion: the paper, the author list with the matched position highlighted and its affiliation on that paper, the likelihood, each item of evidence with its weight, and the history of decisions.
+
+![The review queue: suggestions on the left, and the selected paper with its highlighted author and evidence on the right](images/review-light.webp "The review queue")
 
 | Key | Action |
 |---|---|
@@ -50,6 +56,8 @@ A decision takes effect at once: the item leaves the list, the next one is alrea
 
 Select several people to promote or dismiss them together. The *Promoted* and *Dismissed* views list past decisions, each with *Undo* or *Restore*.
 
+![Discovered people: affiliated authors not yet in the directory, each with their papers, years, and affiliation](images/discovered-light.webp "Discovered people")
+
 ## On a person's profile
 
 - **Review suggestions** opens the queue for that person alone.
@@ -68,6 +76,8 @@ The same person sometimes has two records, typically one from a roster and one f
 - **Different people** keeps the two apart; the pair is not proposed again. **Later** sets it aside.
 - If both records had decided the same paper differently, the more recent decision holds, and the merge says so.
 - A merged record's page says where it went. **Undo merge**, there or on the kept record's profile, restores both records exactly as they were.
+
+![Possible duplicates: two records of one person side by side, with the evidence that they are the same person](images/duplicates-light.webp "Possible duplicates")
 - To merge two records Tessera did not pair, use **Merge…** on either profile.
 
 ## ORCID iDs
@@ -89,6 +99,8 @@ Every identifier decision appears in the decision log.
 - **Evaluate now** fits learned weights to your accept and reject decisions and compares them with the hand-set ones on people left out of the fit. Once there are enough decisions (200, with 20 rejections, about 5 people) and the learned model predicts better, **Release it** makes it active from the next sync; **Use hand-set weights** goes back.
 - **Auto-accept** can be switched on only at a score where the evaluation measured at least 99% precision over at least 50 decisions. Each sync then accepts open suggestions at or above it that have no conflicting evidence. They are marked **Auto-confirmed**, appear as a batch on the page, are never used for learning, and a batch can be undone in one step (which also switches auto-accept off).
 - From the command line: `tessera evidence status`, `evaluate`, `release`, `revert`, and `auto-accept --threshold 0.99 | --off | --undo BATCH`.
+
+![Admin, Evidence: the active model, an evaluation comparing hand-set and learned weights, and auto-accept](images/evidence-model-light.webp "Admin → Evidence")
 
 ## The decision log
 

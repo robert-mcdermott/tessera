@@ -1,0 +1,99 @@
+<section class="hero">
+  <p class="eyebrow">Open research intelligence for academic research organizations</p>
+  <h1 id="tessera">Every contribution, connected.</h1>
+  <p class="lead">Tessera builds your organization's research footprint from public data: people, publications, grants, and clinical studies, linked with the evidence behind every connection. Curators confirm links in seconds, and everyone can find who works on what, and who should meet.</p>
+  <div class="cta">
+    <a class="button primary" href="getting-started.html">Get started</a>
+    <a class="button" href="#try-it">Try the demo</a>
+    <a class="button quiet" href="https://github.com/robert-mcdermott/tessera" rel="noopener">Source on GitHub</a>
+  </div>
+  {{shot:home|Tessera's home page for an invented research institute: counts of people, publications, active grants, and studies, recent publications, and the largest active grants}}
+</section>
+
+<section class="pillars">
+  <div><h3>Starts from public data</h3><p>PubMed, NIH RePORTER, ClinicalTrials.gov, iCite, and ORCID. No HR feeds or integrations to begin.</p></div>
+  <div><h3>Evidence on every link</h3><p>Each connection records its source, the evidence for and against it, and who decided.</p></div>
+  <div><h3>Humans decide</h3><p>Automation suggests and curators confirm; decisions survive every refresh and can be undone.</p></div>
+  <div><h3>Open and yours</h3><p>Apache 2.0, runs on a laptop or one server, keeps data in open formats, and takes your brand.</p></div>
+</section>
+
+<section class="feature">
+  <div class="feature-text">
+    <p class="eyebrow">Explainable suggestions</p>
+    <h2 id="evidence">See why, every time</h2>
+    <p>Every suggested link between a person and a paper comes with its evidence, weighed in plain language: the ORCID iD on the paper, the organization in the affiliation, a grant it acknowledges, shared coauthors, a different first name. Weights can be learned from your own decisions, and auto-accept switches on only where the measured precision allows.</p>
+    <p><a href="curation.html#how-suggestions-are-scored">How suggestions are scored →</a></p>
+  </div>
+  {{shot:evidence|The evidence drawer for one suggested paper: a likelihood above 99 percent, and the evidence that adds up to it, from an email address to shared coauthors}}
+</section>
+
+<section class="feature flip">
+  <div class="feature-text">
+    <p class="eyebrow">Fast curation</p>
+    <h2 id="curate">Curate in minutes, not months</h2>
+    <p>The review queue puts strong matches first, grouped by person, with the matched author and their affiliation highlighted. Accept, reject, or defer from the keyboard; accept all of a person's strong matches in one step, and undo anything.</p>
+    <p><a href="curation.html#the-review-queue">The review queue →</a></p>
+  </div>
+  {{shot:review|The review queue: suggestions on the left, and on the right the paper, its author list with the matched position highlighted, and buttons to accept, reject, or defer}}
+</section>
+
+<section class="feature">
+  <div class="feature-text">
+    <p class="eyebrow">Expertise</p>
+    <h2 id="experts">Who works on what</h2>
+    <p>Ask in plain words, such as "memory T cells". Tessera reads the question through your organization's papers, shows the concepts it understood, and ranks people by what they actually publish, with the matching concepts on every result.</p>
+    <p><a href="discovery.html#who-works-on">Finding experts →</a></p>
+  </div>
+  {{shot:experts|Expert search for memory T cells: the concepts the search was understood as, and people ranked with their matching concepts}}
+</section>
+
+<section class="feature flip">
+  <div class="feature-text">
+    <p class="eyebrow">Connections</p>
+    <h2 id="connections">See the shape of your organization</h2>
+    <p>Who works with whom, and how research areas connect. Groups are found from the network itself and named by what they work on; people who bridge groups are marked. Every graph has a list view with the same information.</p>
+    <p><a href="discovery.html#connections">Connections →</a></p>
+  </div>
+  {{shot:network|The collaboration network: people colored by division, linked by shared papers, grants, and studies, with similar interests shown dashed}}
+</section>
+
+<section class="feature">
+  <div class="feature-text">
+    <p class="eyebrow">Opportunities</p>
+    <h2 id="missed">Who should meet</h2>
+    <p>Missed connections are people whose interests are alike but who have never worked together, with the topics they share and anyone who has worked with both. The unit matrix shows which units share interests but rarely collaborate.</p>
+    <p><a href="discovery.html#missed-connections">Missed connections →</a></p>
+  </div>
+  {{shot:missed|Missed connections: pairs of researchers with the topics they share and a colleague who has worked with both}}
+</section>
+
+<section class="how">
+  <h2 id="how-it-works">How it works</h2>
+  <p>Connectors fetch public records into a Parquet lake. The evidence engine builds the directory and suggests links, each with its evidence; curators decide in the ledger; and the search index and discovery data feed a JSON API and a fast, accessible web app.</p>
+  {{shot:architecture|How Tessera works: public sources, connectors, the lake, the evidence engine, the ledger with curators' decisions, derived data, and the API and web app}}
+</section>
+
+<section class="try" id="try-it">
+  <h2 id="try">Try it in a minute</h2>
+  <p>Tessera needs <a href="https://docs.astral.sh/uv/" rel="noopener">uv</a>, which provides Python 3.12 or newer. The demo builds an invented research institute, with about 100 people, their publications, grants, studies, and a curator's decisions:</p>
+  <div class="code"><pre><code class="language-bash">git clone https://github.com/robert-mcdermott/tessera.git
+cd tessera
+uv sync
+uv run tessera demo
+uv run tessera --config demo/tessera.toml serve</code></pre></div>
+  <p>Then open <a href="http://127.0.0.1:8000" rel="noopener">http://127.0.0.1:8000</a>. To set Tessera up for your own organization, start with <a href="getting-started.html">Getting started</a>.</p>
+</section>
+
+<section class="guides">
+  <h2 id="guides">The guides</h2>
+  <div class="cards">
+    <a href="getting-started.html"><strong>Getting started</strong><span>Install, describe your organization, run the first sync, and open the app.</span></a>
+    <a href="organization-profile.html"><strong>Describing your organization</strong><span>Choose the names Tessera uses to find your people and records.</span></a>
+    <a href="curation.html"><strong>Curating</strong><span>Work through suggestions, discovered people, duplicates, and ORCID iDs.</span></a>
+    <a href="discovery.html"><strong>Finding experts</strong><span>Expert search, similar people, the graphs, and the unit matrix.</span></a>
+    <a href="configuration.html"><strong>Configuration</strong><span>Every setting, including palettes, your logo, and thresholds.</span></a>
+    <a href="operations.html"><strong>Running Tessera</strong><span>Syncs, accounts, backups, upgrades, and PostgreSQL.</span></a>
+    <a href="api.html"><strong>The API</strong><span>Build on the JSON API; every endpoint is in the API reference.</span></a>
+    <a href="cli.html"><strong>Command reference</strong><span>Every command and its options.</span></a>
+  </div>
+</section>

@@ -38,6 +38,8 @@ scripts/dev-postgres.sh stop
 
 The web app has no build step. `tests/test_web.py` checks its safety rules (no inline code, no resources from other origins, no HTML parsing of data), that every module import resolves (including worker scripts), that every module is loaded by something, and the size budgets: one for what the app loads at start and one for each part loaded on first use, such as the graph views. When Node.js is installed it also syntax-checks every module and runs the JavaScript unit tests in `tests/js` (`node --test tests/js/*.test.mjs`).
 
+The documentation site is built from the guides with `node docs/site/build.mjs` (into `site/`, which git ignores); the build fails on any broken link or anchor. Write links between guides as GitHub reads them (`curation.md#bulk-decisions`); the build rewrites them for the site.
+
 ### Documentation
 
 User guides live in [`docs/`](docs/README.md) as plain Markdown that reads well on GitHub; a future product site is built from the same files. Write links between guides as relative links, with anchors where useful. Tests check that every relative link and anchor resolves, and that the generated [command reference](docs/cli.md) and [OpenAPI document](docs/openapi.json) are current. After changing a command or an endpoint, regenerate them:

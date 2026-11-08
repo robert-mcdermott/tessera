@@ -57,6 +57,14 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--force", action="store_true", help="overwrite an existing config file")
     init.set_defaults(handler=cmd_init)
 
+    demo = commands.add_parser(
+        "demo", help="build a fictional organization to explore (and to take screenshots of)"
+    )
+    demo.add_argument("path", nargs="?", default="demo", help="where to build it (default: ./demo)")
+    demo.add_argument("--force", action="store_true", help="replace a demo already there")
+    demo.add_argument("--seed", type=int, default=7, help="another seed, other people")
+    demo.set_defaults(handler=cmd_demo)
+
     doctor = commands.add_parser("doctor", help="check that this installation is ready")
     doctor.add_argument("--online", action="store_true", help="also test public API reachability")
     doctor.set_defaults(handler=cmd_doctor)
@@ -318,6 +326,27 @@ def _print_result(result) -> None:  # type: ignore[no-untyped-def]
 
 
 # --- commands -------------------------------------------------------------------------
+
+
+def cmd_demo(args: argparse.Namespace) -> int:
+    from tessera.demo import DemoError, build_demo
+
+    target = Path(args.path)
+    print(f"Building the demo organization in {target} …")
+    try:
+        result = build_demo(target, seed=args.seed, force=args.force)
+    except DemoError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return EXIT_ERROR
+    print(
+        f"{result['people']:,} people, {result['papers']:,} publications, "
+        f"{result['grants']:,} grants, and {result['studies']:,} studies; "
+        f"{result['accepted']:,} links confirmed and {result['rejected']:,} rejected by the "
+        f"demo curator, {result['merged']:,} duplicate records merged."
+    )
+    print("Everyone and everything in it is invented.")
+    print(f"Next: tessera --config {result['config']} serve")
+    return EXIT_OK
 
 
 def cmd_init(args: argparse.Namespace) -> int:

@@ -125,8 +125,11 @@ kbd {
   .page { padding: var(--space-5) var(--space-4) var(--space-9); }
 }
 
+/* Reduced motion turns transitions off. A tiny duration would make every style change (the
+   default transition-property is "all") a transition, and reading a computed style right
+   after a change would return the old value. */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0s !important; scroll-behavior: auto !important; }
 }
 .stack-xs { display: flex; flex-direction: column; gap: 2px; }
 .row-xs { display: inline-flex; align-items: center; gap: var(--space-1); }

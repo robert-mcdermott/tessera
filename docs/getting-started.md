@@ -26,6 +26,17 @@ uv run tessera init
 
 This writes `tessera.toml` in the current folder and creates `./var` for data. Run `uv run tessera doctor` at any time to check the installation.
 
+## Try the demo first (optional)
+
+To see Tessera working before you describe your own organization, build the demo, an invented research institute with about 100 people, their publications, grants, and studies, and a curator's decisions:
+
+```bash
+uv run tessera demo                       # builds ./demo in a few seconds
+uv run tessera --config demo/tessera.toml serve
+```
+
+Everyone and everything in it is invented. Delete the `demo` folder when you are done; it is separate from your own installation.
+
 ## Describe your organization
 
 Tessera finds your organization in public records by name, so the `[organization]` section of `tessera.toml` matters more than anything else. Open the file and fill in:
@@ -74,6 +85,8 @@ Open <http://127.0.0.1:8000>. You will find:
 - **Discovered people** and **Possible duplicates:** affiliated authors who are not in the directory yet, and records that look like one person, for you to decide.
 - **Sources:** data health, recent runs, and the search index.
 - **API reference** at `/api/docs`, for building on Tessera. See [The API](api.md).
+
+![Tessera's home page: counts of people, publications, active grants, and studies, recent publications, and the largest active grants](images/home-light.webp "The home page (the demo organization)")
 
 Out of the box Tessera has no sign-in and answers on this machine only (`127.0.0.1`); decisions are recorded under the `[server] operator` name. To let several people sign in with their own roles, see [Accounts and sign-in](operations.md#accounts-and-sign-in).
 
