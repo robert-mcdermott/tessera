@@ -63,7 +63,7 @@ Released as [v0.2.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0
 - Reversible person merges; dated unit memberships
 - Safe auto-accept gated by evaluation; first learned weights (`authorship/v2`)
 
-## Documentation site (between v0.2.0 and v0.3.0) ◐
+## Documentation site (between v0.2.0 and v0.3.0) ☑
 
 **Goal:** a product site with the full, illustrated documentation, so that people outside the pilot can find Tessera, see it, and try it.
 
