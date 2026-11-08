@@ -313,6 +313,14 @@ def recent_decisions(
         reverse=True,
     )[p.offset : window]
     subjects = {e["subject_id"] for kind, e in merged if kind == "link"}
+    survivors = store.display_names(
+        engine,
+        {
+            e["detail"]["survivor_id"]
+            for kind, e in merged
+            if kind == "person" and e["action"] in ("merge", "unmerge") and e.get("detail")
+        },
+    )
     names = store.display_names(engine, subjects)
     try:
         titles = index.summaries([e["object_id"] for kind, e in merged if kind == "link"])
@@ -345,5 +353,11 @@ def recent_decisions(
             }
             if e["action"] == "identifier":
                 base["identifier"] = e["detail"]
+            elif e["action"] in ("merge", "unmerge") and e["detail"]:
+                survivor = e["detail"].get("survivor_id")
+                base["merge"] = {
+                    "id": e["detail"].get("merge_id"),
+                    "survivor": {"id": survivor, "label": survivors.get(survivor)},
+                }
         items.append(base)
     return envelope(items, total=total, limit=p.limit, next_cursor=p.next_cursor(total))

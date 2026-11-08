@@ -50,16 +50,16 @@ Each **evidence item** is a small record: `{feature, value, weight, explanation,
 | `acknowledges` | publication → grant | source (grant link table, publication grant list) | `accepted` |
 | `references` | study → publication | source (registry reference list) | `accepted` |
 | `funded_by` | study → grant | source (registry secondary IDs) | `accepted` |
-| `member_of` | person → unit | source (roster file) or human | `accepted` |
+| `member_of` | person → unit | source (roster file) or human | `accepted`. Qualifiers: `title`, and `start` and `end` as precise as the roster gives them (`2015`, `2015-07`, or `2015-07-01`). Current until its end has passed; one membership per person and unit, and a person may belong to several units at once (REC-08) |
 | `has_identifier` | person → identifier | source or human | depends on the source |
-| `same_as` | person → person | inferred or human | `suggested`; merges are reversible |
+| `same_as` | person → person | inferred (`same_as/v1`) or human | `suggested`, from the record to fold in to the record to keep. Accepted only by merging; rejected means "different people" and is kept |
 
 The rules every assertion must follow:
 
 1. **Assertions are never deleted by automation.** If a source stops reporting a link, the assertion is marked as no longer reported and the UI shows that. It is not removed.
 2. **Human decisions win.** Re-ingesting, re-scoring, or changing a source never overturns `accepted` or `rejected` on a locked assertion.
 3. **Every status change is a curation event.** Events are append-only and record actor, time, old and new status, and note. Undo is a new event, not an erased one.
-4. **Merges are reversible.** Merging two people records a `same_as` assertion and re-points links through it. Unmerging restores the originals.
+4. **Merges are reversible.** Merging two people accepts their `same_as` assertion (or records one), moves the merged record's links, names, and identifiers to the record kept, and marks the merged record `merged`, pointing at the survivor. Every change goes into the merge's journal with the values it replaced, so unmerging replays the journal backwards and restores the ledger exactly. Where both records hold the same link, a human decision beats a suggestion and, between two decisions, the more recent wins; the other copy stays with the merged record, out of sight.
 
 ## Ledger schema (wave 1)
 
@@ -67,13 +67,14 @@ The ledger is relational and portable across SQLite and PostgreSQL. JSON fields 
 
 | Table | Purpose | Key columns |
 |---|---|---|
-| `person` | One row per real person | `id`, `display_name`, `family_name`, `given_name`, `status` (`active`, `former`, `candidate` for people discovered in the data, `dismissed` for candidates a curator judged not to be members), `created_at`, `updated_at` |
+| `person` | One row per real person | `id`, `display_name`, `family_name`, `given_name`, `status` (`active`, `former`, `candidate` for people discovered in the data, `dismissed` for candidates a curator judged not to be members, `merged` for a duplicate folded into another record), `merged_into`, `created_at`, `updated_at` |
 | `person_name` | Name variants used for matching | `person_id`, `family`, `given`, `initials`, `kind` (`primary`, `variant`, `former`), `source` |
 | `person_identifier` | External IDs | `person_id`, `scheme` (`orcid`, `nih_profile`, `email`, `local`), `value`, `status` (`accepted`; `suggested`, when the evidence engine proposes an ORCID iD found on the person's papers; `rejected`, kept so it is never proposed again and counts as evidence against), `source` (`roster`, `reporter`, `pubmed`, `papers`, `curator`) |
 | `unit` | Organizational units | `id`, `name`, `kind`, `parent_id`, `code` |
 | `assertion` | All typed links (see above) | as above; unique on (`subject_id`, `predicate`, `object_id`, qualifier key) |
 | `curation_event` | Append-only decision log | `id`, `assertion_id`, `actor`, `action`, `from_status`, `to_status`, `note`, `at` |
-| `person_event` | Append-only log of decisions about people | `id`, `person_id`, `actor`, `action` (`promote`, `dismiss`, `undo`, `identifier`), `from_status`, `to_status`, `note`, `at`, `detail` (for identifier decisions: scheme, value, and the action: add, accept, reject, or remove; the statuses are the identifier's). Migration 0003 added `identifier` and `detail`. Automation only ever promotes candidates, and discovery treats dismissed people as known, so a curator's decision is never reversed by a sync |
+| `person_event` | Append-only log of decisions about people | `id`, `person_id`, `actor`, `action` (`promote`, `dismiss`, `undo`, `identifier`, `merge`, `unmerge`), `from_status`, `to_status`, `note`, `at`, `detail` (for identifier decisions: scheme, value, and the action: add, accept, reject, or remove, with the identifier's statuses; for merges: the merge and the record kept). Migration 0003 added `identifier` and `detail`; 0004 added `merge` and `unmerge`. Automation only ever promotes candidates, and discovery treats dismissed people as known, so a curator's decision is never reversed by a sync |
+| `person_merge` | One row per merge | `id`, `merged_id`, `survivor_id`, `actor`, `note`, `at`, `journal` (every change, in order, with the values it replaced), `summary` (links, names, and identifiers moved; conflicting decisions), `undone_at`, `undone_by`. Added by migration 0004; a ledger with merges in effect cannot be downgraded below it |
 | `ingest_run` | One row per connector or job run | `id`, `source`, `kind`, `started_at`, `finished_at`, `status`, `params`, `counts`, `error` |
 | `source_checkpoint` | Incremental watermarks | `source`, `scope`, `watermark`, `updated_at` |
 | `setting` | Runtime settings editable in the app | `key`, `value`, `updated_by`, `updated_at` |

@@ -17,6 +17,7 @@ function pages(actions) {
     { group: "Go to", title: "Studies", iconName: "study", run: () => navigate("/studies") },
     { group: "Go to", title: "Review queue", iconName: "review", run: () => navigate("/review") },
     { group: "Go to", title: "Discovered people", iconName: "userPlus", run: () => navigate("/review/people") },
+    { group: "Go to", title: "Possible duplicates", iconName: "layers", run: () => navigate("/review/duplicates") },
     { group: "Go to", title: "Decision log", iconName: "history", run: () => navigate("/review/log") },
     { group: "Go to", title: "Sources and data health", iconName: "sources", run: () => navigate("/admin/sources") },
     { group: "Go to", title: "API reference", iconName: "api", run: () => window.location.assign("/api/docs") },

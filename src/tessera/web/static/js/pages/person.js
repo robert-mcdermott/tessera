@@ -3,12 +3,12 @@
 import { get, post } from "../core/api.js";
 import { h, icon } from "../core/dom.js";
 import { enumLabel, number, relative } from "../core/format.js";
-import { query, setQuery } from "../core/router.js";
+import { navigate, query, setQuery } from "../core/router.js";
 import { openDrawer, openEvidence } from "../components/drawer.js";
 import { toast } from "../components/toast.js";
 import { identifiersCard } from "../components/identifiers.js";
 import { grantItem, publicationItem, studyItem } from "../components/items.js";
-import { avatar, barChart, callout, card, emptyState, pageHeader, pager, pill, segmented, statTile, tabs, topicChips } from "../components/ui.js";
+import { avatar, barChart, callout, card, debounce, emptyState, pageHeader, pager, pill, segmented, statTile, tabs, topicChips } from "../components/ui.js";
 import { show } from "./page.js";
 
 const LIMIT = 20;
@@ -48,12 +48,13 @@ export function person(main, params, { samePage = false } = {}) {
       const suggested = (c.suggested_by_band?.strong ?? 0) + (c.suggested_by_band?.possible ?? 0);
       const member = profile.status === "active" || profile.status === "former";
       const orcid = profile.identifiers.find((i) => i.scheme === "orcid" && i.status === "accepted");
+      const currentUnits = profile.units.filter((u) => u.current);
       const header = pageHeader({
         lead: avatar(profile.name, "lg"),
         eyebrow: [h("span", {}, "Person"), profile.status !== "active" ? pill(enumLabel(profile.status), "") : null],
         title: profile.name,
         meta: [
-          profile.units.length ? h("span", { class: "row-sm" }, icon("unit", "icon icon-sm"), profile.units.map((u) => u.unit).join(", ")) : null,
+          currentUnits.length ? h("span", { class: "row-sm" }, icon("unit", "icon icon-sm"), currentUnits.map((u) => u.unit).join(", ")) : null,
           orcid ? h("a", { class: "row-sm", href: `https://orcid.org/${orcid.value}`, target: "_blank", rel: "noopener noreferrer" },
             icon("orcid", "icon icon-sm"), orcid.value) : null,
           profile.concepts.length ? h("span", { class: "muted" }, profile.concepts.slice(0, 3).join(" · ")) : null,
@@ -61,9 +62,18 @@ export function person(main, params, { samePage = false } = {}) {
         actions: member ? [
           suggested ? h("a", { class: "btn", href: `/review?person=${encodeURIComponent(profile.id)}` }, icon("review", "icon icon-sm"), "Review suggestions") : null,
           h("button", { type: "button", class: "btn", onclick: () => addPublication(profile, refresh) }, icon("publication", "icon icon-sm"), "Add a publication"),
+          h("button", { type: "button", class: "btn btn-ghost", onclick: () => mergeWith(profile, refresh) }, icon("layers", "icon icon-sm"), "Merge…"),
         ] : null,
       });
-      const candidateNote = member ? null : h("div", { class: "callout", role: "note" },
+      const mergedNote = profile.merged_into ? h("div", { class: "callout callout-warn", role: "note" },
+        icon("layers", "icon icon-sm"),
+        h("div", { class: "grow" }, "This record was merged into ",
+          h("a", { href: `/people/${profile.merged_into.id}` }, profile.merged_into.name ?? profile.merged_into.id),
+          ` ${relative(profile.merged_into.at)} by ${profile.merged_into.actor}. Its links, names, and identifiers are there now.`),
+        h("div", { class: "row-sm" },
+          h("button", { type: "button", class: "btn btn-sm", onclick: (e) => undoMerge(profile.merged_into.merge_id, e.currentTarget, refresh) },
+            icon("undo", "icon icon-sm"), "Undo merge"))) : null;
+      const candidateNote = member || profile.merged_into ? null : h("div", { class: "callout", role: "note" },
         icon("info", "icon icon-sm"),
         h("div", { class: "grow" }, profile.status === "dismissed"
           ? "A curator dismissed this person as not a member of the organization."
@@ -102,11 +112,17 @@ export function person(main, params, { samePage = false } = {}) {
               { caption: "Papers per year (confirmed inside all likely papers)", height: 120 }),
             h("div", { class: "legend" }, h("span", {}, h("span", { class: "legend-swatch swatch-strong" }), "Confirmed"),
               h("span", {}, h("span", { class: "legend-swatch swatch-soft" }), "Likely")) ) }) : null,
+        membershipsCard(profile),
         identifiersCard(profile, refresh),
+        profile.merged.length ? card({ title: "Merged records", pad: true, body: h("ul", { class: "plain-list" }, profile.merged.map((m) =>
+          h("li", { class: "row-sm" },
+            h("div", { class: "grow stack-xs" }, h("a", { href: `/people/${m.merged_id}` }, m.merged_name),
+              h("span", { class: "subtle" }, `merged ${relative(m.at)} by ${m.actor}`)),
+            h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: (e) => undoMerge(m.merge_id, e.currentTarget, refresh) }, "Undo")))) }) : null,
         profile.names.length > 1 ? card({ title: "Names in the data", pad: true,
           body: h("div", { class: "chips" }, profile.names.map((n) => h("span", { class: "chip chip-plain" }, `${n.given ? `${n.given} ` : ""}${n.family}`))) }) : null);
 
-      return h("div", { class: "stack-lg" }, header, candidateNote, stats,
+      return h("div", { class: "stack-lg" }, header, mergedNote, candidateNote, stats,
         h("div", { class: "grid-main" }, h("div", {}, tabBar, panel), side));
     },
   });
@@ -223,6 +239,98 @@ function addPublication(profile, refresh) {
       error,
       h("div", { class: "row-sm" }, submit, h("button", { type: "button", class: "btn btn-ghost", onclick: close }, "Cancel")));
       body.append(form);
+    },
+  });
+}
+
+/** Units the person belongs to, with titles and dates; past memberships after current ones. */
+function membershipsCard(profile) {
+  if (!profile.units.length) return null;
+  const span = (u) => u.start && u.end ? `${u.start} – ${u.end}` : u.start ? `since ${u.start}` : u.end ? `until ${u.end}` : null;
+  return card({ title: "Memberships", pad: true, attrs: { "data-entity": "unit" },
+    body: h("ul", { class: "plain-list memberships" }, profile.units.map((u) =>
+      h("li", { class: u.current ? "" : "past" },
+        h("span", { class: u.current ? "strong" : "" }, u.unit),
+        [u.title, span(u), u.current ? null : "past"].filter(Boolean).length
+          ? h("span", { class: "subtle" }, ` · ${[u.title, span(u), u.current ? null : "past"].filter(Boolean).join(" · ")}`) : null))) });
+}
+
+async function undoMerge(mergeId, button, refresh) {
+  button.disabled = true;
+  try {
+    await post(`/api/v1/merges/${encodeURIComponent(mergeId)}/undo`, {});
+  } catch (error) {
+    button.disabled = false;
+    toast(error.detail || "The merge could not be undone.");
+    return;
+  }
+  refresh();
+  toast("Merge undone. Both records are back as they were.");
+}
+
+/** Merge this person with another record of the same person, found by name. */
+function mergeWith(profile, refresh) {
+  openDrawer({
+    title: "Merge with another record",
+    subtitle: profile.name,
+    label: "Merge with another record",
+    render: (body, footer, close) => {
+      let chosen = null;
+      const results = h("ul", { class: "plain-list merge-results", role: "listbox", "aria-label": "Matching people" });
+      const keepThis = h("input", { type: "radio", name: "keep", value: "this", checked: true, id: "keep-this" });
+      const keepOther = h("input", { type: "radio", name: "keep", value: "other", id: "keep-other" });
+      const otherLabel = h("label", { for: "keep-other" }, "Keep the other record");
+      const error = h("p", { class: "field-error", role: "alert", hidden: true });
+      const submit = h("button", { type: "button", class: "btn btn-primary", disabled: true, onclick: async () => {
+        const keep = keepThis.checked ? profile.id : chosen.id;
+        const fold = keepThis.checked ? chosen.id : profile.id;
+        submit.disabled = true;
+        let result;
+        try {
+          result = (await post("/api/v1/merges", { merge: fold, into: keep })).data;
+        } catch (failure) {
+          error.textContent = failure.detail || "The records could not be merged.";
+          error.hidden = false;
+          submit.disabled = false;
+          return;
+        }
+        close();
+        if (fold === profile.id) navigate(`/people/${keep}`); else refresh();
+        toast(`Merged. ${result.links} ${result.links === 1 ? "link" : "links"} moved to the record kept.`, {
+          action: { label: "Undo", run: async () => {
+            await post(`/api/v1/merges/${result.merge_id}/undo`, {});
+            if (fold === profile.id) navigate(`/people/${profile.id}`); else refresh();
+          } },
+        });
+      } }, "Merge");
+      const search = h("input", { class: "input", type: "search", id: "merge-search", autocomplete: "off",
+        placeholder: "Search people by name", value: profile.family_name ?? "",
+        oninput: debounce(() => find(), 250) });
+      async function find() {
+        const text = search.value.trim();
+        if (!text) { results.replaceChildren(); return; }
+        const found = (await get("/api/v1/people", { q: text, limit: 8 })).data.filter((p) => p.id !== profile.id);
+        results.replaceChildren(...(found.length ? found.map((p) => h("li", {},
+          h("button", { type: "button", class: "merge-option", role: "option", "aria-selected": "false", onclick: (event) => {
+            chosen = p;
+            for (const b of results.querySelectorAll(".merge-option")) b.setAttribute("aria-selected", String(b === event.currentTarget));
+            otherLabel.textContent = `Keep ${p.name}`;
+            submit.disabled = false;
+          } }, avatar(p.name, "sm"), h("span", { class: "stack-xs" }, h("strong", {}, p.name),
+            h("span", { class: "subtle" }, [p.units?.join(", "), `${number((p.counts?.accepted ?? 0) + (p.counts?.suggested ?? 0))} papers`].filter(Boolean).join(" · "))))))
+          : [h("li", { class: "muted" }, "No other person matches.")]));
+      }
+      body.append(h("div", { class: "stack" },
+        h("p", { class: "muted" }, "For two records of the same person. Links, names, and identifiers move to the record you keep, and the merge can be undone."),
+        h("div", { class: "field" }, h("label", { for: "merge-search" }, "The other record"), search),
+        results,
+        h("fieldset", { class: "field" }, h("legend", {}, "Which record to keep"),
+          h("div", { class: "row-sm" }, keepThis, h("label", { for: "keep-this" }, `Keep ${profile.name}`)),
+          h("div", { class: "row-sm" }, keepOther, otherLabel)),
+        error));
+      footer.replaceChildren(h("div", { class: "row wrap" }, submit, h("button", { type: "button", class: "btn btn-ghost", onclick: close }, "Cancel")));
+      footer.hidden = false;
+      find();
     },
   });
 }

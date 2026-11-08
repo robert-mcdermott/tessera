@@ -23,7 +23,20 @@ Candidates become `active` when an admin promotes them, one at a time or in bulk
 
 **Expect most people to arrive through discovery or a roster.** In a live check on a mid-sized research institute (two-year window), grants yielded 70 active investigators while the affiliation sweep proposed about 965 more affiliated authors (postdocs, staff scientists, faculty without NIH funding). The *Discovered people* queue and its bulk promotion are therefore central, not an edge case.
 
-**Merging.** When two records look like the same person (same ORCID, same NIH profile ID, or a strong name, coauthor, and topic match), the engine proposes a `same_as` assertion. Merges are reviewed and reversible.
+**Merging.** One person can reach Tessera by two routes, most often a roster row and a grant record that share no identifier. The engine proposes such pairs as `same_as` suggestions, scored by `same_as/v1`, and a curator merges them or marks them as different people; automation never merges. Pairs are found only through what can tie two records together, never a name alone:
+
+| Feature | Fires when | Weight (log-odds) |
+|---|---|---|
+| Prior | Every pair | −3.0 |
+| Shared identifier | Both records hold the same NIH profile, ORCID iD, email, or local ID (confirmed or suggested) | +8.0 |
+| Replaced ORCID iD | One record's ORCID iD was deprecated in favor of an iD the other holds | +8.0 |
+| Names | Full names agree / agree by initials / middle initials differ / names differ | +2.0 / +0.5 / −2.0 / −5.0 |
+| Shared author positions | Both records claim the same author position on the same paper (accepted, or likely once the penalty for competing for it is set aside) | +1.0 each, up to +6.0 |
+| Shared grants | Both are investigators on the same grant | +1.0 each, up to +2.0 |
+| Different NIH profiles | No shared identifier, and each record has its own NIH profile | −3.0 |
+| Different ORCID iDs | No shared identifier, and each record has its own confirmed iD | −4.0 |
+
+Pairs below 0.5 are not kept. The suggested direction keeps a directory member over a discovered person, then the record claiming more papers, then the older record; the curator may keep either. Merges are reversible (see [data-model.md](data-model.md)). On the synthetic organization with four roster-and-grant duplicates, all four pairs are proposed at 95% or higher and no pair of different people is proposed.
 
 ## 2. Name handling
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from datetime import date
 from typing import Annotated, Any
 
 import pyarrow as pa
@@ -29,6 +30,8 @@ from tessera.core.clock import utc_now
 from tessera.core.errors import TesseraError
 from tessera.core.ids import new_id
 from tessera.evidence import store
+from tessera.evidence.memberships import is_current
+from tessera.evidence.merge import active_merges
 from tessera.ledger.tables import (
     assertion,
     curation_event,
@@ -240,15 +243,31 @@ def get_person(request: Request, person_id: str) -> dict[str, Any]:
             1 for a in links if a["predicate"] == "official_of" and a["status"] != "rejected"
         ),
     }
+    today = date.today()
     memberships = [
         {
             "unit": units.get(a["object_id"], a["object_id"]),
             "unit_id": a["object_id"],
             **(a["qualifiers"] or {}),
+            "current": is_current(a["qualifiers"], today),
         }
         for a in links
         if a["predicate"] == "member_of"
     ]
+    memberships.sort(key=lambda m: (m.get("start") or "", m["unit"]), reverse=True)
+    memberships.sort(key=lambda m: not m["current"])  # current first, latest start first
+    merges = active_merges(engine, person_id)
+    merged_into = None
+    if row["status"] == "merged":
+        into = next((m for m in merges if m["merged_id"] == person_id), None)
+        if into is not None:
+            merged_into = {
+                "id": into["survivor_id"],
+                "name": store.display_names(engine, [into["survivor_id"]]).get(into["survivor_id"]),
+                "merge_id": into["merge_id"],
+                "at": into["at"],
+                "actor": into["actor"],
+            }
     # Timeline: accepted papers and likely suggestions per year.
     likely = [
         a["object_id"].removeprefix("pub:")
@@ -280,6 +299,8 @@ def get_person(request: Request, person_id: str) -> dict[str, Any]:
             "names": names,
             "identifiers": identifiers,
             "units": memberships,
+            "merged_into": merged_into,
+            "merged": [m for m in merges if m["survivor_id"] == person_id],
             "counts": counts,
             "concepts": concepts,
             "timeline": [

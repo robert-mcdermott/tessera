@@ -2,7 +2,7 @@
 
 **Goal:** turn the graph into discovery: who works on what, who should meet, and why. Make the evidence stronger with ORCID, and let more than one person use Tessera, each with the right permissions.
 
-**Branch:** `wave-2` · **Target version:** `0.2.0` · **Status:** ◐ slice 1 done; slice 2 next
+**Branch:** `wave-2` · **Target version:** `0.2.0` · **Status:** ◐ slices 1–2 done; slice 3 next
 
 ## Exit criteria
 
@@ -36,15 +36,15 @@ Requirements delivered: REC-02 (ORCID), REC-07, REC-08, CUR-05, CUR-06, CUR-10, 
 
 **Acceptance (met):** ingest is idempotent and replayable like the other sources; evidence appears in the drawer with its source; the synthetic organization's strong band keeps 100% precision and recall rose slightly. On the pilot, 49 iDs were suggested for 48 of 70 members, and confirming one made 25 papers decisive matches. Resolving twice changes nothing (a test checks it).
 
-## Slice 2: People model ☐
+## Slice 2: People model ☑
 
 **Goal:** one record per real person, and memberships with dates.
 
-- [ ] `same_as` proposals: same ORCID iD, same NIH profile, or a strong name, coauthor, and topic match; reviewed like other suggestions
-- [ ] Merge re-points every link through the surviving record; unmerge restores the originals exactly (REC-07), with a ledger migration and a test that round-trips a populated ledger
-- [ ] Dated unit memberships, concurrent memberships, and a roster import that carries start and end dates (REC-08)
+- [x] `same_as` proposals (`same_as/v1`): a shared identifier, an ORCID iD replaced by the other record's, author positions both records claim, shared grants, and names, never a name alone; a **Possible duplicates** page to merge, keep apart, or defer
+- [x] Merge moves every link, name, and identifier to the record kept and journals each change; unmerge replays the journal backwards and restores the originals exactly (REC-07); migration 0004; a test round-trips a populated ledger with conflicting decisions
+- [x] Dated unit memberships, concurrent memberships, and a roster import that carries start and end dates (REC-08); former status when every membership has ended; current units only in the directory
 
-**Acceptance:** merge then unmerge leaves the ledger identical; memberships show on profiles with their dates.
+**Acceptance (met):** merge then unmerge leaves the ledger identical, including links both records decided differently; a merge survives a resolve and still unmerges cleanly; on the synthetic organization every roster-and-grant duplicate is proposed at 95% or higher and no pair of different people is; memberships show on profiles with their dates. On the pilot, which has no roster, no duplicates are proposed; a duplicate created from a one-row roster was proposed at 99%, merged, and undone through the web app.
 
 ## Slice 3: Accounts and roles ☐
 
@@ -115,3 +115,4 @@ Requirements delivered: REC-02 (ORCID), REC-07, REC-08, CUR-05, CUR-06, CUR-10, 
 | 2026-11-07 | Wave planned. Before slice 1, a design review of the palettes led to three changes: record-type colors were moved clear of the status colors (a test now enforces at least 28° of hue between them in every palette and mode), Cassette's stripe became a thin sunset gradient with faint pinstripes in the hero, and grant charts gained a brighter gold fill. An organization's own palette, footer links, favicon, and social preview image were planned as the brand kit (PLT-13) for wave 3, with the public site. |
 | 2026-11-07 | ORCID's public API answers without credentials, so no credentials decision is needed. Tessera reads only directory members' iDs, at most four requests a second. |
 | 2026-11-08 | Slice 1 done. iDs are suggested from papers but only a curator confirms one, because a confirmed iD is decisive. Support for a suggestion is judged on evidence other than ORCID, so a decision about one iD never withdraws a person's second iD and ORCID evidence never supports itself. The model version is `authorship/v1.1` (hand-set weights); learned weights remain `authorship/v2` in slice 4. Found while testing: tied topics were listed in a random order in explanations, so every resolve rewrote hundreds of unchanged suggestions. |
+| 2026-11-08 | Slice 2 done. Merges move rows rather than resolving links through a pointer at read time, so every reader stays simple; a journal makes them exactly reversible. Automation never merges: duplicates are proposed for a curator. A roster without identifiers used to split a person listed under two units into two records; rows with the same full name in one file are now one person. Memberships stay one per person and unit (a second spell in the same unit updates the dates). |

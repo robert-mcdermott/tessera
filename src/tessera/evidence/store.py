@@ -59,8 +59,11 @@ class PersonRecord:
 
 
 def find_by_identifier(conn: Connection, scheme: str, value: str) -> str | None:
-    """The person holding this identifier (accepted or suggested; never a rejected one)."""
-    return conn.execute(
+    """The person holding this identifier (accepted or suggested; never a rejected one).
+
+    A record merged into another answers with the record that holds the person now.
+    """
+    found = conn.execute(
         select(person_identifier.c.person_id)
         .where(
             and_(
@@ -71,6 +74,22 @@ def find_by_identifier(conn: Connection, scheme: str, value: str) -> str | None:
         )
         .order_by(person_identifier.c.status)  # "accepted" sorts before "suggested"
     ).scalar()
+    return survivor_of(conn, found) if found else None
+
+
+def survivor_of(conn: Connection, person_id: str) -> str:
+    """Follow merges to the record that holds this person now."""
+    seen = {person_id}
+    while True:
+        target = conn.execute(
+            select(person.c.merged_into).where(
+                person.c.id == person_id, person.c.status == "merged"
+            )
+        ).scalar()
+        if not target or target in seen:
+            return person_id
+        seen.add(target)
+        person_id = target
 
 
 def create_person(
@@ -448,13 +467,15 @@ def sync_assertions(
     min_score_for_new: float | None = None,
     now: datetime | None = None,
     chunk: int = 2000,
+    stale_decided: bool = True,
 ) -> SyncStats:
     """Make the ledger reflect automation's current view of one predicate and origin.
 
     New assertions are inserted with their draft status. Existing ones get fresh evidence
     and scores; their status changes only if they were never decided by a person (and even
     then automation keeps the current status). Assertions automation no longer produces are
-    marked ``reported = false``; none are deleted.
+    marked ``reported = false``; none are deleted. With ``stale_decided`` false, decided ones
+    keep their flag (a merged pair is decided, not unreported, once its records are one).
     """
     now = now or utc_now()
     stats = SyncStats()
@@ -537,7 +558,9 @@ def sync_assertions(
                     }
                 )
         stale = [
-            row["id"] for key_, row in existing.items() if key_ not in by_key and row["reported"]
+            row["id"]
+            for key_, row in existing.items()
+            if key_ not in by_key and row["reported"] and (stale_decided or not row["locked"])
         ]
 
         for start in range(0, len(inserts), chunk):
@@ -581,6 +604,8 @@ def decide(
         )
         if row is None:
             raise TesseraError(f"No assertion {assertion_id}")
+        if row["predicate"] == "same_as" and action == "accept":
+            raise TesseraError("To accept a possible duplicate, merge the two records.")
         if action == "undo":
             events = (
                 conn.execute(
@@ -676,20 +701,24 @@ def display_names(engine: Engine, person_ids: Iterable[str]) -> dict[str, str]:
 
 
 def people_by_identifier(engine: Engine, scheme: str, values: Iterable[str]) -> dict[str, str]:
-    """Map identifier values (e.g. NIH profile IDs) to person IDs."""
+    """Map identifier values (e.g. NIH profile IDs) to person IDs, following merges."""
     wanted = sorted({str(v) for v in values})
     out: dict[str, str] = {}
     with engine.connect() as conn:
         for start in range(0, len(wanted), 500):
             chunk = wanted[start : start + 500]
-            out.update(
-                conn.execute(
-                    select(person_identifier.c.value, person_identifier.c.person_id).where(
-                        and_(
-                            person_identifier.c.scheme == scheme,
-                            person_identifier.c.value.in_(chunk),
-                        )
+            rows = conn.execute(
+                select(person_identifier.c.value, person_identifier.c.person_id, person.c.status)
+                .join(person, person.c.id == person_identifier.c.person_id)
+                .where(
+                    and_(
+                        person_identifier.c.scheme == scheme,
+                        person_identifier.c.value.in_(chunk),
+                        person_identifier.c.status != "rejected",
                     )
-                ).all()
-            )
+                )
+                .order_by(person_identifier.c.status.desc())  # accepted last, so it wins
+            ).all()
+            for value, person_id, status in rows:
+                out[value] = survivor_of(conn, person_id) if status == "merged" else person_id
     return out

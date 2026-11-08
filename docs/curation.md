@@ -56,7 +56,19 @@ Select several people to promote or dismiss them together. The *Promoted* and *D
 - Every paper, grant, and study carries a status mark; select it to open the evidence and accept, reject, defer, or undo.
 - **Add a publication** attaches a paper the evidence engine missed, by its PubMed ID. Tessera fetches the paper from PubMed if needed and records it as confirmed, entered by you.
 - The **History** tab lists every decision about the person's links.
-- **Identifiers** lists the person's ORCID iDs and other identifiers, described in the next section.
+- **Identifiers** lists the person's ORCID iDs and other identifiers, described in the section on ORCID iDs below.
+- **Memberships** lists the person's units, with titles and dates, current ones first.
+- **Merge…** folds another record of the same person into this one, or this one into it; see the next section.
+
+## Possible duplicates
+
+The same person sometimes has two records, typically one from a roster and one from grant records, when the roster row shares no identifier with the grant record. **Possible duplicates** lists pairs that look like one person, side by side, with the evidence: a shared identifier, the same author positions claimed on the same papers, agreeing names. A name alone never proposes a pair.
+
+- **Merge into…** moves the left record's papers, grants, units, names, and identifiers to the record on the right, which is kept. **Keep … instead** merges the other way.
+- **Different people** keeps the two apart; the pair is not proposed again. **Later** sets it aside.
+- If both records had decided the same paper differently, the more recent decision holds, and the merge says so.
+- A merged record's page says where it went. **Undo merge**, there or on the kept record's profile, restores both records exactly as they were.
+- To merge two records Tessera did not pair, use **Merge…** on either profile.
 
 ## ORCID iDs
 

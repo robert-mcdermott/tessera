@@ -62,7 +62,7 @@ Change the profile, then run `uv run tessera sync --full` to fetch again with th
 The directory starts from three sources:
 
 1. **NIH grant investigators.** Contact principal investigators on your organization's own awards join as active members. Other investigators (on multi-PI grants and subprojects, often from other organizations) start as *discovered* people and are promoted automatically once at least `discover_min_papers` of their papers carry your affiliation with their full name.
-2. **A roster**, if you import one (`uv run tessera people import roster.csv`). Roster people are always members.
+2. **A roster**, if you import one (`uv run tessera people import roster.csv`). Roster people are members: active, or former once every membership the roster lists has ended. Someone who is also in the grant records under no shared identifier is proposed under **Possible duplicates** for a curator to merge.
 3. **Affiliated authors** in PubMed who match nobody in the directory. They appear under **Discovered people** with their evidence, for a curator to promote or dismiss. Dismissed people are not proposed again.
 
 Each person's papers are then found by searching PubMed for their name and scored with the evidence engine. See [Curating](curation.md) for how suggestions are reviewed.

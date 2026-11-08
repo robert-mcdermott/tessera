@@ -40,9 +40,10 @@ ID = String(40)  # typed IDs such as per_0J8ZQ3W5T4K2M9B7XHRC1DGFNE
 ENTITY_REF = String(120)  # typed IDs or natural keys such as pub:12345678
 
 # "dismissed": a discovered candidate a curator decided is not a member. Kept (not deleted)
-# so that discovery does not propose the same person again.
-PERSON_STATUSES = ("active", "candidate", "former", "dismissed")
-PERSON_ACTIONS = ("promote", "dismiss", "undo", "identifier")
+# so that discovery does not propose the same person again. "merged": a duplicate record whose
+# links, names, and identifiers moved to the record in ``merged_into`` (see person_merge).
+PERSON_STATUSES = ("active", "candidate", "former", "dismissed", "merged")
+PERSON_ACTIONS = ("promote", "dismiss", "undo", "identifier", "merge", "unmerge")
 ASSERTION_STATUSES = ("suggested", "accepted", "rejected", "deferred")
 ASSERTION_ORIGINS = ("source", "inferred", "human")
 RUN_STATUSES = ("running", "succeeded", "partial", "failed")
@@ -63,6 +64,7 @@ person = Table(
     Column("status", String(16), nullable=False, server_default="active"),
     Column("created_at", UtcDateTime, nullable=False),
     Column("updated_at", UtcDateTime, nullable=False),
+    Column("merged_into", ID, ForeignKey("person.id", ondelete="SET NULL")),
     CheckConstraint(_in("status", PERSON_STATUSES), name="status"),
 )
 Index(None, person.c.family_name)
@@ -184,6 +186,25 @@ person_event = Table(
 )
 Index(None, person_event.c.person_id)
 Index(None, person_event.c.at)
+
+# One row per merge of two person records. ``journal`` lists every change the merge made, in
+# order, with the values before it, so that undoing the merge restores the ledger exactly.
+person_merge = Table(
+    "person_merge",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("merged_id", ID, ForeignKey("person.id", ondelete="CASCADE"), nullable=False),
+    Column("survivor_id", ID, ForeignKey("person.id", ondelete="CASCADE"), nullable=False),
+    Column("actor", String(200), nullable=False),
+    Column("note", Text),
+    Column("at", UtcDateTime, nullable=False),
+    Column("journal", JsonType, nullable=False),
+    Column("summary", JsonType, nullable=False),
+    Column("undone_at", UtcDateTime),
+    Column("undone_by", String(200)),
+)
+Index(None, person_merge.c.merged_id)
+Index(None, person_merge.c.survivor_id)
 
 ingest_run = Table(
     "ingest_run",

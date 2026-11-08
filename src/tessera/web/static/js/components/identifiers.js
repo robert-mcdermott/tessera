@@ -26,8 +26,9 @@ export function identifiersCard(profile, refresh) {
   const items = [...profile.identifiers].sort((a, b) =>
     (ORDER[a.status] ?? 3) - (ORDER[b.status] ?? 3) || (b.papers ?? 0) - (a.papers ?? 0)
     || a.scheme.localeCompare(b.scheme));
-  const add = h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => addIdentifier(profile, refresh) },
-    "Add");
+  const editable = profile.status !== "merged"; // a merged record's identifiers moved on
+  const add = editable ? h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => addIdentifier(profile, refresh) },
+    "Add") : null;
   const confirmed = items.some((i) => i.scheme === "orcid" && i.status === "accepted");
   return card({
     title: "Identifiers",
@@ -35,7 +36,7 @@ export function identifiersCard(profile, refresh) {
     pad: true,
     body: h("div", { class: "stack-sm" },
       items.length
-        ? h("ul", { class: "identifiers" }, items.map((item) => identifierRow(profile, item, refresh)))
+        ? h("ul", { class: "identifiers" }, items.map((item) => identifierRow(profile, item, refresh, editable)))
         : h("p", { class: "muted" }, "No identifiers yet."),
       items.some((i) => i.scheme === "orcid") ? h("p", { class: "subtle" }, confirmed
         ? "Confirmed ORCID iDs count as evidence, and their public records are read, from the next sync."
@@ -43,7 +44,7 @@ export function identifiersCard(profile, refresh) {
   });
 }
 
-function identifierRow(profile, item, refresh) {
+function identifierRow(profile, item, refresh, editable = true) {
   const value = item.scheme === "orcid"
     ? h("a", { class: "row-xs mono", href: item.url, target: "_blank", rel: "noopener noreferrer" },
       icon("orcid", "icon icon-sm"), item.value)
@@ -67,7 +68,7 @@ function identifierRow(profile, item, refresh) {
   // Identifiers that come from the sources themselves (an NIH profile from RePORTER) would
   // only come back at the next sync, so they offer no action.
   const fromSource = item.scheme !== "orcid" && (item.source === "reporter" || item.source === "pubmed");
-  const actions = item.status === "suggested" ? [act("accept", "Confirm", "btn btn-sm btn-accept"), act("reject", "Not theirs", "btn btn-sm btn-ghost")]
+  const actions = !editable ? [] : item.status === "suggested" ? [act("accept", "Confirm", "btn btn-sm btn-accept"), act("reject", "Not theirs", "btn btn-sm btn-ghost")]
     : item.status === "rejected" ? [act("accept", "Restore", "btn btn-sm btn-ghost")]
     : fromSource ? []
     : [act(item.scheme === "orcid" ? "reject" : "remove", item.scheme === "orcid" ? "Not theirs" : "Remove", "btn btn-sm btn-ghost")];

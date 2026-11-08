@@ -30,6 +30,7 @@ import tempfile
 import time
 from collections import Counter, defaultdict
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +43,7 @@ from tessera.core.clock import isoformat, utc_now
 from tessera.core.fsutil import fsync_dir
 from tessera.evidence import store
 from tessera.evidence.authorship import CHECK_TAGS
+from tessera.evidence.memberships import is_current
 from tessera.evidence.names import Match, best_match
 from tessera.evidence.orgmatch import OrgMatcher
 from tessera.evidence.people import AffiliatedSlot, affiliated_slots
@@ -483,8 +485,9 @@ class _Builder:
         grants = Counter(r["subject_id"] for r in self.member_links("investigator_on"))
         studies = Counter(r["subject_id"] for r in self.member_links("official_of"))
         memberships: dict[str, list[str]] = defaultdict(list)
-        for r in self.assertions["member_of"]:
-            if r["object_id"] in self.units:
+        today = date.today()
+        for r in self.assertions["member_of"]:  # current memberships only (REC-08)
+            if r["object_id"] in self.units and is_current(r["qualifiers"], today):
                 memberships[r["subject_id"]].append(self.units[r["object_id"]])
         concepts: dict[str, Counter] = defaultdict(Counter)
         all_likely = set().union(*likely.values()) if likely else set()

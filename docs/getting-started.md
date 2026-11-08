@@ -83,7 +83,13 @@ If you have a list of people (from a department page, a grant office, or a sprea
 uv run tessera people import roster.csv
 ```
 
-The CSV needs a header row. Recognized columns are `name` (or `family` and `given`), `email`, `orcid`, `local_id`, `unit`, `unit_code`, and `title`, with common spellings such as `last_name`, `first_name`, or `department` also understood; other columns are ignored. People are matched to existing records by ORCID, email, or local ID before new ones are created. Run `sync` again afterward so the new people's papers are found.
+The CSV needs a header row. Recognized columns are `name` (or `family` and `given`), `email`, `orcid`, `local_id`, `unit`, `unit_code`, `title`, `start`, and `end`, with common spellings such as `last_name`, `first_name`, `department`, or `start_date` also understood; other columns are ignored. Dates may be a year (`2015`), a month (`2015-07`), or a day (`2015-07-01`).
+
+- List a person once per unit for concurrent memberships; give their rows the same email, ORCID iD, or local ID (without any identifier, rows with the same full name count as one person).
+- Someone whose memberships have all ended becomes a former member; everyone else on the roster is active. Importing an updated roster updates titles and dates.
+- People are matched to existing records by ORCID, email, or local ID before new ones are created. A roster person who is also in the grant records under no shared identifier gets a second record; Tessera proposes the pair under **Possible duplicates**, where you merge them.
+
+Run `sync` again afterward so the new people's papers are found.
 
 ## Next steps
 

@@ -18,7 +18,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import and_, insert, select
+from sqlalchemy import and_, insert, select, update
 from sqlalchemy.engine import Connection, Engine
 
 from tessera.config import Config
@@ -28,6 +28,7 @@ from tessera.core.clock import utc_now
 from tessera.core.errors import TesseraError
 from tessera.core.ids import new_id
 from tessera.evidence import store
+from tessera.evidence.memberships import has_ended, parse_partial_date
 from tessera.evidence.names import (
     Match,
     Name,
@@ -132,6 +133,8 @@ ROSTER_COLUMNS = {
     "unit": ("unit", "department", "division"),
     "unit_code": ("unit_code", "department_code"),
     "title": ("title", "position"),
+    "start": ("start", "start_date", "from", "since"),
+    "end": ("end", "end_date", "to", "until"),
 }
 
 
@@ -152,8 +155,14 @@ class RosterStats:
         }
 
 
-def import_roster(engine: Engine, path: Path) -> RosterStats:
-    """Import people from a CSV file (an administrator's choice, not a live integration)."""
+def import_roster(engine: Engine, path: Path, today: date | None = None) -> RosterStats:
+    """Import people from a CSV file (an administrator's choice, not a live integration).
+
+    Each row may give a unit with a title and the dates the person joined and left it; a
+    person can appear on several rows for concurrent memberships. Someone whose memberships
+    have all ended is a former member; anyone else on the roster is active.
+    """
+    today = today or date.today()
     try:
         text = path.read_text(encoding="utf-8-sig")
     except OSError as exc:
@@ -167,6 +176,10 @@ def import_roster(engine: Engine, path: Path) -> RosterStats:
     if not (columns["name"] or columns["family"]):
         raise TesseraError("The roster needs a 'name' column or a 'family' (last name) column.")
     stats = RosterStats()
+    touched: dict[str, bool] = {}  # person -> has a membership that is current (or undated)
+    # Rows with no identifier at all are joined by full name within this file, so that a
+    # person listed once per unit stays one person.
+    by_name: dict[tuple[str, str], str] = {}
     with engine.begin() as conn:
         for number, row in enumerate(reader, start=2):
             stats.rows += 1
@@ -187,6 +200,14 @@ def import_roster(engine: Engine, path: Path) -> RosterStats:
                 stats.skipped.append(f"line {number}: invalid ORCID {value('orcid')!r}")
                 continue
             local_id = value("local_id")
+            try:
+                start, end = parse_partial_date(value("start")), parse_partial_date(value("end"))
+            except TesseraError as exc:
+                stats.skipped.append(f"line {number}: {exc}")
+                continue
+            if start and end and start > end:
+                stats.skipped.append(f"line {number}: ends ({end}) before it starts ({start})")
+                continue
             identifiers = [("orcid", orcid), ("email", email or None), ("local", local_id or None)]
             person_id = next(
                 (
@@ -196,36 +217,61 @@ def import_roster(engine: Engine, path: Path) -> RosterStats:
                 ),
                 None,
             )
+            name_key = (name.family_key, name.given.lower())
+            anonymous = not any(v for _, v in identifiers)
+            if person_id is None and anonymous:
+                person_id = by_name.get(name_key)
             if person_id:
                 stats.matched += 1
-                store.set_status(conn, person_id, "active")
                 store.add_name(conn, person_id, name, kind="variant", source="roster")
             else:
                 person_id = store.create_person(conn, name, status="active", source="roster")
                 stats.created += 1
+            if anonymous:
+                by_name.setdefault(name_key, person_id)
             for scheme, v in identifiers:
                 if v:
                     store.add_identifier(conn, person_id, scheme, v, source="roster")
+            current = True
             if value("unit"):
                 unit_id = store.get_or_create_unit(
                     conn, value("unit"), code=value("unit_code") or None
                 )
-                qualifiers = {"title": value("title")} if value("title") else {}
+                qualifiers = {
+                    k: v
+                    for k, v in (("title", value("title")), ("start", start), ("end", end))
+                    if v
+                }
                 _membership(conn, person_id, unit_id, qualifiers)
+                current = not has_ended(end, today)
+            touched[person_id] = touched.get(person_id, False) or current
+        for person_id, current in touched.items():
+            store.set_status(conn, person_id, "active" if current else "former")
     return stats
 
 
 def _membership(conn: Connection, person_id: str, unit_id: str, qualifiers: dict[str, Any]) -> None:
-    exists = conn.execute(
-        select(assertion.c.id).where(
-            and_(
-                assertion.c.subject_id == person_id,
-                assertion.c.predicate == "member_of",
-                assertion.c.object_id == unit_id,
+    """One membership per person and unit; the roster is its source, so dates follow it."""
+    exists = (
+        conn.execute(
+            select(assertion.c.id, assertion.c.qualifiers).where(
+                and_(
+                    assertion.c.subject_id == person_id,
+                    assertion.c.predicate == "member_of",
+                    assertion.c.object_id == unit_id,
+                )
             )
         )
-    ).first()
+        .mappings()
+        .first()
+    )
     if exists:
+        if (exists["qualifiers"] or {}) != qualifiers:
+            conn.execute(
+                update(assertion)
+                .where(assertion.c.id == exists["id"])
+                .values(qualifiers=qualifiers, updated_at=utc_now())
+            )
         return
     now = utc_now()
     conn.execute(

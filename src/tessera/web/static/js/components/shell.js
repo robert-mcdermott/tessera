@@ -21,6 +21,7 @@ const NAV = [
   { section: "Curate", items: [
     { href: "/review", label: "Review queue", iconName: "review", badge: "review", match: (p) => p === "/review" },
     { href: "/review/people", label: "Discovered people", iconName: "userPlus", badge: "candidates", match: (p) => p.startsWith("/review/people") },
+    { href: "/review/duplicates", label: "Possible duplicates", iconName: "layers", badge: "duplicates", match: (p) => p.startsWith("/review/duplicates") },
     { href: "/review/log", label: "Decision log", iconName: "history", match: (p) => p.startsWith("/review/log") },
   ] },
   { section: "Admin", items: [
@@ -104,19 +105,21 @@ export function mountShell(root, meta, { onSearch }) {
   const shell = h("div", { class: "shell" }, sidebar, topbar, main);
   root.replaceChildren(shell);
 
-  // Work waiting for a curator, shown beside Review queue and Discovered people. Refreshed
-  // after every change anywhere in the app.
+  // Work waiting for a curator, shown beside the review queue, discovered people, and possible
+  // duplicates. Refreshed after every change anywhere in the app.
   let pending = null;
   const refreshCounts = () => {
     clearTimeout(pending);
     pending = setTimeout(async () => {
-      const [queue, found] = await Promise.all([
+      const [queue, found, pairs] = await Promise.all([
         get("/api/v1/review", { limit: 1 }, { fresh: true }).catch(() => null),
         get("/api/v1/candidates", { limit: 1 }, { fresh: true }).catch(() => null),
+        get("/api/v1/duplicates", { limit: 1 }, { fresh: true }).catch(() => null),
       ]);
       const counts = {
         review: queue ? (queue.meta.bands?.strong ?? 0) + (queue.meta.bands?.possible ?? 0) : null,
         candidates: found ? found.meta.total : null,
+        duplicates: pairs ? pairs.meta.total : null,
       };
       for (const { item, badge } of navItems) {
         if (!badge) continue;

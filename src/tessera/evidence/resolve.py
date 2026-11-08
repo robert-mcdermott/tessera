@@ -11,7 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.engine import Engine
 
 from tessera.config import Config
-from tessera.evidence import authorship, links, people
+from tessera.evidence import authorship, duplicates, links, people
 from tessera.evidence.orgmatch import OrgMatcher
 from tessera.home import DataHome
 from tessera.jobs import runs
@@ -75,6 +75,9 @@ def resolve(
                     ).to_json()
                     links.resolve_officials(engine, lake, config, matcher, link_stats)
                     counts["links"] = link_stats.to_json()
+                    counts["duplicates"] = duplicates.resolve_duplicates(
+                        engine, lake, config
+                    ).to_json()
         except BaseException as exc:
             runs.finish_run(engine, run_id, "failed", counts, f"{exc.__class__.__name__}: {exc}")
             raise

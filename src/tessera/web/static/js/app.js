@@ -11,6 +11,7 @@ import { mountShell } from "./components/shell.js";
 import { emptyState } from "./components/ui.js";
 import { browse } from "./pages/browse.js";
 import { candidates } from "./pages/candidates.js";
+import { duplicates } from "./pages/duplicates.js";
 import { decisions } from "./pages/decisions.js";
 import { home } from "./pages/home.js";
 import { setProduct, setTitle } from "./pages/page.js";
@@ -56,6 +57,7 @@ async function boot() {
   route("/studies/:nct", (params) => study(main, params));
   route("/review", () => review(main));
   route("/review/people", (_, ctx) => candidates(main, ctx));
+  route("/review/duplicates", (_, ctx) => duplicates(main, ctx));
   route("/review/log", (_, ctx) => decisions(main, ctx));
   route("/admin/sources", () => sources(main));
   fallback(() => {

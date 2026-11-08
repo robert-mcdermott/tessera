@@ -641,3 +641,18 @@ def load_orcid(world: World, lake_root: Path, share: float = 0.8) -> None:
         )
     with LakeWriter(lake_root, ORCID, "run_synthetic_orcid") as writer:
         writer.add(records)
+
+
+def duplicate_roster(world: World, tmp: Path, count: int = 4) -> tuple[Path, list[Researcher]]:
+    """A second roster that lists some grant holders with only an email address.
+
+    Grant records carry no email, so importing it creates a second record for each of them:
+    the duplicates that merges exist to fix.
+    """
+    listed = [r for r in world.insiders if r.profile_id is not None and r.email][:count]
+    path = tmp / "roster-duplicates.csv"
+    lines = ["family,given,email,unit,start"]
+    for r in listed:
+        lines.append(f"{r.family},{r.given} {r.middle},{r.email},Department of {r.dept},2015")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path, listed

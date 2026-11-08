@@ -91,3 +91,28 @@
 }
 .band-bar { display: flex; min-width: 0; max-width: 100%; }
 .author-slot .pill-accent { background: var(--accent); color: var(--on-accent); }
+
+/* Possible duplicates */
+.duplicate-pair { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: var(--space-3); align-items: stretch; }
+.duplicate-record { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-m); background: var(--surface-2); }
+.duplicate-record .eyebrow { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.04em; }
+.duplicate-arrow { align-self: center; color: var(--text-subtle); }
+@media (max-width: 760px) {
+  .duplicate-pair { grid-template-columns: minmax(0, 1fr); }
+  .duplicate-arrow { justify-self: center; transform: rotate(90deg); }
+}
+.duplicate .card-header { flex-wrap: wrap; gap: var(--space-2) var(--space-3); }
+.reasons { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-sm); }
+.reasons li { display: flex; gap: var(--space-3); align-items: baseline; }
+.reason-weight { flex: none; min-width: 3.4em; font-weight: 650; font-variant-numeric: tabular-nums; }
+.reason-weight.pos { color: var(--ok); }
+.reason-weight.neg { color: var(--danger); }
+
+/* Profile: memberships and merging */
+.memberships .past { color: var(--text-muted); }
+.merge-results { max-height: 280px; overflow-y: auto; }
+.merge-option { display: flex; align-items: center; gap: var(--space-3); width: 100%; padding: var(--space-2) var(--space-3); border: 1px solid transparent; border-radius: var(--radius-m); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.merge-option:hover { background: var(--surface-2); }
+.merge-option[aria-selected="true"] { border-color: var(--accent); background: var(--accent-softer); }
+fieldset.field { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+fieldset.field legend { font-size: var(--fs-sm); font-weight: 600; margin-bottom: var(--space-1); }

@@ -6,6 +6,9 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 
 ### Added
 
+- Possible duplicates: two records of one person (typically a roster row and a grant record with no shared identifier) are proposed as a pair, scored by `same_as/v1` on shared identifiers, a replaced ORCID iD, author positions both claim, shared grants, and names; never on a name alone. A new **Possible duplicates** page under Curate shows both records side by side with the evidence. `GET /api/v1/duplicates`.
+- Reversible merges: merging moves a record's links, names, and identifiers to the record kept and journals every change, so **Undo merge** restores both exactly. Where both records decided the same link differently, the more recent decision holds and the merge says so. Merge from the duplicates page or with **Merge…** on a profile; merges appear in the decision log. `POST /api/v1/merges`, `POST /api/v1/merges/{id}/undo`; ledger migration 0004 (a `merged` status, `person.merged_into`, and `person_merge`).
+- Dated unit memberships: roster `start` and `end` columns (a year, month, or day), several units at once, titles and dates on profiles, and only current units in the directory and its filters. People whose memberships have all ended become former members; importing an updated roster updates dates.
 - ORCID iDs suggested from people's own papers: an iD printed at a person's author position on at least two of their likely papers is suggested on their profile, with how many papers carry it and what the public ORCID record says. Curators confirm it, mark it as not theirs, or add identifiers by hand; every decision is logged. An iD recorded for two people is flagged on both profiles. `POST /api/v1/people/{id}/identifiers`; ledger migration 0003.
 - ORCID evidence in authorship scoring (`authorship/v1.1`): papers listed on a person's public ORCID record (+6.0), iDs a curator rejected (−8.0, like a conflict), and the same iD on the person's other papers (+2.0 or +3.0) or a clearly different one (−2.0, weak, since some people have two iDs). Deprecated iDs count as the iD that replaced them; an iD suggested for the person is never a conflict. On the pilot, the strong band grew from 1,652 to 1,666 suggestions, and the near misses on a short, common name left it.
 - Papers listed on members' ORCID records are fetched from PubMed when the lake lacks them.
@@ -19,6 +22,7 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 
 ### Fixed
 
+- A person listed on several roster rows without any identifier became several people; within one file, such rows with the same full name are now one person.
 - Keyboard hints on buttons were faded below WCAG AA contrast; they are now full strength.
 - Resolving again rewrote hundreds of unchanged suggestions because tied topics were listed in a random order in their explanations; ties are now broken by name, and a second resolve changes nothing.
 

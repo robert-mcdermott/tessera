@@ -23,6 +23,7 @@ Like the web app, the API listens on this machine only until sign-in arrives.
 | Records | `GET /publications`, `/grants`, `/studies`, each with search and facets, and one record by its identifier with its connections and provenance |
 | Curation | `GET /assertions/{id}` (a link with its evidence and history), `POST /assertions/{id}/decision`, `POST /assertions/decisions` (one decision for many), `GET /review` (the queue), `POST /review/bulk`, `GET /decisions` (the log) |
 | Discovered people | `GET /candidates`, `POST /candidates/decisions` (promote, dismiss, or undo) |
+| Duplicates and merges | `GET /duplicates` (possible duplicate pairs with evidence), `POST /merges` (merge two records), `POST /merges/{id}/undo` |
 
 All paths are under `/api/v1`.
 

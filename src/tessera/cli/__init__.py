@@ -479,6 +479,12 @@ def _print_resolve(result) -> None:  # type: ignore[no-untyped-def]
                 f"  ORCID iDs suggested from people's papers: {ids.get('proposed', 0):,} new, "
                 f"{ids.get('withdrawn', 0):,} withdrawn (confirm them on profiles)"
             )
+    dup = counts.get("duplicates") or {}
+    if dup.get("pairs"):
+        print(
+            f"  possible duplicates: {dup['pairs']:,} pairs ({dup.get('strong', 0):,} strong); "
+            "review them under Curate"
+        )
     for predicate, stats in counts.get("links", {}).items():
         if stats:
             total = stats.get("inserted", 0) + stats.get("updated", 0) + stats.get("unchanged", 0)

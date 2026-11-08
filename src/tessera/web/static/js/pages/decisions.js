@@ -9,12 +9,13 @@ import { card, emptyState, entityHref, pageHeader, pager, refKind } from "../com
 import { show } from "./page.js";
 
 const PAGE = 50;
-const PERSON_ACTIONS = { promote: "Promoted", dismiss: "Dismissed", undo: "Undone" };
+const PERSON_ACTIONS = { promote: "Promoted", dismiss: "Dismissed", undo: "Undone", merge: "Merged", unmerge: "Unmerged" };
 const IDENTIFIER_ACTIONS = { add: "Added an identifier", accept: "Confirmed an identifier",
   reject: "Marked an identifier as not theirs", remove: "Removed an identifier" };
 const SCHEMES = { orcid: "ORCID iD", email: "email", nih_profile: "NIH profile", local: "local ID" };
 const STATUS_WORDS = { accepted: "confirmed", rejected: "rejected", deferred: "deferred", suggested: "suggested",
-  active: "active member", candidate: "awaiting a decision", dismissed: "dismissed", former: "former member" };
+  active: "active member", candidate: "awaiting a decision", dismissed: "dismissed", former: "former member",
+  merged: "merged" };
 const PREDICATES = { authored: "authored", investigator_on: "investigator on", official_of: "official of" };
 
 export function decisions(main, ctx = {}) {
@@ -34,6 +35,8 @@ export function decisions(main, ctx = {}) {
             objectKind ? h("a", { href: entityHref(objectKind, e.object.id) }, e.object.label ?? e.object.id) : (e.object.label ?? e.object.id)]
           : e.identifier ? [subject, ` · ${SCHEMES[e.identifier.scheme] ?? e.identifier.scheme} `,
             h("span", { class: "mono" }, e.identifier.value)]
+          : e.merge ? [subject, e.action === "merge" ? " into " : " from ",
+            h("a", { href: `/people/${e.merge.survivor.id}` }, e.merge.survivor.label ?? e.merge.survivor.id)]
           : [subject];
         const action = e.identifier ? IDENTIFIER_ACTIONS[e.identifier.action] ?? e.identifier.action
           : (e.kind === "person" ? PERSON_ACTIONS : ACTION_LABELS)[e.action] ?? e.action;
