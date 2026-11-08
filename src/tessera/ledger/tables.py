@@ -7,6 +7,7 @@ content lives in the lake and is referenced by key.
 from __future__ import annotations
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     Column,
@@ -520,3 +521,37 @@ setting = Table(
     Column("updated_by", String(200), nullable=False),
     Column("updated_at", UtcDateTime, nullable=False),
 )
+
+# Opportunities an organization tracks itself (INT-12): foundation calls, internal pilot funds,
+# limited submissions, and anything else not on Grants.gov, whose opportunities are in the lake.
+# ``source`` and ``external_id`` let an import update what it brought in before.
+OPPORTUNITY_KINDS = ("foundation", "internal", "federal", "state", "industry", "other")
+opportunity = Table(
+    "opportunity",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("source", String(200), nullable=False),
+    Column("external_id", String(200)),
+    Column("kind", String(20), nullable=False, server_default="foundation"),
+    Column("number", String(100)),
+    Column("title", String(500), nullable=False),
+    Column("sponsor", String(300)),
+    Column("description", Text),
+    Column("url", String(1000)),
+    Column("posted_on", Date),
+    Column("closes_on", Date),
+    Column("internal_deadline", Date),
+    Column("award_floor", BigInteger),
+    Column("award_ceiling", BigInteger),
+    Column("limited_submission", Boolean, nullable=False, server_default=false()),
+    Column("eligibility_notes", Text),
+    Column("applicant_types", JsonType, nullable=False),
+    Column("created_by", String(200), nullable=False),
+    Column("created_at", UtcDateTime, nullable=False),
+    Column("updated_by", String(200), nullable=False),
+    Column("updated_at", UtcDateTime, nullable=False),
+    Column("archived_at", UtcDateTime),
+    UniqueConstraint("source", "external_id"),
+    CheckConstraint(_in("kind", OPPORTUNITY_KINDS), name="kind"),
+)
+Index(None, opportunity.c.closes_on)

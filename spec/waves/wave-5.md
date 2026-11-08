@@ -2,7 +2,7 @@
 
 **Goal:** connect discovery to outcomes and opportunities. Follow a grant forward to the papers, studies, and clinical citations that came after it; see which open funding opportunities fit the organization's people and groups, and whether the organization can apply; assemble a team for one; and, where an organization chooses to turn it on, ask questions answered from Tessera's own records.
 
-**Branch:** `wave-5` · **Target version:** `0.5.0` · **Status:** ◐ slice 1 done
+**Branch:** `wave-5` · **Target version:** `0.5.0` · **Status:** ◐ slices 1 and 2 done
 
 ## Exit criteria
 
@@ -48,17 +48,17 @@ Requirements: INT-08 to INT-12, AI-01 to AI-08.
 
 **Acceptance (met):** on the demo, the immunotherapy program project (P01) reaches a practice guideline through two papers; a paper cited by three clinical articles shows them with their years; a rejected acknowledgment never appears in a thread; a citing article never becomes an authorship candidate; a grant's thread answers in 300 ms or less on the pilot's data.
 
-## Slice 2: Funding opportunities ☐
+## Slice 2: Funding opportunities ☑
 
 **Goal:** the opportunities themselves, from Grants.gov and from the organization (INT-09, INT-12).
 
-- [ ] A Grants.gov connector over its public search and opportunity APIs (no key needed; checked 2026-11-08): forecast and posted opportunities, details fetched for new and changed ones, closed and archived ones kept with their status, raw responses captured like every source; `[sources.grants_gov]` can limit agencies and funding categories (all by default)
-- [ ] An opportunity in the lake: number, title, agency, status, posting, closing, and archive dates, award floor and ceiling, expected awards and total funding, cost sharing, eligible applicant types, instruments, categories, assistance listings, the synopsis as text, eligibility notes, and its link; for NIH notices, the activity code and clinical-trial requirement read from the title, and the NIH Guide link
-- [ ] Opportunities an organization tracks itself (foundation calls, internal pilot funds, limited submissions): `tessera opportunities import` from CSV or JSON, kept in the ledger with their source and editable in **Admin → Opportunities** (ledger migration 0014)
-- [ ] Opportunities in search, the command palette, and saved searches (new matches)
-- [ ] Source health and Operations show the new source; `data-sources.md` records its terms, pace, and quirks
+- [x] A Grants.gov connector over its public search and opportunity APIs (no key needed; checked 2026-11-08): forecast and posted opportunities, details fetched for new and changed ones, closed and archived ones kept with their status, raw responses captured like every source; `[sources.grants_gov]` can limit agencies and funding categories (all by default)
+- [x] An opportunity in the lake: number, title, agency, status, posting, closing, and archive dates, award floor and ceiling, expected awards and total funding, cost sharing, eligible applicant types, instruments, categories, assistance listings, the synopsis as text, eligibility notes, and its link; for NIH notices, the activity code and clinical-trial requirement read from the title, and the NIH Guide link
+- [x] Opportunities an organization tracks itself (foundation calls, internal pilot funds, limited submissions): `tessera opportunities import` from CSV or JSON, kept in the ledger with their source and editable in **Admin → Opportunities** (ledger migration 0014)
+- [x] Opportunities in search, the command palette, and saved searches (new matches)
+- [x] Source health and Operations show the new source; `data-sources.md` records its terms, pace, and quirks
 
-**Acceptance:** a sync against recorded Grants.gov responses stores forecast and posted opportunities and, on a second run, fetches only those that changed; an NIH notice yields its activity code and clinical-trial requirement; an imported foundation opportunity appears beside federal ones, labeled with its source; the first live sync's duration is recorded here.
+**Acceptance (met):** a sync against recorded Grants.gov responses stores forecast and posted opportunities and, on a second run, fetches only those that changed; an NIH notice yields its activity code and clinical-trial requirement; an imported foundation opportunity appears beside federal ones, labeled with its source; the first live sync's duration is recorded here.
 
 ## Slice 3: The opportunity navigator ☐
 
@@ -67,7 +67,7 @@ Requirements: INT-08 to INT-12, AI-01 to AI-08.
 - [ ] Fit: an opportunity's title and synopsis read as concepts the way an expert search reads a question (headings, synonyms, and the organization's papers), with the concepts it was read as shown and adjustable; the people and groups whose confirmed work matches, with the matching concepts and papers as reasons, in bands (strong, some) rather than scores; computed after each sync
 - [ ] Eligibility, separately: the organization's applicant types (`[organization] applicant_types`, in Grants.gov's codes, checked by `tessera doctor`) against the opportunity's, foreign components, cost sharing, the clinical-trial requirement, the mechanism, and the deadline; each "meets", "does not meet", or "check the notice", with the text it came from; career and training awards say that eligibility depends on the person
 - [ ] **Opportunities** in the menu: open and forecast opportunities with filters (agency, closing within, mechanism, eligibility, fits a group, fits me), fit and eligibility in separate columns; an opportunity's page with its details, the eligibility checklist, who fits and why, and **Start a team**
-- [ ] For people and groups: opportunities that fit on the home page and the profile; a group's inbox and weekly digest list new opportunities that fit it; anyone can watch or dismiss an opportunity for themselves (migration 0014)
+- [ ] For people and groups: opportunities that fit on the home page and the profile; a group's inbox and weekly digest list new opportunities that fit it; anyone can watch or dismiss an opportunity for themselves (migration 0015)
 - [ ] `GET /api/v1/opportunities`, an opportunity, its fit, and a person's or group's opportunities
 
 **Acceptance:** on the demo, a cell-therapy opportunity lists the immunotherapy program and its people with the concepts that match; an opportunity open only to small businesses shows "does not meet" for applicant type while its fit is still shown; dismissing an opportunity hides it for that person only; a lab's inbox lists a new fitting opportunity once.
@@ -76,7 +76,7 @@ Requirements: INT-08 to INT-12, AI-01 to AI-08.
 
 **Goal:** assemble people for an opportunity and see what is covered and what is missing (INT-10).
 
-- [ ] A team: name, purpose, an opportunity or a set of concepts it needs, members with roles (lead, co-investigator, collaborator, core or resource), and notes; owned by its creator, shared with named people, visible to admins (ledger migration 0015)
+- [ ] A team: name, purpose, an opportunity or a set of concepts it needs, members with roles (lead, co-investigator, collaborator, core or resource), and notes; owned by its creator, shared with named people, visible to admins (ledger migration 0016)
 - [ ] Coverage: the needed concepts against each member's confirmed work; covered and missing concepts; for each gap, people who cover it, with reasons; who on the team has worked together before and which pairings are new; the groups and divisions the team spans
 - [ ] The team brief: a printable page and Markdown, with JSON and CSV, giving the purpose, the opportunity, each member's role with their relevant confirmed papers, grants, and studies, and the coverage, carrying its sources and data dates as exports do
 - [ ] Suggestions are ordered by the gap they fill, with their reasons, and never show a metric of a person
@@ -91,7 +91,7 @@ Requirements: INT-08 to INT-12, AI-01 to AI-08.
 - [ ] Clients on the HTTP library Tessera already uses, with no SDKs: tool calls and streaming for all three providers, Bedrock's event stream decoded with the standard library; Bedrock authenticated with an Amazon Bedrock API key or with access keys from the environment, signed with Signature Version 4 from the standard library and checked against AWS's published test vectors; one shape for messages, tool calls, usage, and errors across providers
 - [ ] Invisible when off: routes, API document entries, menu items, settings, and front-end modules exist only when enabled; the app loads optional modules that the server names, so the app's own code never names them; `tessera ai` is hidden from the command help when off. Tests check that, with AI off, the API document, the app shell, every script served, and the public site never mention it
 - [ ] Data minimization: one module builds everything a model sees from the same read projections the API serves, without email addresses, phone numbers, postal addresses, or unreviewed suggestions
-- [ ] The log: every exchange (who asked, when, provider, model, prompt version, the messages, each tool call with the records it returned, the answer, tokens, time, and outcome) in the ledger (migration 0016); **Admin → AI** shows the log and usage
+- [ ] The log: every exchange (who asked, when, provider, model, prompt version, the messages, each tool call with the records it returned, the answer, tokens, time, and outcome) in the ledger (migration 0017); **Admin → AI** shows the log and usage
 - [ ] `tessera ai check` makes one round trip to the configured provider; `tessera doctor` validates the section
 - [ ] ADR-0010: AI providers spoken over plain HTTP, without SDKs
 
@@ -113,7 +113,7 @@ Requirements: INT-08 to INT-12, AI-01 to AI-08.
 
 **Goal:** reviewable lay summaries for profiles and group pages (AI-04, AI-06).
 
-- [ ] A draft summary of a profile (requested by the person, a curator, or an admin) or of a group page (by its managers or curators), from confirmed records only; edit, approve, reject, or draft again; stored with its model, prompt version, a digest of its inputs, and who approved it (migration 0017); every change a curation event
+- [ ] A draft summary of a profile (requested by the person, a curator, or an admin) or of a group page (by its managers or curators), from confirmed records only; edit, approve, reject, or draft again; stored with its model, prompt version, a digest of its inputs, and who approved it (migration 0018); every change a curation event
 - [ ] Approved summaries on profiles and as a group page block, labeled as drafted with AI assistance and approved by whom; on the public site only for people and groups that are public
 - [ ] When a person's or group's records have changed a good deal, the inbox suggests a new draft; an approved summary is never replaced without approval
 - [ ] With AI off, approved summaries are kept but not shown anywhere

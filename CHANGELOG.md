@@ -10,6 +10,14 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 - iCite's clinical citations (`cited_by_clin`) are kept (lake table `icite_clinical_citation`, filled as each paper's metrics are refreshed (monthly), or at once with `tessera ingest icite --full`), and `tessera sync` then fetches the citing articles' PubMed records (`pubmed:citing`) into their own table, `citing_article`, so they never become candidates for anyone's authorship.
 - **Insight → Impact**: `impact.clinical_citations/v1` (a cohort's papers cited by clinical articles and by practice guidelines, by year of publication) and `impact.studies/v1` (its papers listed by registered studies), with their caveats; both can be saved in reports, snapshotted, and exported.
 - The demo organization's papers are cited by invented clinical articles, practice guidelines among them.
+- Funding opportunities (INT-09): Grants.gov's forecast and posted federal opportunities, from its public search and opportunity APIs (no key), in a new source, `grants_gov` (`[sources.grants_gov]`, with optional `categories` and `agencies`). Each sync reads only what changed; NIH notices carry their activity codes, clinical-trial requirement, and NIH Guide link. Agency contact details are not kept. Lake table `grants_gov_opportunity`.
+- Opportunities an organization tracks itself (INT-12): foundation calls, internal pilot funds, and limited submissions, kept in the ledger (migration 0014), added and edited in **Admin → Opportunities**, or imported from CSV or JSON with `tessera opportunities import` (or `POST /opportunities/import`); importing again updates in place, and nothing is written when any row has a problem.
+- **Opportunities** in the menu: every opportunity, open and forecast first by closing date, with search and filters (status, closing within 30 or 90 days, source, kind, sponsor, activity code, category), an opportunity's page with its dates, money, who may apply, and details, and opportunities in search, the command palette, and saved searches.
+- The demo organization has twelve invented federal opportunities and three of its own.
+
+### Changed
+
+- Curation and administration pages load when first opened, not with the app, which keeps the app's first load smaller.
 
 ## 0.4.0 (2026-11-08)
 

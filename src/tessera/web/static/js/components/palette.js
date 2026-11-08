@@ -5,7 +5,7 @@ import { h, highlighted, icon, plain } from "../core/dom.js";
 import { navigate } from "../core/router.js";
 import { debounce, entityHref, entityIcon } from "./ui.js";
 
-const KIND_TITLES = { person: "People", publication: "Publications", grant: "Grants", study: "Studies" };
+const KIND_TITLES = { person: "People", publication: "Publications", grant: "Grants", study: "Studies", opportunity: "Opportunities" };
 let state = null;
 
 function pages(actions) {
@@ -15,6 +15,7 @@ function pages(actions) {
     { group: "Go to", title: "Publications", iconName: "publication", run: () => navigate("/publications") },
     { group: "Go to", title: "Grants", iconName: "grant", run: () => navigate("/grants") },
     { group: "Go to", title: "Studies", iconName: "study", run: () => navigate("/studies") },
+    { group: "Go to", title: "Opportunities", iconName: "opportunity", run: () => navigate("/opportunities?status=posted&status=forecasted") },
     { group: "Go to", title: "Review queue", iconName: "review", run: () => navigate("/review") },
     { group: "Go to", title: "Discovered people", iconName: "userPlus", run: () => navigate("/review/people") },
     { group: "Go to", title: "Find experts", iconName: "compass", run: () => navigate("/experts") },
@@ -98,7 +99,7 @@ async function update(text) {
     state.controller = new AbortController();
     try {
       const data = (await get("/api/v1/search", { q, per_type: 4 }, { signal: state.controller.signal })).data;
-      for (const kind of ["person", "publication", "grant", "study"]) {
+      for (const kind of ["person", "publication", "grant", "study", "opportunity"]) {
         for (const item of data[kind]?.items ?? []) {
           remote.push({
             group: `${KIND_TITLES[kind]} (${data[kind].total})`,

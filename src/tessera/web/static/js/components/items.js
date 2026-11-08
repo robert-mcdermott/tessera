@@ -108,12 +108,44 @@ export function personTable(people) {
       h("td", { class: "num" }, number(p.counts?.studies ?? 0)))))));
 }
 
+const OPP_TONE = { posted: "ok", forecasted: "accent", closed: "", archived: "" };
+
+function day(value) {
+  return value ? new Date(`${value}T12:00:00`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : null;
+}
+
+/** When an opportunity closes, or is expected, in words. */
+export function opportunityWhen(s) {
+  if (s.status === "forecasted") return s.expected_post ? `Forecast: expected ${day(s.expected_post)}` : "Forecast";
+  if (!s.closes) return s.status === "posted" ? "No closing date" : null;
+  const days = Math.round((new Date(`${s.closes}T12:00:00`) - new Date()) / 86_400_000);
+  if (s.status === "posted") return days >= 0 ? `Closes ${day(s.closes)} (${days === 0 ? "today" : `in ${number(days)} ${days === 1 ? "day" : "days"}`})` : `Closed ${day(s.closes)}`;
+  return `Closed ${day(s.closes)}`;
+}
+
+export function opportunityItem(summary, { highlights = null } = {}) {
+  const s = summary ?? {};
+  const award = s.award_ceiling ? `Up to ${money(s.award_ceiling, { compactForm: true })}` : null;
+  return h("article", { class: "item", "data-entity": "opportunity" },
+    h("div", { class: "item-main" },
+      h("a", { class: "item-title", href: entityHref("opportunity", s.id) }, hl({ highlights }, "title", s.title)),
+      h("div", { class: "item-meta" },
+        [s.number, s.sponsor, opportunityWhen(s), award].filter(Boolean).map((part, i) => [i ? h("span", { class: "sep" }) : null, h("span", {}, part)])),
+      h("div", { class: "chips" },
+        s.source === "local" ? chip("plain", s.source_label) : null,
+        s.limited_submission ? chip("plain", "Limited submission") : null,
+        (s.activity_codes ?? []).map((a) => chip("plain", a)),
+        s.clinical_trial ? chip("plain", `Clinical trial ${enumLabel(s.clinical_trial).toLowerCase()}`) : null)),
+    h("div", { class: "item-side" }, s.status ? pill(s.status === "posted" ? "Open" : enumLabel(s.status), OPP_TONE[s.status] ?? "") : null));
+}
+
 export function itemFor(kind, item, options = {}) {
   const summary = item.summary ?? item;
   const highlights = item.highlights ?? options.highlights ?? null;
   if (kind === "publication") return publicationItem(summary, { ...options, highlights });
   if (kind === "grant") return grantItem(summary, { ...options, highlights });
   if (kind === "study") return studyItem(summary, { ...options, highlights });
+  if (kind === "opportunity") return opportunityItem(summary, { highlights });
   return personRow(summary, highlights);
 }
 

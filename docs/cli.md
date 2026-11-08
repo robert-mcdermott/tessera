@@ -311,6 +311,31 @@ usage: tessera groups list [-h] [--kind KIND] [--all]
 | `--kind KIND` | only groups of this kind |
 | `--all` | include archived groups |
 
+## `tessera opportunities`
+
+Funding opportunities the organization tracks itself.
+
+```text
+usage: tessera opportunities [-h] ACTION ...
+```
+
+### `tessera opportunities import`
+
+Add or update opportunities from a CSV or JSON file.
+
+Import opportunities the organization tracks itself (foundation calls, internal pilot funds, limited submissions) from a CSV file with a header, or a JSON list. Columns: source, external_id, kind, number, title, sponsor, description, url, posted_on, closes_on, internal_deadline, award_floor, award_ceiling, limited_submission, eligibility_notes, applicant_types. Importing the same rows again updates them. Nothing is written if any row has a problem. Federal opportunities come from Grants.gov by themselves.
+
+```text
+usage: tessera opportunities import [-h] [--source SOURCE] [--complete] [--dry-run] path
+```
+
+| Argument | Meaning |
+|---|---|
+| `path` | CSV or JSON file |
+| `--source SOURCE` | who offers or lists them, for every row (instead of a source column) |
+| `--complete` | the file is the source's whole list: archive its opportunities the file omits |
+| `--dry-run` | report what would change; change nothing |
+
 ## `tessera digest`
 
 Pending work for each account: groups' inboxes and review queues.

@@ -88,7 +88,11 @@ Tessera uses **free, public data sources only**. No source needs a paid subscrip
 ## Grants.gov (wave 5)
 
 - **Endpoints:** `POST https://api.grants.gov/v1/api/search2` (forecast and posted opportunities, paged) and `POST https://api.grants.gov/v1/api/fetchOpportunity` (one opportunity's synopsis: description, dates, award range, eligible applicant types, instruments, categories, assistance listings). Neither needs a key (checked 2026-11-08).
-- **Use:** open funding opportunities (title, agency, dates, eligibility, description) for opportunity-to-team matching.
+- **Use:** forecast and posted funding opportunities (title, agency, dates, eligibility, description) for matching opportunities to people, groups, and teams.
+- **Pace:** the search lists up to 1,000 opportunities a page, so every forecast and posted one (about 1,460) comes in two requests; details come one opportunity at a time, at most two requests a second. A first sync reads every opportunity's details; later syncs read only the new, the changed (the search's listing differs), those last read two weeks ago, and those held as open that the search no longer lists (they have closed or been archived).
+- **Kept:** number, title, agency and its parent, notice or forecast, dates, award range and expected awards, cost sharing, eligible applicant types (Grants.gov's codes), instruments, categories, assistance listings, the description and eligibility notes as text, and, for NIH notices, the activity codes and clinical-trial requirement read from the title and the NIH Guide link. **Not kept:** agency contact names, email addresses, and phone numbers, which are often a named program officer's.
+- **Quirks:** dates come as "May 21, 2026 12:00:00 AM EDT" in details and "05/21/2026" in the search; descriptions carry HTML; a forecast's dates are estimates and can pass while it is still listed; the search's agency filter needs exact codes, so `[sources.grants_gov] agencies` is applied by Tessera to code prefixes. In the lake: `grants_gov_opportunity`.
+- **Terms:** U.S. government information, public and free to reuse.
 - **Principle:** similarity is not eligibility. Matches show topical fit and eligibility as separate signals.
 
 ## Organization profile: how Tessera knows "who we are"

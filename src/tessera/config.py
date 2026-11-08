@@ -108,6 +108,14 @@ class SourceConfig:
 
 
 @dataclass(frozen=True)
+class GrantsGovConfig(SourceConfig):
+    """Grants.gov: every forecast and posted opportunity, or only some (wave 5)."""
+
+    categories: tuple[str, ...] = ()  # funding categories, e.g. "HL" (health), "ST" (science)
+    agencies: tuple[str, ...] = ()  # agency codes or their beginnings, e.g. "HHS-NIH", "NSF"
+
+
+@dataclass(frozen=True)
 class SourcesConfig:
     contact_email: str = ""
     pubmed: SourceConfig = field(default_factory=lambda: SourceConfig(api_key_env="NCBI_API_KEY"))
@@ -116,6 +124,7 @@ class SourcesConfig:
     ctgov: SourceConfig = field(default_factory=SourceConfig)
     orcid: SourceConfig = field(default_factory=SourceConfig)
     mesh: SourceConfig = field(default_factory=SourceConfig)
+    grants_gov: GrantsGovConfig = field(default_factory=GrantsGovConfig)
 
 
 @dataclass(frozen=True)
@@ -285,7 +294,7 @@ _SECTIONS: dict[str, type] = {
     "insight": InsightConfig,
     "alerts": AlertsConfig,
 }
-_SOURCE_NAMES = ("pubmed", "icite", "reporter", "ctgov", "orcid", "mesh")
+_SOURCE_NAMES = ("pubmed", "icite", "reporter", "ctgov", "orcid", "mesh", "grants_gov")
 _PATH_FIELDS = {
     ("data", "home"),
     ("branding", "logo_light"),
@@ -479,10 +488,11 @@ def _build_sources(table: dict[str, Any], problems: list[str]) -> SourcesConfig:
                 problems.append(f"[sources.{key}] must be a table")
                 continue
             base = getattr(defaults, key)
-            built = _build(SourceConfig, f"sources.{key}", value, problems)
-            merged = {f.name: getattr(base, f.name) for f in fields(SourceConfig)}
+            kind = type(base)
+            built = _build(kind, f"sources.{key}", value, problems)
+            merged = {f.name: getattr(base, f.name) for f in fields(kind)}
             merged.update({k: getattr(built, k) for k in value if k in merged})
-            kwargs[key] = SourceConfig(**merged)
+            kwargs[key] = kind(**merged)
         else:
             problems.append(f"unknown setting sources.{key}")
     return SourcesConfig(**kwargs)
@@ -684,6 +694,15 @@ def validate(config: Config) -> list[str]:
     email = config.sources.contact_email
     if email and not _EMAIL.match(email):
         problems.append(f"sources.contact_email: {email!r} is not an email address")
+    grants = config.sources.grants_gov
+    for code in grants.categories:
+        if not re.fullmatch(r"[A-Z]{1,4}", code):
+            problems.append(f"sources.grants_gov.categories: {code!r} is not a funding category "
+                            "code such as HL or ST")  # fmt: skip
+    for code in grants.agencies:
+        if not re.fullmatch(r"[A-Z][A-Z0-9-]*", code):
+            problems.append(f"sources.grants_gov.agencies: {code!r} is not an agency code such "
+                            "as HHS-NIH or NSF")  # fmt: skip
 
     if not 1 <= config.sync.window_years <= 50:
         problems.append("sync.window_years must be between 1 and 50")

@@ -27,6 +27,7 @@ SORTS = {
     "publication": {"year": "d.sort_key", "citations": "d.weight DESC, d.sort_key"},
     "grant": {"year": "d.sort_key", "amount": "d.weight DESC, d.sort_key"},
     "study": {"year": "d.sort_key"},
+    "opportunity": {"closes": "d.sort_key", "posted": "d.weight DESC, d.sort_key"},
     "candidate": {"evidence": "d.weight DESC, d.sort_key", "name": "d.sort_key"},
 }
 DEFAULT_SORT = {
@@ -34,6 +35,7 @@ DEFAULT_SORT = {
     "publication": "year",
     "grant": "year",
     "study": "year",
+    "opportunity": "closes",
     "candidate": "evidence",
 }
 FACETS = {
@@ -41,6 +43,7 @@ FACETS = {
     "publication": ("year", "journal", "type", "flag"),
     "grant": ("status", "activity", "institute", "year"),
     "study": ("status", "phase", "type", "year"),
+    "opportunity": ("status", "source", "kind", "closing", "agency", "activity", "category"),
     "candidate": ("status", "source"),
 }
 

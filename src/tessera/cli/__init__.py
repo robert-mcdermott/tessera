@@ -211,6 +211,36 @@ def build_parser() -> argparse.ArgumentParser:
     group_public.add_argument("groups", nargs="+", help="addresses, codes, or IDs")
     group_public.add_argument("--off", action="store_true", help="take the pages away")
     group_public.set_defaults(handler=cmd_public, what="group")
+    opportunities_cmd = commands.add_parser(
+        "opportunities", help="funding opportunities the organization tracks itself"
+    )
+    opportunity_actions = opportunities_cmd.add_subparsers(
+        dest="opportunities_command", metavar="ACTION", required=True
+    )
+    opportunity_import = opportunity_actions.add_parser(
+        "import",
+        help="add or update opportunities from a CSV or JSON file",
+        description="Import opportunities the organization tracks itself (foundation calls, "
+        "internal pilot funds, limited submissions) from a CSV file with a header, or a JSON "
+        "list. Columns: source, external_id, kind, number, title, sponsor, description, url, "
+        "posted_on, closes_on, internal_deadline, award_floor, award_ceiling, "
+        "limited_submission, eligibility_notes, applicant_types. Importing the same rows again "
+        "updates them. Nothing is written if any row has a problem. Federal opportunities come "
+        "from Grants.gov by themselves.",
+    )
+    opportunity_import.add_argument("path", type=Path, help="CSV or JSON file")
+    opportunity_import.add_argument(
+        "--source", help="who offers or lists them, for every row (instead of a source column)"
+    )
+    opportunity_import.add_argument(
+        "--complete",
+        action="store_true",
+        help="the file is the source's whole list: archive its opportunities the file omits",
+    )
+    opportunity_import.add_argument(
+        "--dry-run", action="store_true", help="report what would change; change nothing"
+    )
+    opportunity_import.set_defaults(handler=cmd_opportunities_import)
     group_list = groups_actions.add_parser("list", help="list groups")
     group_list.add_argument("--kind", help="only groups of this kind")
     group_list.add_argument("--all", action="store_true", help="include archived groups")
@@ -953,6 +983,37 @@ def cmd_groups_import(args: argparse.Namespace) -> int:
     if len(stats.skipped) > 20:
         print(f"  … and {len(stats.skipped) - 20} more skipped")
     return EXIT_OK if not stats.skipped else EXIT_PARTIAL
+
+
+def cmd_opportunities_import(args: argparse.Namespace) -> int:
+    from tessera.opportunities import catalog
+    from tessera.opportunities.store import import_rows, read_rows
+    from tessera.search.update import refresh_opportunities
+
+    config, home = _load(args)
+    engine = _engine(config)
+    try:
+        result = import_rows(engine, read_rows(args.path), f"{config.server.operator} (import)",
+                             source=args.source, complete=args.complete,
+                             dry_run=args.dry_run)  # fmt: skip
+        if not args.dry_run and not result["problems"]:
+            from tessera.lake import Lake
+
+            with Lake(home.lake) as lake:
+                refs = [v["id"] for v in catalog.everything(engine, lake)
+                        if v["source"] == catalog.LOCAL]  # fmt: skip
+            refresh_opportunities(home, engine, refs)
+    finally:
+        engine.dispose()
+    if result["problems"]:
+        print("nothing imported:")
+        for problem in result["problems"][:20]:
+            print(f"  {problem}")
+        return EXIT_PARTIAL
+    verb = "would import" if args.dry_run else "imported"
+    print(f"{verb}: {result['created']} new, {result['updated']} updated, "
+          f"{result['unchanged']} unchanged, {result['archived']} archived")  # fmt: skip
+    return EXIT_OK
 
 
 def cmd_groups_attribute(args: argparse.Namespace) -> int:

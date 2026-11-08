@@ -24,6 +24,7 @@ const NAV = [
     { href: "/publications", label: "Publications", iconName: "publication", match: (p) => p.startsWith("/publications") },
     { href: "/grants", label: "Grants", iconName: "grant", match: (p) => p.startsWith("/grants") },
     { href: "/studies", label: "Studies", iconName: "study", match: (p) => p.startsWith("/studies") },
+    { href: "/opportunities?status=posted&status=forecasted", label: "Opportunities", iconName: "opportunity", match: (p) => p.startsWith("/opportunities") },
   ] },
   { section: "Insight", items: [
     { href: "/insight", label: "Portfolio", iconName: "chart", match: (p) => p.startsWith("/insight") },
@@ -38,6 +39,7 @@ const NAV = [
   { section: "Admin", items: [
     { href: "/admin/sources", label: "Sources", iconName: "sources", match: (p) => p.startsWith("/admin/sources") },
     { href: "/admin/evidence", label: "Evidence", iconName: "sparkle", when: "curate_any", match: (p) => p.startsWith("/admin/evidence") },
+    { href: "/admin/opportunities", label: "Opportunities", iconName: "opportunity", when: "curate_all", match: (p) => p.startsWith("/admin/opportunities") },
     { href: "/admin/groups", label: () => groupsLabel, iconName: "unit", when: "admin", match: (p) => p.startsWith("/admin/groups") },
     { href: "/admin/accounts", label: "Accounts", iconName: "people", when: "admin", match: (p) => p.startsWith("/admin/accounts") },
     { href: "/admin/operations", label: "Operations", iconName: "clock", when: "admin", match: (p) => p.startsWith("/admin/operations") },

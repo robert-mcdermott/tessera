@@ -424,3 +424,78 @@ def orcid_api(
 
     api.route("/record", record)
     return api
+
+
+# --- Grants.gov ----------------------------------------------------------------------------
+
+
+def gg_hit(oid: str, number: str, title: str, status: str = "posted",
+           close: str = "12/01/2026", agency: str = "HHS-NIH11") -> dict[str, Any]:  # fmt: skip
+    return {"id": oid, "number": number, "title": title, "agencyCode": agency,
+            "agency": "National Institutes of Health", "openDate": "10/01/2026",
+            "closeDate": close, "oppStatus": status,
+            "docType": "forecast" if status == "forecasted" else "synopsis",
+            "cfdaList": ["93.393"]}  # fmt: skip
+
+
+def gg_details(hit: dict[str, Any]) -> dict[str, Any]:
+    """An invented opportunity in the shape of Grants.gov's fetchOpportunity answer."""
+    month, day, year = (hit.get("closeDate") or "01/15/2027").split("/")
+    months = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+    when = f"{months[int(month) - 1]} {int(day):02d}, {year} 12:00:00 AM EST"
+    body = {
+        "agencyCode": hit["agencyCode"], "postingDate": "Oct 01, 2026 12:00:00 AM EDT",
+        "awardCeiling": "500000", "awardFloor": "none", "estimatedFunding": "2000000",
+        "numberOfAwards": "4", "costSharing": False,
+        "applicantTypes": [{"id": "06", "description": "Public and State controlled "
+                            "institutions of higher education"},
+                           {"id": "20", "description": "Private institutions of higher "
+                            "education"}],
+        "fundingInstruments": [{"id": "G", "description": "Grant"}],
+        "fundingActivityCategories": [{"id": "HL", "description": "Health"}],
+        "applicantEligibilityDesc": "<p>See Section III of the notice.</p>",
+        "lastUpdatedDate": "Oct 02, 2026 09:00:00 AM EDT",
+        "agencyContactEmail": "program.officer@example.gov",
+    }  # fmt: skip
+    forecast = hit["oppStatus"] == "forecasted"
+    if forecast:
+        body |= {"forecastDesc": "<p>A forecast of a notice.</p>",
+                 "estApplicationResponseDate": when,
+                 "estSynopsisPostingDate": "Dec 01, 2026 12:00:00 AM EST"}  # fmt: skip
+    else:
+        body |= {"synopsisDesc": "<p>Research on <b>CAR T cells</b>.</p><ul><li>One</li></ul>",
+                 "responseDate": when, "archiveDate": "Mar 15, 2027 12:00:00 AM EDT"}  # fmt: skip
+    return {"errorcode": 0, "msg": "Webservice Succeeds", "data": {
+        "id": int(hit["id"]), "opportunityNumber": hit["number"],
+        "opportunityTitle": hit["title"], "owningAgencyCode": hit["agencyCode"],
+        "opportunityCategory": {"category": "D", "description": "Discretionary"},
+        "agencyDetails": {"agencyName": "National Institutes of Health"},
+        "topAgencyDetails": {"agencyName": "Department of Health and Human Services"},
+        "synopsis": None if forecast else body, "forecast": body if forecast else None,
+        "cfdas": [{"cfdaNumber": "93.393", "programTitle": "Cancer Cause and Prevention"}],
+    }}  # fmt: skip
+
+
+def grants_gov_api(hits: list[dict[str, Any]]) -> FakeApi:
+    """search2 lists ``hits`` (the list can be changed between runs); fetchOpportunity
+    answers for any listed or previously listed opportunity."""
+    api = FakeApi()
+    known = {h["id"]: h for h in hits}
+
+    def search(request: httpx.Request) -> httpx.Response:
+        start = body(request).get("startRecordNum", 0)
+        rows = body(request).get("rows", 25)
+        for h in hits:
+            known[h["id"]] = h
+        page = hits[start : start + rows]
+        return httpx.Response(200, json={"errorcode": 0, "msg": "Webservice Succeeds", "data": {
+            "hitCount": len(hits), "startRecord": start, "oppHits": page}})  # fmt: skip
+
+    def details(request: httpx.Request) -> httpx.Response:
+        oid = str(body(request)["opportunityId"])
+        if oid not in known:
+            return httpx.Response(200, json={"errorcode": 1, "msg": "No such opportunity"})
+        return httpx.Response(200, json=gg_details(known[oid]))
+
+    api.route("search2", search).route("fetchOpportunity", details)
+    return api

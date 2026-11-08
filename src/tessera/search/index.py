@@ -55,7 +55,7 @@ log = logging.getLogger("tessera.search")
 
 INDEX_NAME = "search.db"
 SCHEMA_VERSION = 2
-KINDS = ("person", "publication", "grant", "study")  # what "everything" search covers
+KINDS = ("person", "publication", "grant", "study", "opportunity")  # "everything" search
 ALL_KINDS = (*KINDS, "candidate")
 
 # The member list each record's summary carries, by the predicate that links people to it.
@@ -177,6 +177,48 @@ def insert_doc(con: sqlite3.Connection, doc_id: int, doc: Doc) -> None:
             "INSERT INTO facet VALUES (?, ?, ?)",
             [(doc_id, name, value) for name, value in dict.fromkeys(doc.facets)],
         )
+
+
+STATUS_RANK = {"posted": 0, "forecasted": 1, "closed": 2, "archived": 3}
+OPPORTUNITY_SUMMARY = (
+    "id", "source", "source_label", "kind", "number", "title", "sponsor", "status",
+    "status_label", "forecast", "posted", "expected_post", "closes", "internal_deadline",
+    "award_floor", "award_ceiling", "activity_codes", "clinical_trial", "limited_submission",
+    "applicant_types", "categories", "url",
+)  # fmt: skip
+
+
+def opportunity_doc(view: dict[str, Any], today: date) -> Doc:
+    """An opportunity as a search document: soonest deadline first, closed ones last."""
+    closes, posted = view["closes"], view["posted"] or view["expected_post"]
+    status = view["status"]
+    when = closes if closes and status == "posted" else None
+    facets = [("status", status), ("kind", view["kind"]), ("source", view["source"])]
+    if view["sponsor"]:
+        facets.append(("agency", view["sponsor"]))
+    facets += [("activity", a) for a in view["activity_codes"]]
+    facets += [("category", c) for c in view["categories"]]
+    if when is not None:
+        days = (when - today).days
+        facets += [("closing", str(n)) for n in (30, 90) if 0 <= days <= n]
+    return Doc(
+        "opportunity",
+        view["id"],
+        view["title"],
+        " · ".join(x for x in (view["number"], view["sponsor"]) if x) or None,
+        (closes or posted).year if (closes or posted) else None,
+        sort_key=f"{STATUS_RANK[status]}{(closes or date.max).isoformat()}{view['id']}",
+        weight=float(posted.toordinal()) if posted else 0.0,
+        summary={k: view[k] for k in OPPORTUNITY_SUMMARY},
+        terms="; ".join([
+            *(x for x in (view["number"], view["sponsor"], view["parent_sponsor"],
+                          view["agency_code"], view["source_label"]) if x),
+            *view["activity_codes"], *view["categories"], *view["instruments"],
+            *view["assistance_listings"],
+        ]),
+        body=" ".join(x for x in (view["description"], view["eligibility_notes"]) if x),
+        facets=facets,
+    )  # fmt: skip
 
 
 def _pmids_table(pmids: set[str]) -> pa.Table:
@@ -477,6 +519,14 @@ class _Builder:
                 )
             )
 
+    # -- funding opportunities (wave 5) ------------------------------------------------------
+
+    def opportunities(self, today: date) -> None:
+        from tessera.opportunities.catalog import everything
+
+        for view in everything(self.engine, self.lake, today):
+            self.docs.append(opportunity_doc(view, today))
+
     # -- people -----------------------------------------------------------------------------
 
     def persons(self) -> None:
@@ -696,7 +746,9 @@ class _Builder:
         return {k: counts.get(k, 0) for k in ALL_KINDS}
 
 
-def build_index(config: Config, home: DataHome, engine: Engine) -> dict[str, Any]:
+def build_index(
+    config: Config, home: DataHome, engine: Engine, today: date | None = None
+) -> dict[str, Any]:
     """Rebuild ``derived/search.db`` from the lake and ledger. Returns counts and timing."""
     home.require()
     started = time.monotonic()
@@ -706,6 +758,7 @@ def build_index(config: Config, home: DataHome, engine: Engine) -> dict[str, Any
         builder.publications()
         builder.grants()
         builder.studies()
+        builder.opportunities(today or date.today())
         builder.persons()
         builder.candidates()
         counts = builder.write(index_path(home))

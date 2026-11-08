@@ -24,12 +24,20 @@ export const KINDS = {
   study: { title: "Studies", path: "/studies", endpoint: "/api/v1/studies", facets: ["status", "phase", "type", "year"],
     sorts: [["year", "Newest"]], placeholder: "Search titles, conditions, interventions, officials",
     blurb: "Registry records for studies the organization sponsors, hosts, or leads. Statuses are registry statuses." },
+  opportunity: { title: "Opportunities", path: "/opportunities", endpoint: "/api/v1/opportunities",
+    facets: ["status", "closing", "source", "kind", "agency", "activity", "category"], sorts: [["closes", "Closing soonest"], ["posted", "Newest"]],
+    placeholder: "Search titles, sponsors, numbers, and descriptions",
+    blurb: "Funding opportunities: forecast and posted federal ones from Grants.gov, and those the organization tracks itself." },
 };
 
 const LIMIT = 24;
 
+const OPPORTUNITY_FACETS = { posted: "Open", forecasted: "Forecast", grants_gov: "Grants.gov", local: "Tracked here",
+  30: "30 days", 90: "90 days" };
+
 function facetFormat(name, value) {
-  if (name === "status" || name === "phase" || name === "type") return enumLabel(value);
+  if (name === "closing" || name === "source" || (name === "status" && OPPORTUNITY_FACETS[value])) return OPPORTUNITY_FACETS[value] ?? value;
+  if (name === "status" || name === "phase" || name === "type" || name === "kind") return enumLabel(value);
   return value;
 }
 

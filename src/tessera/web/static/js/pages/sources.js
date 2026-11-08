@@ -7,7 +7,8 @@ import { callout, card, freshness, pageHeader, pill } from "../components/ui.js"
 import { show } from "./page.js";
 
 const STATUS_TONE = { succeeded: "ok", partial: "warn", failed: "danger", running: "info" };
-const DOC_NOUNS = { person: ["person", "people"], publication: ["publication"], grant: ["grant"], study: ["study", "studies"] };
+const DOC_NOUNS = { person: ["person", "people"], publication: ["publication"], grant: ["grant"], study: ["study", "studies"],
+  opportunity: ["opportunity", "opportunities"], candidate: ["discovered person", "discovered people"] };
 
 /** A checkpoint scope is "mode:hash"; the mode is what a reader needs. */
 function checkpoint(c) {

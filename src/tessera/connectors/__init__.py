@@ -2,6 +2,7 @@
 
 from tessera.connectors.base import Connector, FetchReport, IngestOptions, Payload, Plan
 from tessera.connectors.ctgov import CtgovConnector
+from tessera.connectors.grantsgov import GrantsGovConnector
 from tessera.connectors.icite import ICiteConnector
 from tessera.connectors.mesh import MeshConnector
 from tessera.connectors.orcid import OrcidConnector
@@ -17,6 +18,7 @@ CONNECTORS: dict[str, type[Connector]] = {
         CtgovConnector,
         OrcidConnector,
         MeshConnector,
+        GrantsGovConnector,
     )
 }
 

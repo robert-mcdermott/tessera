@@ -130,7 +130,7 @@ PostgreSQL support needs the `postgres` extra: `uv sync --extra postgres`. See [
 |---|---|---|---|
 | `contact_email` | text | `""` | Sent with requests to the public APIs, as their usage policies ask. Set it to an address that can be reached |
 
-Each source has its own table, `[sources.pubmed]`, `[sources.icite]`, `[sources.reporter]`, `[sources.ctgov]`, `[sources.orcid]`, and `[sources.mesh]` (NLM's MeSH vocabulary, one 17 MB download a year):
+Each source has its own table, `[sources.pubmed]`, `[sources.icite]`, `[sources.reporter]`, `[sources.ctgov]`, `[sources.orcid]`, `[sources.mesh]` (NLM's MeSH vocabulary, one 17 MB download a year), and `[sources.grants_gov]` (federal funding opportunities):
 
 | Setting | Type | Default | Meaning |
 |---|---|---|---|
@@ -138,6 +138,15 @@ Each source has its own table, `[sources.pubmed]`, `[sources.icite]`, `[sources.
 | `api_key_env` | text | `"NCBI_API_KEY"` for PubMed, else `""` | The environment variable holding an optional API key |
 
 An NCBI API key (created under *API Key Management* in your NCBI account settings) raises PubMed's request limit from three to ten per second, which shortens the first sync of a large organization considerably.
+
+`[sources.grants_gov]` can narrow the opportunities Tessera keeps. Both lists are empty by default, which keeps every forecast and posted federal opportunity (about 1,500):
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `categories` | list of text | `[]` | Grants.gov funding categories, such as `"HL"` (health) and `"ST"` (science and technology) |
+| `agencies` | list of text | `[]` | Agency codes, or their beginnings: `"HHS-NIH"` keeps every NIH institute's, `"NSF"` the National Science Foundation's |
+
+The first sync reads every opportunity's details, about one a second; later syncs read only those that are new or changed, or were last read two weeks ago.
 
 ## `[sync]`
 

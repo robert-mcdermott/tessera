@@ -37,6 +37,8 @@ from .fakes import (
     ctgov_api,
     ctgov_study,
     form,
+    gg_hit,
+    grants_gov_api,
     icite_api,
     no_sleep,
     orcid_api,
@@ -55,7 +57,9 @@ def world() -> FakeApi:
     projects = [reporter_project(i, f"R01CA{i:06d}") for i in range(1, 4)]
     links = {"R01CA000001": ["31000001", "31000002"], "R01CA000002": ["31000004"]}
     studies = [ctgov_study("NCT00000001"), ctgov_study("NCT00000002", pmids=("31000003",))]
-    for part in (pubmed_api(), reporter_api(projects, links), ctgov_api(studies), icite_api()):
+    opportunities = grants_gov_api([gg_hit("990001", "RFA-CA-27-001", "Cell therapy (R01)")])
+    for part in (pubmed_api(), reporter_api(projects, links), ctgov_api(studies), icite_api(),
+                 opportunities):  # fmt: skip
         api.routes.update(part.routes)
     # NLM's file server: this year's MeSH, and an HTML page (status 200) for next year's.
     sample = gzip.compress(
@@ -119,6 +123,7 @@ def test_ingest_all_sources(instance: Instance, engine, network: FakeApi) -> Non
         ("icite", "refresh", "succeeded"),
         ("pubmed", "citing", "succeeded"),
         ("mesh", "annual", "succeeded"),
+        ("grants_gov", "open", "succeeded"),
     ]
     with Lake(instance.home.lake) as lake:
         count = lambda t: lake.scalar(f'SELECT count(*) FROM "{t}"')  # noqa: E731
@@ -130,6 +135,7 @@ def test_ingest_all_sources(instance: Instance, engine, network: FakeApi) -> Non
         assert count("pubmed_article") == 4
         assert count("icite_metrics") == 3  # iCite has nothing for one new paper
         assert count("mesh_descriptor") == 3
+        assert count("grants_gov_opportunity") == 1
         assert (
             lake.scalar("SELECT _source_version FROM ctgov_study LIMIT 1") == "2025-11-06T09:00:00"
         )
@@ -150,6 +156,7 @@ def test_ingest_all_sources(instance: Instance, engine, network: FakeApi) -> Non
         "icite",
         "orcid",
         "mesh",
+        "grants_gov",
     }
 
 

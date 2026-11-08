@@ -103,6 +103,15 @@ enabled = true
 [sources.mesh]
 enabled = true
 
+# Forecast and posted federal funding opportunities from Grants.gov (no key needed), matched to
+# people and groups in Opportunities. Leave both lists empty for every opportunity, or narrow
+# them: funding categories such as "HL" (health) and "ST" (science and technology), and
+# agency codes or their beginnings such as "HHS-NIH" and "NSF".
+[sources.grants_gov]
+enabled = true
+categories = []
+agencies = []
+
 [sync]
 # How many years of history the first sync collects.
 window_years = 5

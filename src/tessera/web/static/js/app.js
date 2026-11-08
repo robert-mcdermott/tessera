@@ -10,21 +10,14 @@ import { closeDrawer } from "./components/drawer.js";
 import { openPalette } from "./components/palette.js";
 import { mountShell } from "./components/shell.js";
 import { emptyState } from "./components/ui.js";
-import { accounts } from "./pages/accounts.js";
 import { browse } from "./pages/browse.js";
-import { candidates } from "./pages/candidates.js";
-import { duplicates } from "./pages/duplicates.js";
-import { evidence } from "./pages/evidence.js";
 import { experts } from "./pages/experts.js";
-import { decisions } from "./pages/decisions.js";
 import { home } from "./pages/home.js";
 import { setProduct, setTitle } from "./pages/page.js";
 import { person } from "./pages/person.js";
 import { grant, publication, study } from "./pages/records.js";
-import { review } from "./pages/review.js";
 import { searchPage } from "./pages/search.js";
 import { nextPath, signIn } from "./pages/signin.js";
-import { sources } from "./pages/sources.js";
 
 applyAppearance();
 
@@ -88,6 +81,8 @@ async function boot() {
   route("/grants/:core", (params) => grant(main, params));
   route("/studies", (_, ctx) => browse(main, "study", ctx));
   route("/studies/:nct", (params) => study(main, params));
+  route("/opportunities", (_, ctx) => browse(main, "opportunity", ctx));
+  route("/opportunities/:id", async (params) => (await import("./pages/opportunities.js")).opportunityPage(main, params));
   const insightPages = () => import("./pages/insight.js");
   route("/insight", async (_, ctx) => (await insightPages()).insightOverview(main, ctx));
   route("/insight/funding", async () => (await insightPages()).funding(main));
@@ -99,20 +94,22 @@ async function boot() {
   route("/insight/snapshots/:id", async (params) => (await insightPages()).snapshotPage(main, params));
   route("/insight/definitions", async () => (await insightPages()).definitions(main));
   route("/inbox", async (_, ctx) => (await import("./pages/inbox.js")).inboxPage(main, ctx));
-  route("/review", () => review(main));
-  route("/review/people", (_, ctx) => candidates(main, ctx));
-  route("/review/duplicates", (_, ctx) => duplicates(main, ctx));
-  route("/review/log", (_, ctx) => decisions(main, ctx));
-  route("/admin/sources", () => sources(main));
+  // Curation and administration pages are loaded on first use: most visits never need them.
+  route("/review", async () => (await import("./pages/review.js")).review(main));
+  route("/review/people", async (_, ctx) => (await import("./pages/candidates.js")).candidates(main, ctx));
+  route("/review/duplicates", async (_, ctx) => (await import("./pages/duplicates.js")).duplicates(main, ctx));
+  route("/review/log", async (_, ctx) => (await import("./pages/decisions.js")).decisions(main, ctx));
+  route("/admin/sources", async () => (await import("./pages/sources.js")).sources(main));
   if (can("admin")) {
-    route("/admin/accounts", (_, ctx) => accounts(main, ctx));
+    route("/admin/accounts", async (_, ctx) => (await import("./pages/accounts.js")).accounts(main, ctx));
     route("/admin/operations", async () => (await import("./pages/operations.js")).operations(main));
     // Loaded on first use, like the graph views.
     const groupsPage = () => import("./pages/groups-admin.js");
     route("/admin/groups", async (_, ctx) => (await groupsPage()).groupsAdmin(main, ctx));
     route("/admin/groups/:ref", async (params, ctx) => (await groupsPage()).groupAdmin(main, params, ctx));
   }
-  if (can("curate_any")) route("/admin/evidence", (_, ctx) => evidence(main, ctx));
+  if (can("curate_all")) route("/admin/opportunities", async () => (await import("./pages/opportunities.js")).opportunitiesAdmin(main));
+  if (can("curate_any")) route("/admin/evidence", async (_, ctx) => (await import("./pages/evidence.js")).evidence(main, ctx));
   fallback(() => {
     setTitle("Not found");
     main.replaceChildren(h("div", { class: "page" }, emptyState({ iconName: "search", title: "Page not found",

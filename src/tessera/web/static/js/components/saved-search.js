@@ -10,7 +10,7 @@ import { itemFor, personRow } from "./items.js";
 import { toast } from "./toast.js";
 import { callout, card, refKind } from "./ui.js";
 
-const PATHS = { person: "/people", publication: "/publications", grant: "/grants", study: "/studies" };
+const PATHS = { person: "/people", publication: "/publications", grant: "/grants", study: "/studies", opportunity: "/opportunities" };
 
 /** Where a saved search shows its results: the browse page with its filters, or Search. */
 export function savedHref(s) {

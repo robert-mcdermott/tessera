@@ -359,3 +359,32 @@ def _refresh_meta(con: sqlite3.Connection) -> None:
             *((f"count:{k}", str(counts.get(k, 0))) for k in ALL_KINDS),
         ],
     )
+
+
+def refresh_opportunities(home: DataHome, engine: Engine, refs: Iterable[str]) -> int | None:
+    """Rewrite the documents of these opportunities (``opp:<id>``) after a change to the
+    organization's own. Returns how many were written, or None when there is no index."""
+    from tessera.opportunities.catalog import some
+    from tessera.search.index import opportunity_doc
+
+    path = index_path(home)
+    if not path.is_file():
+        return None
+    wanted = sorted(set(refs))
+    today = date.today()
+    with Lake(home.lake) as lake:
+        views = {v["id"]: v for v in some(engine, lake, wanted, today)}
+    con = sqlite3.connect(path, timeout=15)
+    try:
+        for found in _docs(con, set(wanted)).values():
+            _delete_doc(con, found["id"])
+        next_id = _next_id(con)
+        for ref in wanted:
+            if ref in views:
+                insert_doc(con, next_id, opportunity_doc(views[ref], today))
+                next_id += 1
+        _refresh_meta(con)
+        con.commit()
+    finally:
+        con.close()
+    return sum(1 for ref in wanted if ref in views)

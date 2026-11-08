@@ -31,6 +31,7 @@ PREFIXES = {
     "srh": "saved search",
     "rpt": "report",
     "snp": "snapshot",
+    "opl": "opportunity",
 }
 
 _CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
