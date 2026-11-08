@@ -213,9 +213,11 @@ def test_the_exit_export_needs_nothing_but_open_formats(demo, tmp_path: Path) ->
     assert not (out / "ledger" / "auth_session.csv").exists()
     dictionary = (out / "DATA-DICTIONARY.md").read_text()
     for table in metadata.sorted_tables:
-        if table.name not in exit.SKIPPED_TABLES:
+        assert exit.LEDGER_NOTES.get(table.name) or table.name in exit.SKIPPED_TABLES, table.name
+        if table.name in exit.OPTIONAL_TABLES:  # the assistant is off: no trace of its log
+            assert f"### ledger/{table.name}" not in dictionary
+        elif table.name not in exit.SKIPPED_TABLES:
             assert f"### ledger/{table.name}" in dictionary
-            assert exit.LEDGER_NOTES.get(table.name), f"no note for {table.name}"
     for name in result.lake:
         assert exit.LAKE_NOTES.get(name), f"no note for {name}"
     manifest = json.loads((out / "manifest.json").read_text())

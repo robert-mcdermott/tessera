@@ -54,7 +54,8 @@ async function boot() {
     const next = window.location.pathname + window.location.search;
     window.location.assign(`/sign-in?next=${encodeURIComponent(next)}`);
   }, { once: true });
-  const palette = () => openPalette({ actions: [
+  const extraActions = []; // from modules the server names
+  const palette = () => openPalette({ actions: [...extraActions,
     { group: "Actions", title: "Appearance…", iconName: "palette", run: () => openAppearance() },
     { group: "Actions", title: "Switch light or dark", iconName: "moon", run: () => {
       const next = THEMES[(THEMES.indexOf(currentTheme()) + 1) % THEMES.length];
@@ -62,7 +63,8 @@ async function boot() {
       applyTheme(next);
     } },
   ] });
-  const { main } = mountShell(root, meta, { onSearch: palette });
+  const shell = mountShell(root, meta, { onSearch: palette });
+  const { main } = shell;
 
   route("/", () => home(main, meta));
   route("/search", (_, ctx) => searchPage(main, ctx));
@@ -114,6 +116,14 @@ async function boot() {
   }
   if (can("curate_all")) route("/admin/opportunities", async () => (await import("./pages/opportunities.js")).opportunitiesAdmin(main));
   if (can("curate_any")) route("/admin/evidence", async (_, ctx) => (await import("./pages/evidence.js")).evidence(main, ctx));
+  // Optional modules the server names; there are none unless its configuration enables one.
+  for (const url of meta.extensions ?? []) {
+    try {
+      (await import(url)).install?.({ main, meta, route, shell, addAction: (action) => extraActions.push(action) });
+    } catch (error) {
+      console.error(`Could not load ${url}`, error);
+    }
+  }
   fallback(() => {
     setTitle("Not found");
     main.replaceChildren(h("div", { class: "page" }, emptyState({ iconName: "search", title: "Page not found",

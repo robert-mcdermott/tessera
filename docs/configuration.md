@@ -260,6 +260,28 @@ Who hears when something goes wrong; see [Running Tessera](operations.md#alerts)
 | `email` | list of addresses | empty | Who is emailed when a sync has failures, a source goes stale, or backups lapse. Empty: problems show in Admin → Operations only |
 | `backup_days` | number | `7` | Warn when the last `tessera backup` is older than this many days (0 to 365; 0 never warns) |
 
+## `[ai]`
+
+The optional assistant; see [The assistant](assistant.md). Without this section, or with `enabled = false`, nothing of it exists in the app, the API, or the public site.
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `enabled` | true/false | `false` | Turns the assistant on |
+| `provider` | text | (required) | The protocol: `openai` (Chat Completions), `anthropic` (Messages), or `bedrock` (Amazon Bedrock's Converse API) |
+| `model` | text | (required) | The model's name, or Bedrock's model or inference profile ID |
+| `base_url` | text | the official service | The endpoint's root, such as `http://127.0.0.1:11434/v1` (`openai`) or `http://127.0.0.1:11434` (`anthropic`) |
+| `api_key_env` | text | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `AWS_BEARER_TOKEN_BEDROCK` | The environment variable holding the key; with no key set, none is sent (fine for local servers) |
+| `region` | text | `""` | Bedrock: the AWS region (required for Bedrock) |
+| `headers` | list | `[]` | Extra `"Name: value"` headers for a gateway; never a key |
+| `max_tokens` | number | `1500` | The longest answer, in tokens |
+| `temperature` | number | `0.2` | 0 to 2; lower is steadier |
+| `timeout_seconds` | number | `120` | How long to wait for the provider |
+| `daily_limit` | number | `100` | Questions per person per day; 0 for no limit |
+| `roles` | list | `[]` | The roles that may use it (`admin`, `curator`, `manager`, `researcher`, `viewer`); empty for everyone who may read. Admins always may |
+| `log_days` | number | `365` | How long exchanges stay in the log |
+
+A setting named like a key (`api_key`, `secret`, `token`, `password`) is refused, and so is an `Authorization` header: keys belong in the environment.
+
 ## `[insight]`
 
 Portfolio figures; see [Insight](insight.md).

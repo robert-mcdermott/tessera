@@ -45,6 +45,7 @@ from tessera.ledger.tables import metadata
 # Never exported: secrets that would let someone sign in as somebody else.
 WITHHELD = {"account": {"password_hash"}, "auth_session": {"token_hash", "csrf_token"}}
 SKIPPED_TABLES = {"auth_session"}  # signed-in browsers: nothing anyone needs to leave with
+OPTIONAL_TABLES = {"ai_exchange"}  # left out while empty and the feature is off
 
 LEDGER_NOTES = {
     "person": "One row per person in the directory, and discovered, dismissed, and merged ones",
@@ -74,6 +75,7 @@ LEDGER_NOTES = {
     "opportunity_interest": "Opportunities people watch or have dismissed from their own lists",
     "team": "Teams assembled for an opportunity, with the topics they need and their sharing",
     "team_member": "The people on each team, with their roles",
+    "ai_exchange": "Exchanges with the optional assistant: who asked, the model, the answer",
     "auto_accept_batch": "Links accepted automatically, by batch",
     "ingest_run": "Every fetch, resolve, and build run",
     "source_checkpoint": "Where each source's incremental fetches left off",
@@ -174,6 +176,9 @@ def write_exit(config: Config, home: DataHome, engine: Engine, out: Path) -> Exi
             for table in metadata.sorted_tables:
                 if table.name in SKIPPED_TABLES:
                     continue
+                unused = table.name in OPTIONAL_TABLES and not config.ai.enabled
+                if unused and not conn.execute(select(table).limit(1)).first():
+                    continue  # an optional feature never turned on leaves no trace
                 hidden = WITHHELD.get(table.name, set())
                 columns = [c for c in table.columns if c.name not in hidden]
                 key = list(table.primary_key.columns)

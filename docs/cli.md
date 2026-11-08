@@ -319,6 +319,22 @@ usage: tessera groups list [-h] [--kind KIND] [--all]
 | `--kind KIND` | only groups of this kind |
 | `--all` | include archived groups |
 
+## `tessera ai`
+
+The optional assistant ([ai] in the configuration).
+
+```text
+usage: tessera ai [-h] ACTION ...
+```
+
+### `tessera ai check`
+
+One round trip to the configured provider.
+
+```text
+usage: tessera ai check [-h]
+```
+
 ## `tessera opportunities`
 
 Funding opportunities the organization tracks itself.

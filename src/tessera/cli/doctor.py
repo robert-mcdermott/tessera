@@ -67,9 +67,31 @@ def run_checks(config_path: str | None, *, online: bool = False) -> list[Check]:
             str(WEB_ROOT) if index.is_file() else f"missing {index}",
         )
     )
+    if config.ai.enabled:  # nothing is said of the assistant unless it is turned on
+        checks.append(_check_ai(config))
     if online:
         checks += _check_sources(config)
     return checks
+
+
+def _check_ai(config: Config) -> Check:
+    import os
+
+    ai = config.ai
+    where = f"{ai.provider} · {ai.model} at {ai.url}"
+    if ai.provider == "bedrock":
+        token = os.environ.get(ai.api_key_env or "AWS_BEARER_TOKEN_BEDROCK")
+        keys = os.environ.get("AWS_ACCESS_KEY_ID") and os.environ.get("AWS_SECRET_ACCESS_KEY")
+        if not (token or keys):
+            return Check("Assistant", FAIL, f"{where}: set AWS_BEARER_TOKEN_BEDROCK, or "
+                         "AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY")  # fmt: skip
+        return Check("Assistant", OK, where)
+    official = not ai.base_url
+    if official and not os.environ.get(ai.key_env):
+        return Check("Assistant", FAIL, f"{where}: set {ai.key_env} (the official service "
+                     "needs a key)")  # fmt: skip
+    keyed = "with a key" if os.environ.get(ai.key_env) else "without a key"
+    return Check("Assistant", OK, f"{where} ({keyed}); `tessera ai check` tries it")
 
 
 def _check_backup(config: Config) -> Check:

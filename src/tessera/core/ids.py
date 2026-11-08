@@ -33,6 +33,7 @@ PREFIXES = {
     "snp": "snapshot",
     "opl": "opportunity",
     "tem": "team",
+    "aix": "assistant exchange",
 }
 
 _CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"

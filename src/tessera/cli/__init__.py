@@ -214,6 +214,14 @@ def build_parser() -> argparse.ArgumentParser:
     group_public.add_argument("groups", nargs="+", help="addresses, codes, or IDs")
     group_public.add_argument("--off", action="store_true", help="take the pages away")
     group_public.set_defaults(handler=cmd_public, what="group")
+    # The optional assistant: not listed in the help (it says nothing unless [ai] is enabled).
+    ai_cmd = commands.add_parser("ai", description="The optional assistant ([ai] in the "
+                                 "configuration).")  # fmt: skip
+    commands._choices_actions = [a for a in commands._choices_actions if a.dest != "ai"]
+    ai_actions = ai_cmd.add_subparsers(dest="ai_command", metavar="ACTION", required=True)
+    ai_actions.add_parser("check", help="one round trip to the configured provider").set_defaults(
+        handler=cmd_ai_check
+    )
     opportunities_cmd = commands.add_parser(
         "opportunities", help="funding opportunities the organization tracks itself"
     )
@@ -1003,6 +1011,45 @@ def cmd_groups_import(args: argparse.Namespace) -> int:
     if len(stats.skipped) > 20:
         print(f"  … and {len(stats.skipped) - 20} more skipped")
     return EXIT_OK if not stats.skipped else EXIT_PARTIAL
+
+
+def cmd_ai_check(args: argparse.Namespace) -> int:
+    import time
+
+    from tessera.ai.providers import ProviderError, make
+
+    config, _ = _load(args)
+    if not config.ai.enabled:
+        print("The assistant is not enabled ([ai] enabled = false).")
+        return EXIT_ERROR
+    started = time.monotonic()
+    tools = [
+        {
+            "name": "echo",
+            "description": "Repeat a word.",
+            "parameters": {
+                "type": "object",
+                "properties": {"word": {"type": "string"}},
+                "required": ["word"],
+            },
+        }
+    ]
+    try:
+        provider = make(config.ai)
+        try:
+            reply = provider.complete("Reply in one word.", [{"role": "user", "text": "Ready?"}])
+            tool = provider.complete("Use the echo tool with the word ready.",
+                                     [{"role": "user", "text": "Go."}], tools)  # fmt: skip
+        finally:
+            provider.close()
+    except ProviderError as exc:
+        print(f"{config.ai.provider} · {config.ai.model}: {exc}")
+        return EXIT_ERROR
+    seconds = time.monotonic() - started
+    print(f"{config.ai.provider} · {config.ai.model} at {config.ai.url}: answered "
+          f"“{reply.text.strip()[:60]}” and {'called' if tool.tool_calls else 'did not call'} "
+          f"a tool, in {seconds:.1f}s")  # fmt: skip
+    return EXIT_OK if tool.tool_calls else EXIT_PARTIAL
 
 
 def cmd_opportunities_import(args: argparse.Namespace) -> int:

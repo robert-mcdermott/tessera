@@ -174,6 +174,47 @@ class InsightConfig:
     small_number: int = 5  # counts above zero and below this are marked as small numbers
 
 
+AI_PROVIDERS = ("openai", "anthropic", "bedrock")
+AI_DEFAULT_URLS = {"openai": "https://api.openai.com/v1", "anthropic": "https://api.anthropic.com"}
+AI_DEFAULT_KEYS = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}
+
+
+@dataclass(frozen=True)
+class AIConfig:
+    """The optional assistant (wave 5). Off, and invisible, unless ``enabled``.
+
+    ``provider`` is the protocol spoken: ``openai`` for any endpoint that speaks the Chat
+    Completions API, ``anthropic`` for any that speaks the Messages API, ``bedrock`` for Amazon
+    Bedrock's Converse API. Keys are never written here: ``api_key_env`` names the environment
+    variable that holds one (Bedrock reads AWS_BEARER_TOKEN_BEDROCK, or access keys)."""
+
+    enabled: bool = False
+    provider: str = ""
+    base_url: str = ""  # the provider's API root; the official one when empty
+    model: str = ""
+    api_key_env: str = ""  # the variable holding the key; empty: the provider's usual one
+    region: str = ""  # Bedrock: the AWS region, such as us-west-2
+    headers: tuple[str, ...] = ()  # extra "Name: value" headers for a gateway (no secrets)
+    max_tokens: int = 1500
+    temperature: float = 0.2
+    timeout_seconds: int = 120
+    daily_limit: int = 100  # questions per person per day; 0: no limit
+    roles: tuple[str, ...] = ()  # the roles that may use it; empty: everyone who may read
+    log_days: int = 365  # how long exchanges are kept in the log
+
+    @property
+    def url(self) -> str:
+        if self.base_url:
+            return self.base_url.rstrip("/")
+        if self.provider == "bedrock":
+            return f"https://bedrock-runtime.{self.region}.amazonaws.com"
+        return AI_DEFAULT_URLS.get(self.provider, "")
+
+    @property
+    def key_env(self) -> str:
+        return self.api_key_env or AI_DEFAULT_KEYS.get(self.provider, "")
+
+
 @dataclass(frozen=True)
 class AlertsConfig:
     """Who hears when something goes wrong (PLT-12), by email through [mail]."""
@@ -272,6 +313,7 @@ class Config:
     publish: PublishConfig = field(default_factory=PublishConfig)
     insight: InsightConfig = field(default_factory=InsightConfig)
     alerts: AlertsConfig = field(default_factory=AlertsConfig)
+    ai: AIConfig = field(default_factory=AIConfig)
     path: Path | None = None  # the file this configuration was loaded from
 
     @property
@@ -296,6 +338,7 @@ _SECTIONS: dict[str, type] = {
     "publish": PublishConfig,
     "insight": InsightConfig,
     "alerts": AlertsConfig,
+    "ai": AIConfig,
 }
 _SOURCE_NAMES = ("pubmed", "icite", "reporter", "ctgov", "orcid", "mesh", "grants_gov")
 _PATH_FIELDS = {
@@ -426,10 +469,18 @@ def _coerce_env(value: str, kind: type, var: str, problems: list[str]) -> Any:
     return value
 
 
+SECRET_SETTINGS = ("api_key", "key", "secret", "token", "password", "aws_secret_access_key")
+
+
 def _build(cls: type, section: str, table: dict[str, Any], problems: list[str]) -> Any:
     known = {f.name: f for f in fields(cls)}
     kwargs: dict[str, Any] = {}
     for key, value in table.items():
+        if key not in known and key.lower() in SECRET_SETTINGS:
+            problems.append(f"{section}.{key}: keys and secrets are never written in this "
+                            "file; put the key in an environment variable and name it with "
+                            "api_key_env")  # fmt: skip
+            continue
         if key not in known:
             problems.append(f"unknown setting {section}.{key}")
             continue
@@ -697,6 +748,33 @@ def validate(config: Config) -> list[str]:
     email = config.sources.contact_email
     if email and not _EMAIL.match(email):
         problems.append(f"sources.contact_email: {email!r} is not an email address")
+    ai = config.ai
+    if ai.enabled:
+        if ai.provider not in AI_PROVIDERS:
+            problems.append(f"ai.provider must be one of {', '.join(AI_PROVIDERS)}")
+        if not ai.model:
+            problems.append("ai.model is required when the assistant is enabled")
+        if ai.provider == "bedrock" and not (ai.region or ai.base_url):
+            problems.append("ai.region is required for Amazon Bedrock")
+        if ai.base_url and not re.match(r"https?://", ai.base_url):
+            problems.append("ai.base_url must start with http:// or https://")
+        for header in ai.headers:
+            if ":" not in header:
+                problems.append(f"ai.headers: {header!r} is not 'Name: value'")
+            elif header.split(":", 1)[0].strip().lower() in ("authorization", "x-api-key"):
+                problems.append("ai.headers: keys are never written in this file; use api_key_env")
+        if not 1 <= ai.max_tokens <= 64000:
+            problems.append("ai.max_tokens must be between 1 and 64000")
+        if not 0 <= ai.temperature <= 2:
+            problems.append("ai.temperature must be between 0 and 2")
+        if ai.daily_limit < 0 or ai.log_days < 1 or ai.timeout_seconds < 1:
+            problems.append("ai.daily_limit must be 0 or more, and ai.log_days and "
+                            "ai.timeout_seconds 1 or more")  # fmt: skip
+        known_roles = ("admin", "curator", "manager", "researcher", "viewer")
+        for role in ai.roles:
+            if role not in known_roles:
+                problems.append(f"ai.roles: {role!r} is not one of {', '.join(known_roles)}")
+
     from tessera.opportunities.codes import APPLICANT_TYPES
 
     for code in config.organization.applicant_types:

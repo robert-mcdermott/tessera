@@ -120,7 +120,7 @@ Released as [v0.4.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0
 | 2 | Funding opportunities | Grants.gov connector; opportunities an organization tracks itself (foundation, internal, limited submission) | ☑ |
 | 3 | Opportunity navigator | Fit and eligibility as separate signals with reasons; opportunities for a person and in a group's inbox and digest | ☑ |
 | 4 | Team builder | Assemble people for an opportunity, see covered and missing concepts, export a team brief | ☑ |
-| 5 | The AI layer | Optional, **off by default and invisible until enabled** (no menu item, setting, route, or mention in the app, the API document, or the public site); any OpenAI-compatible or Anthropic-compatible endpoint, official or self-hosted (including local models), and Amazon Bedrock, with credentials from the environment; full model, prompt, and source logging | ☐ |
+| 5 | The AI layer | Optional, **off by default and invisible until enabled** (no menu item, setting, route, or mention in the app, the API document, or the public site); any OpenAI-compatible or Anthropic-compatible endpoint, official or self-hosted (including local models), and Amazon Bedrock, with credentials from the environment; full model, prompt, and source logging | ☑ |
 | 6 | Grounded questions and answers | Answers that cite Tessera records and decline what the records don't support; the assistant reads only what the signed-in person may read | ☐ |
 | 7 | Plain-language summaries | Reviewable lay summaries for profiles and group pages, approved before they are shown | ☐ |
 | 8 | Release prep | Guides, screenshots, evaluation, changelog, release | ☐ |

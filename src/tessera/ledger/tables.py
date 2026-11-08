@@ -604,3 +604,31 @@ team_member = Table(
     CheckConstraint(_in("role", TEAM_ROLES), name="role"),
 )
 Index(None, team_member.c.person_id)
+
+# Every exchange with the optional assistant (wave 5): who asked, the provider and model, the
+# prompt's version, the messages and tool calls (with the records they returned), the answer,
+# its citations, tokens, time, and outcome. Kept ``[ai] log_days``.
+AI_STATUSES = ("answered", "declined", "failed", "limited")
+ai_exchange = Table(
+    "ai_exchange",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("owner", String(200), nullable=False),
+    Column("asked_by", String(200), nullable=False),
+    Column("kind", String(20), nullable=False),
+    Column("provider", String(20), nullable=False),
+    Column("model", String(200), nullable=False),
+    Column("prompt_version", String(40), nullable=False),
+    Column("question", Text),
+    Column("request", JsonType, nullable=False),
+    Column("answer", Text),
+    Column("citations", JsonType, nullable=False),
+    Column("usage", JsonType, nullable=False),
+    Column("status", String(16), nullable=False),
+    Column("error", Text),
+    Column("started_at", UtcDateTime, nullable=False),
+    Column("seconds", Float),
+    CheckConstraint(_in("status", AI_STATUSES), name="status"),
+)
+Index(None, ai_exchange.c.owner, ai_exchange.c.started_at)
+Index(None, ai_exchange.c.started_at)

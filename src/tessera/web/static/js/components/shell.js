@@ -55,6 +55,7 @@ export function mountShell(root, meta, { onSearch }) {
   const product = meta.product;
   const org = meta.organization;
   const navItems = [];
+  const sections = new Map(); // section label -> its container, for items added later
   const sidebar = h("nav", { class: "sidebar", "aria-label": "Main" },
     // An organization's own logo replaces the mark and name (light and dark versions).
     product.logo
@@ -68,16 +69,11 @@ export function mountShell(root, meta, { onSearch }) {
     NAV.map((group) => {
       const items = group.items.filter((item) => !item.when || can(item.when));
       if (!items.length) return null;
-      return h("div", { class: "nav" },
+      const container = h("div", { class: "nav" },
         group.section ? h("div", { class: "nav-section" }, group.section) : null,
-        items.map((item) => {
-          const label = typeof item.label === "function" ? item.label() : item.label;
-          const badge = item.badge ? h("span", { class: "badge", hidden: true }) : null;
-          const node = h("a", { class: "nav-item", href: item.href, title: label },
-            icon(item.iconName), h("span", { class: "nav-label" }, label), badge);
-          navItems.push({ node, item, badge });
-          return node;
-        }));
+        items.map((item) => navItem(item)));
+      if (group.section) sections.set(group.section, container);
+      return container;
     }),
     h("div", { class: "sidebar-footer" },
       h("span", {}, org.name),
@@ -86,6 +82,15 @@ export function mountShell(root, meta, { onSearch }) {
       product.show_powered_by
         ? h("span", {}, "Powered by ", h("a", { href: "/api/docs" }, `Tessera ${product.version}`))
         : null));
+
+  function navItem(item) {
+    const label = typeof item.label === "function" ? item.label() : item.label;
+    const badge = item.badge ? h("span", { class: "badge", hidden: true }) : null;
+    const node = h("a", { class: "nav-item", href: item.href, title: label },
+      icon(item.iconName), h("span", { class: "nav-label" }, label), badge);
+    navItems.push({ node, item, badge });
+    return node;
+  }
 
   const appearanceButton = iconButton("palette", "Appearance", { onclick: () => openAppearance() });
 
@@ -171,7 +176,18 @@ export function mountShell(root, meta, { onSearch }) {
     }
     closeMenu();
   });
-  return { main };
+
+  // For modules the server names (meta.extensions): a menu item in a section, and a button in
+  // the top bar.
+  const addNavItem = (section, item) => {
+    if (item.when && !can(item.when)) return;
+    const node = navItem(item);
+    const container = sections.get(section);
+    if (container) container.insertBefore(node, container.querySelector("a[href='/api/docs']"));
+    else sidebar.insertBefore(h("div", { class: "nav" }, h("div", { class: "nav-section" }, section), node), sidebar.querySelector(".sidebar-footer"));
+  };
+  const addTopbarItem = (node) => topbar.querySelector(".topbar-actions").prepend(node);
+  return { main, addNavItem, addTopbarItem };
 }
 
 const ROLE_NAMES = { admin: "Admin", curator: "Curator", researcher: "Researcher", viewer: "Viewer" };

@@ -304,6 +304,8 @@ def authorize(request: Request) -> None:
     path = getattr(route, "path", request.url.path)
     method = "GET" if request.method == "HEAD" else request.method
     level = POLICIES.get((method, path))
+    if level is None:  # routes an optional feature adds when the configuration turns it on
+        level = getattr(request.app.state, "extra_policies", {}).get((method, path))
     if level is None:
         if path.startswith("/api"):
             raise HTTPException(status_code=403, detail="This route has no access policy.")
