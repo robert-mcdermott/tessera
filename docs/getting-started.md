@@ -86,6 +86,8 @@ Open <http://127.0.0.1:8000>. You will find:
 - **Sources:** data health, recent runs, and the search index.
 - **API reference** at `/api/docs`, for building on Tessera. See [The API](api.md).
 
+![Tessera's home page: counts of people, publications, active grants, and studies, recent publications, and the largest active grants](images/home-light.webp "The home page (the demo organization)")
+
 Out of the box Tessera has no sign-in and answers on this machine only (`127.0.0.1`); decisions are recorded under the `[server] operator` name. To let several people sign in with their own roles, see [Accounts and sign-in](operations.md#accounts-and-sign-in).
 
 ## Optional: import a roster

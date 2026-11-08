@@ -2,7 +2,7 @@
 
 **Goal:** a product site with the full, illustrated documentation, so that people outside the pilot can find Tessera, see it, and try it. See the [roadmap](../roadmap.md#documentation-site-between-v020-and-v030-).
 
-**Branch:** `docs-site` · **Version:** none of its own; the site describes the latest release (0.2.0) · **Status:** ◐ slices 1–3 done
+**Branch:** `docs-site` · **Version:** none of its own; the site describes the latest release (0.2.0) · **Status:** ◐ slices 1–3 done; slice 4 built, publication waiting for the maintainer
 
 From now on, every release-prep slice refreshes the site: screenshots of changed screens are retaken, the guides are checked against the changelog, and the site is rebuilt and published once the release is out.
 
@@ -31,10 +31,12 @@ From now on, every release-prep slice refreshes the site: screenshots of changed
 
 **Acceptance (met):** all 34 screenshots (3.4 MB) and 4 diagrams are produced in about a minute with no manual steps; every screen is the real app showing the invented organization.
 
-## Slice 4: Home page, figures, and publishing ☐
+## Slice 4: Home page, figures, and publishing ◐
 
-- [ ] A product home page; figures in the guides that follow the theme on the site (GitHub shows the light version)
-- [ ] Publishing to the `gh-pages` branch only with `--publish`; the release-prep checklist in [process.md](../process.md) includes the site
+- [x] A product home page (`docs/site/pages/index.html`, a fragment with `{{shot:name|alt}}` placeholders for screenshots): what Tessera is, four principles, five features with screenshots, how it works, the demo in five commands, and the guides
+- [x] Figures in the guides (twelve, from the home page to the unit matrix) that follow the theme on the site; GitHub shows the light version, and the README's screenshot switches with GitHub's theme
+- [x] A social preview card (`docs/images/social-preview.png`, 1200 × 630) rendered from `docs/capture/social.html`
+- [x] Publishing to the `gh-pages` branch only with `--publish`; [process.md](../process.md) describes building, reviewing, and publishing, and the release-prep checklist includes the site
 - [ ] First publication on the maintainer's go-ahead
 
 ## Decisions and notes log

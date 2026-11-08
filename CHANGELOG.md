@@ -8,6 +8,7 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 
 - `tessera demo [PATH]` builds a complete installation for an invented organization, the Corvane Institute for Biomedical Research: about 100 people in 22 labs, 700 publications, grants, clinical studies, ORCID records, and a curator's decisions, so every screen has something to show. Identifiers are chosen so they can never be mistaken for real ones. It is also what the documentation's screenshots are taken from.
 - Screenshots for the documentation are taken from the real app, serving the demo organization, in light and dark (`node docs/capture/capture.mjs`), and the diagrams are drawn as SVG (`node docs/capture/diagrams.mjs`).
+- A product home page for the documentation site, figures in the guides, a social preview card, and a screenshot at the top of the README.
 - A documentation site, built from the guides with `node docs/site/build.mjs` (Node.js 22, no packages): a menu in reading order, search, light and dark themes from Tessera's own design tokens, an API reference generated from the OpenAPI document, and a check that fails the build on any broken link or anchor.
 
 ### Changed

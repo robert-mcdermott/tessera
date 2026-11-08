@@ -19,6 +19,7 @@ const REPO = resolve(HERE, "..", "..");
 const DOCS = join(REPO, "docs");
 const STATIC = join(REPO, "src", "tessera", "web", "static");
 const GITHUB = "https://github.com/robert-mcdermott/tessera";
+const SITE = "https://robert-mcdermott.github.io/tessera/"; // where the site is published
 
 // Reading order, in groups. Each guide becomes a page of the same name.
 export const MENU = [
@@ -169,12 +170,21 @@ function linker(fromDir) {
   };
 }
 
+/** {{shot:name|alt}} in the home page: a picture from docs/images, following the theme. */
+function shots(html) {
+  return html.replace(/\{\{shot:([\w-]+)\|([^}]*)\}\}/g, (_, name, alt) => {
+    const ext = ["webp", "svg", "png"].find((e) => existsSync(join(DOCS, "images", `${name}-light.${e}`)));
+    if (!ext) throw new Error(`No image docs/images/${name}-light.(webp|svg|png) for the home page`);
+    return figure(alt, `images/${name}-light.${ext}`, "", "shot");
+  });
+}
+
 /** A paragraph that is only an image becomes a figure; light and dark versions follow the theme. */
-function figure(alt, src, caption) {
+function figure(alt, src, caption, cls = "") {
   const dark = src.replace(/-light\.(webp|png|svg)$/, "-dark.$1");
   const hasDark = dark !== src && existsSync(join(DOCS, dark));
   const img = (file, cls) => `<img src="${file}" alt="${escapeHtml(alt)}" loading="lazy"${cls ? ` class="${cls}"` : ""}>`;
-  return `<figure>${hasDark ? img(src, "only-light") + img(dark, "only-dark") : img(src, "")}`
+  return `<figure${cls ? ` class="${cls}"` : ""}>${hasDark ? img(src, "only-light") + img(dark, "only-dark") : img(src, "")}`
     + `${caption ? `<figcaption>${escapeHtml(caption)}</figcaption>` : ""}</figure>`;
 }
 
@@ -192,6 +202,8 @@ function shell({ name, title, body, headings, description, ver, prev, next }) {
 <meta property="og:title" content="${escapeHtml(title)}">
 <meta property="og:description" content="${escapeHtml(description)}">
 <meta property="og:type" content="website">
+<meta property="og:image" content="${SITE}images/social-preview.png">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/svg+xml" href="assets/tessera-mark.svg">
 <link rel="stylesheet" href="assets/tokens.css">
 <link rel="stylesheet" href="assets/site.css">
@@ -226,6 +238,13 @@ ${body}
 </body>
 </html>
 `;
+}
+
+/** The home page: a hand-written fragment (docs/site/pages/index.html) with screenshots. */
+function home() {
+  const html = shots(readFileSync(join(HERE, "pages", "index.html"), "utf8"));
+  const headings = [...html.matchAll(/<h([1-3]) id="([^"]+)">(.*?)<\/h\1>/g)].map((m) => ({ level: Number(m[1]), id: m[2], text: plain(m[3]) }));
+  return { html, headings };
 }
 
 function plain(html) {
@@ -338,17 +357,19 @@ export function build(out) {
     let source;
     let blocks = [];
     let fromDir = DOCS;
-    if (name === "index") source = readFileSync(join(HERE, "pages", "index.md"), "utf8");
+    if (name === "index") source = null;
     else if (name === "changelog") { source = readFileSync(join(REPO, "CHANGELOG.md"), "utf8"); fromDir = REPO; }
     else if (name === "api-reference") ({ md: source, blocks } = apiReference(spec));
     else source = readFileSync(join(DOCS, `${name}.md`), "utf8");
-    const { html: rendered, headings } = markdown(source, { link: linker(fromDir), figure });
+    const { html: rendered, headings } = source === null
+      ? home()
+      : markdown(source, { link: linker(fromDir), figure });
     let html = rendered.replace(/<p>@@(\d+)@@<\/p>/g, (_, i) => renderEndpoint(blocks[Number(i)]));
     for (const b of blocks) headings.push({ level: 3, text: `${b.method} ${b.path}`, id: b.id });
     if (name === "api-reference") headings.splice(0, headings.length, ...headings.filter((h) => h.level === 2));
-    const first = plain(rendered.match(/<p>(.*?)<\/p>/s)?.[1] || label);
+    const first = plain(rendered.match(/<p class="lead">(.*?)<\/p>/s)?.[1] || rendered.match(/<p>(.*?)<\/p>/s)?.[1] || label);
     const title = name === "index" ? "Tessera: every contribution, connected" : (headings.find((h) => h.level === 1)?.text || label);
-    if (name === "index") html = `<div class="home">${html}</div>`;
+
     writeFileSync(join(out, `${name}.html`), shell({
       name, title, body: html, headings, description: first.slice(0, 200), ver,
       prev: order[index - 1], next: order[index + 1],

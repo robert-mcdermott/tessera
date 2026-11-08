@@ -5,6 +5,7 @@
 //   node docs/capture/capture.mjs profile evidence   only these scenes
 //   node docs/capture/capture.mjs --theme dark       only one theme
 //   node docs/capture/capture.mjs --demo PATH        reuse a demo built with `tessera demo PATH`
+//   node docs/capture/capture.mjs social             only the social preview card (from home-light)
 //
 // It builds the demo in a temporary directory (unless --demo is given), serves it on a free
 // port, opens each scene in headless Chrome, and saves docs/images/<scene>-<theme>.webp.
@@ -85,6 +86,18 @@ async function people(base) {
   };
 }
 
+/** The card shown when the site is linked: docs/capture/social.html, 1200 x 630. */
+async function social(browser) {
+  const page = await browser.page();
+  await page.viewport({ width: 1200, height: 630, scale: 1 });
+  await page.media({ "prefers-color-scheme": "light" });
+  await page.goto(`file://${join(HERE, "social.html")}`);
+  await page.until("[...document.images].every((i) => i.complete && i.naturalWidth > 0)");
+  writeFileSync(join(IMAGES, "social-preview.png"), await page.screenshot({ format: "png" }));
+  await page.close();
+  console.log("  social preview");
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const option = (name) => { const i = args.indexOf(name); if (i < 0) return null; const v = args[i + 1]; args.splice(i, 2); return v; };
@@ -93,6 +106,13 @@ async function main() {
   const demoArg = option("--demo");
   const wanted = new Set(args);
   const scenes = SCENES.filter((s) => !wanted.size || wanted.has(s.name));
+  const withSocial = !wanted.size || wanted.has("social");
+  wanted.delete("social");
+  if (!scenes.length && withSocial) {
+    const browser = await launch();
+    try { await social(browser); } finally { await browser.close(); }
+    return;
+  }
   const unknown = [...wanted].filter((w) => !SCENES.some((s) => s.name === w));
   if (unknown.length) throw new Error(`No such scene: ${unknown.join(", ")}`);
 
@@ -137,6 +157,7 @@ async function main() {
         console.log(`  ${scene.name} (${theme})`);
       }
     }
+    if (withSocial) await social(browser);
   } finally {
     await browser.close();
     server.kill();

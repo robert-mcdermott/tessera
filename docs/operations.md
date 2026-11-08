@@ -37,6 +37,8 @@ A systemd timer works the same way: run `uv run tessera --quiet sync` from the f
 
 `uv run tessera runs` lists recent runs with their status and counts. A run that ends *partial* fetched some but not all of its batches; the next sync retries from the last complete checkpoint, so nothing is skipped.
 
+![Admin, Sources: each source's last successful fetch, the evidence engine, and the search index](images/sources-light.webp "Admin → Sources: data health")
+
 ## Serving the app
 
 ```bash
