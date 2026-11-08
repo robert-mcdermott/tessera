@@ -36,7 +36,7 @@ then normalize the vector to unit length, and keep the top 200 concepts
 - **Status.** Most people's papers are suggestions long before anyone confirms them, so profiles that waited for confirmation would be empty for months. Strong suggestions (at or above `evidence.strong_threshold`) therefore count at half weight (`discovery.likely_weight`); setting it to 0 counts confirmed papers only. Weaker suggestions never count. A profile shows, for each concept, how many of its papers are confirmed.
 - **IDF** keeps broad descriptors from dominating; the +1 keeps a concept everyone shares from vanishing entirely. Check-tag descriptors ("Humans", "Female", "Adult") are excluded outright, and so are laboratory tools that say how rather than what ("Green Fluorescent Proteins", "Transfection", "RNA, Small Interfering").
 - **Recency decay** (5-year half-life) keeps profiles current without discarding history. The half-life is a setting.
-- Profiles are computed in DuckDB from the lake and the ledger's links, and written atomically to `derived/concept_profile.parquet` by `tessera sync` and `tessera build profiles`.
+- Profiles are computed in DuckDB from the lake and the ledger's links, and written atomically to `derived/concept_profile.parquet` by `tessera sync` and `tessera build discovery`.
 
 ## Similarity
 
@@ -49,37 +49,41 @@ then normalize the vector to unit length, and keep the top 200 concepts
 
 | Signal | Meaning | Source |
 |---|---|---|
-| **Coauthorship** | They have published together | Accepted authorships on shared PMIDs |
-| **Co-investigation** | They share a grant or study | Investigator and official assertions |
+| **Coauthorship** | They have published together | Shared papers, counted as for concept profiles (confirmed, or strong suggestions at half weight) |
+| **Co-investigation** | They share a grant or study | Grant investigators (from the funder) and study officials |
 | **Similarity** | Their research overlaps | Concept profiles |
 | **Missed connection** | High similarity, no shared papers, grants, or studies | Similarity minus collaboration |
 | **Bridge** | Connects otherwise separate groups | Betweenness in the coauthor network |
 
 *Missed connections* are Tessera's most distinctive discovery feature: people who should probably meet, ranked by overlap, with the shared concepts as the conversation starter.
 
+**Collaboration strength.** Each shared paper, grant, or study adds 1/(k − 1) to a pair, where k is the number of directory members on it. Two people who wrote twenty papers together outweigh forty people who share one consortium paper, without discarding either. Pairs are precomputed into `derived/collaboration_edge.parquet` with their counts, years, and most recent shared papers.
+
 ## Graph views
 
 | View | Nodes | Edges | Question it answers |
 |---|---|---|---|
-| **Person focus** | One person, their top concepts, and the people who share them | person–concept only | "Who shares my interests, and around what?" |
+| **Person focus** | One person, their top 10 concepts, and the 30 people whose profiles overlap most on those concepts | person–concept only | "Who shares my interests, and around what?" |
 | **Collaboration network** | People | Coauthorship (solid) and missed connections (dashed) | "Who works together, and who should?" |
-| **Concept landscape** | Concepts | Co-occurrence across people | "What are our research areas and how do they connect?" |
+| **Concept landscape** | Concepts among people's top 15, held by at least 2 people | Co-occurrence across people; each concept keeps its 5 strongest links, and concepts with none are left out | "What are our research areas and how do they connect?" |
 | **Unit matrix** | Units × units heatmap | Similarity versus actual collaboration | "Which departments share interests but rarely collaborate?" |
 
 ### Design lessons that shape these views
 
 - **In person focus, draw person–concept edges only.** Drawing direct person–person edges as well collapses a force layout into one tangle around the focused person. When concepts act as hubs, people cluster naturally around what they share. Person–person similarity belongs in the side panel list, with scores and shared concepts.
 - **Hover dims the rest.** Hovering a node fades everything except it, its neighbors, and their edges.
-- **Search inside the graph.** Typing a name highlights matches and flies the view to the chosen node.
-- **Focus and reset.** Any node can become the new focus; a breadcrumb trail allows stepping back.
+- **Search inside the graph.** Typing a name highlights matches; Enter flies the view to the best match and selects it.
+- **Labels never collide.** Labels are placed by priority (hovered, selected, in focus, found, then each view's key nodes, then the largest) and skipped where they would overlap another label or cover a node, so the picture stays legible; zooming in reveals more.
+- **Focus and reset.** Any person can become the new focus (double-click, or **Focus on them**); a breadcrumb trail of the last five allows stepping back. Double-clicking a concept opens the expert finder for it.
 - **Deep links.** Every profile links to its own focus view; every graph state is in the URL.
-- **Bounded size.** Views default to about 150 nodes. Controls (minimum similarity, maximum people, unit filter) are debounced and only filter precomputed data.
+- **Bounded size.** Views default to about 150 nodes; the network keeps the people with the most collaboration. Controls (minimum similarity, maximum people, unit filter) only filter precomputed data.
 - **Heatmaps sort by density** and open the underlying list on click, loading it in one request.
 
 ## Rendering (vanilla, no libraries)
 
-- A small **force-directed layout** (charge, link springs, collision, centering, with a grid-based approximation for repulsion) runs in a **Web Worker** so the page stays responsive.
-- Drawing uses **Canvas 2D** for the network with a hit-testing index for hover and click, and **SVG** for small views and heatmaps, where crisp text and accessibility matter more.
+- A small **force-directed layout** (charge, link springs, collision, centering, with a grid-based approximation for repulsion) runs in a **Web Worker** so the page stays responsive. It is a pure module, deterministic for the same input, and unit-tested without a browser. On a laptop, 300 nodes and 600 links lay out with no main-thread task over 50 ms.
+- The graph views load on first use, so they add nothing to the app's start-up size.
+- Drawing uses **Canvas 2D** for the graphs, with a grid index for hit-testing hover and click, and colours read from the theme's tokens so the graphs follow the palette and light or dark mode. **SVG** is for small views and heatmaps, where crisp text and accessibility matter more.
 - The layout cools and stops. Users can pin nodes by dragging. `prefers-reduced-motion` skips the animation and shows the settled layout.
 - **Accessibility:** every graph view has a "List" toggle that presents the same nodes and relationships as a sortable, keyboard-navigable table. The graph is never the only way to get the information.
 

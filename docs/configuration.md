@@ -136,4 +136,4 @@ Concept profiles and similar people. See [Finding experts](discovery.md).
 | `similarity_floor` | 0 to below 1 | `0.10` | Pairs of people less similar than this are not listed as similar |
 | `similar_per_person` | 1 to 200 | `25` | At most this many similar people are kept for each person |
 
-Changes take effect at the next `tessera sync` or `tessera build profiles`.
+Changes take effect at the next `tessera sync` or `tessera build discovery`.

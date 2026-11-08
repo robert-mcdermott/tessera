@@ -19,6 +19,7 @@ const NAV = [
   { section: "Explore", items: [
     { href: "/people", label: "People", iconName: "people", match: (p) => p.startsWith("/people") },
     { href: "/experts", label: "Find experts", iconName: "compass", match: (p) => p.startsWith("/experts") },
+    { href: "/graph", label: "Connections", iconName: "network", match: (p) => p.startsWith("/graph") },
     { href: "/publications", label: "Publications", iconName: "publication", match: (p) => p.startsWith("/publications") },
     { href: "/grants", label: "Grants", iconName: "grant", match: (p) => p.startsWith("/grants") },
     { href: "/studies", label: "Studies", iconName: "study", match: (p) => p.startsWith("/studies") },

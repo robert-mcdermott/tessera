@@ -128,7 +128,9 @@ Each is a small ES module that returns DOM. There is no virtual DOM and no templ
 
 | Budget | Target |
 |---|---|
-| App shell JS + CSS (gzipped) | ≤ 100 KB |
+| App shell JS + CSS (gzipped): the scripts imported at start, and every style | ≤ 100 KB |
+| Each part loaded on first use, such as the graph views (gzipped) | ≤ 40 KB |
+| Laying out a graph of about 150 nodes | No main-thread task over 50 ms (the layout runs in a worker) |
 | First meaningful render on a laptop | < 1 s |
 | Profile API response (p95), 5k people, 300k publications | < 300 ms |
 | Search API response (p95) | < 200 ms |

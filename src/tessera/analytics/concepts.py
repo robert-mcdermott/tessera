@@ -73,8 +73,12 @@ def _write(table: pa.Table, path: Path) -> None:
     fsync_dir(path.parent)
 
 
-def _sources(engine: Engine, config: Config) -> tuple[pa.Table, pa.Table]:
-    """The papers and studies that count for each directory member, with their status factor."""
+def linked_records(engine: Engine, config: Config) -> tuple[pa.Table, pa.Table, pa.Table]:
+    """The papers, studies, and grants that count for each directory member.
+
+    Papers and studies carry a status factor: 1 when confirmed, ``discovery.likely_weight``
+    for a strong suggestion not yet confirmed. Grants come from the funder's investigator
+    lists, so they are always confirmed."""
     likely = config.discovery.likely_weight
     strong = config.evidence.strong_threshold
     directory = {p.id for p in store.load_people(engine)}
@@ -82,8 +86,14 @@ def _sources(engine: Engine, config: Config) -> tuple[pa.Table, pa.Table]:
         k: [] for k in ("person_id", "pmid", "position", "count", "factor", "confirmed")
     }
     studies: dict[str, list[Any]] = {k: [] for k in ("person_id", "nct_id", "factor")}
+    grants: dict[str, list[Any]] = {"person_id": [], "core": []}
     for r in store.assertions_for(engine, statuses=("accepted", "suggested")):
         if r["subject_id"] not in directory:
+            continue
+        if r["predicate"] == "investigator_on":
+            if r["status"] == "accepted":
+                grants["person_id"].append(r["subject_id"])
+                grants["core"].append(r["object_id"].removeprefix("grt:"))
             continue
         confirmed = r["status"] == "accepted"
         if not confirmed and (likely <= 0 or (r["score"] or 0) < strong):
@@ -121,6 +131,7 @@ def _sources(engine: Engine, config: Config) -> tuple[pa.Table, pa.Table]:
                 [("person_id", pa.string()), ("nct_id", pa.string()), ("factor", pa.float64())]
             ),
         ),
+        pa.table(grants, schema=pa.schema([("person_id", pa.string()), ("core", pa.string())])),
     )
 
 
@@ -216,7 +227,7 @@ def build_profiles(
     """Write ``derived/concept_profile.parquet`` and ``derived/similarity_pair.parquet``."""
     year = (today or date.today()).year
     half = config.discovery.half_life_years
-    papers, studies = _sources(engine, config)
+    papers, studies, _ = linked_records(engine, config)
     with Lake(home.lake) as lake:
         cur = lake.cursor()
         try:
@@ -252,4 +263,4 @@ def build_profiles(
     }
 
 
-__all__ = ["build_profiles", "profile_path", "similarity_path"]
+__all__ = ["build_profiles", "linked_records", "profile_path", "similarity_path"]

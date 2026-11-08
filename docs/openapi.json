@@ -1365,6 +1365,227 @@
         }
       }
     },
+    "/api/v1/graph/focus/{person_id}": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "A person, their top concepts, and who shares them",
+        "operationId": "focus_api_v1_graph_focus__person_id__get",
+        "parameters": [
+          {
+            "name": "person_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Person Id"
+            }
+          },
+          {
+            "name": "concepts",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 20,
+              "minimum": 3,
+              "description": "The person's top concepts shown",
+              "default": 10,
+              "title": "Concepts"
+            },
+            "description": "The person's top concepts shown"
+          },
+          {
+            "name": "people",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 5,
+              "description": "People sharing them, at most",
+              "default": 30,
+              "title": "People"
+            },
+            "description": "People sharing them, at most"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Focus Api V1 Graph Focus  Person Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/network": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "People linked by collaboration and, without it, by similarity",
+        "operationId": "collaboration_network_api_v1_graph_network_get",
+        "parameters": [
+          {
+            "name": "unit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 300
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only people in this unit",
+              "title": "Unit"
+            },
+            "description": "Only people in this unit"
+          },
+          {
+            "name": "max_people",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 400,
+              "minimum": 10,
+              "default": 150,
+              "title": "Max People"
+            }
+          },
+          {
+            "name": "min_similarity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "default": 0.25,
+              "title": "Min Similarity"
+            }
+          },
+          {
+            "name": "similar",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Show similar people who have not worked together",
+              "default": true,
+              "title": "Similar"
+            },
+            "description": "Show similar people who have not worked together"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Collaboration Network Api V1 Graph Network Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/landscape": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Concepts linked by the people who hold them together",
+        "operationId": "concept_landscape_api_v1_graph_landscape_get",
+        "parameters": [
+          {
+            "name": "max_concepts",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 400,
+              "minimum": 10,
+              "default": 150,
+              "title": "Max Concepts"
+            }
+          },
+          {
+            "name": "min_people",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 2,
+              "title": "Min People"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Concept Landscape Api V1 Graph Landscape Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/candidates": {
       "get": {
         "tags": [

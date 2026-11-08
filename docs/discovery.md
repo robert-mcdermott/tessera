@@ -1,6 +1,6 @@
 # Finding experts
 
-Tessera describes each person's research with the MeSH headings that PubMed indexers attach to their papers. From those it answers "who works on this?", lists people with similar interests on every profile, and shows exactly what drives each person's topics. This guide explains what you see and how it is built.
+Tessera describes each person's research with the MeSH headings that PubMed indexers attach to their papers. From those it answers "who works on this?", lists people with similar interests on every profile, draws who works with whom, and shows exactly what drives each person's topics. This guide explains what you see and how it is built.
 
 ## Who works on…?
 
@@ -34,12 +34,26 @@ The **Similar people** card on a profile lists the people whose topics overlap m
 
 Similarity reflects the topics of people's papers. It says nothing about the quality of anyone's work or whether they are available to collaborate.
 
+## Connections
+
+**Connections**, in the sidebar, draws three pictures of the organization. Each one has a **List** view with the same people, topics, and relationships as sortable tables, for keyboard and screen-reader use, or for copying.
+
+| View | Shows | Use it to see |
+|---|---|---|
+| **Collaboration** | People. A solid line means they share papers, grants, or studies; it is thicker the more they share and the fewer others share it. A dashed line means similar interests without any shared work | Who works together, and who might |
+| **Person focus** | One person, their top topics, and the people who share those topics, gathered around them | Who shares someone's interests, and around what |
+| **Concept landscape** | Topics, linked when the same people hold both; clusters are research areas | What the organization works on, and how the areas connect |
+
+In the graph, hover over anyone to fade everything but them and their connections, and select them to see the details beside the graph: who they worked with (papers, grants, studies, and years) and who shares their interests. Double-click a person, or choose **Focus on them**, to put them at the centre; the trail above the graph steps back. Double-click a topic to find experts on it. Drag a node to pin it in place, scroll or use the buttons to zoom, and type in **Find in this graph** to highlight people or topics by name (Enter flies to the first).
+
+**Collaboration** shows at most 150 people by default, those with the most collaboration; the controls change the number, set how similar two people must be for a dashed line, filter by unit, or hide similarity. Every choice is in the address, so a view can be shared as a link. Each profile's **Similar people** card links to that person's focus view.
+
 ## Keeping it current
 
-`tessera sync` rebuilds profiles and similar people at the end of every run. To rebuild them alone, for example after many curation decisions or a change to `[discovery]`:
+`tessera sync` rebuilds profiles, similar people, and the graphs at the end of every run. To rebuild them alone, for example after many curation decisions or a change to `[discovery]`:
 
 ```bash
-tessera build profiles
+tessera build discovery
 ```
 
 Until profiles have been built once, **Find experts** says so instead of showing results.

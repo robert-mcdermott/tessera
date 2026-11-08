@@ -74,6 +74,8 @@ async function boot() {
   route("/", () => home(main, meta));
   route("/search", (_, ctx) => searchPage(main, ctx));
   route("/experts", (_, ctx) => experts(main, ctx));
+  // Loaded on first use: the graph views are larger than the rest and not needed at start.
+  route("/graph", async (_, ctx) => (await import("./pages/graph.js")).graph(main, ctx));
   route("/people", (_, ctx) => browse(main, "person", ctx));
   route("/people/:id", (params, ctx) => person(main, params, ctx));
   route("/publications", (_, ctx) => browse(main, "publication", ctx));

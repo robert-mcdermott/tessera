@@ -13,15 +13,17 @@ from tessera.jobs.lock import job_lock
 from tessera.search.index import build_index
 
 
-def build_profiles(config: Config, home: DataHome, engine: Engine) -> dict[str, Any]:
-    """Concept profiles and similar people (derived/concept_profile.parquet and pairs)."""
-    from tessera.analytics.concepts import build_profiles as build
+def build_discovery(config: Config, home: DataHome, engine: Engine) -> dict[str, Any]:
+    """Concept profiles, similar people, and the collaboration graph (``derived/``)."""
+    from tessera.analytics.concepts import build_profiles
+    from tessera.analytics.graph import build_graph
 
     home.require()
     with job_lock(home.root):
-        run_id = runs.start_run(engine, "discovery", "build", {"artifact": "profiles"})
+        run_id = runs.start_run(engine, "discovery", "build", {"artifact": "discovery"})
         try:
-            result = build(config, home, engine)
+            result = build_profiles(config, home, engine)
+            result |= build_graph(config, home, engine)
         except BaseException as exc:
             runs.finish_run(engine, run_id, "failed", {}, f"{exc.__class__.__name__}: {exc}")
             raise

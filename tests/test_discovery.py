@@ -1,4 +1,4 @@
-"""Concept profiles, similar people, and the expert finder (DIS-04 to DIS-06)."""
+"""Concept profiles, similar people, the expert finder, and the graph (DIS-04 to DIS-07)."""
 
 from __future__ import annotations
 
@@ -15,7 +15,8 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.engine import Engine
 
-from tessera.analytics.concepts import _sources, build_profiles, profile_path, similarity_path
+from tessera.analytics.concepts import build_profiles, linked_records, profile_path, similarity_path
+from tessera.analytics.graph import build_graph, collaboration_path, concept_edge_path
 from tessera.api.app import create_app
 from tessera.config import Config, example_config_text, load_config
 from tessera.evidence import store
@@ -95,6 +96,7 @@ def org(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Org]:
     resolve(config, home, engine, today=TODAY)
     build_search(config, home, engine)
     built = build_profiles(config, home, engine, today=TODAY)
+    built |= build_graph(config, home, engine)
     with TestClient(create_app(config), base_url="http://localhost") as client:
         yield Org(
             config,
@@ -149,9 +151,9 @@ def test_strong_suggestions_count_before_curation_catches_up(org: Org) -> None:
 
 def test_likely_weight_zero_counts_confirmed_papers_only(org: Org) -> None:
     strict = replace(org.config, discovery=replace(org.config.discovery, likely_weight=0.0))
-    papers, _ = _sources(org.engine, strict)
+    papers, _, _ = linked_records(org.engine, strict)
     assert papers.num_rows > 0 and all(papers.column("confirmed").to_pylist())
-    loose, _ = _sources(org.engine, org.config)
+    loose, _, _ = linked_records(org.engine, org.config)
     assert loose.num_rows > papers.num_rows
     assert set(loose.column("factor").to_pylist()) == {1.0, org.config.discovery.likely_weight}
 
@@ -264,5 +266,168 @@ def test_words_that_match_nothing(org: Org) -> None:
 def test_before_profiles_are_built(client: TestClient) -> None:
     body = ok(client.get("/api/v1/experts", params={"q": "anything"}))
     assert body["data"] == [] and body["meta"]["ready"] is False
-    assert "tessera build profiles" in body["meta"]["note"]
+    assert "tessera build discovery" in body["meta"]["note"]
     assert ok(client.get("/api/v1/concepts", params={"q": "cancer"}))["data"] == []
+
+
+# --- the collaboration graph and the concept landscape (DIS-07) --------------------------------
+
+
+def test_collaboration_counts_shared_records_weighted_by_team_size(org: Org) -> None:
+    papers, studies, grants = linked_records(org.engine, org.config)
+    members: dict[tuple[str, str], set[str]] = defaultdict(set)
+    for kind, table, ref in (
+        ("paper", papers, "pmid"),
+        ("grant", grants, "core"),
+        ("study", studies, "nct_id"),
+    ):
+        for row in table.to_pylist():
+            members[(kind, row[ref])].add(row["person_id"])
+    expected: dict[tuple[str, str], dict] = defaultdict(lambda: defaultdict(float))
+    for (kind, _), people in members.items():
+        for a in people:
+            for b in people:
+                if a < b:
+                    expected[(a, b)][kind] += 1
+                    expected[(a, b)]["strength"] += 1 / (len(people) - 1)
+    rows = pq.read_table(collaboration_path(org.home)).to_pylist()
+    assert rows and org.built["collaborations"] == len(rows) == len(expected)
+    for r in rows:
+        want = expected[(r["person_id"], r["other_id"])]
+        assert (r["papers"], r["grants"], r["studies"]) == (
+            want["paper"],
+            want["grant"],
+            want["study"],
+        )
+        assert r["strength"] == pytest.approx(want["strength"])
+        assert r["confirmed_papers"] <= r["papers"] and len(r["recent"]) <= min(5, r["papers"])
+    # Insiders publish within their own field.
+    same = sum(org.topic_of[r["person_id"]] == org.topic_of[r["other_id"]] for r in rows)
+    assert same / len(rows) >= 0.9
+
+
+def test_concept_landscape_pairs(org: Org) -> None:
+    rows = pq.read_table(concept_edge_path(org.home)).to_pylist()
+    assert rows and org.built["concept_pairs"] == len(rows)
+    assert all(r["concept_id"] < r["other_id"] and r["people"] >= 2 for r in rows)
+
+
+def test_network_view(org: Org) -> None:
+    body = ok(org.client.get("/api/v1/graph/network"))
+    meta, nodes, edges = body["meta"], body["data"]["nodes"], body["data"]["edges"]
+    assert meta["ready"] and meta["shown"] == len(nodes) <= meta["people"]
+    ids = {n["id"] for n in nodes}
+    assert all(n["kind"] == "person" and n["label"] for n in nodes)
+    assert all(e["source"] in ids and e["target"] in ids for e in edges)
+    together = {(e["source"], e["target"]) for e in edges if e["kind"] == "collaboration"}
+    assert together
+    for e in edges:  # in this world, everyone with similar interests already works together
+        assert e["kind"] == "collaboration"
+    linked = {p for e in edges for p in (e["source"], e["target"])}
+    assert linked == ids  # no one is drawn without a line
+
+    plain = ok(
+        org.client.get("/api/v1/graph/network", params={"similar": "false", "max_people": 10})
+    )
+    assert len(plain["data"]["nodes"]) <= 10
+    assert {e["kind"] for e in plain["data"]["edges"]} == {"collaboration"}
+
+    unit = max(meta["units"], key=lambda u: u["count"])["value"]
+    narrow = ok(org.client.get("/api/v1/graph/network", params={"unit": unit}))["data"]
+    assert len(narrow["nodes"]) < len(nodes)
+    assert all(unit in n["units"] for n in narrow["nodes"])
+
+
+def test_similar_people_who_have_not_worked_together_are_dashed(tmp_path: Path) -> None:
+    import pyarrow as pa
+
+    from tessera.analytics.concepts import _write
+    from tessera.analytics.graph import network
+    from tessera.lake import Lake
+
+    home = DataHome(tmp_path / "var")
+    home.create()
+    home.derived.mkdir(parents=True, exist_ok=True)
+    shared = [{"descriptor_ui": "D1", "descriptor": "Sleep", "contribution": 0.3}]
+    _write(
+        pa.table({"person_id": ["a"], "descriptor_ui": ["D1"], "weight": [1.0]}), profile_path(home)
+    )
+    _write(
+        pa.table(
+            {
+                "person_id": ["a", "b", "a", "c", "b", "d"],
+                "other_id": ["b", "a", "c", "a", "d", "b"],
+                "score": [0.5, 0.5, 0.2, 0.2, 0.4, 0.4],
+                "shared": [shared] * 6,
+            }
+        ),
+        similarity_path(home),
+    )
+    _write(
+        pa.table(
+            {
+                "person_id": ["b", "c"],
+                "other_id": ["d", "d"],
+                "papers": [3, 1],
+                "confirmed_papers": [3, 1],
+                "grants": [0, 0],
+                "studies": [0, 0],
+                "strength": [3.0, 1.0],
+                "first_year": [2020, 2024],
+                "last_year": [2024, 2024],
+                "recent": [["1", "2", "3"], ["4"]],
+            }
+        ),
+        collaboration_path(home),
+    )
+    with Lake(home.lake) as lake:
+        result = network(lake, home)
+        edges = {(e["source"], e["target"]): e["kind"] for e in result["edges"]}
+        # a-b: similar, never together; a-c: below 0.25; b-d: together, so solid only.
+        assert edges == {
+            ("a", "b"): "similarity",
+            ("b", "d"): "collaboration",
+            ("c", "d"): "collaboration",
+        }
+        assert network(lake, home, allowed={"a", "b"})["edges"][0]["kind"] == "similarity"
+        assert {n["id"] for n in network(lake, home, max_people=2)["nodes"]} == {"b", "d"}
+        assert network(lake, home, min_similarity=0.1, similar=False)["edges"] == [
+            e for e in result["edges"] if e["kind"] == "collaboration"
+        ]
+
+
+def test_person_focus_view(org: Org) -> None:
+    person = next(iter(profiles(org)))
+    body = ok(org.client.get(f"/api/v1/graph/focus/{person}", params={"concepts": 5, "people": 8}))
+    nodes, edges = body["data"]["nodes"], body["data"]["edges"]
+    [focus] = [n for n in nodes if n.get("focus")]
+    assert focus["id"] == person and focus["label"]
+    kinds = {n["id"]: n["kind"] for n in nodes}
+    assert sum(k == "concept" for k in kinds.values()) == 5
+    assert sum(k == "person" for k in kinds.values()) <= 9
+    # Person-concept edges only: people gather around what they share.
+    for e in edges:
+        assert {kinds[e["source"]], kinds[e["target"]]} == {"person", "concept"}
+    reached = {e["source"] for e in edges}
+    assert all(n["id"] in reached for n in nodes if n["kind"] == "person")
+    weights = [c["weight"] for c in body["meta"]["collaborators"]]
+    assert weights == sorted(weights, reverse=True)
+    assert all(c["source"] == person and c["name"] for c in body["meta"]["collaborators"])
+    assert org.client.get("/api/v1/graph/focus/per_nobody").status_code == 404
+
+
+def test_concept_landscape_view(org: Org) -> None:
+    body = ok(org.client.get("/api/v1/graph/landscape", params={"max_concepts": 30}))
+    nodes, edges = body["data"]["nodes"], body["data"]["edges"]
+    assert 0 < len(nodes) <= 30 and body["meta"]["concepts"] >= len(nodes)
+    ids = {n["id"] for n in nodes}
+    assert all(n["kind"] == "concept" and n["people"] >= 2 for n in nodes)
+    assert all(e["source"] in ids and e["target"] in ids for e in edges)
+    assert {p for e in edges for p in (e["source"], e["target"])} == ids
+
+
+def test_graph_views_before_anything_is_built(client: TestClient) -> None:
+    for path in ("/api/v1/graph/network", "/api/v1/graph/landscape"):
+        body = ok(client.get(path))
+        assert body["meta"]["ready"] is False and body["data"] == {"nodes": [], "edges": []}
+        assert "tessera build discovery" in body["meta"]["note"]

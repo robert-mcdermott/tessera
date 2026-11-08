@@ -19,7 +19,7 @@ from tessera.api.routers.people import _person_row
 router = APIRouter(prefix="/api/v1", tags=["discovery"])
 
 NOT_BUILT = (
-    "Concept profiles have not been built yet; they are built by sync or `tessera build profiles`."
+    "Concept profiles have not been built yet; they are built by sync or `tessera build discovery`."
 )
 
 

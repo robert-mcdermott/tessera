@@ -171,12 +171,12 @@ The search and serving index.
 usage: tessera build search [-h]
 ```
 
-### `tessera build profiles`
+### `tessera build discovery`
 
-Concept profiles and similar people (discovery).
+Concept profiles, similar people, and the collaboration graph.
 
 ```text
-usage: tessera build profiles [-h]
+usage: tessera build discovery [-h]
 ```
 
 ## `tessera sync`

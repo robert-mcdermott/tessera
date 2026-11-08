@@ -36,7 +36,7 @@ scripts/dev-postgres.sh stop
 
 ### Web app tests
 
-The web app has no build step. `tests/test_web.py` checks its safety rules (no inline code, no resources from other origins, no HTML parsing of data), that every module import resolves, and the size budget. When Node.js is installed it also syntax-checks every module and runs the JavaScript unit tests in `tests/js` (`node --test tests/js/*.test.mjs`).
+The web app has no build step. `tests/test_web.py` checks its safety rules (no inline code, no resources from other origins, no HTML parsing of data), that every module import resolves (including worker scripts), that every module is loaded by something, and the size budgets: one for what the app loads at start and one for each part loaded on first use, such as the graph views. When Node.js is installed it also syntax-checks every module and runs the JavaScript unit tests in `tests/js` (`node --test tests/js/*.test.mjs`).
 
 ### Documentation
 

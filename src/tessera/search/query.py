@@ -261,6 +261,19 @@ class SearchIndex:
             con.close()
         return [{"value": r["value"], "count": r["n"]} for r in rows]
 
+    def refs_with(self, kind: str, name: str, value: str) -> set[str]:
+        """The refs of one kind that carry a facet value (for example, people in a unit)."""
+        con = self.connect()
+        try:
+            rows = con.execute(
+                "SELECT d.ref FROM facet f JOIN doc d ON d.id = f.doc_id "
+                "WHERE d.kind = ? AND f.name = ? AND f.value = ?",
+                [kind, name, value],
+            ).fetchall()
+        finally:
+            con.close()
+        return {r["ref"] for r in rows}
+
 
 def _item(row: sqlite3.Row, marks: sqlite3.Row | None = None) -> dict[str, Any]:
     highlights = {}

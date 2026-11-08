@@ -2,7 +2,7 @@
 
 **Goal:** turn the graph into discovery: who works on what, who should meet, and why. Make the evidence stronger with ORCID, and let more than one person use Tessera, each with the right permissions.
 
-**Branch:** `wave-2` · **Target version:** `0.2.0` · **Status:** ◐ slices 1–5 done; slice 6 next
+**Branch:** `wave-2` · **Target version:** `0.2.0` · **Status:** ◐ slices 1–6 done; slice 7 next
 
 ## Exit criteria
 
@@ -78,15 +78,15 @@ Requirements delivered: REC-02 (ORCID), REC-07, REC-08, CUR-05, CUR-06, CUR-10, 
 
 **Acceptance (met):** on the synthetic organization, every person's top three concepts come from their own field, searching a field's heading returns that field's people first, and at least 90% of similar pairs share a field; every result and pair shows its concepts. On the pilot, 57 people have profiles (4,849 concepts); 52 of them have at least one similar person; searches on three well-known topics there, one of them as broad as "cancer", returned the expected people at the top. Without the MeSH descriptor data, profiles are flat (no roll-up to broader areas) and words reach concepts only through papers.
 
-## Slice 6: Collaboration graph ☐
+## Slice 6: Collaboration graph ☑
 
 **Goal:** see the shape of the research community.
 
-- [ ] `derived/coauthor_edge.parquet` from accepted authorships, grants, and studies
-- [ ] Person focus, collaboration network, and concept landscape views (DIS-07): Canvas 2D drawing, force layout in a Web Worker, hover to dim, search and fly-to, focus and breadcrumbs, state in the URL
-- [ ] A list view with the same nodes and relationships for every graph, keyboard navigable; reduced motion shows the settled layout
+- [x] `derived/collaboration_edge.parquet` from papers (counted as for profiles), grants, and studies, each shared record adding 1/(k − 1) for k members on it; `derived/concept_edge.parquet` for the landscape; both built by `tessera build discovery`, which replaces slice 5's `build profiles`
+- [x] Person focus, collaboration network, and concept landscape views (DIS-07): Canvas 2D drawing with theme colours, force layout in a Web Worker (a pure, unit-tested module), hover to dim, labels that never collide, search and fly-to, focus and breadcrumbs, drag to pin, zoom by wheel, keys, or buttons, state in the URL; loaded on first use
+- [x] A list view with the same nodes and relationships for every graph, as sortable tables with keyboard-operable headers; reduced motion shows the settled layout only
 
-**Acceptance:** about 150 nodes lay out without blocking the page; every view has a working list fallback.
+**Acceptance (met):** on the pilot, the landscape's 126 topics and 313 links, and a generated graph of 300 nodes and 600 links, laid out with no main-thread task over 50 ms; every view has a working list. The first-load budget now counts what the app loads at start (90 KB of 100 KB, gzipped); the graph views and their worker add 15 KB when first opened, under their own 40 KB budget.
 
 ## Slice 7: Missed connections and the unit matrix ☐
 

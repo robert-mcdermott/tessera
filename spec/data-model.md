@@ -132,9 +132,12 @@ Contact details from registry records (emails, phone numbers) are **not** stored
 | `derived/concept_profile.parquet` | `pubmed_mesh`, `pubmed_article` keywords, `ctgov_study` MeSH, ledger links | One row per (person, descriptor): `person_id`, `descriptor_ui`, `descriptor`, `weight` (unit length per person), `raw` (before IDF), `papers` (papers and studies behind it), `confirmed` (of those, confirmed), `provisional` (known only from author keywords). Top 200 per person. See [discovery.md](discovery.md#concept-profiles) |
 | `derived/similarity_pair.parquet` | `concept_profile` | One row per direction of each similar pair at or above the floor: `person_id`, `other_id`, `score`, and `shared`, the five shared concepts contributing most (`descriptor_ui`, `descriptor`, `contribution`). At most 25 per person |
 
-Both are rewritten whole and atomically by `tessera sync` and `tessera build profiles`.
+| `derived/collaboration_edge.parquet` | Ledger links (papers counted as for profiles, grant investigators, study officials), `pubmed_article` years | One row per pair of directory members who share work (`person_id` < `other_id`): `papers`, `confirmed_papers`, `grants`, `studies`, `strength` (each shared record adds 1/(k − 1), where k is the number of members on it), `first_year`, `last_year`, and `recent`, the five most recent shared PubMed IDs. See [discovery.md](discovery.md#collaboration-signals) |
+| `derived/concept_edge.parquet` | `concept_profile` | Pairs of concepts held together among people's top 15 (`concept_id` < `other_id`): `people` (at least 2) and `strength` (the sum, over those people, of the smaller of the two weights) |
 
-Later: `coauthor_edge` (wave 2); `metric_*` tables and frozen `snapshot/<id>/` folders (wave 4).
+All four are rewritten whole and atomically by `tessera sync` and `tessera build discovery`.
+
+Later: `metric_*` tables and frozen `snapshot/<id>/` folders (wave 4).
 
 ## Counting rules (to be enforced from the first chart)
 

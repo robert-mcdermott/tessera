@@ -118,6 +118,7 @@ export function person(main, params, { samePage = false } = {}) {
             body: h("div", { class: "stack-sm" }, topicChips(profile.concepts, 8),
               h("p", { class: "subtle" }, "Most distinctive MeSH topics across confirmed and strongly suggested papers.")) }) : null,
         similar.length ? card({ title: "Similar people", pad: true, attrs: { "data-entity": "person" },
+          action: h("a", { class: "btn btn-sm btn-ghost", href: `/graph?view=focus&person=${profile.id}` }, icon("network", "icon icon-sm"), "Connections"),
           body: h("ul", { class: "plain-list similar" }, similar.slice(0, 6).map((p) => h("li", {},
             h("div", { class: "row-sm" }, avatar(p.name, "sm"), h("div", { class: "stack-xs grow" },
               h("a", { href: `/people/${p.id}` }, p.name),

@@ -19,7 +19,7 @@ These parts are not equally precious:
 
 - **The ledger is the only part that holds human work**: people, decisions, notes. Back it up.
 - **The lake and raw downloads** come from public sources and can be fetched again. Keeping `raw/` lets `tessera replay` rebuild the lake without the network.
-- **`derived/`** is always rebuildable with `uv run tessera build search` and `uv run tessera build profiles`.
+- **`derived/`** is always rebuildable with `uv run tessera build search` and `uv run tessera build discovery`.
 
 Only one data job (a sync, ingest, resolve, or build) runs at a time per data home; a second one stops at once and says another job is running. The web app keeps working during jobs.
 
@@ -89,7 +89,7 @@ sqlite3 var/ledger.db ".backup 'backups/ledger-$(date +%F).db'"
 
 Copying the whole data home while no job is running also works. With PostgreSQL, use `pg_dump` as for any database.
 
-To restore, stop Tessera, put the ledger back, and run `uv run tessera build search` and `uv run tessera build profiles` to rebuild the index and profiles from it.
+To restore, stop Tessera, put the ledger back, and run `uv run tessera build search` and `uv run tessera build discovery` to rebuild the index and discovery data from it.
 
 ## Upgrading
 
@@ -98,7 +98,7 @@ git pull
 uv sync
 uv run tessera db upgrade      # apply ledger migrations, if any
 uv run tessera build search    # rebuild the index with the new version
-uv run tessera build profiles  # and the concept profiles
+uv run tessera build discovery # and concept profiles and the graph
 ```
 
 `tessera doctor` and the web app's health check (`/api/v1/health`) report a ledger that needs `db upgrade`. Migrations keep every row: they are tested on SQLite and PostgreSQL with a populated ledger, upgrading and downgrading. Back up the ledger before upgrading anyway. The [changelog](../CHANGELOG.md) notes anything that needs more than these steps.

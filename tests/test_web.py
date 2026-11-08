@@ -27,11 +27,14 @@ CSS_FILES = sorted(CSS_ROOT.rglob("*.css"))
 HTML_FILES = sorted(WEB_ROOT.glob("*.html"))
 NODE = shutil.which("node")
 
-# The first-load budget for the app shell (all scripts and styles, gzipped).
+# The first-load budget for the app shell (the scripts the app imports at start, and every
+# style, gzipped), and a budget for each part loaded on first use (such as the graph views).
 SHELL_BUDGET_BYTES = 100 * 1024
+LAZY_BUDGET_BYTES = 40 * 1024
 
 IMPORT = re.compile(r"""^\s*import\s+(?:\{([^}]*)\}\s+from\s+)?["']([^"']+)["']""", re.M)
 DYNAMIC_IMPORT = re.compile(r"""import\(\s*["']([^"']+)["']\s*\)""")
+WORKER_URL = re.compile(r"""new\s+URL\(\s*["']([^"']+)["']\s*,\s*import\.meta\.url\s*\)""")
 EXPORT_NAME = re.compile(
     r"^export\s+(?:async\s+)?(?:function\*?|const|let|class)\s+([A-Za-z_$][\w$]*)", re.M
 )
@@ -113,6 +116,7 @@ def test_module_imports_resolve(path: Path) -> None:
     text = path.read_text("utf-8")
     specifiers = [(names, spec) for names, spec in IMPORT.findall(text)]
     specifiers += [("", spec) for spec in DYNAMIC_IMPORT.findall(text)]
+    specifiers += [("", spec) for spec in WORKER_URL.findall(text)]
     for names, spec in specifiers:
         assert spec.startswith((".", "/")), f"{_rel(path)} imports a bare module {spec!r}"
         target = (WEB_ROOT / spec.lstrip("/")) if spec.startswith("/") else path.parent / spec
@@ -133,9 +137,51 @@ def test_index_references_resolve(client: TestClient) -> None:
         assert response.status_code == 200, ref
 
 
+def _static_closure(roots: list[Path]) -> set[Path]:
+    """Every module reached from the roots by static imports (dynamic ones load later)."""
+    seen: set[Path] = set()
+    todo = [p.resolve() for p in roots]
+    while todo:
+        path = todo.pop()
+        if path in seen:
+            continue
+        seen.add(path)
+        for _, spec in IMPORT.findall(path.read_text("utf-8")):
+            target = (WEB_ROOT / spec.lstrip("/")) if spec.startswith("/") else path.parent / spec
+            todo.append(target.resolve())
+    return seen
+
+
+def _gzipped(paths: set[Path] | list[Path]) -> int:
+    return sum(len(gzip.compress(p.read_bytes(), 9)) for p in paths)
+
+
 def test_app_shell_fits_the_budget() -> None:
-    total = sum(len(gzip.compress(p.read_bytes(), 9)) for p in JS_FILES + CSS_FILES)
+    shell = _static_closure([JS_ROOT / "app.js"])
+    total = _gzipped(shell) + _gzipped(CSS_FILES)
     assert total <= SHELL_BUDGET_BYTES, f"app shell is {total:,} bytes gzipped"
+
+
+def test_parts_loaded_on_first_use_fit_their_budget() -> None:
+    shell = _static_closure([JS_ROOT / "app.js"])
+    lazy = []
+    for path in JS_FILES:
+        text = path.read_text("utf-8")
+        lazy += [path.parent / spec for spec in DYNAMIC_IMPORT.findall(text)]
+        lazy += [path.parent / spec for spec in WORKER_URL.findall(text)]
+    assert lazy, "nothing is loaded on first use"
+    for root in lazy:
+        part = _static_closure([root]) - shell
+        size = _gzipped(part)
+        assert size <= LAZY_BUDGET_BYTES, f"{_rel(root.resolve())} adds {size:,} bytes gzipped"
+    pages = [
+        WEB_ROOT / src.lstrip("/")
+        for html in HTML_FILES
+        for src in re.findall(r"""<script[^>]+src=["'](/js/[^"']+)["']""", html.read_text("utf-8"))
+    ]
+    every = _static_closure([*pages, *lazy])
+    unused = {p.resolve() for p in JS_FILES} - every
+    assert not unused, f"modules nothing loads: {sorted(_rel(p) for p in unused)}"
 
 
 def _client_with(config_file: Path, branding: str) -> TestClient:

@@ -137,8 +137,8 @@ def build_parser() -> argparse.ArgumentParser:
         handler=cmd_build_search
     )
     build_actions.add_parser(
-        "profiles", help="concept profiles and similar people (discovery)"
-    ).set_defaults(handler=cmd_build_profiles)
+        "discovery", help="concept profiles, similar people, and the collaboration graph"
+    ).set_defaults(handler=cmd_build_discovery)
 
     sync_cmd = commands.add_parser(
         "sync", help="fetch every source and resolve, in the right order (the usual command)"
@@ -587,19 +587,23 @@ def _print_build(result: dict) -> None:  # type: ignore[type-arg]
     )
 
 
-def cmd_build_profiles(args: argparse.Namespace) -> int:
-    from tessera.jobs.build import build_profiles
+def cmd_build_discovery(args: argparse.Namespace) -> int:
+    from tessera.jobs.build import build_discovery
 
     config, home = _load(args)
     engine = _engine(config)
     try:
-        result = build_profiles(config, home, engine)
+        result = build_discovery(config, home, engine)
     finally:
         engine.dispose()
     print(
         f"concept profiles: {result['people']:,} people, {result['concepts']:,} concepts, "
         f"{result['pairs']:,} similar pairs (from {result['papers']:,} papers, "
         f"{result['confirmed_papers']:,} confirmed)"
+    )
+    print(
+        f"collaboration graph: {result['collaborations']:,} collaborating pairs; "
+        f"concept landscape: {result['concept_pairs']:,} linked concepts"
     )
     return EXIT_OK
 
