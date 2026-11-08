@@ -41,8 +41,11 @@ log = logging.getLogger("tessera.ingest")
 PUBLISH_EVERY = 25  # payloads between lake publishes, so interruptions lose little
 ICITE_REFRESH_DAYS = 30
 ORCID_REFRESH_DAYS = 30
-# ORCID comes before "linked", so that papers listed on members' ORCID records are fetched.
-INGEST_ORDER = ("reporter", "ctgov", "pubmed", "orcid", "pubmed:linked", "icite", "mesh")
+# ORCID comes before "linked", so that papers listed on members' ORCID records are fetched;
+# "citing" follows iCite, which says which clinical articles cite the organization's papers.
+INGEST_ORDER = (
+    "reporter", "ctgov", "pubmed", "orcid", "pubmed:linked", "icite", "pubmed:citing", "mesh",
+)  # fmt: skip
 
 
 @dataclass
@@ -115,9 +118,12 @@ def _resolve_ids(
     if options.ids:
         return options
     if source == "icite" and options.mode in {"auto", "refresh"}:
-        ids = pmids_needing_metrics(home)
+        # --full reads every paper again, not only those whose metrics are a month old.
+        ids = pmids_needing_metrics(home, 0 if options.full else ICITE_REFRESH_DAYS)
     elif source == "pubmed" and options.mode == "linked":
         ids = linked_pmids_missing(home, engine)
+    elif source == "pubmed" and options.mode == "citing":
+        ids = citing_pmids_missing(home)
     elif source == "orcid" and options.mode in {"auto", "refresh"}:
         ids = orcids_to_read(home, engine)
     else:
@@ -190,6 +196,20 @@ def linked_pmids_missing(home: DataHome, engine: Engine | None = None) -> list[s
         finally:
             cur.close()
     return [r[0] for r in rows]
+
+
+def citing_pmids_missing(home: DataHome) -> list[str]:
+    """Clinical articles citing the organization's papers whose PubMed record isn't kept yet.
+
+    Articles already among the organization's papers are read from there instead."""
+    with Lake(home.lake) as lake:
+        rows = lake.rows(
+            "SELECT DISTINCT c.citing_pmid AS pmid FROM icite_clinical_citation c "
+            "WHERE NOT EXISTS (SELECT 1 FROM citing_article a WHERE a.pmid = c.citing_pmid) "
+            "AND NOT EXISTS (SELECT 1 FROM pubmed_article a WHERE a.pmid = c.citing_pmid) "
+            "ORDER BY pmid"
+        )
+    return [r["pmid"] for r in rows]
 
 
 def ingest(

@@ -108,7 +108,7 @@ def build_parser() -> argparse.ArgumentParser:
     ingest.add_argument(
         "--mode",
         default="auto",
-        help="org | query | ids | linked or people (pubmed) | pi (reporter) | "
+        help="org | query | ids | linked, people, or citing (pubmed) | pi (reporter) | "
         "refresh (icite, orcid)",
     )
     ingest.add_argument("--ids", nargs="+", default=[], metavar="ID", help="IDs to fetch")

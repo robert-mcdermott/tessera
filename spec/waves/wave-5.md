@@ -2,7 +2,7 @@
 
 **Goal:** connect discovery to outcomes and opportunities. Follow a grant forward to the papers, studies, and clinical citations that came after it; see which open funding opportunities fit the organization's people and groups, and whether the organization can apply; assemble a team for one; and, where an organization chooses to turn it on, ask questions answered from Tessera's own records.
 
-**Branch:** `wave-5` · **Target version:** `0.5.0` · **Status:** ☐ planned
+**Branch:** `wave-5` · **Target version:** `0.5.0` · **Status:** ◐ slice 1 done
 
 ## Exit criteria
 
@@ -35,18 +35,18 @@ Requirements: INT-08 to INT-12, AI-01 to AI-08.
 
 ---
 
-## Slice 1: Grant-to-impact threads ☐
+## Slice 1: Grant-to-impact threads ☑
 
 **Goal:** follow funding forward, with every step typed and sourced (INT-08).
 
-- [ ] iCite's clinical citations (`cited_by_clin`, the clinical articles that cite a paper) kept in a new lake table, filled at the next monthly refresh or by `tessera sync --source icite --refresh`
-- [ ] The citing clinical articles' own records from PubMed (title, journal, year, publication types, with practice guidelines, clinical trials, and meta-analyses marked) in a separate dataset, never among the organization's candidate papers, so authorship matching never sees them
-- [ ] Threads (`tessera.impact`): forward from a grant (acknowledging papers → studies that reference them or are funded by the grant → clinical articles citing the papers), and around a paper, a study, a person's grants, or a group's; every edge typed (`acknowledges`, `references`, `funded_by`, cited by a clinical article) with its source and status; years on every node, so the time from award to clinical citation shows
-- [ ] The thread view on grant pages, and from papers, people, and groups: columns from the grant to clinical citations, with counts, expandable lists, and the paths that reach a practice guideline picked out
-- [ ] **Insight → Impact**: `impact.clinical_citations/v1` (a cohort's papers cited by clinical articles, by year, with guidelines apart) and `impact.studies/v1` (its papers referenced by registered studies), with iCite's caution that a clinical citation is not patient benefit
-- [ ] The demo gains clinical citations and practice guidelines, with invented identifiers that cannot be mistaken for real ones
+- [x] iCite's clinical citations (`cited_by_clin`, the clinical articles that cite a paper) kept in a new lake table, filled as each paper's metrics are refreshed (monthly), or at once with `tessera ingest icite --full`
+- [x] The citing clinical articles' own records from PubMed (title, journal, year, publication types, with practice guidelines, clinical trials, and meta-analyses marked) in a separate dataset, never among the organization's candidate papers, so authorship matching never sees them
+- [x] Threads (`tessera.impact`): forward from a grant (acknowledging papers → studies that reference them or are funded by the grant → clinical articles citing the papers), and around a paper, a study, a person's grants, or a group's; every edge typed (`acknowledges`, `references`, `funded_by`, cited by a clinical article) with its source and status; years on every node, so the time from award to clinical citation shows
+- [x] The thread view on grant pages, and from papers, people, and groups: columns from the grant to clinical citations, with counts, expandable lists, and the paths that reach a practice guideline picked out
+- [x] **Insight → Impact**: `impact.clinical_citations/v1` (a cohort's papers cited by clinical articles, by year, with guidelines apart) and `impact.studies/v1` (its papers referenced by registered studies), with iCite's caution that a clinical citation is not patient benefit
+- [x] The demo gains clinical citations and practice guidelines, with invented identifiers that cannot be mistaken for real ones
 
-**Acceptance:** on the demo, the center grant reaches a practice guideline through two papers; a paper cited by three clinical articles shows them with their years; a rejected acknowledgment never appears in a thread; a citing article never becomes an authorship candidate; a grant's thread answers in 300 ms or less on the pilot's data.
+**Acceptance (met):** on the demo, the immunotherapy program project (P01) reaches a practice guideline through two papers; a paper cited by three clinical articles shows them with their years; a rejected acknowledgment never appears in a thread; a citing article never becomes an authorship candidate; a grant's thread answers in 300 ms or less on the pilot's data.
 
 ## Slice 2: Funding opportunities ☐
 
@@ -135,4 +135,5 @@ Requirements: INT-08 to INT-12, AI-01 to AI-08.
 
 | Date | Note |
 |---|---|
+| 2026-11-08 | Slice 1 done. Threads add no ledger tables: they follow the `acknowledges`, `references`, and `funded_by` links Tessera already keeps (accepted and still reported) and iCite's clinical citations, so a curator's rejection removes a step at once. Citing articles get their own lake table, never `pubmed_article`, so they cannot become anyone's authorship candidates. iCite is asked for named fields, so `cited_by_clin` had to be added; existing rows fill as their monthly refresh comes round, or at once with the new `tessera ingest icite --full`. On the pilot, a full iCite read of 6,054 papers took 9 seconds and PubMed returned all 1,165 citing articles in 15; the 88 grants' threads answer in 17 ms at the median and 54 ms at most (the largest is a grant acknowledged by 1,256 papers), every grant's counts together in 70 ms, and the two impact figures in 43 and 22 ms. A first thread view dimmed what was not linked to a choice, but the linked papers sat out of sight in long columns; a choice now narrows each column to what is linked, with counts such as 1 of 34. The thread component loads only with the pages that show one, keeping the app shell under its 100 KB budget. The demo's clinical citations come from their own random stream (more often for papers with a higher translation score), so the rest of the demo is unchanged; the program project (P01) reaches a guideline through two papers. |
 | 2026-11-08 | Planned. Every source wave 5 needs is public and keyless: Grants.gov's search and opportunity APIs answered without a key (about 1,460 forecast and posted opportunities, 377 of them NIH's), and iCite's publication API lists the clinical articles that cite each paper. Grant-to-paper, study-to-paper, and study-to-grant links already exist as assertions, so threads need only clinical citations added. Fit reuses the expert finder's reading of a question, so an opportunity is understood the same way a search is, with the same reasons shown. The AI providers are spoken over plain HTTP: `gemma4:31b-cloud` through Ollama made a correct tool call on the first try, and Ollama also answers on an Anthropic-compatible endpoint, so both adapters can be tested locally; Bedrock is tested against recorded fixtures and AWS's signing test vectors until a live check is approved. Threads, opportunities, and teams come first, because the assistant uses them as tools. |

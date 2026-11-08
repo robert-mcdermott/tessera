@@ -96,6 +96,8 @@ Every lake table has these bookkeeping columns: `_run_id`, `_retrieved_at`, `_co
 | `pubmed_mesh` | (`pmid`, `descriptor_ui`) | `descriptor`, `major_topic`, `qualifiers[]` |
 | `pubmed_grant` | (`pmid`, `seq`) | `grant_id_raw`, `core_project_num` (e.g. `R01CA123456`, when recognizable), `ic_serial` (e.g. `CA123456`, also when the activity code is missing), `agency`, `country` |
 | `icite_metrics` | `pmid` | `citation_count`, `relative_citation_ratio`, `nih_percentile`, `field_citation_rate`, `expected_citations_per_year`, `citations_per_year`, `apt`, `is_clinical`, `is_research_article` |
+| `icite_clinical_citation` *(wave 5)* | (`pmid`, `citing_pmid`) | The clinical articles iCite lists as citing the paper (`cited_by_clin`); a child of `icite_metrics` |
+| `citing_article` *(wave 5)* | `pmid` | `title`, `journal`, `journal_abbrev`, `pub_year`, `pub_date`, `doi`, `publication_types[]`, `first_author`, `author_count`, `is_retracted`: the PubMed record of a clinical article citing the organization's papers, fetched by `pubmed:citing` after iCite. Kept apart from `pubmed_article` so that it is never a candidate for anyone's authorship; an article that is also one of the organization's papers is read from `pubmed_article` instead |
 | `reporter_project` | `appl_id` | `project_num`, `core_project_num`, `subproject_id`, `fiscal_year`, `title`, `abstract`, `phr`, `activity_code`, `agency_ic_admin`, `award_amount`, `direct_cost`, `indirect_cost`, `project_start`, `project_end`, `budget_start`, `budget_end`, `is_active`, `org_name`, `org_city`, `org_state`, `org_country`, `org_uei`, `terms[]`, `spending_categories[]` |
 | `reporter_investigator` | (`appl_id`, `profile_id`) | `full_name`, `family`, `given`, `middle`, `is_contact_pi`, `title` |
 | `reporter_publication_link` | (`pmid`, `core_project_num`) | `appl_id` |
@@ -147,6 +149,10 @@ Contact details from registry records (emails, phone numbers) are **not** stored
 All seven are rewritten whole and atomically by `tessera sync` and `tessera build discovery`.
 
 Report snapshots live in `snapshots/<id>/` in the data home: `inputs/<table>.parquet`, `figures/<n>-<metric>.json`, and `manifest.json` (see [Insight](../docs/insight.md#reports-and-snapshots)).
+
+## Grant-to-impact threads (wave 5)
+
+A thread follows links Tessera already keeps, so it adds no ledger tables: `acknowledges` (paper → grant), `references` (study → paper), and `funded_by` (study → grant), only where the link is accepted and its source still reports it, and iCite's clinical citations (`icite_clinical_citation`). Retracted papers and retracted citing articles are left out and counted as left out. A citing article is described by its PubMed publication types: a practice guideline (Practice Guideline, Guideline, or a consensus development conference), a clinical trial, a meta-analysis or systematic review, a review, or another clinical article. Threads are association, never causation.
 
 ## Counting rules (to be enforced from the first chart)
 

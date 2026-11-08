@@ -19,10 +19,11 @@ export const INSIGHT_PAGES = [
   { href: "/insight/funding", label: "Funding" },
   { href: "/insight/topics", label: "Topics" },
   { href: "/insight/studies", label: "Studies" },
+  { href: "/insight/impact", label: "Impact" },
   { href: "/insight/reports", label: "Reports" },
   { href: "/insight/definitions", label: "Definitions" },
 ];
-const KEEPS_COHORT = new Set(["/insight", "/insight/funding", "/insight/topics", "/insight/studies"]);
+const KEEPS_COHORT = new Set(["/insight", "/insight/funding", "/insight/topics", "/insight/studies", "/insight/impact"]);
 
 const LEVEL = { key: "level", label: "Topics as", default: "heading",
   choices: [{ value: "heading", label: "MeSH headings" }, { value: "area", label: "Research areas" }] };
@@ -63,6 +64,14 @@ function influenceChart(f) {
       aside.map((r) => `${number(r.papers)} ${r.label.charAt(0).toLowerCase()}${r.label.slice(1)}`).join("; "), ".") : null);
 }
 
+// Papers cited by a guideline, and by other clinical articles only, stack to those cited at all.
+function clinicalChart(f) {
+  return yearChart({ ...f, rows: f.rows.map((r) => ({ ...r, other: r.cited - r.guideline })) }, [
+    { key: "guideline", label: "Cited by a practice guideline", tone: "solid" },
+    { key: "other", label: "Cited by other clinical articles", tone: "soft" },
+  ], { label: "Papers cited by clinical articles, by year of publication" });
+}
+
 const money_ = (f) => categoryBars(f, { valueKey: "amount", shareKey: "share", format: dollars });
 const studies_ = (f) => categoryBars(f, { valueKey: "studies", shareKey: "share" });
 
@@ -85,6 +94,9 @@ export const DRAW = {
   "studies.by_condition": studies_,
   "studies.by_start_year": (f) => yearChart(f, [{ key: "interventional", label: "Interventional", tone: "solid" },
     { key: "other", label: "Observational and other", tone: "soft" }], { label: "Studies by start year" }),
+  "impact.clinical_citations": clinicalChart,
+  "impact.studies": (f) => yearChart(f, [{ key: "referenced", label: "Listed by registered studies", tone: "solid" }],
+    { label: "Papers listed by registered studies, by year of publication" }),
 };
 const WIDE = new Set(["funding.awarded", "funding.ending", "topics.landscape", "topics.by_year"]);
 const EMPTY = {
@@ -260,6 +272,26 @@ export function studies(main) {
             "Status is always the registry's overall status as the sponsor reported it, never recruitment here.")),
         cohortBar({ years }),
         h("div", { class: "figure-grid" }, STUDY_METRICS.map((m) => (m === "studies.by_condition" ? conditions : figure(m, params)))));
+    },
+  });
+}
+
+const IMPACT_METRICS = ["impact.clinical_citations", "impact.studies"];
+
+// What followed the cohort's papers (INT-08). A single grant's thread is on its own page.
+export function impact(main) {
+  return show(main, {
+    title: "Impact",
+    load: () => get("/api/v1/insight/years"),
+    view: ({ data: years }) => {
+      const params = insightParams();
+      const figures = (p) => IMPACT_METRICS.map((metric) => ({ metric, options: pick(p, "basis") }));
+      return h("div", { class: "stack-lg" },
+        header("Impact", "/insight/impact", figures,
+          h("p", { class: "lede" }, "What followed the cohort's papers: the clinical articles that cite them (from NIH's iCite) and the registered studies that list them. ",
+            "This is association, not causation, and recent papers have had little time to be cited. A grant's own page follows it from award to clinical citation.")),
+        cohortBar({ years }),
+        h("div", { class: "figure-grid" }, IMPACT_METRICS.map((m) => figure(m, params))));
     },
   });
 }

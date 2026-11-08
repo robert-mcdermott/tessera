@@ -2,7 +2,7 @@
 
 import { get, post } from "../core/api.js";
 import { h, icon } from "../core/dom.js";
-import { enumLabel, number, relative } from "../core/format.js";
+import { enumLabel, number, plural, relative } from "../core/format.js";
 import { navigate, query, setQuery } from "../core/router.js";
 import { can } from "../core/session.js";
 import { openDrawer, openEvidence } from "../components/drawer.js";
@@ -42,6 +42,10 @@ export function person(main, params, { samePage = false } = {}) {
         list = await get(`/api/v1/people/${encodeURIComponent(id)}/grants`, null, { fresh: samePage });
       } else if (tab === "studies") {
         list = await get(`/api/v1/people/${encodeURIComponent(id)}/studies`, null, { fresh: samePage });
+      } else if (tab === "impact") {
+        const [impact, T] = await Promise.all([get(`/api/v1/people/${encodeURIComponent(id)}/impact`, null, { fresh: samePage }),
+          import("../components/thread.js")]);
+        list = { ...impact, T };
       } else if (tab === "history") {
         list = await get(`/api/v1/people/${encodeURIComponent(id)}/history`, null, { fresh: true });
       }
@@ -99,6 +103,7 @@ export function person(main, params, { samePage = false } = {}) {
         { id: "publications", label: "Publications", count: (pubs.accepted ?? 0) + suggested },
         { id: "grants", label: "Grants", count: c.grants },
         { id: "studies", label: "Studies", count: c.studies },
+        { id: "impact", label: "Impact" },
         { id: "history", label: "History" },
       ], tab, (next) => setQuery({ tab: next, page: null, status: null, band: null, sort: null }, { replace: false }));
 
@@ -106,6 +111,7 @@ export function person(main, params, { samePage = false } = {}) {
       if (tab === "publications") panel = publicationsPanel(list, { status, band, sort, pageNo, refresh });
       else if (tab === "grants") panel = linkedPanel(list.data, "grant", refresh, "No grants found for this person.");
       else if (tab === "studies") panel = linkedPanel(list.data, "study", refresh, "No study roles suggested for this person.");
+      else if (tab === "impact") panel = impactPanel(list.data, list.T);
       else panel = historyPanel(list.data);
 
       const side = h("div", { class: "stack-lg" },
@@ -413,3 +419,30 @@ export function publicToggle(path, isPublic, noun, refresh) {
     } }), `Public ${noun}`);
 }
 
+
+// --- Impact: what followed this person's grants and confirmed papers (INT-08) -----------------
+
+function grantCounts(s) {
+  const parts = [plural(s.papers, "paper"), plural(s.studies, "registered study", "registered studies"), plural(s.clinical, "clinical article")];
+  return parts.join(" · ") + (s.guidelines ? ` (${plural(s.guidelines, "practice guideline")})` : "");
+}
+
+function impactPanel(d, { clinicalList, sourceNote }) {
+  const s = d.papers;
+  const sentence = s.papers
+    ? `${number(s.papers_cited_clinically)} of their ${plural(s.papers, "confirmed paper")} ${s.papers_cited_clinically === 1 ? "is" : "are"} cited by `
+      + `${plural(s.clinical, "clinical article")}${s.guidelines ? `, including ${plural(s.guidelines, "practice guideline")}` : ""}; `
+      + `${number(s.papers_referenced_by_studies)} ${s.papers_referenced_by_studies === 1 ? "is" : "are"} referenced by registered studies.`
+    : "No confirmed papers yet.";
+  return h("div", { class: "stack-lg" },
+    card({ title: "What followed their grants", pad: true, attrs: { "data-entity": "grant" }, body: d.grants.length
+      ? h("ul", { class: "plain-list impact-grants" }, d.grants.map((g) => h("li", {},
+        h("a", { href: `/grants/${encodeURIComponent(g.core_project_num)}` }, g.title ?? g.core_project_num),
+        h("span", { class: "subtle tabular" }, `${g.core_project_num} · ${grantCounts(g.summary)}`))))
+      : emptyState({ kind: "grant", title: "No grants", text: "No grant in the data names this person as an investigator." }) }),
+    card({ title: "Clinical articles citing their papers", pad: true, body: h("div", { class: "stack" },
+      h("p", {}, sentence),
+      d.clinical.length ? clinicalList(d.clinical) : null,
+      h("div", { class: "stack-xs" }, d.notes.map((n) => h("p", { class: "subtle" }, n))),
+      sourceNote(d.sources)) }));
+}

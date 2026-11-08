@@ -108,6 +108,23 @@ A trend compares a topic's share of the cohort's papers in the later half of the
 
 **Status is always the registry's overall status**, as the sponsor reported it to ClinicalTrials.gov. It is not the status at any one site, and never means that a study recruits at your organization. Only registered studies are counted, and no patient-level data is stored or shown.
 
+## Impact
+
+**Insight → Impact** shows what followed the cohort's papers. It is association, not causation: a figure says what cites or lists the papers, never that they caused it.
+
+| Figure | Metric | Shows |
+|---|---|---|
+| Clinical citations | `impact.clinical_citations/v1` | The cohort's papers in each year cited by at least one clinical article, and by a practice guideline |
+| Papers in registered studies | `impact.studies/v1` | The cohort's papers in each year that studies registered with ClinicalTrials.gov list among their references |
+
+**Clinical articles** are the articles NIH's iCite classifies as clinical (guidelines, trials, and other clinical research) that cite a paper. Tessera fetches each one's PubMed record to say what kind it is: a **practice guideline** (PubMed's Practice Guideline or Guideline types, or a consensus development conference), a clinical trial, a meta-analysis or systematic review, a review, or another clinical article. A clinical citation shows that clinical research or guidance draws on a paper; it is not evidence of patient benefit, and papers from the last two years have had little time to be cited. Papers count in their year of publication, however late the citation came.
+
+**Registry references** are the publications a study's registry record lists, as background or results. Sponsors choose what to list, and many studies list nothing, so a paper no study lists has not been shown to be unused.
+
+### A grant's thread
+
+Every grant's page ends with **What followed this grant**: the papers that acknowledge it (from NIH RePORTER's link table or the paper's own PubMed grant list), the registered studies that reference those papers or name the grant, and the clinical articles that cite the papers. Choose a paper, a study, or a clinical article to see only what it is linked to; **Paths to practice guidelines** shows the papers and studies that lead to a guideline. Only links that are accepted and still reported by their source are followed, so a link a curator rejected never appears. A paper's page lists the clinical articles citing it, and a person's **Impact** tab lists what followed each of their grants and their confirmed papers.
+
 ## Funding
 
 ![Funding for the organization: awards by fiscal year split into new awards, continuing years, and supplements, with the amount and awardee choices in the bar above](images/insight-funding-light.webp "The funding portfolio")

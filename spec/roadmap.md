@@ -110,13 +110,13 @@ Detail: [waves/wave-3.md](waves/wave-3.md)
 
 Released as [v0.4.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0.4.0) on 2026-11-08. Detail: [waves/wave-4.md](waves/wave-4.md)
 
-## Wave 5: Impact (v0.5.0) ☐
+## Wave 5: Impact (v0.5.0) ◐
 
 **Goal:** connect discovery to outcomes and opportunities.
 
 | Slice | Name | Delivers | Status |
 |---|---|---|---|
-| 1 | Grant-to-impact threads | Grant → publications → studies → clinical citations (practice guidelines marked), typed and sourced, as an interactive thread; Insight → Impact | ☐ |
+| 1 | Grant-to-impact threads | Grant → publications → studies → clinical citations (practice guidelines marked), typed and sourced, as an interactive thread; Insight → Impact | ☑ |
 | 2 | Funding opportunities | Grants.gov connector; opportunities an organization tracks itself (foundation, internal, limited submission) | ☐ |
 | 3 | Opportunity navigator | Fit and eligibility as separate signals with reasons; opportunities for a person and in a group's inbox and digest | ☐ |
 | 4 | Team builder | Assemble people for an opportunity, see covered and missing concepts, export a team brief | ☐ |

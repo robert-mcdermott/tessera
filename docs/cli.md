@@ -135,7 +135,7 @@ usage: tessera ingest [-h] [--mode MODE] [--ids ID [ID ...]] [--ids-file PATH] [
 | Argument | Meaning |
 |---|---|
 | `source` | pubmed \| icite \| reporter \| ctgov \| orcid \| all |
-| `--mode MODE` | org \| query \| ids \| linked or people (pubmed) \| pi (reporter) \| refresh (icite, orcid) |
+| `--mode MODE` | org \| query \| ids \| linked, people, or citing (pubmed) \| pi (reporter) \| refresh (icite, orcid) |
 | `--ids ID` | IDs to fetch |
 | `--ids-file PATH` | file with one ID per line |
 | `--query QUERY` | source query (PubMed syntax, Essie, or RePORTER JSON) |

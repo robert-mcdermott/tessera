@@ -1,4 +1,5 @@
-"""Citation metrics from NIH iCite for publications already in the lake."""
+"""Citation metrics from NIH iCite for publications already in the lake, with the clinical
+articles that cite each one (followed by grant-to-impact threads)."""
 
 from __future__ import annotations
 
@@ -24,6 +25,8 @@ FIELDS = (
     "is_clinical",
     "is_research_article",
 )
+# Also asked for: the PMIDs of clinical articles that cite each paper (a list, or null).
+FIELD_LIST = ",".join((*FIELDS, "cited_by_clin"))
 
 
 class ICiteConnector(Connector):
@@ -50,10 +53,8 @@ class ICiteConnector(Connector):
             chunk = pmids[start : start + self.batch_size]
             where = {"pmids": [chunk[0], chunk[-1]], "count": len(chunk)}
             try:
-                response = self.http.get(
-                    "pubs",
-                    params={"pmids": ",".join(chunk), "format": "json", "fl": ",".join(FIELDS)},
-                )
+                params = {"pmids": ",".join(chunk), "format": "json", "fl": FIELD_LIST}
+                response = self.http.get("pubs", params=params)
                 response.json()
             except (SourceError, ValueError) as exc:
                 report.fail(where, exc)
@@ -81,9 +82,20 @@ class ICiteConnector(Connector):
                     "apt": _float(item.get("apt")),
                     "is_clinical": _bool(item.get("is_clinical")),
                     "is_research_article": _bool(item.get("is_research_article")),
+                    "clinical_citations": [
+                        {"citing_pmid": citing} for citing in _pmids(item.get("cited_by_clin"))
+                    ],
                 }
             )
         return {"icite": records}
+
+
+def _pmids(value: Any) -> list[str]:
+    """iCite's PMID lists, as sorted unique strings (it sends integers, or null when none)."""
+    if not isinstance(value, list):
+        return []
+    found = {str(v).strip() for v in value if not isinstance(v, bool) and str(v).strip().isdigit()}
+    return sorted(found, key=int)
 
 
 def _int(value: Any) -> int | None:

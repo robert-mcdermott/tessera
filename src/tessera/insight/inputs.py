@@ -75,6 +75,13 @@ SCHEMAS: dict[str, pa.Schema] = {
         ("person_id", pa.string()), ("nct_id", pa.string()), ("confirmed", pa.bool_()),
         ("score", pa.float64()), ("assertion_id", pa.string()),
     ),
+    "clinical_citations": _schema(
+        ("pmid", pa.string()), ("citing_pmid", pa.string()), ("year", pa.int32()),
+        ("kind", pa.string()),
+    ),
+    "study_references": _schema(
+        ("pmid", pa.string()), ("nct_id", pa.string()), ("assertion_id", pa.string()),
+    ),
     "studies": _schema(
         ("nct_id", pa.string()), ("title", pa.string()), ("status", pa.string()),
         ("phases", pa.list_(pa.string())), ("study_type", pa.string()),
@@ -95,6 +102,8 @@ TABLE_SOURCES: dict[str, tuple[str, ...]] = {
     "paper_topics": ("pubmed",),
     "mesh_areas": ("mesh",),
     "citations": ("icite",),
+    "clinical_citations": ("icite", "pubmed"),
+    "study_references": ("ctgov",),
     "study_links": ("ctgov",),
     "studies": ("ctgov",),
 }
@@ -305,6 +314,52 @@ def gather_citations(ctx: Context, tables: dict[str, pa.Table]) -> pa.Table:
     return pa.Table.from_pylist(rows, schema=SCHEMAS["citations"])
 
 
+def gather_clinical_citations(ctx: Context, tables: dict[str, pa.Table]) -> pa.Table:
+    """The clinical articles citing the cohort's papers (iCite), with their year and kind.
+
+    The kind is fixed here, when the inputs are gathered, so a snapshot keeps it."""
+    from tessera.impact.threads import citing_articles
+
+    pmids = tables["paper_links"].column("pmid").to_pylist() if "paper_links" in tables else []
+    pairs = _lake_join(
+        ctx.lake,
+        "SELECT c.pmid, c.citing_pmid FROM icite_clinical_citation c "
+        "JOIN _keys k ON k.key = c.pmid",
+        pmids,
+    )
+    meta = citing_articles(ctx.lake, {r["citing_pmid"] for r in pairs})
+    rows = [
+        {"pmid": r["pmid"], "citing_pmid": r["citing_pmid"],
+         "year": meta[r["citing_pmid"]]["year"], "kind": meta[r["citing_pmid"]]["kind"]}
+        for r in pairs
+        if not meta[r["citing_pmid"]]["retracted"]
+    ]  # fmt: skip
+    rows.sort(key=lambda r: (r["pmid"], r["citing_pmid"]))
+    return pa.Table.from_pylist(rows, schema=SCHEMAS["clinical_citations"])
+
+
+def gather_study_references(ctx: Context, tables: dict[str, pa.Table]) -> pa.Table:
+    """Registered studies that list the cohort's papers (accepted, still reported)."""
+    pmids = tables["paper_links"].column("pmid").to_pylist() if "paper_links" in tables else []
+    refs = sorted({f"pub:{p}" for p in pmids})
+    rows: list[dict[str, Any]] = []
+    with ctx.engine.connect() as conn:
+        for i in range(0, len(refs), CHUNK):
+            for r in conn.execute(
+                select(assertion.c.id, assertion.c.subject_id, assertion.c.object_id).where(
+                    assertion.c.predicate == "references",
+                    assertion.c.object_id.in_(refs[i : i + CHUNK]),
+                    assertion.c.status == "accepted",
+                    assertion.c.reported.is_(True),
+                )
+            ).mappings():
+                rows.append({"pmid": r["object_id"].removeprefix("pub:"),
+                             "nct_id": r["subject_id"].removeprefix("stu:"),
+                             "assertion_id": r["id"]})  # fmt: skip
+    rows.sort(key=lambda r: (r["pmid"], r["nct_id"]))
+    return pa.Table.from_pylist(rows, schema=SCHEMAS["study_references"])
+
+
 # Research areas are the tops of the MeSH branches that say what someone studies.
 AREA_CATEGORIES = ("A", "B", "C", "F", "G")
 
@@ -407,6 +462,8 @@ GATHERERS: dict[str, Callable[[Context, dict[str, pa.Table]], pa.Table]] = {
     "group_members": gather_group_members,
     "paper_topics": gather_paper_topics,
     "citations": gather_citations,
+    "clinical_citations": gather_clinical_citations,
+    "study_references": gather_study_references,
     "study_links": gather_study_links,
     "studies": gather_studies,
     "mesh_areas": gather_mesh_areas,
@@ -416,6 +473,8 @@ REQUIRES: dict[str, tuple[str, ...]] = {
     "awards": ("grant_links",),
     "paper_topics": ("paper_links",),
     "citations": ("paper_links",),
+    "clinical_citations": ("paper_links",),
+    "study_references": ("paper_links",),
     "studies": ("study_links",),
 }
 

@@ -504,3 +504,64 @@ ELSEWHERE = (
     ("Coral Reefs", "Ecosystem", "Climate Change", "Biodiversity"),
 )
 ELSEWHERE_JOURNALS = ("Plant Systems Biology", "Materials Interfaces", "Marine Ecology Letters")
+
+# Clinical articles that cite the organization's papers (grant-to-impact threads). Journals are
+# invented, and identifiers are drawn from a range no real PubMed record can have.
+CLINICAL_TOPICS = {
+    "Leukemia, Myeloid, Acute": "acute myeloid leukemia",
+    "Breast Neoplasms": "breast cancer",
+    "Multiple Myeloma": "multiple myeloma",
+    "Lymphoma, Large B-Cell, Diffuse": "diffuse large B-cell lymphoma",
+    "Melanoma": "melanoma",
+    "HIV Infections": "HIV infection",
+    "Cytomegalovirus Infections": "cytomegalovirus infection",
+    "Influenza, Human": "influenza",
+    "Colorectal Neoplasms": "colorectal cancer",
+    "Obesity": "obesity",
+}
+# For areas whose studies name no condition, what their clinical citers write about.
+CLINICAL_FALLBACK = {
+    "immunology": ("autoimmune disease", "primary immunodeficiency"),
+    "neuroscience": ("Parkinson disease", "chronic pain"),
+    "structural": ("antimicrobial resistance", "cystic fibrosis"),
+    "computational": ("cancer screening", "sepsis"),
+}
+CLINICAL_TITLES = {
+    "guideline": (
+        "Management of {c}: clinical practice guideline",
+        "Consensus recommendations for the diagnosis and treatment of {c}",
+        "Guideline update on the care of adults with {c}",
+    ),
+    "trial": (
+        "A randomized trial of early combination therapy in {c}",
+        "Phase 2 study of a targeted regimen for {c}",
+        "Adapted dosing versus standard care in {c}: a randomized trial",
+    ),
+    "meta_analysis": (
+        "Outcomes in {c}: a systematic review and meta-analysis",
+        "Biomarkers of treatment response in {c}: a meta-analysis",
+    ),
+    "review": (
+        "Advances in the clinical management of {c}",
+        "From mechanism to clinic: emerging approaches to {c}",
+    ),
+    "clinical": (
+        "Real-world outcomes of patients with {c}",
+        "Clinical features and outcomes of {c} in a multicenter cohort",
+    ),
+}
+CLINICAL_TYPES = {
+    "guideline": ("Practice Guideline", "Journal Article"),
+    "trial": ("Clinical Trial, Phase II", "Randomized Controlled Trial", "Journal Article"),
+    "meta_analysis": ("Meta-Analysis", "Systematic Review", "Journal Article"),
+    "review": ("Review", "Journal Article"),
+    "clinical": ("Multicenter Study", "Journal Article"),
+}
+CLINICAL_WEIGHTS = {"guideline": 8, "trial": 30, "meta_analysis": 15, "review": 20, "clinical": 27}
+CLINICAL_JOURNALS = (
+    "Northbridge Medical Review",
+    "Practice Guidance Bulletin",
+    "Ward and Clinic Reports",
+    "Corbel Journal of Clinical Evidence",
+    "Trials in Medicine Today",
+)

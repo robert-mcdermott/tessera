@@ -3088,6 +3088,138 @@
         }
       }
     },
+    "/api/v1/grants/{core}/thread": {
+      "get": {
+        "tags": [
+          "impact"
+        ],
+        "summary": "What followed a grant: papers, studies, and clinical articles, with each link",
+        "operationId": "get_grant_thread_api_v1_grants__core__thread_get",
+        "parameters": [
+          {
+            "name": "core",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Core"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Grant Thread Api V1 Grants  Core  Thread Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/publications/{pmid}/thread": {
+      "get": {
+        "tags": [
+          "impact"
+        ],
+        "summary": "The grants a paper acknowledges, and the studies and clinical articles after it",
+        "operationId": "get_paper_thread_api_v1_publications__pmid__thread_get",
+        "parameters": [
+          {
+            "name": "pmid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pmid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Paper Thread Api V1 Publications  Pmid  Thread Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/people/{person_id}/impact": {
+      "get": {
+        "tags": [
+          "impact"
+        ],
+        "summary": "What followed a person's grants and their confirmed papers",
+        "operationId": "get_person_impact_api_v1_people__person_id__impact_get",
+        "parameters": [
+          {
+            "name": "person_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Person Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Person Impact Api V1 People  Person Id  Impact Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/assertions/{assertion_id}": {
       "get": {
         "tags": [

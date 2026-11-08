@@ -2,6 +2,15 @@
 
 All notable changes to Tessera are recorded here. Versions follow [semantic versioning](https://semver.org/); each wave of work ships as a minor release (wave 1 → 0.1.0, wave 2 → 0.2.0).
 
+## Unreleased
+
+### Added
+
+- Grant-to-impact threads (INT-08): every grant's page shows what followed it, in typed and sourced steps: the papers that acknowledge it, the registered studies that reference those papers or name the grant, and the clinical articles that cite the papers, with practice guidelines and trials marked and the years between award and first clinical citation. Choosing a paper, study, or article shows only what it is linked to; **Paths to practice guidelines** picks those out. Papers list the clinical articles citing them; people have an **Impact** tab. Only accepted links that their source still reports are followed, and threads say they show association, not causation. `GET /grants/{core}/thread`, `GET /publications/{pmid}/thread`, `GET /people/{id}/impact`.
+- iCite's clinical citations (`cited_by_clin`) are kept (lake table `icite_clinical_citation`, filled as each paper's metrics are refreshed (monthly), or at once with `tessera ingest icite --full`), and `tessera sync` then fetches the citing articles' PubMed records (`pubmed:citing`) into their own table, `citing_article`, so they never become candidates for anyone's authorship.
+- **Insight → Impact**: `impact.clinical_citations/v1` (a cohort's papers cited by clinical articles and by practice guidelines, by year of publication) and `impact.studies/v1` (its papers listed by registered studies), with their caveats; both can be saved in reports, snapshotted, and exported.
+- The demo organization's papers are cited by invented clinical articles, practice guidelines among them.
+
 ## 0.4.0 (2026-11-08)
 
 Insight. Leaders can now see what the organization, a division, a program, or a lab publishes, is funded for, works on, and runs as studies, with every number saying exactly what it counts. Funding is counted the way a sponsored-research office counts it, small numbers are marked, trends are claimed only when the numbers support them, and nothing ranks people. Reports can be frozen as snapshots that verify byte for byte years later, exports carry their definitions and the records behind them, and the whole installation can be backed up, restored (into PostgreSQL too), watched, and left.

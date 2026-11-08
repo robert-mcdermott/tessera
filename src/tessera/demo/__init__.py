@@ -24,7 +24,16 @@ from tessera.demo.world import CITY, DOMAIN, ORG, ORG_SHORT, REPORTER_ORG, World
 from tessera.home import DataHome
 from tessera.jobs import runs
 from tessera.lake import LakeWriter
-from tessera.lake.schemas import CTGOV, ICITE, MESH, ORCID, PUBMED, REPORTER, REPORTER_LINKS
+from tessera.lake.schemas import (
+    CTGOV,
+    ICITE,
+    MESH,
+    ORCID,
+    PUBMED,
+    PUBMED_CITING,
+    REPORTER,
+    REPORTER_LINKS,
+)
 from tessera.ledger import migrate
 from tessera.ledger.db import make_engine
 
@@ -120,6 +129,7 @@ def build_demo(
         _record(engine, home, "ctgov", CTGOV, world.studies, "organization")
         _record(engine, home, "pubmed", PUBMED, world.pubmed, "affiliation")
         _record(engine, home, "icite", ICITE, world.icite, "refresh")
+        _record(engine, home, "pubmed", PUBMED_CITING, world.citing, "citing")
         _record(engine, home, "orcid", ORCID, world.orcid, "refresh")
         from tessera.demo.mesh import mesh_records
 

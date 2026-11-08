@@ -187,6 +187,41 @@ ICITE = DatasetSpec(
             f("is_research_article", BOOL),
         ),
     ),
+    children=(
+        # The clinical articles that cite the paper (iCite's ``cited_by_clin``), for threads.
+        TableSpec(
+            name="icite_clinical_citation",
+            key=("pmid", "citing_pmid"),
+            field="clinical_citations",
+            columns=(
+                f("pmid", STR, False),
+                f("citing_pmid", STR, False),
+            ),
+        ),
+    ),
+)
+
+# Clinical articles that cite the organization's papers, from PubMed. Kept apart from
+# ``pubmed_article`` so that they never become candidates for anyone's authorship.
+PUBMED_CITING = DatasetSpec(
+    name="pubmed_citing",
+    root=TableSpec(
+        name="citing_article",
+        key=("pmid",),
+        columns=(
+            f("pmid", STR, False),
+            f("title", STR),
+            f("journal", STR),
+            f("journal_abbrev", STR),
+            f("pub_year", I16),
+            f("pub_date", DATE),
+            f("doi", STR),
+            f("publication_types", STR_LIST),
+            f("first_author", STR),
+            f("author_count", I16),
+            f("is_retracted", BOOL),
+        ),
+    ),
 )
 
 # --- NIH RePORTER ---------------------------------------------------------------------
@@ -440,7 +475,7 @@ MESH = DatasetSpec(
 )
 
 DATASETS: dict[str, DatasetSpec] = {
-    d.name: d for d in (PUBMED, ICITE, REPORTER, REPORTER_LINKS, CTGOV, ORCID, MESH)
+    d.name: d for d in (PUBMED, PUBMED_CITING, ICITE, REPORTER, REPORTER_LINKS, CTGOV, ORCID, MESH)
 }
 TABLES: dict[str, TableSpec] = {t.name: t for d in DATASETS.values() for t in d.tables}
 DATASET_OF: dict[str, DatasetSpec] = {t.name: d for d in DATASETS.values() for t in d.tables}
