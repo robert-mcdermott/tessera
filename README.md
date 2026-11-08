@@ -17,7 +17,7 @@ Tessera is an open research intelligence platform for academic research organiza
   </picture>
 </p>
 
-> **Status:** version 0.2.0. It builds the research graph, supports curation with accounts and roles, and adds discovery: expert finding, similar people, the collaboration graph, missed connections, and the unit matrix. Lab pages, reports, and metrics come next; see the [roadmap](spec/roadmap.md).
+> **Status:** version 0.4.0. It builds the research graph with evidence, supports curation with accounts and roles, finds experts and connections, gives every group a page and a public site, and now adds Insight: portfolio figures that say exactly what they count, reports that can be frozen and verified, exports that carry their definitions, and backup, restore, and a full exit export. Grant-to-impact threads, opportunities, and an optional AI assistant come next; see the [roadmap](spec/roadmap.md).
 
 ## What it does
 
@@ -28,7 +28,9 @@ Tessera is an open research intelligence platform for academic research organiza
 - **Lets people decide,** in a review queue, on profiles, and in bulk, with every decision logged and reversible; with accounts, each person signs in and decides what their role allows. Duplicate records of one person are proposed and merged reversibly.
 - **Finds expertise and connections:** "who works on X?" in plain words, each person's topics with what drives them, similar people, graphs of who works with whom and how research areas connect, pairs who share interests but have never worked together, and units compared by interest and collaboration.
 - **Gives every group a home:** divisions, programs, labs, and any other kind, curated by hand or imported from your own records, nested under as many parents as they span, with members' roles and dates and alumni kept as alumni. Each group has a page its managers arrange from approved blocks (about, people, featured publications, grants, studies, themes and projects, openings, news, contact) and publish with drafts, history, and rollback. Which papers are a group's own is decided by a person, from suggestions with evidence, in a weekly inbox that also gathers new grants, roster changes, and openings closing soon.
-- **Publishes a public site:** `tessera publish` writes static pages for the groups and people who opt in, with citations rather than abstracts, checked for accessibility and in the organization's own colors.
+- **Publishes a public site:** `tessera publish` writes static pages for the groups and people who opt in, with citations rather than abstracts, checked for accessibility and in the organization's own colors, and content each group can embed in its own website.
+- **Shows the portfolio, honestly:** publications, funding, topics, and studies for the organization, any group, picked people, or a search, over the years you choose. Every figure carries its metric's definition and version, its cohort, its period, and its sources with their dates; money is counted per fiscal-year record without double counting; small numbers are marked; nothing ranks people. Reports can be frozen as snapshots that verify byte for byte, and every figure exports as CSV, Parquet, or JSON with its definitions and the records behind it.
+- **Keeps your data yours:** `tessera backup` and `tessera restore` (between SQLite and PostgreSQL too), a full exit export in open formats, an operations view of runs and failures, and email alerts.
 - **Serves a fast web app and a JSON API:** search, browsable directories with facets, profiles, record pages with provenance, and data health, in light and dark versions of three color palettes.
 
 ## Quickstart

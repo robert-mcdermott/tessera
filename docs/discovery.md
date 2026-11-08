@@ -78,6 +78,8 @@ People are coloured by group (division, program, lab) when the view spans severa
 
 Any search can be saved: **Save search** on the People, Publications, Grants, or Studies page keeps the words and filters, and on Search it keeps a search of everything. What the search finds when you save it counts as seen.
 
+![A saved search for lymphoma papers opened from the home page: two new matches since it was last seen, with Mark as seen and Delete, above the results](images/saved-search-light.webp "A saved search with new matches")
+
 Your saved searches are listed on the home page with how many matches are **new** since you last looked. Opening one shows the new matches above the results; **Mark as seen** clears them. Saved searches are your own: nobody else sees them. Up to 5,000 matches are remembered for each; a search that finds more still shows its count.
 
 ## Keeping it current

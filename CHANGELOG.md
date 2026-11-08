@@ -2,7 +2,15 @@
 
 All notable changes to Tessera are recorded here. Versions follow [semantic versioning](https://semver.org/); each wave of work ships as a minor release (wave 1 → 0.1.0, wave 2 → 0.2.0).
 
-## Unreleased
+## 0.4.0 (2026-11-08)
+
+Insight. Leaders can now see what the organization, a division, a program, or a lab publishes, is funded for, works on, and runs as studies, with every number saying exactly what it counts. Funding is counted the way a sponsored-research office counts it, small numbers are marked, trends are claimed only when the numbers support them, and nothing ranks people. Reports can be frozen as snapshots that verify byte for byte years later, exports carry their definitions and the records behind them, and the whole installation can be backed up, restored (into PostgreSQL too), watched, and left.
+
+**Highlights:** metric definitions with versions and an About panel on every figure; cohorts of the organization, a group (counting members' work while they were members), picked people, or a search; the funding portfolio with strict counting rules and grants by project end date; topics and trends; the study portfolio by registry status, phase, sponsor, intervention, and condition; field-normalized citation; saved searches with new matches; reports, verifiable snapshots, and evidence-carrying exports; backup, restore, and a full exit export; Admin → Operations and alerts; and embeds of group content in other websites.
+
+**Upgrading:** run `tessera db upgrade` (migrations 0012 and 0013), then take a first backup with `tessera backup` and schedule it (see Running Tessera). To have problems emailed, set `[alerts] email` with a `[mail]` server. Embeds need `[publish] base_url` for their code to be shown.
+
+**Checks for this release:** authorship is unchanged; on the pilot, the check against people's own ORCID works lists gives the same result as 0.3.0 (95.3% of 193 listed papers found as candidates, 97.3% of those in the strong band). Every Insight figure answers in 160 ms or less on the pilot's data, and the operations view in 29 ms. A demo backup restored into a new data home gives identical ledger rows and API answers, and a SQLite backup restores into PostgreSQL 16 with identical rows. Migrations 0012 and 0013 were run up and down on SQLite and PostgreSQL. No dependencies were added.
 
 ### Added
 

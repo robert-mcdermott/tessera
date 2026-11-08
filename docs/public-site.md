@@ -69,6 +69,8 @@ A group's publications, people, openings, and news can appear on its own website
 | `groups/<address>/embed/news.html` | Its news |
 | `groups/<address>/feed.json` | A [JSON Feed](https://jsonfeed.org/version/1.1) of its news, openings, and confirmed publications, for sites that show content themselves |
 
+![A program's publications as an embed: the group's name linking back to its page, featured publications, then the rest, with DOI and PubMed links](images/embed-light.webp "An embed of a group's publications")
+
 Each embed comes in three versions: `publications.html` follows the reader's light or dark preference, and `publications-light.html` and `publications-dark.html` stay light or dark to match the page around them. Embeds have no site header, carry no scripts, open links in the page around them, show only what the group's public page shows, and link back to it. They always exist for a public group, even with nothing to show yet, so the code on another site keeps working; a group that is not public has none, and search engines are asked not to index them on their own.
 
 The group's managers find the code in **Edit page → Embed on another website**, once `[publish] base_url` says where the site is served:

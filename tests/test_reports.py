@@ -53,17 +53,18 @@ def test_saved_searches_show_what_is_new_since_last_seen(demo) -> None:  # type:
     engine = make_engine(config.ledger_url)
     try:
         with engine.begin() as conn:  # as if two of the matches had arrived since
-            seen = conn.execute(select(saved_search.c.seen)).scalar()
-            conn.execute(update(saved_search).values(seen=seen[2:]))
+            mine = saved_search.c.id == made["id"]
+            seen = conn.execute(select(saved_search.c.seen).where(mine)).scalar()
+            conn.execute(update(saved_search).where(mine).values(seen=seen[2:]))
     finally:
         engine.dispose()
-    listed = ok(client.get("/api/v1/saved-searches"))
-    assert [(s["name"], s["new"]) for s in listed] == [("Recent lymphoma", 2)]
+    listed = {s["name"]: s["new"] for s in ok(client.get("/api/v1/saved-searches"))}
+    assert listed["Recent lymphoma"] == 2
     detail = ok(client.get(f"/api/v1/saved-searches/{made['id']}"))
     assert len(detail["new_refs"]) == 2 and all(r.startswith("pub:") for r in detail["new_refs"])
     assert all(i["summary"]["title"] for i in detail["new_items"])
     ok(client.post(f"/api/v1/saved-searches/{made['id']}/seen"))
-    assert ok(client.get("/api/v1/saved-searches"))[0]["new"] == 0
+    assert {s["id"]: s["new"] for s in ok(client.get("/api/v1/saved-searches"))}[made["id"]] == 0
     assert ok(client.post(f"/api/v1/saved-searches/{made['id']}", json={"name": "Lymphoma"}))[
         "name"] == "Lymphoma"  # fmt: skip
     everything = ok(client.post("/api/v1/saved-searches", json={"name": "T cells", "q": "T cells"}))

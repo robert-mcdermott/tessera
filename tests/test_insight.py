@@ -263,7 +263,8 @@ def test_cohorts_can_be_saved_used_renamed_and_deleted(demo) -> None:  # type: i
     preview = client.get("/api/v1/insight/cohort", params={"cohort": saved["id"]}).json()["data"]
     assert preview["label"] == "CIP" and len(preview["members"]) == preview["size"]
     assert client.delete(f"/api/v1/insight/cohorts/{saved['id']}").status_code == 200
-    assert client.get("/api/v1/insight/cohorts").json()["data"] == []
+    left = {c["id"] for c in client.get("/api/v1/insight/cohorts").json()["data"]}
+    assert saved["id"] not in left  # the demo's own saved cohort stays
 
 
 def test_years_and_definitions_are_offered(demo) -> None:  # type: ignore[no-untyped-def]

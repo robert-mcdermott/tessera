@@ -141,6 +141,8 @@ The folder has every ledger table (people, names and identifiers, groups and mem
 
 **Admin → Operations** shows, for administrators:
 
+![Admin → Operations: nothing needs attention, the last backup, alerts, and every source and job over the last 30 days with runs, failures, and run times](images/operations-light.webp "Operations")
+
 - what needs attention now: runs that failed or partly failed in the last two days, sources that have gone stale, and a backup older than `[alerts] backup_days`;
 - every source and job over the last 30 days: the last run and when it last succeeded, runs, failures, the typical time a run takes and the recent run times, and the last error;
 - the sizes of the ledger, the lake (table by table), the raw responses, the search and discovery files, report snapshots, and backups kept in the data home;

@@ -4,6 +4,8 @@
 
 Open it from **Insight → Portfolio** in the menu.
 
+![Insight's overview for the whole organization: publications by year with confirmed and likely papers apart, and awards by fiscal year by award type, under the cohort and years chosen at the top](images/insight-light.webp "The portfolio overview")
+
 ## Reading a figure
 
 Every figure is a **metric** over a **cohort** and a **period**:
@@ -22,6 +24,8 @@ Under each figure, one line names the cohort and its size, the period, when each
 - **Behind the number**: the records counted, each with the members it counts for and the links (with their identifiers) that put it there.
 
 **Chart** and **Table** switch between the picture and the numbers.
+
+![The About panel of a program's publications by year: the cohort and how its members' work is counted, the period, the options, PubMed's last fetch and first complete year, notes, caveats, the records counted, and exports](images/insight-about-light.webp "About this figure")
 
 ### Confirmed and likely
 
@@ -74,6 +78,8 @@ The **relative citation ratio** comes from NIH's iCite: 1 means a paper is cited
 
 ## Topics
 
+![Topics as research areas: each area's papers, share, and trend, with too few papers to tell where the numbers are small](images/insight-topics-light.webp "Topics and their trends")
+
 **Insight → Topics** shows what the cohort's papers are about, from the major MeSH headings NLM's indexers give each paper (the headings PubMed marks as a paper's main subjects).
 
 - **Topics** (`topics.landscape/v1`): the cohort's 30 largest topics in the period, each with its papers, its share of the cohort's papers, and its trend.
@@ -86,6 +92,8 @@ The **relative citation ratio** comes from NIH's iCite: 1 means a paper is cited
 A trend compares a topic's share of the cohort's papers in the later half of the period's complete years with the earlier half (at most three years each; the year under way is left out, because it is not over). A topic is **rising** when its share grew by a quarter or more, **falling** when it shrank by a fifth or more, and **steady** otherwise, but only when the topic has at least `small_number` papers in each half. Otherwise it says **too few papers to tell**, and with fewer than four complete years in the period, **too few years to tell**. The notes name the years compared.
 
 ## Studies
+
+![Studies by registry status, phase, sponsor class, and intervention type, with small numbers hatched](images/insight-studies-light.webp "The study portfolio")
 
 **Insight → Studies** shows clinical studies registered at ClinicalTrials.gov that were under way at some time in the period: started by its end and not completed before it began, by the dates in the registry record. The organization's studies are every study registered under its names, with its members' studies; another cohort's are the studies a member is an official of (confirmed or, unless *confirmed only* is chosen, a strong suggestion).
 
@@ -101,6 +109,8 @@ A trend compares a topic's share of the cohort's papers in the later half of the
 **Status is always the registry's overall status**, as the sponsor reported it to ClinicalTrials.gov. It is not the status at any one site, and never means that a study recruits at your organization. Only registered studies are counted, and no patient-level data is stored or shown.
 
 ## Funding
+
+![Funding for the organization: awards by fiscal year split into new awards, continuing years, and supplements, with the amount and awardee choices in the bar above](images/insight-funding-light.webp "The funding portfolio")
 
 **Insight → Funding** shows awards from NIH RePORTER (NIH and the other agencies that report to it), counted the way a sponsored-research office counts them, so that nothing is counted twice:
 
@@ -132,6 +142,8 @@ A **snapshot** freezes a report. **Take snapshot** on a report (or `tessera repo
 - the **inputs**: every table the figures were computed from, for the cohort's people only (its members with their years, their links, and the rows read from PubMed, RePORTER, ClinicalTrials.gov, iCite, and MeSH), as Parquet files;
 - the **figures**, each as it was shown, with every record it counted;
 - a **manifest**: the report's definition, the cohort as it was resolved, each figure's metric, version, period, and options, the sources and when each was last fetched, the moment it was computed, and a SHA-256 digest of every input file and every figure.
+
+![A frozen snapshot of a program's annual review, with its digest, Verify, and Export all, and the note that later syncs do not change it](images/insight-snapshot-light.webp "A report snapshot")
 
 A snapshot never changes: later syncs and decisions change the report, not its snapshots, and deleting a report keeps them. **Verify** (or `tessera report verify <snapshot>`) reads the frozen inputs back, computes every figure again with the same metric versions, and confirms that each comes out byte for byte the same. It reports any input that was altered, and any metric whose version has moved on since.
 

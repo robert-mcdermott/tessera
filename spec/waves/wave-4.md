@@ -2,7 +2,7 @@
 
 **Goal:** trustworthy portfolio intelligence and reproducible reporting. Leaders see what the organization, a division, a program, or a lab is funded for, publishes on, and runs as studies; every figure says exactly what it counts; reports can be frozen and regenerated; and the installation can be backed up, restored, and left.
 
-**Branch:** `wave-4` · **Target version:** `0.4.0` · **Status:** ◐ in progress
+**Branch:** `wave-4` · **Target version:** `0.4.0` · **Status:** ◐ slices 1 to 6 done; release prepared, waiting for the go-ahead
 
 ## Exit criteria
 
@@ -101,11 +101,14 @@ Requirements: INT-01 to INT-07, INT-11, DIS-10, LAB-09, PLT-08, PLT-12.
 
 **Acceptance (met):** an embed of the demo program's publications shows its confirmed papers inside another page; the feed validates as JSON Feed 1.1; a group that is not public has no embeds.
 
-## Slice 7: Release prep ☐
+## Slice 7: Release prep ◐
 
-- [ ] Guides for Insight, reports and exports, and operations (backup, restore, exit, alerts); screenshots retaken and the documentation site published
-- [ ] Evaluation, dependency and license review, private-terms check over the whole repository
-- [ ] `CHANGELOG.md` for 0.4.0; version bump; PR, merge, tag `v0.4.0`, and release
+- [x] Guides for Insight, reports and exports, saved searches, embeds, and operations (backup, restore, exit, alerts); every screenshot retaken from the demo, with new ones of Insight, a snapshot, a saved search, Operations, and an embed
+- [x] Evaluation, dependency and license review, private-terms check over the whole repository
+- [x] `CHANGELOG.md` for 0.4.0; version bump
+- [ ] PR, merge, tag `v0.4.0`, release, and the documentation site published, on the maintainer's go-ahead
+
+**Acceptance:** the ORCID works-list check on the pilot reproduces 0.3.0's result exactly (193 listed papers, 95.3% found, 97.3% of them strong); every Insight figure answers in 160 ms or less on the pilot's data; the pilot's ledger takes migrations 0012 and 0013 and backs up in under two seconds; the full suite passes on SQLite and PostgreSQL 16; no dependencies were added; the private-terms check and a scan of every change since 0.3.0 for pilot names are clean.
 
 ---
 
@@ -113,6 +116,7 @@ Requirements: INT-01 to INT-07, INT-11, DIS-10, LAB-09, PLT-08, PLT-12.
 
 | Date | Note |
 |---|---|
+| 2026-11-08 | Slice 7 prepared. The demo now saves a cohort, freezes a program's annual review as a snapshot, keeps a saved search with two new matches, and takes a backup, so every new screen has something to show. On the pilot (migrated to 0013 after a backup), the ORCID works-list check reproduces 0.3.0 exactly; every Insight figure answers within 160 ms (topics are the slowest, reading MeSH headings for about a thousand papers); the pilot has no groups yet, and the group figures say so. The README's status line had been left at 0.2.0 through the last release; it now describes 0.4.0. |
 | 2026-11-08 | Slice 6 done. Embeds are static pages from the public site rather than a script that renders content, so they need nothing running, carry no code into someone else's page, and show only what the allowlisted projection already shows. A first version followed only the reader's preference and showed a dark box in a light lab website; embeds now also come held to light or dark. They open links in the surrounding page, are kept out of the sitemap and search indexes, and always exist for a public group so that pasted code keeps working. The JSON feed covers sites that render content themselves. |
 | 2026-11-08 | Slice 5 done. Backups hold the ledger as portable rows rather than a database file, so one format serves SQLite and PostgreSQL and also moves an installation between them; restore reflects the schema at the backup's revision, loads the rows (references within a table are set once every row is there), resets PostgreSQL's integer sequences, and upgrades. A demo backup restored into a new data home gives identical ledger rows and identical API answers once the index is rebuilt; on PostgreSQL 16, a SQLite backup restored with identical rows. The comparison found that the search index and grant pages took a subproject's record as a grant's latest when several share a fiscal year; fixed. The demo now rebuilds its index after its last direct changes. Alerts are emailed once per set of issues, so a stale source does not send a message every night. |
 | 2026-11-08 | Slice 4 done. A snapshot keeps the inputs, not the whole lake: only the rows its cohort's figures read, so it is small (tens of kilobytes for a program) and cannot drift when the lake is compacted. Verification recomputes from those inputs with the code's metrics and fails, naming the metric, when a metric's version has moved on, rather than silently using the new definition. Deleting a report keeps its snapshots, because someone may have cited them. CSV exports are zips so that the definitions travel with the numbers; Parquet files also carry them in their own metadata. Saved searches remember up to 5,000 matches each and are visible only to their owner; what a search finds when it is saved counts as seen. |

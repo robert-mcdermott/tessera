@@ -26,6 +26,8 @@ const IMAGES = join(REPO, "docs", "images");
 
 const WIDE = { width: 1440, height: 900 };
 const ready = "document.querySelector('main .page') && !document.querySelector('.skeleton')";
+// Insight pages: every figure has loaded.
+const FIGURES = "document.querySelector('.figure-card') && !document.querySelector('.figure-card[aria-busy]')";
 
 // The unit pair whose interests are most alike (the strongest shade off the diagonal).
 const STRONGEST_CELL = `(() => {
@@ -55,6 +57,17 @@ export const SCENES = [
   { name: "admin-groups", url: "/admin/groups/cancer-immunotherapy-program", ...WIDE },
   { name: "public-group", file: "groups/cancer-immunotherapy-program/index.html", ...WIDE, ready: "document.querySelector('main h1')" },
   { name: "public-home", file: "index.html", ...WIDE, ready: "document.querySelector('main h1')" },
+  { name: "insight", url: "/insight", ...WIDE, wait: FIGURES },
+  { name: "insight-funding", url: "/insight/funding", ...WIDE, wait: FIGURES },
+  { name: "insight-topics", url: "/insight/topics?level=area", ...WIDE, wait: FIGURES },
+  { name: "insight-studies", url: "/insight/studies", ...WIDE, wait: FIGURES },
+  { name: "insight-about", url: "/insight?cohort=group:cancer-immunotherapy-program", ...WIDE, wait: FIGURES,
+    step: `(async () => { await new Promise((r) => { const t = setInterval(() => { if (document.querySelector('.figure-card button[aria-label^="About"]')) { clearInterval(t); r(); } }, 50); }); document.querySelector('.figure-card button[aria-label^="About"]').click(); })()`,
+    then: "document.querySelector('.drawer .about-section')", after: "document.querySelector('.drawer-body').scrollTop = 0" },
+  { name: "insight-snapshot", url: "/insight/snapshots/{snapshot}", ...WIDE, wait: FIGURES },
+  { name: "saved-search", url: "/publications?q=lymphoma&saved={saved}", ...WIDE, wait: "document.querySelector('.saved-panel .saved-lead')" },
+  { name: "operations", url: "/admin/operations", ...WIDE },
+  { name: "embed", file: "groups/cancer-immunotherapy-program/embed/publications.html", width: 760, height: 560, ready: "document.querySelector('main h1')" },
   { name: "duplicates", url: "/review/duplicates", ...WIDE },
   { name: "discovered", url: "/review/people", ...WIDE },
   { name: "evidence-model", url: "/admin/evidence", ...WIDE },
@@ -88,9 +101,13 @@ async function waitForServer(base, timeout = 30000) {
 async function people(base) {
   const body = await (await fetch(`${base}/api/v1/people?limit=200`)).json();
   const best = (rank) => [...body.data].sort((a, b) => rank(b) - rank(a))[0]?.id;
+  const snapshots = await (await fetch(`${base}/api/v1/insight/snapshots`)).json();
+  const saved = await (await fetch(`${base}/api/v1/saved-searches`)).json();
   return {
     person: best((p) => (p.counts.accepted || 0) + 5 * (p.counts.grants || 0) + 20 * (p.counts.studies || 0)),
     suggested: best((p) => p.counts.suggested || 0),
+    snapshot: snapshots.data[0]?.id,
+    saved: saved.data[0]?.id,
   };
 }
 
@@ -152,6 +169,8 @@ async function main() {
           await page.evaluate(scene.step);
         }
         if (scene.wait) await page.until(scene.wait);
+        if (scene.then) await page.until(scene.then);
+        if (scene.after) await page.evaluate(scene.after);
         if (scene.type) {
           await page.evaluate(`(() => { const input = document.querySelector('.palette input'); input.value = ${JSON.stringify(scene.type)}; input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
         }
