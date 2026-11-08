@@ -135,7 +135,9 @@ Contact details from registry records (emails, phone numbers) are **not** stored
 | `derived/collaboration_edge.parquet` | Ledger links (papers counted as for profiles, grant investigators, study officials), `pubmed_article` years | One row per pair of directory members who share work (`person_id` < `other_id`): `papers`, `confirmed_papers`, `grants`, `studies`, `strength` (each shared record adds 1/(k − 1), where k is the number of members on it), `first_year`, `last_year`, and `recent`, the five most recent shared PubMed IDs. See [discovery.md](discovery.md#collaboration-signals) |
 | `derived/concept_edge.parquet` | `concept_profile` | Pairs of concepts held together among people's top 15 (`concept_id` < `other_id`): `people` (at least 2) and `strength` (the sum, over those people, of the smaller of the two weights) |
 
-All four are rewritten whole and atomically by `tessera sync` and `tessera build discovery`.
+| `derived/person_group.parquet` | `collaboration_edge`, `concept_profile` | One row per collaborating person: `group_id`, `group_label` (two distinctive concepts), `group_size`, `betweenness` (0 to 1), `bridge`, and `links`, the groups their collaborators belong to with how many in each. See [discovery.md](discovery.md#collaboration-signals) |
+
+All five are rewritten whole and atomically by `tessera sync` and `tessera build discovery`.
 
 Later: `metric_*` tables and frozen `snapshot/<id>/` folders (wave 4).
 

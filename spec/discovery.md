@@ -52,10 +52,18 @@ then normalize the vector to unit length, and keep the top 200 concepts
 | **Coauthorship** | They have published together | Shared papers, counted as for concept profiles (confirmed, or strong suggestions at half weight) |
 | **Co-investigation** | They share a grant or study | Grant investigators (from the funder) and study officials |
 | **Similarity** | Their research overlaps | Concept profiles |
+| **Group** | People who work with one another more than with others | Modularity in the collaboration network |
 | **Missed connection** | High similarity, no shared papers, grants, or studies | Similarity minus collaboration |
-| **Bridge** | Connects otherwise separate groups | Betweenness in the coauthor network |
+| **Bridge** | Connects otherwise separate groups | Betweenness in the collaboration network, with collaborators in more than one group |
 
 *Missed connections* are Tessera's most distinctive discovery feature: people who should probably meet, ranked by overlap, with the shared concepts as the conversation starter.
+
+- **Missed connections** are pairs of current members (former members never appear) with similarity at or above 0.25 by default and no shared paper, grant, or study, most alike first. Each shows the concepts they share and, where someone has worked with both, up to three such people as a possible introduction. They can be limited to one unit, or to pairs in different units. `GET /api/v1/graph/missed`.
+- **Groups** are found by modularity: people move between groups while more of the collaboration falls inside groups than chance would, then groups merge and the process repeats until nothing improves. The visiting order is fixed, so the same network always gives the same groups. Each group is named by the two concepts its members hold most in excess of the organization as a whole (skipping a second concept that only repeats the first, such as "Sleep Stages" after "Sleep").
+- **Bridges** are people in the top tenth by betweenness (and on at least 2% of shortest paths) whose collaborators fall in more than one group. Betweenness is exact up to 400 people and estimated from a fixed sample of 400 sources above that. A bridge is explained by the groups they work with and how many people in each, and bridges are listed **by name**: connecting groups is a role, not a rank.
+- Groups and betweenness are precomputed into `derived/person_group.parquet` by `tessera build discovery`.
+
+**Similar people** on a profile say whether each pair has already worked together, so a missed connection is visible where people look first.
 
 **Collaboration strength.** Each shared paper, grant, or study adds 1/(k − 1) to a pair, where k is the number of directory members on it. Two people who wrote twenty papers together outweigh forty people who share one consortium paper, without discarding either. Pairs are precomputed into `derived/collaboration_edge.parquet` with their counts, years, and most recent shared papers.
 
@@ -66,7 +74,7 @@ then normalize the vector to unit length, and keep the top 200 concepts
 | **Person focus** | One person, their top 10 concepts, and the 30 people whose profiles overlap most on those concepts | person–concept only | "Who shares my interests, and around what?" |
 | **Collaboration network** | People | Coauthorship (solid) and missed connections (dashed) | "Who works together, and who should?" |
 | **Concept landscape** | Concepts among people's top 15, held by at least 2 people | Co-occurrence across people; each concept keeps its 5 strongest links, and concepts with none are left out | "What are our research areas and how do they connect?" |
-| **Unit matrix** | Units × units heatmap | Similarity versus actual collaboration | "Which departments share interests but rarely collaborate?" |
+| **Unit matrix** | Units × units heatmap | Similarity versus actual collaboration, each as a density per possible pair of members, so large and small units compare fairly; the shade of a cell is interest and an inner square is collaboration | "Which departments share interests but rarely collaborate?" |
 
 ### Design lessons that shape these views
 
@@ -77,7 +85,8 @@ then normalize the vector to unit length, and keep the top 200 concepts
 - **Focus and reset.** Any person can become the new focus (double-click, or **Focus on them**); a breadcrumb trail of the last five allows stepping back. Double-clicking a concept opens the expert finder for it.
 - **Deep links.** Every profile links to its own focus view; every graph state is in the URL.
 - **Bounded size.** Views default to about 150 nodes; the network keeps the people with the most collaboration. Controls (minimum similarity, maximum people, unit filter) only filter precomputed data.
-- **Heatmaps sort by density** and open the underlying list on click, loading it in one request.
+- **Heatmaps sort by density** and open the underlying list on click, loading it in one request. Units are ordered by how alike their members are to everyone else's; the matrix shows the 30 largest units with two or more members by default, is keyboard navigable (arrow keys and Enter), and has a sortable list of every pair of units. `GET /api/v1/graph/units`, `GET /api/v1/graph/units/pairs`.
+- **Groups have their own colours.** People are coloured by unit when a view spans several units, otherwise by collaboration group. The six largest groups take the categorical series (`--series-0..5`), which a test keeps at least 0.1 apart in OKLab and 3:1 against cards in every palette and mode; smaller groups share a neutral colour.
 
 ## Rendering (vanilla, no libraries)
 

@@ -236,10 +236,16 @@ _PAIR = re.compile(
 )
 
 
-def _hue(color: str) -> float:
-    """The OKLCH hue of a hex or oklch() color, in degrees."""
+def _oklab(color: str) -> tuple[float, float, float]:
+    """OKLab coordinates of a hex or oklch() color."""
     if color.startswith("oklch"):
-        return float(re.findall(r"[\d.]+", color)[2])
+        lightness, chroma, hue = (float(x) for x in re.findall(r"[\d.]+", color)[:3])
+        lightness = lightness / 100 if lightness > 1 else lightness
+        return (
+            lightness,
+            chroma * math.cos(math.radians(hue)),
+            chroma * math.sin(math.radians(hue)),
+        )
     rgb = [int(color[i : i + 2], 16) / 255 for i in (1, 3, 5)]
     r, g, b = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in rgb]
     l_, m_, s_ = (
@@ -247,9 +253,37 @@ def _hue(color: str) -> float:
         (0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b) ** (1 / 3),
         (0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b) ** (1 / 3),
     )
-    a = 1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_
-    b_ = 0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_
-    return math.degrees(math.atan2(b_, a)) % 360
+    return (
+        0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
+        1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
+        0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_,
+    )
+
+
+def _hue(color: str) -> float:
+    """The OKLCH hue of a hex or oklch() color, in degrees."""
+    _, a, b = _oklab(color)
+    return math.degrees(math.atan2(b, a)) % 360
+
+
+def _contrast(one: str, two: str) -> float:
+    """WCAG contrast ratio between two colors."""
+
+    def luminance(color: str) -> float:
+        lightness, a, b = _oklab(color)
+        l_ = (lightness + 0.3963377774 * a + 0.2158037573 * b) ** 3
+        m_ = (lightness - 0.1055613458 * a - 0.0638541728 * b) ** 3
+        s_ = (lightness - 0.0894841775 * a - 1.2914855480 * b) ** 3
+        rgb = (
+            4.0767416621 * l_ - 3.3077115913 * m_ + 0.2309699292 * s_,
+            -1.2684380046 * l_ + 2.6097574011 * m_ - 0.3413193965 * s_,
+            -0.0041960863 * l_ - 0.7034186147 * m_ + 1.7076147010 * s_,
+        )
+        r, g, b_ = (min(1.0, max(0.0, c)) for c in rgb)
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b_
+
+    high, low = sorted((luminance(one), luminance(two)), reverse=True)
+    return (high + 0.05) / (low + 0.05)
 
 
 def _palette_colors(name: str) -> dict[str, tuple[str, str]]:
@@ -276,6 +310,21 @@ def test_record_colors_stay_clear_of_status_colors(palette: str) -> None:
                 gap = abs(_hue(colors[record][mode]) - _hue(colors[status][mode])) % 360
                 gap = min(gap, 360 - gap)
                 assert gap >= 28, f"{palette} ({label}): --{record} is {gap:.0f}° from --{status}"
+
+
+@pytest.mark.parametrize("palette", ["tessera", "harbor", "cassette"])
+def test_series_colors_are_distinct_and_visible(palette: str) -> None:
+    """Groups in a graph must be told apart, and seen: OKLab distance at least 0.1 between
+    every two series colors, and 3:1 contrast against cards, in light and dark."""
+    colors = _palette_colors(palette)
+    series = [f"series-{i}" for i in range(6)]
+    for mode, label in enumerate(("light", "dark")):
+        for i, one in enumerate(series):
+            ratio = _contrast(colors[one][mode], colors["surface-1"][mode])
+            assert ratio >= 3.0, f"{palette} ({label}): --{one} is {ratio:.1f}:1 on cards"
+            for two in series[i + 1 :]:
+                gap = math.dist(_oklab(colors[one][mode]), _oklab(colors[two][mode]))
+                assert gap >= 0.1, f"{palette} ({label}): --{one} and --{two} are {gap:.3f} apart"
 
 
 def test_api_reference_page(client: TestClient) -> None:

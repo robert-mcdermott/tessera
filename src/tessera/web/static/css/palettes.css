@@ -41,6 +41,12 @@
   --hue-3: #8c3aa6;
   --hue-4: #5b3f93;
   --hue-5: #00687d;
+  --series-0: light-dark(#18365d, #a9c1e4);
+  --series-1: light-dark(#0a799a, #2fb5d6);
+  --series-2: light-dark(#aa4ac4, #d39ae4);
+  --series-3: light-dark(#a87400, #ffb500);
+  --series-4: light-dark(#8a7fb0, #5f7ea8);
+  --series-5: light-dark(#7a5c2e, #e0c9a6);
 
   /* the sunset rule: navy (teal after dark), bright blue, purple, gold */
   --band-1: light-dark(#18365d, #0a799a);
@@ -103,6 +109,12 @@
   --hue-3: oklch(48% 0.11 150);
   --hue-4: oklch(48% 0.13 252);
   --hue-5: oklch(50% 0.17 0);
+  --series-0: light-dark(oklch(54% 0.17 30), oklch(74% 0.14 32));
+  --series-1: light-dark(oklch(50% 0.12 250), oklch(76% 0.11 250));
+  --series-2: light-dark(oklch(64% 0.14 75), oklch(84% 0.13 85));
+  --series-3: light-dark(oklch(50% 0.12 150), oklch(76% 0.13 150));
+  --series-4: light-dark(oklch(50% 0.16 330), oklch(74% 0.14 330));
+  --series-5: light-dark(oklch(45% 0.06 200), oklch(88% 0.05 200));
 
   /* a sunset stripe, day and night: violet, magenta, rose, orange, gold */
   --band-1: #6e4bb8;

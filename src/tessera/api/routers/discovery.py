@@ -7,6 +7,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Query, Request
 
 from tessera.analytics.concepts import profile_path, similarity_path
+from tessera.analytics.connections import collaborators_of
 from tessera.analytics.experts import (
     concept_names,
     find_experts,
@@ -81,7 +82,18 @@ def similar(request: Request, person_id: str) -> dict[str, Any]:
     home = request.app.state.home
     rows = similar_people(lake_of(request), similarity_path(home), person_id)
     people = _people(request, [r["id"] for r in rows])
-    return envelope([{**people[r["id"]], "score": r["score"], "shared": r["shared"]} for r in rows])
+    worked = collaborators_of(lake_of(request), home, person_id)
+    return envelope(
+        [
+            {
+                **people[r["id"]],
+                "score": r["score"],
+                "shared": r["shared"],
+                "together": worked.get(r["id"]),
+            }
+            for r in rows
+        ]
+    )
 
 
 @router.get("/people/{person_id}/concepts", summary="What drives this person's concept profile")

@@ -122,7 +122,10 @@ export function person(main, params, { samePage = false } = {}) {
           body: h("ul", { class: "plain-list similar" }, similar.slice(0, 6).map((p) => h("li", {},
             h("div", { class: "row-sm" }, avatar(p.name, "sm"), h("div", { class: "stack-xs grow" },
               h("a", { href: `/people/${p.id}` }, p.name),
-              h("span", { class: "subtle" }, `shares ${p.shared.slice(0, 3).map((s) => s.descriptor).join(", ")}`)))))) }) : null,
+              h("span", { class: "subtle" }, `shares ${p.shared.slice(0, 3).map((s) => s.descriptor).join(", ")}`),
+              h("span", { class: "subtle" }, p.together
+                ? `worked together: ${number(p.together.papers)} ${p.together.papers === 1 ? "paper" : "papers"}${p.together.grants ? `, ${number(p.together.grants)} ${p.together.grants === 1 ? "grant" : "grants"}` : ""}`
+                : "not yet worked together")))))) }) : null,
         profile.timeline.length > 1 ? card({ title: "Activity", pad: true, attrs: { "data-entity": "publication" },
           body: h("div", { class: "stack-sm" },
             barChart(profile.timeline.slice(-10).map((t) => ({ label: `’${String(t.year).slice(-2)}`, value: t.publications, secondary: t.accepted })),

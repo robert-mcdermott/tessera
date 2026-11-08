@@ -32,6 +32,7 @@ from tessera.analytics.concepts import (
     profile_path,
     similarity_path,
 )
+from tessera.analytics.groups import build_groups
 from tessera.config import Config
 from tessera.home import DataHome
 from tessera.lake import Lake
@@ -40,6 +41,7 @@ log = logging.getLogger("tessera.analytics")
 
 COLLABORATION_FILE = "collaboration_edge.parquet"
 CONCEPT_EDGE_FILE = "concept_edge.parquet"
+GROUP_FILE = "person_group.parquet"
 LANDSCAPE_TOP = 15  # each person's top concepts that make up the landscape
 RECENT_SHOWN = 5
 
@@ -50,6 +52,10 @@ def collaboration_path(home: DataHome) -> Path:
 
 def concept_edge_path(home: DataHome) -> Path:
     return home.derived / CONCEPT_EDGE_FILE
+
+
+def group_path(home: DataHome) -> Path:
+    return home.derived / GROUP_FILE
 
 
 COLLABORATION_SQL = """
@@ -123,15 +129,26 @@ def build_graph(config: Config, home: DataHome, engine: Engine) -> dict[str, Any
                 )
         finally:
             cur.close()
+    groups = build_groups(collaboration, profile_path(home))
     home.derived.mkdir(parents=True, exist_ok=True)
     _write(collaboration, collaboration_path(home))
     _write(concepts, concept_edge_path(home))
+    _write(groups, group_path(home))
+    group_count = len(set(groups.column("group_id").to_pylist()))
+    bridges = sum(groups.column("bridge").to_pylist())
     log.info(
-        "collaboration graph: %d pairs; concept landscape: %d pairs",
+        "collaboration graph: %d pairs, %d groups, %d bridges; concept landscape: %d pairs",
         collaboration.num_rows,
+        group_count,
+        bridges,
         concepts.num_rows,
     )
-    return {"collaborations": collaboration.num_rows, "concept_pairs": concepts.num_rows}
+    return {
+        "collaborations": collaboration.num_rows,
+        "groups": group_count,
+        "bridges": bridges,
+        "concept_pairs": concepts.num_rows,
+    }
 
 
 # --- views ------------------------------------------------------------------------------------

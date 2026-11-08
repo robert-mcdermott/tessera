@@ -602,7 +602,8 @@ def cmd_build_discovery(args: argparse.Namespace) -> int:
         f"{result['confirmed_papers']:,} confirmed)"
     )
     print(
-        f"collaboration graph: {result['collaborations']:,} collaborating pairs; "
+        f"collaboration graph: {result['collaborations']:,} collaborating pairs in "
+        f"{result['groups']:,} groups, {result['bridges']:,} people bridging them; "
         f"concept landscape: {result['concept_pairs']:,} linked concepts"
     )
     return EXIT_OK

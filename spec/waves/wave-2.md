@@ -2,7 +2,7 @@
 
 **Goal:** turn the graph into discovery: who works on what, who should meet, and why. Make the evidence stronger with ORCID, and let more than one person use Tessera, each with the right permissions.
 
-**Branch:** `wave-2` · **Target version:** `0.2.0` · **Status:** ◐ slices 1–6 done; slice 7 next
+**Branch:** `wave-2` · **Target version:** `0.2.0` · **Status:** ◐ slices 1–7 done; slice 8 (release prep) next
 
 ## Exit criteria
 
@@ -88,15 +88,16 @@ Requirements delivered: REC-02 (ORCID), REC-07, REC-08, CUR-05, CUR-06, CUR-10, 
 
 **Acceptance (met):** on the pilot, the landscape's 126 topics and 313 links, and a generated graph of 300 nodes and 600 links, laid out with no main-thread task over 50 ms; every view has a working list. The first-load budget now counts what the app loads at start (90 KB of 100 KB, gzipped); the graph views and their worker add 15 KB when first opened, under their own 40 KB budget.
 
-## Slice 7: Missed connections and the unit matrix ☐
+## Slice 7: Missed connections and the unit matrix ☑
 
 **Goal:** who should meet, and which units share interests but rarely work together.
 
-- [ ] Missed connections (DIS-08): high-similarity pairs without shared papers, grants, or studies, with the shared concepts as the reason
-- [ ] Bridges: people who connect otherwise separate groups
-- [ ] Unit matrix (DIS-09): unit-by-unit similarity versus collaboration, sorted by density, each cell opening its list
+- [x] Missed connections (DIS-08): pairs of current members at similarity 0.25 or more (adjustable) without shared papers, grants, or studies, with the shared concepts as the reason and anyone who worked with both as a possible introduction; filters for unit and across units; similar people on profiles say whether they have worked together
+- [x] Bridges: collaboration groups found by modularity (deterministic, named by distinctive concepts), and people with high betweenness whose collaborators span groups, ringed in the network and listed by name with the groups they connect
+- [x] Unit matrix (DIS-09): unit-by-unit interest and collaboration as densities per possible pair, units ordered by interest density, each cell opening its pairs in one request; keyboard navigable, with a sortable list
+- [x] Categorical `--series-0..5` colours for groups in every palette, tested for distinctness and contrast
 
-**Acceptance:** every pair and cell explains itself; copy never suggests a ranking of people.
+**Acceptance (met):** every pair names the concepts behind it, every bridge the groups it connects, and every cell its counts and the people behind them; bridges are listed by name, and the copy speaks of roles and pairs, never of ranks. On the pilot: 9 missed connections at 0.25, most with a collaborator of both named; 7 groups, each recognizably one research area by its name; and 3 people bridging them. The pilot has no units yet; the matrix was checked on a synthetic organization with units for everyone.
 
 ## Slice 8: Release prep ☐
 

@@ -4,17 +4,22 @@
 
 import { get } from "../core/api.js";
 import { h, icon } from "../core/dom.js";
-import { hue, number } from "../core/format.js";
+import { number } from "../core/format.js";
 import { navigate, onNavigate, query, setQuery } from "../core/router.js";
 import { session } from "../core/session.js";
 import { graphView } from "../components/graph-view.js";
+import { sortableTable } from "../components/sortable-table.js";
 import { card, debounce, emptyState, pageHeader, segmented, tabs } from "../components/ui.js";
+import { missedContent } from "./missed.js";
 import { show } from "./page.js";
+import { unitsContent } from "./units.js";
 
 const VIEWS = [
   { id: "network", label: "Collaboration" },
   { id: "focus", label: "Person focus" },
   { id: "landscape", label: "Concept landscape" },
+  { id: "missed", label: "Missed connections" },
+  { id: "units", label: "Units" },
 ];
 const TRAIL = 5;
 const names = new Map(); // person id -> name, from every graph loaded (for breadcrumbs)
@@ -48,6 +53,11 @@ async function load({ view, person, trail, params }) {
   if (view === "landscape") {
     return get("/api/v1/graph/landscape", { max_concepts: params.get("max"), min_people: params.get("people") });
   }
+  if (view === "missed") {
+    return get("/api/v1/graph/missed", { unit: params.get("unit"), across: params.get("across") === "1" ? "true" : null,
+      min_similarity: params.get("min"), offset: params.get("offset"), limit: 25 });
+  }
+  if (view === "units") return get("/api/v1/graph/units", { max_units: params.get("max") });
   if (!person) return { pick: true };
   const id = encodeURIComponent(person);
   const [body, similar] = await Promise.all([
@@ -71,6 +81,17 @@ function page(state, body) {
   }
   if (!body.meta.ready) {
     return h("div", { class: "stack-lg" }, header, viewTabs, card({ body: emptyState({ iconName: "network", title: "Not ready yet", text: body.meta.note }) }));
+  }
+  if (state.view === "missed" || state.view === "units") {
+    active?.destroy();
+    active = null;
+    const content = state.view === "missed" ? missedContent(state, body) : unitsContent(state, body);
+    const mode = state.view === "units" && body.data.units.length >= 2
+      ? h("div", { class: "toolbar graph-toolbar" }, h("span", { class: "spacer" }),
+        segmented([{ id: "graph", label: "Matrix", icon: "grid" }, { id: "list", label: "List", icon: "list" }],
+          state.list ? "list" : "graph", (id) => setQuery({ list: id === "list" ? "1" : null }), "Show as"))
+      : null;
+    return h("div", { class: "stack-lg" }, header, viewTabs, mode, ...content);
   }
   const { nodes, edges } = body.data;
   for (const node of nodes) if (node.kind === "person" && node.label) names.set(node.id, node.label);
@@ -143,31 +164,49 @@ function focusOn(state, id) {
 
 // --- how each view looks -------------------------------------------------------------------
 
-const personColour = (groups) => (node) => {
-  if (node.status === "former") return "var(--text-subtle)";
-  return groups && node.group ? `var(--hue-${hue(node.group)})` : "var(--ent-person)";
-};
+const personFill = (node) => (node.status === "former" ? "var(--text-subtle)" : "var(--ent-person)");
+
+/** Colour people by unit where the view spans several, otherwise by collaboration group;
+ * hues go to the largest groups first, so the main groups never share a colour. */
+function colouring(nodes) {
+  const byUnit = new Set(nodes.map((n) => n.group).filter(Boolean)).size > 1;
+  const keyOf = (n) => (byUnit ? n.group : n.cluster);
+  const counts = new Map();
+  for (const n of nodes) if (keyOf(n)) counts.set(keyOf(n), (counts.get(keyOf(n)) ?? 0) + 1);
+  // Six distinct series colours; any further, smaller groups share a neutral one.
+  const legend = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([label, people], i) => ({ label, people, colour: i < 6 ? `var(--series-${i})` : "var(--ent-unit)" }));
+  const colourOf = new Map(legend.map((g) => [g.label, g.colour]));
+  return {
+    byUnit,
+    legend: legend.length > 1 ? legend : [],
+    color: (n) => (n.status === "former" ? "var(--text-subtle)"
+      : legend.length > 1 && colourOf.has(keyOf(n)) ? colourOf.get(keyOf(n)) : "var(--ent-person)"),
+  };
+}
 
 const LOOKS = {
   network(nodes) {
-    const groups = new Set(nodes.map((n) => n.group).filter(Boolean)).size > 1;
+    const colours = colouring(nodes);
     return {
-      groups,
+      colours,
       radius: (n) => 4 + Math.min(9, 1.7 * Math.sqrt(n.degree || 0)),
-      color: personColour(groups),
+      color: colours.color,
+      ring: (n) => (n.bridge ? "var(--accent)" : null),
       edge: (e) => e.kind === "collaboration"
         ? { color: "var(--text-muted)", width: 0.8 + 1.1 * Math.log2(1 + e.weight), alpha: 0.45 }
         : { color: "var(--ent-concept)", width: 1, dash: true, alpha: 0.55 },
       force: (e) => e.kind === "collaboration"
         ? { distance: 48 + 36 / (1 + e.weight), strength: Math.min(0.7, 0.2 + e.weight / 8) }
         : { distance: 110, strength: 0.06 },
-      describe: (n) => [n.units?.length ? n.units.join(", ") : null, n.status === "former" ? "Former member" : null],
+      describe: (n) => [n.units?.length ? n.units.join(", ") : null, n.cluster ? `Group: ${n.cluster}` : null,
+        n.bridge ? "Connects groups" : null, n.status === "former" ? "Former member" : null],
     };
   },
   focus(nodes) {
     return {
       radius: (n) => (n.focus ? 15 : n.kind === "concept" ? 7 + Math.min(8, Math.sqrt(n.papers || 1)) : 5 + 14 * Math.sqrt(n.overlap || 0)),
-      color: (n) => (n.kind === "concept" ? "var(--ent-concept)" : n.focus ? "var(--accent)" : personColour(false)(n)),
+      color: (n) => (n.kind === "concept" ? "var(--ent-concept)" : n.focus ? "var(--accent)" : personFill(n)),
       edge: (e) => ({ color: "var(--text-subtle)", width: 0.6 + 2.5 * e.weight, alpha: 0.45 }),
       force: (e) => ({ distance: 46 + 50 * (1 - Math.min(1, e.weight * 2)), strength: 0.35 }),
       always: (n) => n.kind === "concept" || n.focus,
@@ -247,18 +286,25 @@ function legendRow(swatch, text) {
 
 function overview(state, body, look) {
   if (state.view === "network") {
-    const groups = look.groups ? [...new Set(body.data.nodes.map((n) => n.group).filter(Boolean))].sort() : [];
+    const { legend, byUnit } = look.colours;
+    const bridges = body.meta.bridges ?? [];
     return [
       h("h2", {}, "Reading this graph"),
       h("ul", { class: "legend" },
         legendRow("swatch-line", "Published, funded, or ran a study together (thicker: more, and with fewer others)"),
         legendRow("swatch-dashed", "Similar interests, not yet working together"),
+        bridges.length ? legendRow("swatch-ring", "Connects groups") : null,
         legendRow("swatch-former", "Former member")),
-      groups.length ? h("ul", { class: "legend" }, groups.slice(0, 8).map((g) => {
+      legend.length ? h("h3", {}, byUnit ? "Units" : "Groups that work together") : null,
+      legend.length ? h("ul", { class: "legend" }, legend.slice(0, 12).map((g) => {
         const swatch = h("span", { class: "legend-swatch swatch-dot", "aria-hidden": "true" });
-        swatch.style.setProperty("background", `var(--hue-${hue(g)})`);
-        return h("li", {}, swatch, h("span", {}, g));
+        swatch.style.setProperty("background", g.colour);
+        return h("li", {}, swatch, h("span", {}, `${g.label} (${number(g.people)})`));
       })) : null,
+      bridges.length ? h("h3", {}, "People who connect groups") : null,
+      bridges.length ? h("ul", { class: "plain-list side-list" }, bridges.map((b) =>
+        sideItem(b.id, b.name, `works with ${b.groups.slice(0, 3).map((g) => `${number(g.people)} in ${g.label}`).join(", ")}`, state))) : null,
+      bridges.length ? h("p", { class: "subtle" }, "Listed by name: connecting groups is a role in this network, not a ranking.") : null,
       h("p", { class: "subtle" }, "Hover to see someone's connections, select for details, double-click to focus on them. Drag a person to pin them in place."),
     ];
   }
@@ -374,36 +420,5 @@ function graphList(state, nodes, edges) {
       edgeTable.filter((e) => keep(e.from) || keep(e.to));
       return shown;
     },
-  };
-}
-
-/** A table whose column headers sort it (keyboard operable, with aria-sort). */
-function sortableTable(columns, rows, { caption, initial }) {
-  let key = initial;
-  let descending = true;
-  let keep = () => true;
-  const head = h("tr");
-  const tbody = h("tbody");
-  const draw = () => {
-    const column = columns.find((c) => c.key === key);
-    const sorted = rows.filter(keep).sort((a, b) => {
-      const x = column.sort(a); const y = column.sort(b);
-      const order = x < y ? -1 : x > y ? 1 : 0;
-      return descending ? -order : order;
-    });
-    head.replaceChildren(...columns.map((c) => h("th", { scope: "col", class: c.num ? "num" : null,
-      "aria-sort": c.key === key ? (descending ? "descending" : "ascending") : c.sort ? "none" : null },
-      c.sort ? h("button", { type: "button", class: "th-sort", onclick: () => {
-        descending = c.key === key ? !descending : Boolean(c.num);
-        key = c.key;
-        draw();
-      } }, c.label, c.key === key ? icon(descending ? "chevronDown" : "chevronRight", "icon icon-sm") : null) : h("span", { class: "sr-only" }, "Actions"))));
-    tbody.replaceChildren(...sorted.slice(0, 500).map((row) => h("tr", {}, columns.map((c) => h("td", { class: c.num ? "num" : null }, c.cell(row))))));
-    return sorted;
-  };
-  draw();
-  return {
-    element: h("div", { class: "table-wrap" }, h("table", { class: "table", "data-dense": "" }, h("caption", { class: "sr-only" }, caption), h("thead", {}, head), tbody)),
-    filter(fn) { keep = fn; return draw(); },
   };
 }

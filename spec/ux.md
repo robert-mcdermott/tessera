@@ -39,6 +39,7 @@ All visual values are CSS custom properties defined once in `tokens.css`. Colors
 - **Spacing:** 4 px base scale (`--space-1` = 4 px … `--space-10` = 64 px)
 - **Radius:** `--radius-s` 6 px, `--radius-m` 10 px, `--radius-l` 16 px
 - **Elevation:** three shadow levels, deeper in dark mode
+- **Series:** `--series-0..5`, categorical colors for groups in graphs and charts, distinct from one another (at least 0.1 apart in OKLab) and at least 3:1 against cards in every palette and mode; a test enforces both
 - **Signature:** `--band-1..5`, `--signature`, and `--signature-height`: a palette's stripe along the top of the window and the art in the home page's hero; `--hue-0..5` color avatar tiles
 - **Motion:** `--ease-out`, durations 120/200/320 ms, all disabled under `prefers-reduced-motion`
 

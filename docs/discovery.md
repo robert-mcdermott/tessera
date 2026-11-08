@@ -36,7 +36,7 @@ Similarity reflects the topics of people's papers. It says nothing about the qua
 
 ## Connections
 
-**Connections**, in the sidebar, draws three pictures of the organization. Each one has a **List** view with the same people, topics, and relationships as sortable tables, for keyboard and screen-reader use, or for copying.
+**Connections**, in the sidebar, draws three pictures of the organization and lists two kinds of opportunity. Each picture has a **List** view with the same people, topics, and relationships as sortable tables, for keyboard and screen-reader use, or for copying.
 
 | View | Shows | Use it to see |
 |---|---|---|
@@ -46,7 +46,17 @@ Similarity reflects the topics of people's papers. It says nothing about the qua
 
 In the graph, hover over anyone to fade everything but them and their connections, and select them to see the details beside the graph: who they worked with (papers, grants, studies, and years) and who shares their interests. Double-click a person, or choose **Focus on them**, to put them at the centre; the trail above the graph steps back. Double-click a topic to find experts on it. Drag a node to pin it in place, scroll or use the buttons to zoom, and type in **Find in this graph** to highlight people or topics by name (Enter flies to the first).
 
-**Collaboration** shows at most 150 people by default, those with the most collaboration; the controls change the number, set how similar two people must be for a dashed line, filter by unit, or hide similarity. Every choice is in the address, so a view can be shared as a link. Each profile's **Similar people** card links to that person's focus view.
+**Collaboration** shows at most 150 people by default, those with the most collaboration; the controls change the number, set how similar two people must be for a dashed line, filter by unit, or hide similarity. Every choice is in the address, so a view can be shared as a link. Each profile's **Similar people** card links to that person's focus view, and says of each similar person whether the two have worked together.
+
+People are coloured by unit when the view spans several units, and otherwise by **group**: people who work with one another more than with others, found from the network itself and named by the topics their members share most distinctively. A ring marks someone who **connects groups**: they lie on many of the shortest paths between others and work with people in more than one group. The panel beside the graph lists them by name, with the groups they work with; it is a role in the network, not a ranking.
+
+### Missed connections
+
+**Missed connections** lists pairs of current members whose interests are alike but who have never published, held a grant, or run a study together, most alike first. Each pair shows the topics they share, and, when someone has worked with both, that person, who might introduce them. Limit the list to one unit, or to pairs in different units, and choose how alike they must be.
+
+### Units
+
+**Units** compares every pair of units (the 30 largest with at least two members, by default). In each cell, the shade shows how alike the two units' members are, and the inner square how much they work together, both per possible pair of people, so large and small units compare fairly. A strong shade with a small square marks units that share interests but rarely work together. Select a cell, or move with the arrow keys and press Enter, to see the people behind it, with what they share and whether they have worked together. The **List** view has every pair of units as a sortable table.
 
 ## Keeping it current
 

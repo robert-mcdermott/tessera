@@ -210,7 +210,7 @@ export function graphView({ nodes, edges, look, on = {}, label = "Graph" }) {
       ctx.lineWidth = 1.5 / view.k;
       ctx.strokeStyle = surface;
       ctx.stroke();
-      const ring = i === selected || i === active ? "var(--text)" : node.focus ? "var(--accent)" : matches.has(i) ? "var(--warn)" : null;
+      const ring = i === selected || i === active ? "var(--text)" : node.focus ? "var(--accent)" : matches.has(i) ? "var(--warn)" : look.ring?.(node) ?? null;
       if (ring) {
         ctx.beginPath();
         ctx.arc(pos[2 * i], pos[2 * i + 1], radius[i] + 3 / view.k, 0, Math.PI * 2);

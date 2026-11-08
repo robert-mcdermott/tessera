@@ -53,6 +53,14 @@
   --ent-concept-soft: light-dark(oklch(95.6% 0.028 302), oklch(29% 0.05 302));
   --ent-unit: light-dark(oklch(46% 0.03 265), oklch(80% 0.01 260));
   --ent-unit-soft: light-dark(oklch(95% 0.008 265), oklch(27% 0.006 260));
+  /* Categorical series for charts and graphs: distinct from one another in both modes, and
+     at least 3:1 against cards (a test checks every palette). */
+  --series-0: light-dark(oklch(50% 0.17 277), oklch(74% 0.12 277));
+  --series-1: light-dark(oklch(52% 0.1 200), oklch(78% 0.1 200));
+  --series-2: light-dark(oklch(62% 0.16 50), oklch(78% 0.14 50));
+  --series-3: light-dark(oklch(52% 0.19 350), oklch(72% 0.16 350));
+  --series-4: light-dark(oklch(54% 0.14 140), oklch(82% 0.15 140));
+  --series-5: light-dark(oklch(58% 0.12 95), oklch(88% 0.13 100));
 
   /* Status */
   --ok: light-dark(oklch(48% 0.12 155), oklch(78% 0.13 155));

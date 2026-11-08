@@ -210,3 +210,31 @@ fieldset.field legend { font-size: var(--fs-sm); font-weight: 600; margin-bottom
 .th-sort { display: inline-flex; align-items: center; gap: 4px; border: 0; padding: 0; background: none; font: inherit; color: inherit; cursor: pointer; }
 .th-sort:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 .table th.num .th-sort { flex-direction: row-reverse; }
+
+/* Missed connections and the unit matrix */
+.measure { max-width: 75ch; }
+.missed { align-items: center; }
+.missed-pair { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--space-3); flex: 0 0 400px; min-width: 0; }
+.missed-person { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.missed-person .item-title { font-size: var(--fs-sm); }
+.missed-link { flex: none; color: var(--text-subtle); }
+@media (max-width: 760px) {
+  .missed { flex-wrap: wrap; }
+  .missed-pair { flex: 1 1 100%; }
+  .missed .item-side { flex-direction: row; align-items: center; }
+}
+.legend-swatch.swatch-ring { width: 12px; height: 12px; border: 2px solid var(--accent); border-radius: 50%; }
+.legend-swatch.swatch-interest { width: 14px; height: 14px; border: 0; border-radius: 3px; background: color-mix(in oklch, var(--ent-concept) 60%, transparent); }
+.legend-swatch.swatch-collab { width: 14px; height: 14px; border: 0; border-radius: 2px; background: var(--text); }
+.matrix-wrap { overflow: auto; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-l); background: var(--surface-1); }
+.unit-matrix { display: block; max-width: none; }
+.unit-matrix:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.unit-matrix .cell { cursor: pointer; }
+.unit-matrix .cell-bg { fill: var(--surface-2); stroke: var(--surface-1); stroke-width: 1; }
+.unit-matrix .cell:hover .cell-bg { fill: var(--surface-3); }
+.unit-matrix .cell-interest { fill: var(--ent-concept); }
+.unit-matrix .cell-collab { fill: var(--text); stroke: var(--surface-1); stroke-width: 1; }
+.unit-matrix .cell-selected { fill: none; stroke: var(--text); stroke-width: 2; pointer-events: none; }
+.unit-matrix .matrix-label { fill: var(--text-muted); font-size: 12px; }
+.pair-list li { align-items: flex-start; }
+.pair-list li .pill { flex: none; gap: 4px; }
