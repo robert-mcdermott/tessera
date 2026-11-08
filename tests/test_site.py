@@ -32,3 +32,16 @@ def test_the_site_builds_with_no_broken_links(tmp_path: Path) -> None:
     assert {entry["page"] for entry in search} >= {"curation", "api-reference", "discovery"}
     index = (out / "index.html").read_text("utf-8")
     assert "<script>" not in index and "style=" not in index  # no inline code
+
+
+@pytest.mark.skipif(NODE is None, reason="Node.js is not installed")
+@pytest.mark.parametrize(
+    "script",
+    sorted((REPO / "docs").glob("capture/*.mjs")) + sorted((REPO / "docs").glob("site/**/*.*js")),
+    ids=lambda p: p.relative_to(REPO).as_posix(),
+)
+def test_documentation_scripts_parse(script: Path) -> None:
+    result = subprocess.run(
+        [NODE, "--check", str(script)], capture_output=True, timeout=30, check=False
+    )
+    assert result.returncode == 0, result.stderr.decode("utf-8", "replace")

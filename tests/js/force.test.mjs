@@ -81,3 +81,12 @@ test("150 nodes settle quickly", () => {
   const took = performance.now() - start;
   assert.ok(took < 1500, `took ${took.toFixed(0)} ms`);
 });
+
+test("a node given fx and fy starts pinned there", () => {
+  const nodes = [{ r: 6, fx: 0, fy: 0 }, { r: 6 }, { r: 6 }];
+  const sim = new Simulation(nodes, [{ source: 0, target: 1 }, { source: 0, target: 2 }]);
+  settle(sim);
+  const p = sim.positions();
+  assert.equal(p[0], 0);
+  assert.equal(p[1], 0);
+});

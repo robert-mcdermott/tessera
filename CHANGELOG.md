@@ -7,7 +7,17 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 ### Added
 
 - `tessera demo [PATH]` builds a complete installation for an invented organization, the Corvane Institute for Biomedical Research: about 100 people in 22 labs, 700 publications, grants, clinical studies, ORCID records, and a curator's decisions, so every screen has something to show. Identifiers are chosen so they can never be mistaken for real ones. It is also what the documentation's screenshots are taken from.
+- Screenshots for the documentation are taken from the real app, serving the demo organization, in light and dark (`node docs/capture/capture.mjs`), and the diagrams are drawn as SVG (`node docs/capture/diagrams.mjs`).
 - A documentation site, built from the guides with `node docs/site/build.mjs` (Node.js 22, no packages): a menu in reading order, search, light and dark themes from Tessera's own design tokens, an API reference generated from the OpenAPI document, and a check that fails the build on any broken link or anchor.
+
+### Changed
+
+- In the person focus view, the person in focus stays at the centre, and topics are drawn larger than the people around them, so people gather around the topics they share.
+
+### Fixed
+
+- With reduced motion turned on, the graphs drew every node and label in black: a tiny transition on every element made the colors read back wrong. Reduced motion now turns transitions off.
+- The collaboration graph's legend lists former members only when the graph shows one.
 
 ## 0.2.0 (2026-11-08)
 

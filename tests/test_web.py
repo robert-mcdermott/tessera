@@ -156,6 +156,15 @@ def _gzipped(paths: set[Path] | list[Path]) -> int:
     return sum(len(gzip.compress(p.read_bytes(), 9)) for p in paths)
 
 
+def test_reduced_motion_turns_transitions_off() -> None:
+    """Not a tiny duration: with transition-property "all", every style change would become a
+    transition, and the graph's colors (read back from computed styles) would come out wrong."""
+    css = (CSS_ROOT / "base.css").read_text("utf-8")
+    block = css[css.index("@media (prefers-reduced-motion: reduce)") :]
+    block = block[: block.index("}\n}") + 3]
+    assert "transition-duration: 0s" in block, block
+
+
 def test_app_shell_fits_the_budget() -> None:
     shell = _static_closure([JS_ROOT / "app.js"])
     total = _gzipped(shell) + _gzipped(CSS_FILES)

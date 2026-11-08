@@ -2,7 +2,7 @@
 
 **Goal:** a product site with the full, illustrated documentation, so that people outside the pilot can find Tessera, see it, and try it. See the [roadmap](../roadmap.md#documentation-site-between-v020-and-v030-).
 
-**Branch:** `docs-site` · **Version:** none of its own; the site describes the latest release (0.2.0) · **Status:** ◐ slices 1–2 done
+**Branch:** `docs-site` · **Version:** none of its own; the site describes the latest release (0.2.0) · **Status:** ◐ slices 1–3 done
 
 From now on, every release-prep slice refreshes the site: screenshots of changed screens are retaken, the guides are checked against the changelog, and the site is rebuilt and published once the release is out.
 
@@ -23,10 +23,13 @@ From now on, every release-prep slice refreshes the site: screenshots of changed
 
 **Acceptance (met):** 11 pages and 125 searchable sections build with no broken links, in light and dark, and at phone width with a menu button.
 
-## Slice 3: Screenshots and diagrams ☐
+## Slice 3: Screenshots and diagrams ☑
 
-- [ ] `docs/capture/cdp.mjs`, a small Chrome DevTools Protocol driver, and `docs/capture/capture.mjs`, which builds the demo in a temporary directory, serves it, and saves each scene in light and dark as `docs/images/<name>-light.webp` and `-dark.webp`
-- [ ] `docs/capture/diagrams.mjs`: architecture, data-flow, and evidence diagrams as SVG in both themes from one color table
+- [x] `docs/capture/cdp.mjs`, a small Chrome DevTools Protocol driver (Node.js 22's own WebSocket; `CHROME` picks the browser), and `docs/capture/capture.mjs`, which builds the demo in a temporary directory (or reuses one with `--demo`), serves it on a free port, and saves each scene in light and dark as `docs/images/<scene>-light.webp` and `-dark.webp`, with motion reduced so graphs are shown settled
+- [x] 17 scenes, each one line: home, people, a profile, the evidence drawer, the review queue, expert search, the three graphs, missed connections, the unit matrix with a pair of units open, possible duplicates, discovered people, the evidence model, sources, the command palette, and a profile at phone width. Scenes pick their people from the demo through the API (the most connected curated person; the person with the most open suggestions), and can be retaken alone (`capture.mjs profile evidence --theme dark`)
+- [x] `docs/capture/diagrams.mjs`: how Tessera works and how a suggestion is scored, as SVG in light and dark from one color table close to the app's tokens
+
+**Acceptance (met):** all 34 screenshots (3.4 MB) and 4 diagrams are produced in about a minute with no manual steps; every screen is the real app showing the invented organization.
 
 ## Slice 4: Home page, figures, and publishing ☐
 
@@ -38,4 +41,5 @@ From now on, every release-prep slice refreshes the site: screenshots of changed
 
 | Date | Note |
 |---|---|
+| 2026-11-08 | Slice 3 done. The screenshots found a bug: with reduced motion, the app gave every element a 0.01 ms transition, so every style change became a transition and the graphs, which read their colors back from computed styles, drew in black for anyone who prefers reduced motion. Reduced motion now turns transitions off, and a test keeps it so. The demo also showed that in the person focus view, people outgrew the topics they gather around and the person in focus drifted to the edge: topics are now the larger hubs and the person in focus is pinned at the centre. |
 | 2026-11-08 | Planned after v0.2.0. The site will be public on GitHub Pages; the repository follows later. The demo writes records in the lake's schemas rather than replaying source payloads through the connectors: payload builders for five source formats would exist only for the demo, while every screen reads what lies downstream of parsing. Demo names were checked against the pilot's so that none coincide. |
