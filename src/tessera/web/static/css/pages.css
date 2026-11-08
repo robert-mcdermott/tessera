@@ -1,0 +1,93 @@
+/* Page-specific styles. */
+
+.boot { min-height: 100vh; display: grid; place-items: center; }
+.boot img { animation: breathe 1.6s ease-in-out infinite; }
+@keyframes breathe { 50% { opacity: .45; transform: scale(.94); } }
+.noscript { padding: var(--space-6); text-align: center; }
+
+/* Home */
+.hero {
+  position: relative; overflow: hidden;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 420px); gap: var(--space-6); align-items: end;
+  padding: var(--space-7);
+  border: 1px solid var(--border); border-radius: var(--radius-xl);
+  background:
+    radial-gradient(120% 140% at 100% 0%, var(--accent-softer), transparent 60%),
+    var(--surface-1);
+  box-shadow: var(--shadow-1);
+}
+.hero::after {
+  /* the mosaic motif: a faint field of tiles in the corner */
+  content: ""; position: absolute; right: -40px; top: -40px; width: 260px; height: 260px; pointer-events: none;
+  background:
+    conic-gradient(from 0deg at 50% 50%, color-mix(in oklch, var(--ent-person) 10%, transparent) 0 25%, transparent 0 50%, color-mix(in oklch, var(--ent-pub) 10%, transparent) 0 75%, transparent 0) 0 0 / 52px 52px;
+  mask-image: radial-gradient(closest-side, black, transparent);
+  -webkit-mask-image: radial-gradient(closest-side, black, transparent);
+}
+.hero-text { position: relative; z-index: 1; display: flex; flex-direction: column; gap: var(--space-2); }
+.hero .eyebrow { color: var(--accent); }
+.hero-lede { color: var(--text-muted); font-size: var(--fs-lg); max-width: 58ch; }
+.hero-search { position: relative; z-index: 1; }
+.hero-search .input { height: 48px; font-size: var(--fs-lg); border-radius: var(--radius-l); }
+@media (max-width: 860px) { .hero { grid-template-columns: minmax(0, 1fr); padding: var(--space-5); } }
+
+/* Profile and details */
+.page-header .avatar-lg, .page-header > .entity-icon { margin-top: 2px; }
+.page-header > .entity-icon { width: 48px; height: 48px; border-radius: 14px; }
+.page-header > .entity-icon .icon { width: 24px; height: 24px; }
+.abstract { line-height: 1.7; max-width: 76ch; display: flex; flex-direction: column; gap: var(--space-3); }
+.abstract p { margin: 0; }
+.author-list { margin: 0; padding: 0 0 0 var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); }
+.author { padding-left: var(--space-1); }
+.author::marker { color: var(--text-subtle); font-variant-numeric: tabular-nums; }
+.author > span:first-child { margin-right: var(--space-2); }
+.author.has-people { display: list-item; }
+.author.has-people > .row-sm { display: inline-flex; max-width: 100%; margin: 2px var(--space-2) 2px 0; vertical-align: middle; }
+.author > a.subtle { display: inline-flex; vertical-align: -3px; margin-right: var(--space-2); }
+.plain-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-sm); }
+.site.org-site { font-weight: 600; }
+.swatch-strong { background: var(--ent-pub); }
+.swatch-soft { background: color-mix(in oklch, var(--ent-pub) 35%, var(--surface-3)); }
+
+/* API reference */
+.docs { flex: 1; width: 100%; max-width: 960px; margin: 0 auto; padding: var(--space-7) var(--space-4) var(--space-10); }
+
+/* ---------- Review queue ---------- */
+.review { display: grid; grid-template-columns: minmax(260px, 360px) minmax(0, 1fr); gap: var(--space-5); align-items: start; }
+.review-pane {
+  position: sticky; top: calc(var(--signature-height) + var(--topbar-height) + var(--space-4));
+  max-height: calc(100vh - var(--topbar-height) - var(--space-8)); overflow-y: auto; overscroll-behavior: contain;
+}
+.review-list { list-style: none; margin: 0; padding: var(--space-2); display: flex; flex-direction: column; gap: 2px; }
+.review-item { padding: var(--space-2) var(--space-3); border-radius: var(--radius-m); cursor: pointer; border: 1px solid transparent; }
+.review-item:hover { background: var(--surface-2); }
+.review-item[aria-selected="true"] { background: var(--accent-soft); border-color: color-mix(in oklch, var(--accent) 35%, transparent); }
+.review-item-title { font-weight: 550; font-size: var(--fs-sm); line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.review-item-meta { display: flex; align-items: center; gap: var(--space-2); margin-top: 2px; font-size: var(--fs-xs); color: var(--text-muted); }
+.review-item-meta .truncate { flex: 1 1 auto; min-width: 0; }
+.review-group {
+  display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-3) var(--space-1);
+  font-size: var(--fs-xs); font-weight: 650; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-subtle);
+}
+.review-group .btn { text-transform: none; letter-spacing: 0; }
+.review-more { padding: var(--space-2); display: flex; justify-content: center; }
+.band-score { font-variant-numeric: tabular-nums; font-weight: 650; padding: 1px 7px; border-radius: var(--radius-pill); }
+.band-score[data-band="strong"] { color: var(--ok); background: var(--ok-soft); }
+.band-score[data-band="possible"] { color: var(--warn); background: var(--warn-soft); }
+.band-score[data-band="unlikely"] { color: var(--danger); background: var(--danger-soft); }
+.review-head { display: flex; flex-direction: column; gap: var(--space-2); }
+.review-title { margin: 0; font-size: var(--fs-xl); line-height: 1.35; }
+.review-title a { color: var(--text); }
+.review-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.review-actions .input { flex: 1 1 180px; width: auto; height: 34px; }
+.author-list.compact { gap: 4px; font-size: var(--fs-sm); }
+.author-gap { list-style: none; color: var(--text-subtle); }
+.author-slot { background: var(--accent-soft); border-radius: var(--radius-s); padding: 2px var(--space-2); margin-left: calc(-1 * var(--space-1)); }
+.author-slot > span:first-child { font-weight: 650; }
+.author-affiliation { font-size: var(--fs-xs); color: var(--text-muted); margin-top: 2px; }
+@media (max-width: 960px) {
+  .review { grid-template-columns: minmax(0, 1fr); }
+  .review-pane { position: static; max-height: 40vh; }
+}
+.band-bar { display: flex; min-width: 0; max-width: 100%; }
+.author-slot .pill-accent { background: var(--accent); color: var(--on-accent); }

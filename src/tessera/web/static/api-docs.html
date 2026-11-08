@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>API reference · Tessera</title>
+  <link rel="icon" type="image/svg+xml" href="/img/tessera-mark.svg">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/palettes.css">
+  <link rel="stylesheet" href="/theme.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/api-docs.css">
+  <script type="module" src="/js/api-docs.js"></script>
+</head>
+<body class="docs-page">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="topbar">
+    <a class="brand" href="/">
+      <img class="brand-mark" src="/img/tessera-mark.svg" alt="" width="28" height="28">
+      <span class="brand-name">Tessera</span>
+    </a>
+    <span class="docs-title">API reference</span>
+  </header>
+  <main id="main" class="docs">
+    <section class="docs-intro">
+      <h1>API reference <span class="docs-version" data-bind="version"></span></h1>
+      <p>Every response is <code>{"data": …, "meta": …}</code>. Lists take <code>limit</code> and an
+        opaque <code>cursor</code> (use <code>meta.next_cursor</code>); <code>fields=a,b</code> trims
+        list items. Errors are RFC 9457 problem details (<code>application/problem+json</code>).
+        Search highlights wrap matches in U+E000 and U+E001; escape the text, then replace them.</p>
+      <p><a href="/api/openapi.json">OpenAPI document</a></p>
+      <label class="docs-filter">Filter endpoints
+        <input type="search" placeholder="e.g. people, review, decision" data-action="filter">
+      </label>
+    </section>
+    <div data-bind="endpoints" aria-live="polite"><p class="note">Loading…</p></div>
+  </main>
+</body>
+</html>

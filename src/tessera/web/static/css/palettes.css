@@ -1,0 +1,140 @@
+/* Palettes: alternatives to the default (tokens.css), chosen per viewer in Appearance or for
+   everyone with branding.theme. Each overrides color tokens with light-dark() pairs, so
+   every palette has a day and a night version. Text colors meet WCAG AA on the surfaces
+   and tinted backgrounds they sit on (checked by a contrast sweep of rendered pages). */
+
+/* ---------- Harbor: deep navy, teal actions, bright blue, purple, and gold ---------- */
+:root[data-palette="harbor"] {
+  --bg: light-dark(#f4f4f4, #0d1b36);
+  --surface-1: light-dark(#ffffff, #112345);
+  --surface-2: light-dark(#eef1f5, #162c52);
+  --surface-3: light-dark(#e3e8ef, #1d3762);
+  --overlay: light-dark(oklch(22% 0.06 260 / 0.42), oklch(8% 0.03 260 / 0.66));
+  --border: light-dark(#dee3ea, #24406b);
+  --border-strong: light-dark(#c8d0db, #2f4f7e);
+
+  --text: light-dark(#112345, #f4f7fb);
+  --text-muted: light-dark(#3d4d66, #c4cfde);
+  --text-subtle: light-dark(#55657d, #9daec6);
+  --text-inverse: light-dark(#ffffff, #112345);
+
+  --palette-accent: light-dark(#08708f, #00abc8);
+  --palette-on-accent: light-dark(#ffffff, #0d1b36);
+
+  --ent-person: light-dark(#18365d, #a9c1e4);
+  --ent-person-soft: light-dark(#e6ecf4, color-mix(in oklch, #a9c1e4 18%, #112345));
+  --ent-pub: light-dark(#08677f, #5fc6db);
+  --ent-pub-soft: light-dark(#e1f1f5, color-mix(in oklch, #5fc6db 18%, #112345));
+  --ent-grant: light-dark(#8a5a00, #ffb500);
+  --ent-grant-soft: light-dark(#fff2cc, color-mix(in oklch, #ffb500 15%, #112345));
+  --ent-study: light-dark(#9437ae, #d9a2e8);
+  --ent-study-soft: light-dark(#f6eafa, color-mix(in oklch, #d9a2e8 18%, #112345));
+  --ent-concept: light-dark(#5b3f93, #b9acf2);
+  --ent-concept-soft: light-dark(#eeebf7, color-mix(in oklch, #b9acf2 18%, #112345));
+  --ent-unit: light-dark(#4a5a72, #b4c2d6);
+  --ent-unit-soft: light-dark(#eceff4, color-mix(in oklch, #b4c2d6 14%, #112345));
+
+  --hue-0: #18365d;
+  --hue-1: #08708f;
+  --hue-2: #7a5200;
+  --hue-3: #8c3aa6;
+  --hue-4: #5b3f93;
+  --hue-5: #00687d;
+
+  /* the sunset rule: navy (teal after dark), bright blue, purple, gold */
+  --band-1: light-dark(#18365d, #0a799a);
+  --band-2: #00abc8;
+  --band-3: #aa4ac4;
+  --band-4: #ffb500;
+  --band-5: #ffb500;
+  --signature: linear-gradient(90deg, var(--band-1), var(--band-2) 38%, var(--band-3) 70%, var(--band-4));
+  --signature-height: 3px;
+
+  --shadow-1: 0 1px 2px light-dark(oklch(25% 0.06 260 / 0.06), oklch(0% 0 0 / 0.35));
+  --shadow-2: 0 1px 2px light-dark(oklch(25% 0.06 260 / 0.06), oklch(0% 0 0 / 0.35)),
+    0 6px 18px light-dark(oklch(25% 0.06 260 / 0.08), oklch(0% 0 0 / 0.4));
+}
+
+/* ---------- Cassette: label paper and rainbow stripes; black labels at dusk ---------- */
+:root[data-palette="cassette"] {
+  --bg: light-dark(#eee5d1, #110f10);
+  --surface-1: light-dark(#f8f2e4, #1a1718);
+  --surface-2: light-dark(#ebe1cc, #232021);
+  --surface-3: light-dark(#ddd0b6, #2d292a);
+  --overlay: light-dark(oklch(20% 0.02 60 / 0.42), oklch(3% 0 0 / 0.68));
+  --border: light-dark(#d6c9ae, #3a3536);
+  --border-strong: light-dark(#bfaf90, #4b4546);
+
+  --text: light-dark(#1f1812, #f4ebdd);
+  --text-muted: light-dark(#4e4235, #d2c5b1);
+  --text-subtle: light-dark(#625547, #aa9d8b);
+  --text-inverse: light-dark(#f8f2e4, #1a1718);
+
+  --palette-accent: light-dark(#b3321a, #f39a45);
+  --palette-on-accent: light-dark(#fff8ec, #1a1210);
+
+  --ent-person: light-dark(#1f5fa8, #82acea);
+  --ent-person-soft: light-dark(color-mix(in oklch, #1f5fa8 13%, #f8f2e4), color-mix(in oklch, #82acea 17%, #1a1718));
+  --ent-pub: light-dark(#18693a, #6cc891);
+  --ent-pub-soft: light-dark(color-mix(in oklch, #18693a 13%, #f8f2e4), color-mix(in oklch, #6cc891 16%, #1a1718));
+  --ent-grant: light-dark(#96490a, #f2c14e);
+  --ent-grant-soft: light-dark(color-mix(in oklch, #e7a33a 22%, #f8f2e4), color-mix(in oklch, #f2c14e 15%, #1a1718));
+  --ent-study: light-dark(#b3264f, #f27c97);
+  --ent-study-soft: light-dark(color-mix(in oklch, #b3264f 12%, #f8f2e4), color-mix(in oklch, #f27c97 16%, #1a1718));
+  --ent-concept: light-dark(#6b3fa0, #bba2f2);
+  --ent-concept-soft: light-dark(color-mix(in oklch, #6b3fa0 12%, #f8f2e4), color-mix(in oklch, #bba2f2 16%, #1a1718));
+  --ent-unit: light-dark(#5e5245, #cdbfa9);
+  --ent-unit-soft: light-dark(color-mix(in oklch, #5e5245 10%, #f8f2e4), color-mix(in oklch, #cdbfa9 12%, #1a1718));
+
+  --ok: light-dark(#1d6b3c, #74cf98);
+  --ok-soft: light-dark(color-mix(in oklch, #1d6b3c 13%, #f8f2e4), color-mix(in oklch, #74cf98 15%, #1a1718));
+  --warn: light-dark(#8f4a00, #f2c14e);
+  --warn-soft: light-dark(color-mix(in oklch, #e7a33a 24%, #f8f2e4), color-mix(in oklch, #f2c14e 15%, #1a1718));
+  --danger: light-dark(#a8281c, #f58a7c);
+  --danger-soft: light-dark(color-mix(in oklch, #a8281c 12%, #f8f2e4), color-mix(in oklch, #f58a7c 15%, #1a1718));
+  --info: light-dark(#235f9e, #82acea);
+  --info-soft: light-dark(color-mix(in oklch, #235f9e 12%, #f8f2e4), color-mix(in oklch, #82acea 15%, #1a1718));
+
+  --hue-0: oklch(50% 0.17 30);
+  --hue-1: oklch(52% 0.13 55);
+  --hue-2: oklch(50% 0.1 92);
+  --hue-3: oklch(48% 0.11 150);
+  --hue-4: oklch(48% 0.13 252);
+  --hue-5: oklch(50% 0.17 0);
+
+  /* rainbow label stripes by day; a sunset after dark */
+  --band-1: light-dark(#d9402f, #6e4bb8);
+  --band-2: light-dark(#ec8a26, #b8479d);
+  --band-3: light-dark(#f0c02e, #ec5f7c);
+  --band-4: light-dark(#2e9b58, #f38a3d);
+  --band-5: light-dark(#2a6db5, #f5c64a);
+  --signature: linear-gradient(to bottom, var(--band-1) 0 20%, var(--band-2) 20% 40%,
+    var(--band-3) 40% 60%, var(--band-4) 60% 80%, var(--band-5) 80% 100%);
+  --signature-height: 10px;
+
+  --title-weight: 820;
+  --title-tracking: -0.03em;
+  --radius-m: 8px;
+  --radius-l: 10px;
+  --radius-xl: 14px;
+  --shadow-1: 0 1px 0 light-dark(oklch(30% 0.03 60 / 0.08), oklch(0% 0 0 / 0.4));
+  --shadow-2: 0 1px 0 light-dark(oklch(30% 0.03 60 / 0.08), oklch(0% 0 0 / 0.4)),
+    0 8px 22px light-dark(oklch(30% 0.04 60 / 0.1), oklch(0% 0 0 / 0.45));
+}
+
+/* Printed-label details: heavy wordmark, small spaced capitals on card titles, and
+   diagonal bands across the home page's corner instead of the mosaic. */
+:root[data-palette="cassette"] .brand-text > span:first-child {
+  text-transform: uppercase; font-weight: 850; font-style: italic; letter-spacing: 0.02em;
+}
+:root[data-palette="cassette"] .card-header h2 {
+  font-size: 12px; font-weight: 760; text-transform: uppercase; letter-spacing: 0.09em;
+}
+:root[data-palette="cassette"] .hero::after {
+  right: -60px; top: -30px; width: 360px; height: 220px;
+  background: linear-gradient(152deg, transparent 0 34%, var(--band-1) 34% 41%, var(--band-2) 41% 48%,
+    var(--band-3) 48% 55%, var(--band-4) 55% 62%, var(--band-5) 62% 69%, transparent 69%);
+  mask-image: linear-gradient(to left, black 55%, transparent);
+  -webkit-mask-image: linear-gradient(to left, black 55%, transparent);
+  opacity: 0.92;
+}

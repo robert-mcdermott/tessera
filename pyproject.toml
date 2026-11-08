@@ -1,0 +1,82 @@
+[project]
+name = "tessera"
+version = "0.1.0"
+description = "Open research intelligence: people, publications, grants, and clinical studies, connected with evidence."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "The Tessera Authors" }]
+requires-python = ">=3.12"
+keywords = ["research information", "RIMS", "research intelligence", "PubMed", "NIH RePORTER", "ClinicalTrials.gov"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Framework :: FastAPI",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+dependencies = [
+    "alembic>=1.20.1",
+    "duckdb>=2.0.0",
+    "fastapi>=0.162.2",
+    "httpx>=0.28.1",
+    "pyarrow>=26.0.1",
+    "sqlalchemy>=2.1.8",
+    "uvicorn>=0.54.0",
+]
+
+[project.optional-dependencies]
+postgres = ["psycopg[binary]>=3.3.8"]
+
+[project.scripts]
+tessera = "tessera.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "ruff>=0.17.4",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "C4", "PTH", "S"]
+ignore = [
+    "S101",  # assert is fine in tests and invariants
+    "S603",  # subprocess calls use fixed argument lists
+    "S607",  # git is resolved from PATH on purpose
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Lake SQL is assembled from the internal schema registry (quoted identifiers) and manifest
+# file paths (escaped literals). User-supplied values are always bound as parameters.
+"src/tessera/lake/**" = ["S608"]
+# Search SQL varies only by runs of "?" placeholders and constant weights; values are bound.
+"src/tessera/search/query.py" = ["S608"]
+"src/tessera/search/update.py" = ["S608"]
+# PubMed XML is parsed with ElementTree, which is safe given expat 2.4.1+ (checked at import).
+"src/tessera/connectors/pubmed.py" = ["S314"]
+"tests/**" = ["S105", "S106", "S108", "S311", "S314", "S608"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers -m 'not network'"
+markers = [
+    "network: live tests that call public APIs (run with -m network)",
+    "postgres: needs TESSERA_TEST_POSTGRES_URL (see CONTRIBUTING.md)",
+]
+filterwarnings = [
+    "error::DeprecationWarning:tessera.*",
+    # Starlette's test client prefers a successor to httpx; tracked in spec/waves/wave-1.md.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]

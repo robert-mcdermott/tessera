@@ -1,0 +1,55 @@
+// The decision log: every curation decision about links and people, newest first.
+
+import { get } from "../core/api.js";
+import { h } from "../core/dom.js";
+import { date, relative } from "../core/format.js";
+import { query, setQuery } from "../core/router.js";
+import { ACTION_LABELS, openEvidence } from "../components/drawer.js";
+import { card, emptyState, entityHref, pageHeader, pager, refKind } from "../components/ui.js";
+import { show } from "./page.js";
+
+const PAGE = 50;
+const PERSON_ACTIONS = { promote: "Promoted", dismiss: "Dismissed", undo: "Undone" };
+const STATUS_WORDS = { accepted: "confirmed", rejected: "rejected", deferred: "deferred", suggested: "suggested",
+  active: "active member", candidate: "awaiting a decision", dismissed: "dismissed", former: "former member" };
+const PREDICATES = { authored: "authored", investigator_on: "investigator on", official_of: "official of" };
+
+export function decisions(main, ctx = {}) {
+  const offset = Number(query().get("offset")) || 0;
+  const reload = () => decisions(main, { samePage: true });
+  return show(main, {
+    title: "Decision log",
+    quiet: ctx.samePage,
+    load: async () => get("/api/v1/decisions", { limit: PAGE, offset }, { fresh: true }),
+    view: (body) => {
+      const rows = body.data.map((e) => {
+        const kind = refKind(e.subject.id);
+        const subject = h("a", { href: e.kind === "person" ? `/people/${e.subject.id}` : entityHref(kind, e.subject.id) }, e.subject.label ?? e.subject.id);
+        const objectKind = e.object ? refKind(e.object.id) : null;
+        const what = e.kind === "link"
+          ? [subject, ` ${PREDICATES[e.predicate] ?? e.predicate} `,
+            objectKind ? h("a", { href: entityHref(objectKind, e.object.id) }, e.object.label ?? e.object.id) : (e.object.label ?? e.object.id)]
+          : [subject];
+        const action = (e.kind === "person" ? PERSON_ACTIONS : ACTION_LABELS)[e.action] ?? e.action;
+        return h("tr", {},
+          h("td", { class: "nowrap muted", title: date(e.at) }, relative(e.at)),
+          h("td", {}, h("strong", {}, action),
+            h("div", { class: "subtle" }, `${STATUS_WORDS[e.from_status] ?? e.from_status ?? "–"} → ${STATUS_WORDS[e.to_status] ?? e.to_status}`)),
+          h("td", {}, h("div", {}, what), e.note ? h("div", { class: "subtle" }, `“${e.note}”`) : null),
+          h("td", { class: "muted" }, e.actor),
+          h("td", { class: "actions" }, e.kind === "link"
+            ? h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => openEvidence(e.assertion_id, { onChange: reload }) }, "Evidence")
+            : null));
+      });
+      return h("div", { class: "stack-lg" },
+        pageHeader({ eyebrow: "Curate", title: "Decision log",
+          meta: h("span", {}, "Every decision is kept. Open a link's evidence to see its full history or undo it.") }),
+        card({ body: rows.length
+          ? h("div", { class: "table-wrap" }, h("table", { class: "table" },
+            h("thead", {}, h("tr", {}, h("th", {}, "When"), h("th", {}, "Decision"), h("th", {}, "About"), h("th", {}, "By"), h("th", { class: "actions" }, h("span", { class: "sr-only" }, "Actions")))),
+            h("tbody", {}, rows)))
+          : emptyState({ iconName: "history", title: "No decisions yet", text: "Decisions from the review queue, profiles, and discovered people appear here." }) }),
+        pager({ total: body.meta.total, offset, limit: PAGE, onPage: (next) => setQuery({ offset: next || null }) }));
+    },
+  });
+}
