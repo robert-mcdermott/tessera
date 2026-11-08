@@ -61,9 +61,44 @@ The cohort, the period, and the options are part of the page's address, so a vie
 
 **Insight → Definitions** lists every metric with its identifier and version, definition, counting rule, unit, years, sources, options, and caveats. A metric's definition never changes in place: counting something differently makes a new version, so a saved report always says what it counted.
 
-### Publications by year
+### Publications
 
-`publications.count/v1`: the cohort's papers published in each year of the period. Each paper counts once, however many members wrote it (distinct PubMed IDs), in its year of publication. Retracted papers are not counted. PubMed covers biomedical journals; papers in venues it does not index are missing.
+| Figure | Metric | Shows |
+|---|---|---|
+| Publications by year | `publications.count/v1` | The cohort's papers in each year, confirmed and likely |
+| Field-normalized citation | `publications.influence/v1` | How the cohort's papers are cited against papers in their own field and year: the distribution of iCite's relative citation ratio |
+
+Each paper counts once, however many members wrote it (distinct PubMed IDs), in its year of publication. Retracted papers are not counted. PubMed covers biomedical journals; papers in venues it does not index are missing.
+
+The **relative citation ratio** comes from NIH's iCite: 1 means a paper is cited as often as NIH-funded papers in its field and year. The figure shows how many papers fall in each band (below 0.5, 0.5 to 1, 1 to 2, 2 to 5, 5 or more). Papers from the last two calendar years are counted apart, because iCite's ratio is provisional until then. A citation ratio describes papers, not people, and Insight never ranks anyone by it.
+
+## Topics
+
+**Insight → Topics** shows what the cohort's papers are about, from the major MeSH headings NLM's indexers give each paper (the headings PubMed marks as a paper's main subjects).
+
+- **Topics** (`topics.landscape/v1`): the cohort's 30 largest topics in the period, each with its papers, its share of the cohort's papers, and its trend.
+- **Topics by year** (`topics.by_year/v1`): the 12 largest, with their papers in each year.
+
+**Topics as: Research areas** rolls headings up to the tops of the MeSH branches that name what people study (diseases, anatomy, organisms, psychology, and processes), so that "Breast Neoplasms" and "Melanoma" both count toward Neoplasms; a paper counts once per area. Areas need MeSH's hierarchy (`[sources.mesh]`); without it, topics stay headings and the figure says so. The newest papers may have no headings yet: indexing usually takes some weeks, and the notes say how many papers count toward no topic.
+
+### Trends
+
+A trend compares a topic's share of the cohort's papers in the later half of the period's complete years with the earlier half (at most three years each; the year under way is left out, because it is not over). A topic is **rising** when its share grew by a quarter or more, **falling** when it shrank by a fifth or more, and **steady** otherwise, but only when the topic has at least `small_number` papers in each half. Otherwise it says **too few papers to tell**, and with fewer than four complete years in the period, **too few years to tell**. The notes name the years compared.
+
+## Studies
+
+**Insight → Studies** shows clinical studies registered at ClinicalTrials.gov that were under way at some time in the period: started by its end and not completed before it began, by the dates in the registry record. The organization's studies are every study registered under its names, with its members' studies; another cohort's are the studies a member is an official of (confirmed or, unless *confirmed only* is chosen, a strong suggestion).
+
+| Figure | Metric | Shows |
+|---|---|---|
+| Studies by registry status | `studies.by_status/v1` | Not yet recruiting, recruiting, active, completed, terminated, and so on |
+| Studies by phase | `studies.by_phase/v1` | Early phase 1 to phase 4, combined phases such as phase 1/2, and observational studies, which have no phase |
+| Studies by sponsor class | `studies.by_sponsor/v1` | The lead sponsor's class: NIH, other federal, industry, network, academic or other |
+| Studies by intervention type | `studies.by_intervention/v1` | Drug, biological, device, procedure, behavioral, and the rest; a study with several types counts in each |
+| Studies by condition | `studies.by_condition/v1` | Disease areas (the tops of MeSH's disease branches), or the conditions as registered |
+| Studies by start year | `studies.by_start_year/v1` | Studies that started in each year, interventional and other |
+
+**Status is always the registry's overall status**, as the sponsor reported it to ClinicalTrials.gov. It is not the status at any one site, and never means that a study recruits at your organization. Only registered studies are counted, and no patient-level data is stored or shown.
 
 ## Funding
 

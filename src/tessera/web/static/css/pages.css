@@ -377,3 +377,17 @@ label.check { display: inline-flex; align-items: center; gap: var(--space-2); fo
 .definition h3 { font-size: var(--fs-md); margin: 0; }
 .definition p { margin: 0; }
 .definition-head { align-items: flex-start; }
+.trend { font-size: var(--fs-xs); font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+.trend[data-trend="rising"] { color: var(--ok); }
+.trend[data-trend="falling"] { color: var(--warn); }
+.trend[data-trend="unknown"] { font-weight: 450; color: var(--text-subtle); }
+.trend-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(8rem, 1.4fr) 120px auto minmax(9rem, auto); gap: var(--space-2) var(--space-4); align-items: center; font-size: var(--fs-sm); }
+.trend-list > li { display: contents; }
+.trend-name { min-width: 0; overflow-wrap: anywhere; }
+.trend-spark .sparkline { width: 120px; height: 26px; display: block; }
+.trend-cell { display: inline-flex; align-items: center; gap: 4px; }
+@media (max-width: 640px) {
+  .trend-list { grid-template-columns: minmax(0, 1fr) 80px auto; }
+  .trend-list .trend-cell { grid-column: 1 / -1; margin-top: -4px; }
+  .trend-spark .sparkline { width: 80px; }
+}

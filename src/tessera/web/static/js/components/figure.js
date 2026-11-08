@@ -7,7 +7,7 @@ import { get } from "../core/api.js";
 import { h, icon, svg } from "../core/dom.js";
 import { date, money, number, percent, plural, relative } from "../core/format.js";
 import { openDrawer } from "./drawer.js";
-import { callout, emptyState, entityHref, segmented } from "./ui.js";
+import { callout, emptyState, entityHref, segmented, sparkline } from "./ui.js";
 
 let hatchSeq = 0;
 
@@ -91,7 +91,7 @@ export function yearChart(figure, series, { format = number, label = "" } = {}) 
 }
 
 /** Horizontal bars for categories: one row per item, with the value and an optional share. */
-export function categoryBars(figure, { labelKey = "label", valueKey, shareKey = null, format = number, hrefOf = null, limit = 12 } = {}) {
+export function categoryBars(figure, { labelKey = "label", valueKey, shareKey = null, format = number, hrefOf = null, limit = 12, extra = null } = {}) {
   const rows = figure.rows.slice(0, limit);
   if (!rows.length) return null;
   const small = smallSet(figure);
@@ -100,7 +100,8 @@ export function categoryBars(figure, { labelKey = "label", valueKey, shareKey = 
     const value = row[valueKey] ?? 0;
     const isSmall = small.has(`${i}:${valueKey}`);
     const text = hrefOf?.(row) ? h("a", { href: hrefOf(row) }, row[labelKey] ?? "–") : (row[labelKey] ?? "–");
-    const name = row.detail ? [text, h("span", { class: "category-detail" }, row.detail)] : text;
+    const detail = [row.detail, extra?.(row)].filter(Boolean);
+    const name = detail.length ? [text, h("span", { class: "category-detail" }, detail)] : text;
     const meter = h("span", { class: "category-meter", "data-small": isSmall ? "" : null });
     meter.style.setProperty("--w", `${Math.max((value / max) * 100, 0.8).toFixed(1)}%`);
     return h("li", {},
@@ -108,6 +109,30 @@ export function categoryBars(figure, { labelKey = "label", valueKey, shareKey = 
       h("span", { class: "category-track", "aria-hidden": "true" }, meter),
       h("span", { class: "category-value tabular" }, format(value), isSmall ? h("span", { class: "small-mark", title: `Fewer than ${figure.small_number}` }, "†") : null),
       h("span", { class: "category-share tabular muted" }, shareKey && row[shareKey] != null ? percent(row[shareKey], 0) : ""));
+  }));
+}
+
+const TREND_ICONS = { Rising: "↑", Falling: "↓", Steady: "→" };
+
+/** A topic's trend as a small labeled mark; "too few" stays plain text. */
+export function trendMark(label) {
+  const arrow = TREND_ICONS[label];
+  return h("span", { class: "trend", "data-trend": arrow ? label.toLowerCase() : "unknown" }, arrow ? `${arrow} ${label}` : label);
+}
+
+/** Rows of a by-year table (keys y2022, y2023, …) as a list with a sparkline for each. */
+export function trendList(figure, { labelKey = "label", valueKey = "papers" } = {}) {
+  const years = figure.columns.filter((c) => /^y\d{4}$/.test(c.key));
+  const small = smallSet(figure);
+  return h("ol", { class: "trend-list" }, figure.rows.map((row, i) => {
+    const values = years.map((c) => row[c.key] ?? 0);
+    const smallYears = years.filter((c) => small.has(`${i}:${c.key}`)).length;
+    return h("li", {},
+      h("span", { class: "trend-name" }, row[labelKey]),
+      h("span", { class: "trend-spark", title: years.map((c, j) => `${c.label}: ${values[j]}`).join(", ") }, sparkline(values, { width: 120, height: 26 })),
+      h("span", { class: "category-value tabular" }, number(row[valueKey])),
+      h("span", { class: "trend-cell" }, trendMark(row.trend),
+        smallYears ? h("span", { class: "small-mark", title: `${smallYears} years with fewer than ${figure.small_number}` }, "†") : null));
   }));
 }
 

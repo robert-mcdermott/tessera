@@ -408,3 +408,91 @@ def test_the_demos_funding_figures_agree_to_the_dollar(demo) -> None:  # type: i
     assert [r["group"] for r in groups_["rows"]] == sorted(
         (r["group"] for r in groups_["rows"]), key=str.lower)  # fmt: skip
     assert any("overlap" in n for n in groups_["notes"])
+
+
+# --- topics and studies ----------------------------------------------------------------------
+
+
+def test_trends_need_enough_papers_and_years() -> None:
+    from tessera.insight.topics import trend_of
+
+    totals = dict.fromkeys(range(2020, 2026), 100)
+    halves = ([2020, 2021, 2022], [2023, 2024, 2025])
+    rising = {2020: 2, 2021: 2, 2022: 2, 2023: 4, 2024: 4, 2025: 4}
+    assert trend_of(rising, totals, halves, 5) == ("rising", 1.0)
+    assert trend_of({2020: 10, 2023: 7}, totals, halves, 5)[0] == "falling"
+    assert trend_of({2020: 10, 2023: 11}, totals, halves, 5)[0] == "steady"
+    assert trend_of({2020: 12, 2023: 4}, totals, halves, 5) == ("too few papers", None)
+    assert trend_of(rising, totals, None, 5) == ("too few years", None)
+
+
+def test_topics_count_major_headings_and_say_when_trends_cannot_be_told() -> None:
+    data = inputs(
+        [{"person_id": "a", "name": "Ada", "start_year": None, "end_year": None}],
+        [link("a", str(n)) for n in range(1, 13)],
+        [paper(str(n), 2020 + n % 6) for n in range(1, 13)],
+    )
+    data.tables["paper_topics"] = pa.Table.from_pylist(
+        [{"pmid": str(n), "descriptor_ui": "D1", "descriptor": "Melanoma"} for n in range(1, 13)]
+        + [{"pmid": "1", "descriptor_ui": "D2", "descriptor": "Skin"}],
+        schema=SCHEMAS["paper_topics"],
+    )
+    data.tables["mesh_areas"] = pa.Table.from_pylist(
+        [{"descriptor_ui": "D1", "area_tree": "C04", "area": "Neoplasms"},
+         {"descriptor_ui": "D2", "area_tree": "A17", "area": "Integumentary System"}],
+        schema=SCHEMAS["mesh_areas"],
+    )  # fmt: skip
+    m = metrics.get("topics.landscape")
+
+    def landscape(period: Period, level: str = "heading") -> dict:
+        options = {"basis": "likely", "level": level}
+        cohort = {"label": "Lab", "kind": "group"}
+        return compute(m, data, cohort, period, options, small_number=5, today=TODAY).to_json()
+
+    out = landscape(Period(2020, 2025))
+    melanoma = out["rows"][0]
+    assert (melanoma["label"], melanoma["papers"], melanoma["share"]) == ("Melanoma", 12, 1.0)
+    assert melanoma["trend"] == "Steady"  # six papers in each half, the same share
+    assert out["rows"][1]["trend"] == "Too few papers to tell"
+    areas = landscape(Period(2020, 2025), "area")
+    assert [r["label"] for r in areas["rows"]] == ["Neoplasms", "Integumentary System"]
+    short = landscape(Period(2023, 2026))
+    assert short["rows"][0]["trend"] == "Too few years to tell"
+
+
+def test_studies_count_while_under_way_with_registry_status_labeled(demo) -> None:  # type: ignore[no-untyped-def]
+    _, client = demo
+    by_status = figure(client, "studies.by_status", start=2021, end=2026, records="true")
+    assert by_status["totals"]["studies"] == 10
+    assert by_status["notes"][0] == (
+        "Registry status as reported to ClinicalTrials.gov, not local recruitment."
+    )
+    assert {r["label"] for r in by_status["rows"]} <= {
+        "Recruiting", "Active, not recruiting", "Completed"}  # fmt: skip
+    assert "never means that a study recruits here" in " ".join(by_status["metric"]["caveats"])
+    assert all(r["status"] for r in by_status["records"])
+    phases = {r["label"] for r in figure(client, "studies.by_phase", start=2021, end=2026)["rows"]}
+    assert {"Phase 1/2", "Observational (no phase)"} <= phases
+    sponsors = {r["label"] for r in figure(client, "studies.by_sponsor", start=2021,
+                                             end=2026)["rows"]}  # fmt: skip
+    assert {"Industry", "NIH", "Academic or other organization"} <= sponsors
+    conditions = figure(client, "studies.by_condition", start=2021, end=2026)
+    assert conditions["rows"][0]["label"] == "Neoplasms"
+    assert any("more than one row" in n for n in conditions["notes"])
+    early = figure(client, "studies.by_status", start=2010, end=2012)
+    assert early["totals"]["studies"] == 0  # nothing was under way yet
+    program = figure(client, "studies.by_status", cohort="group:cancer-immunotherapy-program",
+                     start=2021, end=2026)  # fmt: skip
+    assert 0 < program["totals"]["studies"] < 10
+
+
+def test_citation_bands_keep_recent_papers_apart(demo) -> None:  # type: ignore[no-untyped-def]
+    _, client = demo
+    out = figure(client, "publications.influence", start=2022, end=2026)
+    rows = {r["key"]: r for r in out["rows"]}
+    assert rows["recent"]["share"] is None and rows["recent"]["papers"] > 0
+    banded = sum(rows[k]["papers"] for k in ("below_half", "half_to_one", "one_to_two",
+                                             "two_to_five", "five_up"))  # fmt: skip
+    assert banded == out["totals"]["banded"]
+    assert banded + rows["recent"]["papers"] + rows["none"]["papers"] == out["totals"]["papers"]
+    assert "never ranks people" in " ".join(out["metric"]["caveats"])

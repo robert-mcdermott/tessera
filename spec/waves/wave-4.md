@@ -58,16 +58,16 @@ Requirements: INT-01 to INT-07, INT-11, DIS-10, LAB-09, PLT-08, PLT-12.
 
 **Acceptance (met):** on the demo, the by-year, by-institute, and by-activity totals agree to the dollar; a P01's subproject records add nothing to its total; a supplement in the same fiscal year adds once; a grant with two member investigators in one lab counts once for that lab; the about panel says which amount is shown.
 
-## Slice 3: Topics and studies ☐
+## Slice 3: Topics and studies ☑
 
 **Goal:** what a cohort works on, and how its studies stand (INT-06, INT-07).
 
-- [ ] Topics: a cohort's papers by MeSH major topic, as headings or rolled up to research areas, with the share of the cohort's papers and counts by year
-- [ ] Trends: a topic is *rising* or *falling* only when both windows (the last three years against the three before) have enough papers; otherwise it says there are too few to tell
-- [ ] Studies by registry status, phase, study type, sponsor class, intervention type, condition (rolled up the MeSH hierarchy), and start year; registry status is labeled as the registry's, never as local recruitment
-- [ ] Publications' field-normalized citation (iCite's relative citation ratio) as a distribution, with recent papers marked as provisional
+- [x] Topics: a cohort's papers by MeSH major topic, as headings or rolled up to research areas, with the share of the cohort's papers and counts by year
+- [x] Trends: a topic is *rising* or *falling* only when both windows (the last three years against the three before) have enough papers; otherwise it says there are too few to tell
+- [x] Studies by registry status, phase, study type, sponsor class, intervention type, condition (rolled up the MeSH hierarchy), and start year; registry status is labeled as the registry's, never as local recruitment
+- [x] Publications' field-normalized citation (iCite's relative citation ratio) as a distribution, with recent papers marked as provisional
 
-**Acceptance:** a heading with four papers in a year is marked; a topic with 12 papers over six years shows no trend; the demo's immunotherapy program shows its studies by phase and condition; every study figure says "registry status as reported to ClinicalTrials.gov".
+**Acceptance (met):** a heading with four papers in a year is marked; a topic with 12 papers over six years shows no trend; the demo's immunotherapy program shows its studies by phase and condition; every study figure says "registry status as reported to ClinicalTrials.gov".
 
 ## Slice 4: Saved searches, reports, snapshots, and exports ☐
 
@@ -113,6 +113,7 @@ Requirements: INT-01 to INT-07, INT-11, DIS-10, LAB-09, PLT-08, PLT-12.
 
 | Date | Note |
 |---|---|
+| 2026-11-08 | Slice 3 done. Topics count major MeSH headings only: every paper carries check tags such as Humans and Mice, which say nothing about its subject. Trend windows are halves of the period's complete years, at most three years each, so that a five-year window (the default first sync) can still show trends; the year under way is never in a window. A study counts for the period when it was under way during it (by its start and completion dates), not only when it started, because a portfolio is what is running. Field-normalized citation keeps the last two years apart and says that a ratio describes papers, not people. Correction to slice 2's note: the demo's new grants had joined the lists that papers draw their acknowledgments from, which shifted the rest of the demo; they no longer do, and the demo has its 717 papers again. |
 | 2026-11-08 | Slice 2 done. Award types come from the first digit of the project number (1 new, 2 renewal, 3 supplement; the rest continuing), which RePORTER does not state separately. The organization's portfolio is what was awarded to it, matched by the awardee's name with the same rules as everywhere else, so grants of people not yet in the directory still count; a cohort's portfolio needs a member on the grant. Grants by group are listed by name, and say that their amounts overlap, so the figure cannot be read as a ranking. Fiscal-year figures default to the fiscal year under way (October onward) and say it is incomplete. The demo's mechanisms now use RePORTER's names, labeled in words. One demo test assumed a person's research areas sum to one; they are shares of the whole profile with eight kept, so the test now checks that. |
 | 2026-11-08 | Slice 1 done. Metric definitions live in code with a version rather than in the ledger: a definition is part of what the code computes, and a snapshot records the definition it used. Figures are computed from tables gathered once for the cohort (the members with their years, links, and lake rows), so a snapshot can keep those tables and compute the figures again. Group cohorts count a member's work by year, from the year they joined to the year they left; most memberships have no dates yet, so About says how many do. The first sync's window (`sync.window_years`) makes earlier years incomplete; the default period starts at the first complete year, and figures that reach back further say so. |
 | 2026-11-08 | Wave planned, after folding the maintainer's guidance on single sign-on and the AI assistant into the roadmap (waves 6 and 5). The 0.3.0 release date was corrected to 2026-11-08 in the changelog, roadmap, and wave 3 file. |

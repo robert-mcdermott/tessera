@@ -61,6 +61,29 @@ SCHEMAS: dict[str, pa.Schema] = {
         ("kind", pa.string()), ("person_id", pa.string()), ("start_year", pa.int32()),
         ("end_year", pa.int32()),
     ),
+    "paper_topics": _schema(
+        ("pmid", pa.string()), ("descriptor_ui", pa.string()), ("descriptor", pa.string()),
+    ),
+    "mesh_areas": _schema(
+        ("descriptor_ui", pa.string()), ("area_tree", pa.string()), ("area", pa.string()),
+    ),
+    "citations": _schema(
+        ("pmid", pa.string()), ("rcr", pa.float64()), ("citations", pa.int32()),
+        ("research", pa.bool_()),
+    ),
+    "study_links": _schema(
+        ("person_id", pa.string()), ("nct_id", pa.string()), ("confirmed", pa.bool_()),
+        ("score", pa.float64()), ("assertion_id", pa.string()),
+    ),
+    "studies": _schema(
+        ("nct_id", pa.string()), ("title", pa.string()), ("status", pa.string()),
+        ("phases", pa.list_(pa.string())), ("study_type", pa.string()),
+        ("sponsor", pa.string()), ("sponsor_class", pa.string()),
+        ("intervention_types", pa.list_(pa.string())), ("conditions", pa.list_(pa.string())),
+        ("condition_ui", pa.list_(pa.string())), ("start_date", pa.date32()),
+        ("completion_date", pa.date32()), ("enrollment", pa.int32()),
+        ("enrollment_type", pa.string()), ("ours", pa.bool_()),
+    ),
 }  # fmt: skip
 
 # Which source each table comes from, for the figure's data timestamps.
@@ -69,6 +92,11 @@ TABLE_SOURCES: dict[str, tuple[str, ...]] = {
     "papers": ("pubmed",),
     "grant_links": ("reporter",),
     "awards": ("reporter",),
+    "paper_topics": ("pubmed",),
+    "mesh_areas": ("mesh",),
+    "citations": ("icite",),
+    "study_links": ("ctgov",),
+    "studies": ("ctgov",),
 }
 
 
@@ -253,6 +281,117 @@ def gather_group_members(ctx: Context, tables: dict[str, pa.Table]) -> pa.Table:
     return pa.Table.from_pylist(rows, schema=SCHEMAS["group_members"])
 
 
+def gather_paper_topics(ctx: Context, tables: dict[str, pa.Table]) -> pa.Table:
+    """The major MeSH topics of the cohort's papers."""
+    pmids = tables["paper_links"].column("pmid").to_pylist() if "paper_links" in tables else []
+    rows = _lake_join(
+        ctx.lake,
+        "SELECT m.pmid, m.descriptor_ui, m.descriptor FROM pubmed_mesh m JOIN _keys k "
+        "ON k.key = m.pmid WHERE coalesce(m.major_topic, false) ORDER BY m.pmid, m.descriptor_ui",
+        pmids,
+    )
+    return pa.Table.from_pylist(rows, schema=SCHEMAS["paper_topics"])
+
+
+def gather_citations(ctx: Context, tables: dict[str, pa.Table]) -> pa.Table:
+    pmids = tables["paper_links"].column("pmid").to_pylist() if "paper_links" in tables else []
+    rows = _lake_join(
+        ctx.lake,
+        "SELECT c.pmid, c.relative_citation_ratio AS rcr, c.citation_count AS citations, "
+        "c.is_research_article AS research FROM icite_metrics c JOIN _keys k ON k.key = c.pmid "
+        "ORDER BY c.pmid",
+        pmids,
+    )
+    return pa.Table.from_pylist(rows, schema=SCHEMAS["citations"])
+
+
+# Research areas are the tops of the MeSH branches that say what someone studies.
+AREA_CATEGORIES = ("A", "B", "C", "F", "G")
+
+
+def gather_mesh_areas(ctx: Context, tables: dict[str, pa.Table]) -> pa.Table:
+    """Each heading the figures use, with the research areas above it (when MeSH is loaded)."""
+    wanted: set[str] = set()
+    if "paper_topics" in tables:
+        wanted |= set(tables["paper_topics"].column("descriptor_ui").to_pylist())
+    if "studies" in tables:
+        for uis in tables["studies"].column("condition_ui").to_pylist():
+            wanted |= set(uis or [])
+    rows: list[dict[str, Any]] = []
+    try:
+        found = _lake_join(
+            ctx.lake,
+            "SELECT d.descriptor_ui, d.tree_numbers FROM mesh_descriptor d JOIN _keys k "
+            "ON k.key = d.descriptor_ui",
+            sorted(wanted),
+        )
+        tops = sorted({t.split(".")[0] for r in found for t in r["tree_numbers"] or []
+                       if t[0] in AREA_CATEGORIES})  # fmt: skip
+        named = {}
+        if tops:
+            cur = ctx.lake.cursor()
+            try:
+                cur.register("_tops", pa.table({"tree": pa.array(tops, pa.string())}))
+                for name, tree in cur.sql(
+                    "SELECT d.name, t.tree FROM mesh_descriptor d, _tops t "
+                    "WHERE list_contains(d.tree_numbers, t.tree)"
+                ).fetchall():
+                    named[tree] = name
+            finally:
+                cur.close()
+        for r in found:
+            for top in sorted({t.split(".")[0] for t in r["tree_numbers"] or []
+                               if t[0] in AREA_CATEGORIES}):  # fmt: skip
+                rows.append({"descriptor_ui": r["descriptor_ui"], "area_tree": top,
+                             "area": named.get(top, top)})  # fmt: skip
+    except Exception:  # without MeSH data there are no areas, only headings
+        rows = []
+    rows.sort(key=lambda r: (r["descriptor_ui"], r["area_tree"]))
+    return pa.Table.from_pylist(rows, schema=SCHEMAS["mesh_areas"])
+
+
+def gather_study_links(ctx: Context, tables: dict[str, pa.Table]) -> pa.Table:
+    rows = _links(ctx, "official_of")
+    return pa.Table.from_pylist(
+        [
+            {"person_id": r["subject_id"], "nct_id": r["object_id"].removeprefix("stu:"),
+             "confirmed": r["status"] == "accepted", "score": r["score"], "assertion_id": r["id"]}
+            for r in sorted(rows, key=lambda r: r["id"])
+        ],
+        schema=SCHEMAS["study_links"],
+    )  # fmt: skip
+
+
+STUDY_COLUMNS = (
+    "nct_id, brief_title AS title, overall_status AS status, phases, study_type, "
+    "lead_sponsor AS sponsor, lead_sponsor_class AS sponsor_class, "
+    "list_transform(coalesce(interventions, []), lambda x: x.type) AS intervention_types, "
+    "conditions, list_transform(coalesce(condition_mesh, []), lambda x: x.id) AS condition_ui, "
+    "start_date, completion_date, enrollment, enrollment_type"
+)
+
+
+def gather_studies(ctx: Context, tables: dict[str, pa.Table]) -> pa.Table:
+    """The cohort's studies and, for the organization, every study registered under it."""
+    linked = tables["study_links"].column("nct_id").to_pylist() if "study_links" in tables else []
+    rows = _lake_join(
+        ctx.lake,
+        f"SELECT {STUDY_COLUMNS} FROM ctgov_study s JOIN _keys k ON k.key = s.nct_id",  # noqa: S608
+        linked,
+    )
+    for r in rows:
+        r["ours"] = False
+    if ctx.cohort.organization:
+        seen = {r["nct_id"] for r in rows}
+        for r in ctx.lake.rows(f"SELECT {STUDY_COLUMNS} FROM ctgov_study"):  # noqa: S608
+            if r["nct_id"] not in seen:
+                rows.append({**r, "ours": True})
+        for r in rows:
+            r["ours"] = True  # in the lake, the organization's registry search found them
+    rows.sort(key=lambda r: r["nct_id"])
+    return pa.Table.from_pylist(rows, schema=SCHEMAS["studies"])
+
+
 def _year(text: Any) -> int | None:
     try:
         return int(str(text)[:4]) if text else None
@@ -266,8 +405,19 @@ GATHERERS: dict[str, Callable[[Context, dict[str, pa.Table]], pa.Table]] = {
     "grant_links": gather_grant_links,
     "awards": gather_awards,
     "group_members": gather_group_members,
+    "paper_topics": gather_paper_topics,
+    "citations": gather_citations,
+    "study_links": gather_study_links,
+    "studies": gather_studies,
+    "mesh_areas": gather_mesh_areas,
 }
-REQUIRES: dict[str, tuple[str, ...]] = {"papers": ("paper_links",), "awards": ("grant_links",)}
+REQUIRES: dict[str, tuple[str, ...]] = {
+    "papers": ("paper_links",),
+    "awards": ("grant_links",),
+    "paper_topics": ("paper_links",),
+    "citations": ("paper_links",),
+    "studies": ("study_links",),
+}
 
 
 def _ordered(needs: Iterable[str]) -> list[str]:

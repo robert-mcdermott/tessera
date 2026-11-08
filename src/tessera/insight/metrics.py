@@ -138,7 +138,7 @@ def register(metric: Metric) -> Metric:
 
 def _load() -> None:
     """Import the modules that define metrics (they register themselves)."""
-    from tessera.insight import funding, publications  # noqa: F401
+    from tessera.insight import funding, publications, studies, topics  # noqa: F401
 
 
 def get(metric_id: str) -> Metric:

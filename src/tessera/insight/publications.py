@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from tessera.insight.cohorts import members_from_table
-from tessera.insight.figure import Column, Figure, FigureRequest, Period
+from tessera.insight.figure import Column, Figure, FigureRequest, Period, share
 from tessera.insight.inputs import Inputs
 from tessera.insight.metrics import BASIS, PAPER_RULE, WINDOW_RULE, Metric, register
 
@@ -158,3 +158,89 @@ __all__ = [
     "paper_records",
     "partial_year_note",
 ]
+
+
+# --- field-normalized citation ---------------------------------------------------------------
+
+BANDS = (
+    ("below_half", "Below 0.5", 0.0, 0.5),
+    ("half_to_one", "0.5 to 1", 0.5, 1.0),
+    ("one_to_two", "1 to 2", 1.0, 2.0),
+    ("two_to_five", "2 to 5", 2.0, 5.0),
+    ("five_up", "5 or more", 5.0, float("inf")),
+)
+
+
+def _influence(inputs: Inputs, request: FigureRequest) -> Figure:
+    basis = request.options["basis"]
+    counted = counted_papers(inputs, request.period, basis)
+    rcr = {r["pmid"]: r["rcr"] for r in inputs.rows("citations")}
+    recent = request.today.year - 1  # iCite's ratios are provisional for two years
+    counts: dict[str, int] = dict.fromkeys([b[0] for b in BANDS] + ["recent", "none"], 0)
+    records = paper_records(counted)
+    for r in records:
+        value = rcr.get(r["pmid"])
+        r["rcr"] = value
+        if r["year"] >= recent:
+            band = "recent"
+        elif value is None:
+            band = "none"
+        else:
+            band = next(key for key, _, low, high in BANDS if low <= value < high)
+        r["band"] = band
+        counts[band] += 1
+    banded = sum(counts[b[0]] for b in BANDS)
+    rows = [
+        {"key": key, "label": label, "papers": counts[key], "share": share(counts[key], banded)}
+        for key, label, _, _ in BANDS
+    ]
+    rows.append({"key": "recent", "label": f"Published {recent} or later (provisional)",
+                 "papers": counts["recent"], "share": None})  # fmt: skip
+    rows.append({"key": "none", "label": "No ratio in iCite", "papers": counts["none"],
+                 "share": None})  # fmt: skip
+    notes = basis_notes(counted, basis)
+    notes.append(
+        "Shares are of the papers with a settled ratio. A ratio of 1 means a paper is cited as "
+        "often as NIH-funded papers in its field and year; papers from the last two years are "
+        "kept apart because their ratios are still provisional."
+    )
+    above = sum(counts[k] for k in ("one_to_two", "two_to_five", "five_up"))
+    if banded:
+        notes.append(f"{above:,} of {banded:,} papers ({above / banded:.0%}) are cited at or above "
+                     "the field's rate.")  # fmt: skip
+    return Figure(
+        request,
+        [Column("label", "Relative citation ratio", "label"),
+         Column("papers", "Papers", "count", "papers"), Column("share", "Share", "share")],
+        rows,
+        totals={"papers": len(counted), "banded": banded, "at_or_above": above},
+        notes=notes,
+        record_columns=[*PAPER_RECORD_COLUMNS, Column("rcr", "Relative citation ratio", "text"),
+                        Column("band", "Band", "label")],
+        records=records,
+    )  # fmt: skip
+
+
+PUBLICATIONS_INFLUENCE = register(
+    Metric(
+        id="publications.influence",
+        version=1,
+        name="Field-normalized citation",
+        area="Publications",
+        definition="How often the cohort's papers in the period are cited, against papers in "
+        "their own field and year: the distribution of iCite's relative citation ratio.",
+        counting=f"{PAPER_RULE} {WINDOW_RULE} Each paper falls in one band of its relative "
+        "citation ratio (RCR) from NIH's iCite; papers published in the last two calendar years "
+        "are counted apart, because iCite's ratio is provisional until then.",
+        unit="papers",
+        sources=("pubmed", "icite"),
+        options=(BASIS,),
+        caveats=(
+            PUBMED_CAVEAT,
+            "A citation ratio describes papers, not people: it says nothing about the quality "
+            "of anyone's work, and Insight never ranks people by it.",
+        ),
+        needs=("paper_links", "papers", "citations"),
+        compute=_influence,
+    )
+)

@@ -254,6 +254,7 @@ def build_world(seed: int = 7, today: date | None = None, labs_per_area: int = 3
         subprojects: tuple[float, ...] = (),
         ic: str | None = None,
         source: random.Random | None = None,
+        acknowledged: bool = True,
     ) -> str:
         """A grant's fiscal-year records. ``subprojects`` are the shares of each year's award
         that its components report as records of their own (the parent's amount includes them).
@@ -328,7 +329,8 @@ def build_world(seed: int = 7, today: date | None = None, labs_per_area: int = 3
                 )
         for p in [contact, *others]:
             p.grants.append(core)
-            grant_of_lab[p.lab].append(core)
+            if acknowledged:  # papers draw the grants they thank from these lists
+                grant_of_lab[p.lab].append(core)
         return core
 
     amounts = {"R01": 520_000, "R35": 960_000, "U01": 880_000, "P01": 2_350_000, "R21": 230_000}
@@ -360,17 +362,20 @@ def build_world(seed: int = 7, today: date | None = None, labs_per_area: int = 3
         add_grant(
             oncology[0], "P30", oncology[1:3], 1_850_000, first_year - 1,
             mechanism="Research Centers", years=5, subprojects=(0.12, 0.09), source=extra,
+            acknowledged=False,
         )  # fmt: skip
     trainers = sorted(labs.values(), key=lambda p: p.key)
     add_grant(trainers[len(trainers) // 2], "T32", [], 430_000, first_year,
-              mechanism="Training, Institutional", ic="GM", source=extra)  # fmt: skip
+              mechanism="Training, Institutional", ic="GM", source=extra,
+              acknowledged=False)  # fmt: skip
     fellows = sorted((p for p in people if not p.is_pi and p.title == "Postdoctoral Fellow"
                       and p.area.ic in IC_AGENCY), key=lambda p: p.key)  # fmt: skip
     if fellows:
         fellow = fellows[0]
         fellow.profile_id = 91_500_000
         add_grant(fellow, "K99", [], 125_000, today.year - 1,
-                  mechanism="Other Research-Related", source=extra)  # fmt: skip
+                  mechanism="Other Research-Related", source=extra,
+                  acknowledged=False)  # fmt: skip
     first_r01 = next(r for r in reporter if r["activity_code"] == "R01")
     r01_years = [r for r in reporter if r["core_project_num"] == first_r01["core_project_num"]]
     base = r01_years[min(2, len(r01_years) - 1)]
@@ -673,23 +678,18 @@ def build_world(seed: int = 7, today: date | None = None, labs_per_area: int = 3
                 "brief_title": s["title"],
                 "official_title": s["title"],
                 "overall_status": s["status"],
-                "study_type": "INTERVENTIONAL",
+                "study_type": s.get("study_type", "INTERVENTIONAL"),
                 "phases": s["phases"],
                 "conditions": s["conditions"],
                 "condition_mesh": [{"id": mesh_ui(c), "term": c} for c in s["conditions"]],
                 "intervention_mesh": [{"id": mesh_ui(t), "term": t} for t in s["interventions"]],
                 "interventions": [
-                    {
-                        "type": "BIOLOGICAL"
-                        if "Immuno" in t or "Vaccine" in t or "Antibod" in t
-                        else "OTHER",
-                        "name": t,
-                    }
-                    for t in s["interventions"]
+                    {"type": kind, "name": t}
+                    for t, kind in zip(s["interventions"], s["types"], strict=True)
                 ],
                 "keywords": [],
-                "lead_sponsor": ORG,
-                "lead_sponsor_class": "OTHER",
+                "lead_sponsor": s.get("sponsor", ORG),
+                "lead_sponsor_class": s.get("sponsor_class", "OTHER"),
                 "collaborators": ["National Cancer Institute (NCI)"] if pi.area.ic == "CA" else [],
                 "start_date": start,
                 "start_date_type": "ACTUAL",

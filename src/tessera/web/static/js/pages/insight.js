@@ -6,15 +6,44 @@ import { h, icon } from "../core/dom.js";
 import { enumLabel, money, number } from "../core/format.js";
 import { query, setQuery } from "../core/router.js";
 import { cohortBar, insightParams } from "../components/cohort-bar.js";
-import { categoryBars, figureCard, yearChart } from "../components/figure.js";
+import { categoryBars, figureCard, trendList, trendMark, yearChart } from "../components/figure.js";
 import { pageHeader, segmented } from "../components/ui.js";
 import { show } from "./page.js";
 
 export const INSIGHT_PAGES = [
   { href: "/insight", label: "Overview" },
   { href: "/insight/funding", label: "Funding" },
+  { href: "/insight/topics", label: "Topics" },
+  { href: "/insight/studies", label: "Studies" },
   { href: "/insight/definitions", label: "Definitions" },
 ];
+
+const LEVEL = { key: "level", label: "Topics as", default: "heading",
+  choices: [{ value: "heading", label: "MeSH headings" }, { value: "area", label: "Research areas" }] };
+const CONDITION_LEVEL = [{ id: "area", label: "Disease areas" }, { id: "condition", label: "As registered" }];
+
+function topicsCard(params, { limit = 30, wide = true } = {}) {
+  return figureCard({ metric: "topics.landscape", params, wide,
+    draw: (f) => categoryBars(f, { valueKey: "papers", shareKey: "share", limit, extra: (r) => trendMark(r.trend) }) });
+}
+
+function studyCard(metric, params, { wide = false } = {}) {
+  return figureCard({ metric, params, wide, empty: "No study of this cohort was under way in the period.",
+    draw: (f) => categoryBars(f, { valueKey: "studies", shareKey: "share" }) });
+}
+
+function influenceCard(params) {
+  // Settled ratios are charted; recent papers (provisional) and papers iCite lacks are said.
+  const draw = (f) => {
+    const settled = f.rows.filter((r) => r.share != null);
+    const aside = f.rows.filter((r) => r.share == null && r.papers);
+    return h("div", { class: "stack-sm" },
+      categoryBars({ ...f, rows: settled }, { valueKey: "papers", shareKey: "share" }),  // the first rows: small marks still line up
+      aside.length ? h("p", { class: "muted figure-aside" }, "Not charted: ",
+        aside.map((r) => `${number(r.papers)} ${r.label.charAt(0).toLowerCase()}${r.label.slice(1)}`).join("; "), ".") : null);
+  };
+  return figureCard({ metric: "publications.influence", params, draw });
+}
 
 const AMOUNT = { key: "amount", label: "Amount", default: "total",
   choices: [{ value: "total", label: "Total" }, { value: "direct", label: "Direct" }, { value: "indirect", label: "Indirect" }] };
@@ -71,7 +100,11 @@ export function insightOverview(main) {
               : [{ key: "confirmed", label: "Confirmed", tone: "solid" }, { key: "likely", label: "Likely", tone: "soft" }],
             { label: "Publications by year" }),
           }),
-          figureCard({ metric: "funding.awarded", params, draw: awardsChart })));
+          figureCard({ metric: "funding.awarded", params, draw: awardsChart }),
+          topicsCard(params, { limit: 10, wide: false }),
+          influenceCard(params),
+          studyCard("studies.by_status", params),
+          studyCard("studies.by_phase", params)));
     },
   });
 }
@@ -114,6 +147,55 @@ export function funding(main) {
           categoryCard("funding.by_mechanism", params),
           groupCard(params, kinds),
           endingCard(params)));
+    },
+  });
+}
+
+export function topics(main) {
+  return show(main, {
+    title: "Topics",
+    load: () => get("/api/v1/insight/years"),
+    view: ({ data: years }) => {
+      const params = insightParams();
+      return h("div", { class: "stack-lg" },
+        pageHeader({ eyebrow: "Insight", title: "Topics" }),
+        insightNav("/insight/topics"),
+        h("p", { class: "lede" }, "What the cohort's papers are about, from the major MeSH headings that NLM's indexers give each paper. ",
+          "A trend is claimed only when there are enough papers in both halves of the period to support it."),
+        cohortBar({ years, options: [LEVEL] }),
+        h("div", { class: "figure-grid" },
+          topicsCard(params),
+          figureCard({ metric: "topics.by_year", params, wide: true, draw: (f) => trendList(f) }),
+          influenceCard(params)));
+    },
+  });
+}
+
+export function studies(main) {
+  return show(main, {
+    title: "Studies",
+    load: () => get("/api/v1/insight/years"),
+    view: ({ data: years }) => {
+      const params = insightParams();
+      const level = query().get("level") === "condition" ? "condition" : "area";
+      const conditions = studyCard("studies.by_condition", { ...params, level });
+      conditions.querySelector(".card-header").append(segmented(CONDITION_LEVEL, level,
+        (id) => setQuery({ level: id === "area" ? null : id }), "Conditions as"));
+      return h("div", { class: "stack-lg" },
+        pageHeader({ eyebrow: "Insight", title: "Studies" }),
+        insightNav("/insight/studies"),
+        h("p", { class: "lede" }, "Clinical studies registered at ClinicalTrials.gov that were under way in the period. ",
+          "Status is always the registry's overall status as the sponsor reported it, never recruitment here."),
+        cohortBar({ years }),
+        h("div", { class: "figure-grid" },
+          studyCard("studies.by_status", params),
+          studyCard("studies.by_phase", params),
+          studyCard("studies.by_sponsor", params),
+          studyCard("studies.by_intervention", params),
+          conditions,
+          figureCard({ metric: "studies.by_start_year", params,
+            draw: (f) => yearChart(f, [{ key: "interventional", label: "Interventional", tone: "solid" },
+              { key: "other", label: "Observational and other", tone: "soft" }], { label: "Studies by start year" }) })));
     },
   });
 }
