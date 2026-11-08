@@ -93,7 +93,7 @@ Detail: [waves/wave-3.md](waves/wave-3.md)
 - Brand kit (PLT-13), arriving with the public site, where an organization's own look matters most: an optional `[branding.palette]` that sets core colors by day and night (surfaces, text, accent and its text, record types, stripe), footer links, a favicon, and a social preview image. `tessera doctor` runs the same WCAG AA check used on rendered pages over every configured color pair, including a configured accent, and fails any pair below AA
 - In-app digest notifications
 
-## Wave 4: Insight (v0.4.0) ◐
+## Wave 4: Insight (v0.4.0) ☑
 
 **Goal:** trustworthy portfolio intelligence and reproducible reporting.
 
@@ -105,9 +105,9 @@ Detail: [waves/wave-3.md](waves/wave-3.md)
 | 4 | Reports and exports | Saved searches with new matches; reports; snapshots that regenerate exactly; evidence-carrying CSV, Parquet, and JSON exports | ☑ |
 | 5 | Backup and operations | Backup, restore (across SQLite and PostgreSQL), and full exit export; Admin → Operations; failure alerts | ☑ |
 | 6 | Embeds | Group content embedded in an existing website, from the public site | ☑ |
-| 7 | Release prep | Guides, screenshots, evaluation, changelog, release | ◐ |
+| 7 | Release prep | Guides, screenshots, evaluation, changelog, release | ☑ |
 
-Detail: [waves/wave-4.md](waves/wave-4.md)
+Released as [v0.4.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0.4.0) on 2026-11-08. Detail: [waves/wave-4.md](waves/wave-4.md)
 
 ## Wave 5: Impact (v0.5.0) ☐
 
