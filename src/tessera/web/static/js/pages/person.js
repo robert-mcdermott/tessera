@@ -11,6 +11,7 @@ import { identifiersCard } from "../components/identifiers.js";
 import { grantItem, opportunityList, publicationItem, studyItem } from "../components/items.js";
 import { avatar, barChart, callout, card, debounce, emptyState, pageHeader, pager, pill, segmented, statTile, tabs, topicChips } from "../components/ui.js";
 import { show } from "./page.js";
+import { slot } from "../core/slots.js";
 
 const LIMIT = 20;
 
@@ -154,7 +155,8 @@ export function person(main, params, { samePage = false } = {}) {
         profile.names.length > 1 ? card({ title: "Names in the data", pad: true,
           body: h("div", { class: "chips" }, profile.names.map((n) => h("span", { class: "chip chip-plain" }, `${n.given ? `${n.given} ` : ""}${n.family}`))) }) : null);
 
-      return h("div", { class: "stack-lg" }, header, mergedNote, candidateNote, stats,
+      return h("div", { class: "stack-lg" }, header, mergedNote, candidateNote,
+        ...(member ? slot("person:intro", { profile, refresh }) : []), stats,
         h("div", { class: "grid-main" }, h("div", {}, tabBar, panel), side));
     },
   });

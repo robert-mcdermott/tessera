@@ -34,6 +34,7 @@ PREFIXES = {
     "opl": "opportunity",
     "tem": "team",
     "aix": "assistant exchange",
+    "sum": "summary",
 }
 
 _CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"

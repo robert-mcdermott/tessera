@@ -45,7 +45,8 @@ from tessera.ledger.tables import metadata
 # Never exported: secrets that would let someone sign in as somebody else.
 WITHHELD = {"account": {"password_hash"}, "auth_session": {"token_hash", "csrf_token"}}
 SKIPPED_TABLES = {"auth_session"}  # signed-in browsers: nothing anyone needs to leave with
-OPTIONAL_TABLES = {"ai_exchange"}  # left out while empty and the feature is off
+# Left out while empty and the feature is off.
+OPTIONAL_TABLES = {"ai_exchange", "ai_summary", "summary_event"}
 
 LEDGER_NOTES = {
     "person": "One row per person in the directory, and discovered, dismissed, and merged ones",
@@ -76,6 +77,8 @@ LEDGER_NOTES = {
     "team": "Teams assembled for an opportunity, with the topics they need and their sharing",
     "team_member": "The people on each team, with their roles",
     "ai_exchange": "Exchanges with the optional assistant: who asked, the model, the answer",
+    "ai_summary": "Plain-language summaries: the draft, the approved text, who approved it",
+    "summary_event": "Every change to a plain-language summary",
     "auto_accept_batch": "Links accepted automatically, by batch",
     "ingest_run": "Every fetch, resolve, and build run",
     "source_checkpoint": "Where each source's incremental fetches left off",

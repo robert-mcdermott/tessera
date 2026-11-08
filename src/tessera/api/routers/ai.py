@@ -13,6 +13,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from tessera.ai import log
+from tessera.ai import summaries as lay
 from tessera.ai.ask import Exchange, previous_turns
 from tessera.ai.providers import ProviderError, make
 from tessera.ai.tools import Fetch, Toolbox
@@ -28,6 +29,12 @@ POLICIES = {
     ("GET", "/api/v1/ai/usage"): Level.ADMIN,
     ("POST", "/api/v1/ai/check"): Level.ADMIN,
     ("POST", "/api/v1/ai/ask"): Level.READ,
+    # Who may review a given summary is decided in the handlers (the person, their curators,
+    # the group's editors, admins).
+    ("GET", "/api/v1/ai/summaries/{subject}"): Level.READ,
+    ("POST", "/api/v1/ai/summaries/{subject}/draft"): Level.READ,
+    ("POST", "/api/v1/ai/summaries/{summary_id}/approve"): Level.READ,
+    ("POST", "/api/v1/ai/summaries/{summary_id}/reject"): Level.READ,
 }
 
 
@@ -147,3 +154,96 @@ def ask(request: Request, body: AskBody) -> StreamingResponse:
 
     headers = {"Cache-Control": "no-store", "X-Accel-Buffering": "no"}  # stream through proxies
     return StreamingResponse(lines(), media_type="application/x-ndjson", headers=headers)
+
+
+# --- plain-language summaries ---------------------------------------------------------------------
+
+
+class Decision(BaseModel):
+    text: str | None = Field(None, max_length=4000, description="The summary as edited, if edited")
+    note: str | None = Field(None, max_length=1000)
+
+
+def _subject(request: Request, ref: str) -> tuple[str, str, str, str]:
+    try:
+        with engine_of(request).connect() as conn:
+            return lay.subject_of(conn, ref)
+    except lay.SummaryError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+def _reviewer(request: Request, kind: str, subject_id: str) -> str:
+    principal = principal_of(request)
+    if not lay.may_review(principal, engine_of(request), kind, subject_id):
+        raise HTTPException(status_code=403, detail="Only this summary's reviewers may do that.")
+    return principal.name  # shown beside an approved summary, the public site included
+
+
+@router.get("/summaries/{subject}", summary="A person's or group's approved summary, and drafts")
+def summary(request: Request, subject: str) -> dict[str, Any]:
+    kind, subject_id, name, ref = _subject(request, subject)
+    engine = engine_of(request)
+    reviews = lay.may_review(principal_of(request), engine, kind, subject_id)
+    with engine.connect() as conn:
+        approved = lay.approved(conn, kind, [subject_id]).get(subject_id)
+        out: dict[str, Any] = {
+            "subject": {"kind": kind, "id": subject_id, "name": name, "ref": ref},
+            "approved": lay.view(approved),
+            "may_review": reviews,
+        }
+        if reviews:
+            out["drafts"] = [lay.view(d) for d in lay.drafts(conn, kind, subject_id)]
+            out["stale"] = lay.stale(conn, kind, subject_id)
+            out["history"] = lay.history(conn, kind, subject_id)[:50]
+    if approved and not reviews:
+        out["approved"].pop("draft", None)  # what the model first wrote is for reviewers
+    return envelope(out)
+
+
+@router.post("/summaries/{subject}/draft", summary="Draft a summary for review (its reviewers)")
+def draft_summary(request: Request, subject: str) -> dict[str, Any]:
+    kind, subject_id, _, tool_ref = _subject(request, subject)
+    actor = _reviewer(request, kind, subject_id)
+    config = config_of(request)
+    provider = make(config.ai, transport=transport_of(request))
+    try:
+        row = lay.draft(
+            engine_of(request), config.ai, provider, Toolbox(asker_fetch(request)), ref=tool_ref,
+            actor=actor, owner=owner_of(request), organization=config.organization.name,
+        )  # fmt: skip
+    except ProviderError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except lay.SummaryError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        provider.close()
+    return envelope(lay.view(row))
+
+
+def _decide(request: Request, summary_id: str, body: Decision, action: str) -> dict[str, Any]:
+    engine = engine_of(request)
+    with engine.connect() as conn:
+        try:
+            row = lay.get(conn, summary_id)
+        except lay.SummaryError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+    actor = _reviewer(request, row["subject_type"], row["subject_id"])
+    try:
+        with engine.begin() as conn:
+            if action == "approve":
+                row = lay.approve(conn, summary_id, actor=actor, text=body.text, note=body.note)
+            else:
+                row = lay.reject(conn, summary_id, actor=actor, note=body.note)
+    except lay.SummaryError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return envelope(lay.view(row))
+
+
+@router.post("/summaries/{summary_id}/approve", summary="Approve a draft, as written or edited")
+def approve_summary(request: Request, summary_id: str, body: Decision) -> dict[str, Any]:
+    return _decide(request, summary_id, body, "approve")
+
+
+@router.post("/summaries/{summary_id}/reject", summary="Reject a draft")
+def reject_summary(request: Request, summary_id: str, body: Decision) -> dict[str, Any]:
+    return _decide(request, summary_id, body, "reject")

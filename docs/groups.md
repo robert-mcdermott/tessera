@@ -93,6 +93,7 @@ A group's page is made of **blocks**, chosen and arranged by its managers (or a 
 | Themes and projects, Openings | The group's themes and projects, and its open positions |
 | Contact | The group's contact address and website, with an optional note |
 | News | Short dated items, each with an optional link |
+| Summary | The group's approved plain-language summary; offered only while [the assistant](assistant.md#plain-language-summaries) is on |
 
 About and News can appear more than once; the others once each. Topics, Writes most with, and Contact sit beside the others on wide screens. A group whose page has never been published shows the standard arrangement of all of them.
 

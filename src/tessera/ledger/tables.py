@@ -632,3 +632,47 @@ ai_exchange = Table(
 )
 Index(None, ai_exchange.c.owner, ai_exchange.c.started_at)
 Index(None, ai_exchange.c.started_at)
+
+# Plain-language summaries of a person's or a group's work (wave 5): drafted by the optional
+# assistant from confirmed records, shown only once a reviewer approves them, and never while the
+# assistant is off. ``draft`` is what the model wrote; ``text`` is what was approved (the draft,
+# or the reviewer's edit of it). ``inputs`` holds the counts and references it was drafted from,
+# and ``inputs_digest`` their SHA-256, so a later draft can say whether anything changed.
+SUMMARY_SUBJECTS = ("person", "group")
+SUMMARY_STATUSES = ("draft", "approved", "rejected", "replaced")
+ai_summary = Table(
+    "ai_summary",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("subject_type", String(10), nullable=False),
+    Column("subject_id", ID, nullable=False),
+    Column("status", String(12), nullable=False),
+    Column("draft", Text, nullable=False),
+    Column("text", Text),
+    Column("provider", String(20), nullable=False),
+    Column("model", String(200), nullable=False),
+    Column("prompt_version", String(40), nullable=False),
+    Column("inputs", JsonType, nullable=False),
+    Column("inputs_digest", String(64), nullable=False),
+    Column("exchange_id", ID),
+    Column("requested_by", String(200), nullable=False),
+    Column("requested_at", UtcDateTime, nullable=False),
+    Column("decided_by", String(200)),
+    Column("decided_at", UtcDateTime),
+    CheckConstraint(_in("subject_type", SUMMARY_SUBJECTS), name="subject_type"),
+    CheckConstraint(_in("status", SUMMARY_STATUSES), name="status"),
+)
+Index(None, ai_summary.c.subject_type, ai_summary.c.subject_id, ai_summary.c.status)
+
+# Every change to a summary, append-only: drafted, edited, approved, rejected, replaced.
+summary_event = Table(
+    "summary_event",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("summary_id", ID, ForeignKey("ai_summary.id", ondelete="CASCADE"), nullable=False),
+    Column("actor", String(200), nullable=False),
+    Column("action", String(20), nullable=False),
+    Column("note", Text),
+    Column("at", UtcDateTime, nullable=False),
+)
+Index(None, summary_event.c.summary_id)

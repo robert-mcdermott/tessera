@@ -27,8 +27,11 @@ from tessera.auth import passwords
 from tessera.auth.accounts import Grant, create_account
 from tessera.config import AIConfig, load_config
 from tessera.demo import build_demo
+from tessera.home import DataHome
 from tessera.ledger.db import make_engine
-from tessera.ledger.tables import assertion, unit
+from tessera.ledger.tables import ai_summary, assertion, person, unit
+from tessera.publish import pages as site_pages
+from tessera.publish.projection import project
 
 TODAY = date(2026, 11, 7)
 PASSWORD = "correct horse battery staple"
@@ -145,7 +148,12 @@ def world(tmp_path_factory: pytest.TempPathFactory) -> Iterator[World]:
         suggested = conn.execute(select(assertion.c.subject_id, assertion.c.object_id).where(
             assertion.c.predicate == "authored",
             assertion.c.status == "suggested")).first()  # fmt: skip
-    assert suggested is not None
+        uma = conn.execute(
+            select(person.c.id).where(
+                person.c.display_name == "Uma G Eriksen", person.c.status == "active"
+            )
+        ).scalar()
+    assert suggested is not None and uma
     cheap = passwords.SCRYPT_N
     passwords.SCRYPT_N = 2**10
     try:
@@ -154,14 +162,16 @@ def world(tmp_path_factory: pytest.TempPathFactory) -> Iterator[World]:
             "guest": [Grant("viewer")],
             "eriksen": [Grant("manager", "unit", groups["eriksen-lab"])],
             "curious": [Grant("curator")],
+            "uma": [Grant("researcher")],
         }.items():
-            create_account(engine, name, name.title(), PASSWORD, grants, actor="test")
+            create_account(engine, name, name.title(), PASSWORD, grants, actor="test",
+                           person_id=uma if name == "uma" else None)  # fmt: skip
     finally:
         passwords.SCRYPT_N = cheap
     engine.dispose()
-    ids = {"suggested_person": suggested[0], "suggested_pub": suggested[1]}
+    ids = {"suggested_person": suggested[0], "suggested_pub": suggested[1], "uma": uma}
     w = World(path, ids)
-    _signed_in(w, ["boss", "guest", "eriksen"])
+    _signed_in(w, ["boss", "guest", "eriksen", "uma"])
     yield w
     for client in w.clients.values():
         client.__exit__(None, None, None)
@@ -395,3 +405,124 @@ def test_a_stopped_exchange_is_logged(world: World) -> None:
         assert rows[0]["question"] == "Stop me" and rows[0]["status"] == "stopped"
     finally:
         engine.dispose()
+
+
+# --- plain-language summaries --------------------------------------------------------------------
+
+SUMMARY = "Uma G Eriksen studies how engineered T cells can be helped to keep fighting cancer."
+
+
+def test_a_summary_is_seen_only_by_its_reviewers_until_approved(world: World) -> None:
+    uma = world.ids["uma"]
+    world.model.script = [say(SUMMARY)]
+    made = world.call("uma", "POST", f"/api/v1/ai/summaries/{uma}/draft")
+    assert made["status"] == "draft" and made["draft"] == SUMMARY
+    assert made["prompt_version"] == "summary/v1" and made["model"] == "scripted"
+    sent = world.model.requests[-1]["messages"]
+    assert "plain-language summaries" in sent[0]["content"] and "Facts (JSON)" in sent[1]["content"]
+    assert "@corvane.example" not in json.dumps(sent)  # no contact details
+    # Others see nothing, and may not decide.
+    seen = world.call("guest", "GET", f"/api/v1/ai/summaries/{uma}")
+    assert seen["approved"] is None and seen["may_review"] is False and "drafts" not in seen
+    refused = world.clients["eriksen"].post(
+        f"/api/v1/ai/summaries/{made['id']}/approve", json={},
+        headers={"X-CSRF-Token": world.csrf["eriksen"]})  # fmt: skip
+    assert refused.status_code == 403
+    # Approved with an edit: both are kept, and the change is in its history.
+    edited = SUMMARY.replace("keep fighting", "keep on fighting")
+    done = world.call("uma", "POST", f"/api/v1/ai/summaries/{made['id']}/approve", {"text": edited})
+    assert done["status"] == "approved" and done["text"] == edited and done["draft"] == SUMMARY
+    seen = world.call("guest", "GET", f"/api/v1/ai/summaries/{uma}")
+    assert seen["approved"]["text"] == edited and "draft" not in seen["approved"]
+    assert seen["approved"]["label"] == "Drafted with AI assistance"
+    mine = world.call("uma", "GET", f"/api/v1/ai/summaries/{uma}")
+    assert [e["action"] for e in mine["history"]][:3] == ["approved", "edited", "drafted"]
+    row = world.call("boss", "GET", "/api/v1/ai/exchanges?limit=1")[0]
+    assert row["kind"] == "summary" and row["prompt_version"] == "summary/v1"
+    # A new approval replaces it; a rejected draft changes nothing.
+    world.model.script = [say("A second draft."), say("A third draft.")]
+    second = world.call("uma", "POST", f"/api/v1/ai/summaries/{uma}/draft")
+    third = world.call("uma", "POST", f"/api/v1/ai/summaries/{uma}/draft")
+    world.call("uma", "POST", f"/api/v1/ai/summaries/{third['id']}/reject", {"note": "Too vague"})
+    assert world.call("guest", "GET", f"/api/v1/ai/summaries/{uma}")["approved"]["text"] == edited
+    world.call("uma", "POST", f"/api/v1/ai/summaries/{second['id']}/approve", {})
+    assert (
+        world.call("guest", "GET", f"/api/v1/ai/summaries/{uma}")["approved"]["text"]
+        == "A second draft."
+    )
+    again = world.clients["uma"].post(f"/api/v1/ai/summaries/{third['id']}/approve", json={},
+                                      headers={"X-CSRF-Token": world.csrf["uma"]})  # fmt: skip
+    assert again.status_code == 400  # a rejected draft stays rejected
+
+
+def test_a_group_summary_is_a_page_block_and_the_inbox_says_when_it_is_out_of_date(
+    world: World,
+) -> None:
+    world.model.script = [say("The Eriksen Lab studies engineered T cells.")]
+    made = world.call("eriksen", "POST", "/api/v1/ai/summaries/grp:eriksen-lab/draft")
+    facts = world.model.requests[-1]["messages"][1]["content"]
+    assert "Eriksen Lab" in facts
+    world.call("eriksen", "POST", f"/api/v1/ai/summaries/{made['id']}/approve", {})
+    page = world.call("eriksen", "GET", "/api/v1/groups/eriksen-lab/page")
+    assert "summary" in [t["id"] for t in page["block_types"]]
+    inbox = world.call("eriksen", "GET", f"/api/v1/groups/{page['group_id']}/inbox")
+    assert inbox["counts"]["summary"] == 0 and inbox["summary"] is None
+    # Pretend it was drafted when the lab had far fewer papers.
+    config = load_config(world.path / "tessera.toml", env={})
+    engine = make_engine(config.ledger_url)
+    with engine.begin() as conn:
+        conn.execute(ai_summary.update().where(ai_summary.c.id == made["id"]).values(
+            inputs={"counts": {"papers": 1, "members": 3}, "facts": {}}))  # fmt: skip
+    engine.dispose()
+    inbox = world.call("eriksen", "GET", f"/api/v1/groups/{page['group_id']}/inbox")
+    assert (
+        inbox["counts"]["summary"] == 1
+        and "more confirmed papers" in inbox["summary"]["changes"][0]
+    )
+
+
+def test_turning_the_assistant_off_hides_summaries_everywhere(world: World) -> None:
+    uma = world.ids["uma"]
+    world.call("boss", "POST", f"/api/v1/people/{uma}/public", {"public": True})
+    world.call("boss", "POST", "/api/v1/groups/eriksen-lab/public", {"public": True})
+    world.call("boss", "POST", "/api/v1/groups/eriksen-lab/page/draft",
+               {"blocks": [{"type": "summary"}, {"type": "people"}]})  # fmt: skip
+    world.call("boss", "POST", "/api/v1/groups/eriksen-lab/page/publish", {"note": "Summary"})
+
+    def site() -> str:
+        config = load_config(world.path / "tessera.toml", env={})
+        engine = make_engine(config.ledger_url)
+        try:
+            files = site_pages.build(
+                project(config, DataHome(config.data.home), engine, TODAY), config
+            )
+        finally:
+            engine.dispose()
+        return "\n".join(v for k, v in files.items() if k.endswith(".html") and isinstance(v, str))
+
+    shown = site()
+    assert "A second draft." in shown and "The Eriksen Lab studies engineered T cells." in shown
+    assert "Drafted with AI assistance; approved by Uma" in shown
+
+    _config_text(world.path)
+    config_path = world.path / "tessera.toml"
+    text = re.sub(r"\n\[ai\]\n(?:(?!\n\[)[\s\S])*", "\n", config_path.read_text("utf-8"))
+    config_path.write_text(text, "utf-8")
+    try:
+        off = World(world.path, world.ids, world.model)
+        _signed_in(off, ["eriksen", "uma"])
+        try:
+            assert off.clients["uma"].get(f"/api/v1/ai/summaries/{uma}").status_code == 404
+            page = off.call("eriksen", "GET", "/api/v1/groups/eriksen-lab/page")
+            assert "summary" not in [t["id"] for t in page["block_types"]]
+            inbox = off.call("eriksen", "GET", f"/api/v1/groups/{page['group_id']}/inbox")
+            assert "summary" not in inbox and "summary" not in inbox["counts"]
+            assert "summary" not in off.call("uma", "GET", "/api/v1/inbox")
+        finally:
+            for client in off.clients.values():
+                client.__exit__(None, None, None)
+        hidden = site()
+        assert "A second draft." not in hidden and "Drafted with AI assistance" not in hidden
+    finally:
+        _config_text(world.path)
+    assert "A second draft." in site()  # on again, shown again

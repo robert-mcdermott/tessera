@@ -3,7 +3,7 @@
 
 import { get, post } from "/js/core/api.js";
 import { h, icon } from "/js/core/dom.js";
-import { number, relative } from "/js/core/format.js";
+import { date, number, paragraphs, relative } from "/js/core/format.js";
 import { navigate } from "/js/core/router.js";
 import { csrfToken } from "/js/core/session.js";
 import { closeDrawer, openDrawer } from "/js/components/drawer.js";
@@ -256,6 +256,128 @@ export function openAsk(question = "") {
   });
 }
 
+// --- plain-language summaries -----------------------------------------------------------------------
+
+const ACTIONS = { drafted: "drafted", edited: "edited", approved: "approved", rejected: "rejected", replaced: "replaced" };
+
+function summaryText(text) {
+  return h("div", { class: "prose lay-text" }, paragraphs(text).map((p) => h("p", {}, p)));
+}
+
+function approvedNote(s) {
+  return h("p", { class: "lay-note" }, icon("sparkle", "icon icon-sm"),
+    `${s.label}; approved by ${s.decided_by}${s.decided_at ? ` on ${date(s.decided_at)}` : ""}.`);
+}
+
+async function act(button, label, run) {
+  const before = button.textContent;
+  button.disabled = true;
+  button.textContent = label;
+  try {
+    await run();
+  } catch (failure) {
+    toast(failure.detail || failure.message);
+    button.disabled = false;
+    button.textContent = before;
+  }
+}
+
+function draftPanel(d, reload) {
+  const box = h("textarea", { class: "input lay-edit", rows: 7, maxlength: 4000, "aria-label": "The draft, to edit before approving" }, d.draft);
+  const approve = h("button", { type: "button", class: "btn btn-sm btn-accept" }, "Approve");
+  const reject = h("button", { type: "button", class: "btn btn-sm btn-reject" }, "Reject");
+  approve.onclick = () => act(approve, "Approving…", async () => {
+    await post(`/api/v1/ai/summaries/${d.id}/approve`, box.value.trim() === d.draft.trim() ? {} : { text: box.value });
+    toast("Approved. It now shows wherever the summary appears.");
+    reload();
+  });
+  reject.onclick = () => act(reject, "Rejecting…", async () => {
+    await post(`/api/v1/ai/summaries/${d.id}/reject`, {});
+    toast("Rejected.");
+    reload();
+  });
+  return h("div", { class: "lay-draft" },
+    h("div", { class: "row-sm wrap" }, pill("Draft", "warn"),
+      h("span", { class: "subtle" }, `Asked for by ${d.requested_by} ${relative(d.requested_at)} · ${d.model}. Only reviewers see drafts.`)),
+    box,
+    h("p", { class: "subtle" }, "Check every statement against the records. Edit it if you like; both the draft and your edit are kept."),
+    h("div", { class: "row-sm" }, approve, reject));
+}
+
+function summaryBody(data, reload, { aside = false } = {}) {
+  const s = data.approved;
+  const parts = [];
+  if (s && !aside) parts.push(summaryText(s.text), approvedNote(s));
+  if (!data.may_review) return parts;
+  if (aside) {
+    parts.push(h("p", { class: "subtle" }, s
+      ? "The group's summary is approved but not on its page. To show it, add a Summary block when you edit the page."
+      : "A short summary of the group's work for a general reader, drafted from its confirmed records. Nobody else sees it until you approve it, and it shows only where you add a Summary block to the page."));
+  } else if (!s && !(data.drafts ?? []).length) {
+    parts.push(h("p", { class: "subtle" }, "A short summary of this work for a general reader, drafted from confirmed records only. Nobody else sees it until a reviewer approves it."));
+  }
+  if (data.stale?.changes?.length) {
+    parts.push(h("div", { class: "callout callout-warn", role: "note" }, icon("info", "icon icon-sm"),
+      h("div", {}, `The records have changed since this summary was approved: ${data.stale.changes.join(", ")}. Draft a new one to review; this one stays until you approve another.`)));
+  }
+  for (const d of data.drafts ?? []) parts.push(draftPanel(d, reload));
+  const make = h("button", { type: "button", class: "btn btn-sm" }, icon("sparkle", "icon icon-sm"),
+    s || (data.drafts ?? []).length ? "Draft a new summary" : "Draft a summary");
+  make.onclick = () => act(make, "Drafting… (a few seconds)", async () => {
+    await post(`/api/v1/ai/summaries/${encodeURIComponent(data.subject.ref)}/draft`, {});
+    reload();
+  });
+  parts.push(h("div", { class: "row-sm" }, make));
+  if ((data.history ?? []).length) {
+    parts.push(h("details", { class: "lay-history" }, h("summary", {}, "History"),
+      h("ul", { class: "plain-list" }, data.history.map((e) => h("li", { class: "subtle" },
+        `${e.actor} ${ACTIONS[e.action] ?? e.action} a summary ${relative(e.at)}${e.note ? ` (${e.note})` : ""}`)))));
+  }
+  return parts;
+}
+
+/** A card that fills itself: the approved summary for everyone, and drafts for its reviewers. */
+function summaryCard(ref, { title = "Summary", aside = false } = {}) {
+  stylesheet();
+  const holder = h("div", { class: "lay-holder" });
+  const load = async () => {
+    let data;
+    try {
+      data = (await get(`/api/v1/ai/summaries/${encodeURIComponent(ref)}`, null, { fresh: true })).data;
+    } catch {
+      holder.replaceChildren();
+      return;
+    }
+    const nothingYet = data.may_review && !data.approved && !(data.drafts ?? []).length;
+    if (nothingYet && !aside) {
+      // Reviewers (a curator may review everyone) get a quiet line, not a card on every profile.
+      const make = h("button", { type: "button", class: "btn btn-sm btn-ghost" }, icon("sparkle", "icon icon-sm"), "Draft a plain-language summary");
+      make.onclick = () => act(make, "Drafting… (a few seconds)", async () => {
+        await post(`/api/v1/ai/summaries/${encodeURIComponent(data.subject.ref)}/draft`, {});
+        load();
+      });
+      holder.replaceChildren(h("div", { class: "lay-empty" }, make,
+        h("span", { class: "subtle" }, "From confirmed records; nobody else sees it until a reviewer approves it.")));
+      return;
+    }
+    const body = summaryBody(data, load, { aside });
+    holder.replaceChildren(...(body.length ? [card({ title, pad: true, attrs: { "data-lay": "" }, body: h("div", { class: "stack" }, body) })] : []));
+  };
+  load();
+  return holder;
+}
+
+function installSummaries(provide) {
+  provide("person:intro", ({ profile }) => summaryCard(profile.id));
+  provide("group:summary", ({ block, group }) => summaryCard(`grp:${group.slug}`, { title: block.title || "Summary" }));
+  provide("group:aside", ({ group }) => summaryCard(`grp:${group.slug}`, { aside: true }));
+  provide("group:inbox", ({ group, items }) => items.summary ? card({ title: "Summary to draft again", pad: true, body: h("div", { class: "stack-sm" },
+    h("p", {}, `The group's records have changed since its summary was approved: ${items.summary.changes.join(", ")}.`),
+    h("a", { class: "btn btn-sm", href: `/groups/${group.slug}` }, "Open the group to draft a new one")) }) : null);
+  provide("inbox:waiting", ({ digest }) => digest.summary ? h("li", {}, h("a", { href: `/people/${digest.summary.subject_id}` },
+    `The summary on your profile: your records have changed (${digest.summary.changes.join(", ")})`)) : null);
+}
+
 // --- the log, for admins ---------------------------------------------------------------------------
 
 function adminPage(main) {
@@ -304,8 +426,9 @@ function adminPage(main) {
   });
 }
 
-export function install({ main, route, shell, addAction }) {
+export function install({ main, route, shell, addAction, provide }) {
   route("/admin/assistant", () => adminPage(main));
+  if (provide) installSummaries(provide);
   shell.addNavItem("Admin", { href: "/admin/assistant", label: "Assistant", iconName: "sparkle", when: "admin",
     match: (p) => p.startsWith("/admin/assistant") });
   get("/api/v1/ai/status", null, { fresh: true }).then(({ data }) => {

@@ -119,6 +119,13 @@ def group_inbox_items(
     )
     expiring = openings.expiring(conn, [group_id], today, EXPIRING_DAYS)
     fitting = new_opportunities(conn, home, group_id, since, today) if home is not None else []
+    # With the optional assistant on: an approved summary whose records have changed a good deal.
+    summary = None
+    if config.ai.enabled:
+        from tessera.ai.summaries import stale
+
+        summary = stale(conn, "group", group_id, today)
+    extra = {"summary": int(summary is not None)} if config.ai.enabled else {}
     return {
         "since": since,
         "reviewed": reviewed_at(conn, group_id),
@@ -141,12 +148,14 @@ def group_inbox_items(
         ],
         "openings": expiring,
         "opportunities": fitting,
+        **({"summary": summary} if config.ai.enabled else {}),
         "counts": {
             "papers": len(papers),
             "grants": len(grants),
             "roster": len(roster),
             "openings": len(expiring),
             "opportunities": len(fitting),
+            **extra,
         },
     }
 
@@ -227,11 +236,21 @@ def digest(
                 ).all()
             )
     groups.sort(key=lambda g: (-g["total"], g["name"]))
-    return {
+    result: dict[str, Any] = {
         "groups": groups,
         "review": review,
         "total": sum(g["total"] for g in groups) + sum(review.values()),
     }
+    if config.ai.enabled:  # the optional assistant: their own profile's summary, if out of date
+        from tessera.ai.summaries import stale
+
+        own = None
+        if principal.person_id:
+            with engine.connect() as conn:
+                own = stale(conn, "person", principal.person_id, today)
+        result["summary"] = own
+        result["total"] += int(own is not None)
+    return result
 
 
 __all__ = ["digest", "group_inbox_items", "mark_reviewed", "reviewed_at"]
@@ -248,6 +267,7 @@ def digest_text(result: dict[str, Any], config: Config, name: str) -> tuple[str,
         "roster": ("roster change", "roster changes"),
         "openings": ("opening closing soon", "openings closing soon"),
         "opportunities": ("new opportunity that fits", "new opportunities that fit"),
+        "summary": ("summary to draft again", "summaries to draft again"),
     }
     for g in result["groups"]:
         parts = [
@@ -270,6 +290,10 @@ def digest_text(result: dict[str, Any], config: Config, name: str) -> tuple[str,
         lines.append(f"Discovered people: {review['candidates']}")
     if review.get("duplicates"):
         lines.append(f"Possible duplicates: {review['duplicates']}")
+    if result.get("summary"):
+        lines.append("The summary on your profile: your records have changed since it was approved")
+        if base:
+            lines.append(f"  {base}/people/{result['summary']['subject_id']}")
     lines += ["", f"This digest comes from {product}. Your inbox is in the app at any time."]
     total = result["total"]
     subject = f"{product}: {total} {'item' if total == 1 else 'items'} waiting for you"

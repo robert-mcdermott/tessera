@@ -683,6 +683,10 @@ def _featured(request: Request, blocks: list[dict[str, Any]]) -> dict[str, Any]:
     return publication_summaries(index_of(request), lake_of(request), pmids)
 
 
+def _turned_on(request: Request, section: str) -> bool:
+    return bool(getattr(getattr(config_of(request), section, None), "enabled", False))
+
+
 def _page_view(request: Request, row: dict[str, Any], blocks: list[dict], **extra: Any) -> dict:
     return {
         "group_id": row["id"],
@@ -691,6 +695,7 @@ def _page_view(request: Request, row: dict[str, Any], blocks: list[dict], **extr
         "block_types": [
             {"id": k, "label": v, "repeatable": k in pages.REPEATABLE, "side": k in pages.SIDE}
             for k, v in pages.BLOCK_TYPES.items()
+            if k not in pages.OPTIONAL_TYPES or _turned_on(request, pages.OPTIONAL_TYPES[k])
         ],
         **extra,
     }

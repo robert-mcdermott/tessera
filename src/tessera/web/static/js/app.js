@@ -18,6 +18,7 @@ import { person } from "./pages/person.js";
 import { grant, publication, study } from "./pages/records.js";
 import { searchPage } from "./pages/search.js";
 import { nextPath, signIn } from "./pages/signin.js";
+import { provide } from "./core/slots.js";
 
 applyAppearance();
 
@@ -119,7 +120,7 @@ async function boot() {
   // Optional modules the server names; there are none unless its configuration enables one.
   for (const url of meta.extensions ?? []) {
     try {
-      (await import(url)).install?.({ main, meta, route, shell, addAction: (action) => extraActions.push(action) });
+      (await import(url)).install?.({ main, meta, route, shell, provide, addAction: (action) => extraActions.push(action) });
     } catch (error) {
       console.error(`Could not load ${url}`, error);
     }

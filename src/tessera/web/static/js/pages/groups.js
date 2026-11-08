@@ -12,6 +12,7 @@ import { grantItem, opportunityList, publicationItem, studyItem } from "../compo
 import { toast } from "../components/toast.js";
 import { avatar, barChart, callout, card, debounce, emptyState, pageHeader, pager, pill, tabs } from "../components/ui.js";
 import { show } from "./page.js";
+import { slot } from "../core/slots.js";
 
 const PAGE = 20;
 
@@ -145,6 +146,7 @@ export function groupPage(main, params, ctx = {}) {
         const nodes = [RENDER[block.type]?.(block, ctxBlocks)].flat().filter(Boolean);
         (SIDE.has(block.type) ? side : main_).push(...nodes);
       }
+      if (!page.blocks.some((b) => b.type === "summary")) side.push(...slot("group:aside", { group, page }));
       if (opportunities.length) {
         side.push(card({ title: "Opportunities that fit", pad: true, attrs: { "data-entity": "opportunity" },
           action: h("a", { href: `/opportunities?group=${encodeURIComponent(group.slug)}&status=posted&status=forecasted` }, "All"),
@@ -170,6 +172,7 @@ function textBody(text) {
 }
 
 const RENDER = {
+  summary: (b, { group }) => slot("group:summary", { block: b, group }),
   about: (b) => b.text
     ? card({ title: b.title ?? "About", pad: true, body: h("div", { class: "prose" }, textBody(b.text)) })
     : null,

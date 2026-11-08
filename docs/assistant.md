@@ -55,6 +55,19 @@ The instructions the model follows are versioned in the code (`assistant/v1`), a
 
 With the assistant on, `POST /api/v1/ai/ask` takes `{"question": "…", "previous": "<exchange ID>"}` (`previous` is optional, for a follow-up) and answers with JSON lines as they happen: `{"type": "step", "label"}` for each lookup, `{"type": "text", "text"}` as the answer streams, `{"type": "discard"}` when text written before a lookup is set aside, and last `{"type": "done", "status", "answer", "citations", "exchange", "searched"}`. `status` is `answered`, `declined`, `limited` (the daily limit), or `failed`; each citation has its `ref`, `kind`, `title`, `href`, and whether it was `removed`. `GET /api/v1/ai/status` says whether you may ask and how many questions are left today. Like every change, the request needs the session's `X-CSRF-Token` when accounts are on.
 
+## Plain-language summaries
+
+With the assistant on, a profile or a group can have a short summary of its work for a general reader: patients, donors, students, journalists. Nobody sees a summary until someone responsible for it approves it.
+
+- **Who reviews:** for a profile, the person themselves (when their account is linked to it), a curator for them, or an admin; for a group, its managers and curators.
+- **Drafting:** a reviewer chooses **Draft a summary** on the profile, or on the group's page. The facts come from confirmed records only (positions, topics, recent confirmed papers, grants, and studies; for a group, also its published page and its leaders), read with the reviewer's own access, and the model is told to use nothing else: no added results, no praise, no guessed gender.
+- **Reviewing:** the draft appears only to reviewers. Edit it if you like, then **Approve** or **Reject**. An edited approval keeps both the model's draft and your edit. **Draft a new summary** at any time; an approved summary stays until another is approved.
+- **Where it shows:** an approved summary appears on the profile for everyone who can see it; for a group, where its editors add a **Summary** block to the page. It is labeled "Drafted with AI assistance; approved by …", and appears on the [public site](public-site.md) too for people and groups that are public.
+- **Keeping it current:** when someone's or a group's confirmed records have changed a good deal since its summary was approved (five confirmed papers more or fewer, or a fifth of them where that is more; any grant or study; for a group, two members or a quarter of them, where that is more), the group's inbox, or the person's own inbox, suggests drafting a new one.
+- **History:** every draft, edit, approval, rejection, and replacement is recorded, with who did it and when, and each draft keeps the model, the instructions' version (`summary/v1`), and a digest of the facts it was given. Each draft is also an exchange in the log.
+
+Turning the assistant off keeps approved summaries but shows them nowhere, the public site included; turning it back on shows them again.
+
 ## Turning it on
 
 Add an `[ai]` section to the configuration and restart `tessera serve`. Keys are never written in the file: the configuration names the environment variable that holds one, and a key written in the file stops Tessera from starting.

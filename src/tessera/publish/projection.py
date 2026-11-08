@@ -41,6 +41,10 @@ GRANT_FIELDS = ("core_project_num", "title", "institute", "fiscal_years", "is_ac
 STUDY_FIELDS = ("nct_id", "title", "registry_status", "phases", "conditions")
 
 
+def _day(value: Any) -> str | None:
+    return f"{value.day} {value:%B %Y}" if value else None
+
+
 def slugify(text: str) -> str:
     ascii_ = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
     return re.sub(r"[^a-z0-9]+", "-", ascii_).strip("-")[:80].strip("-") or "page"
@@ -121,6 +125,18 @@ def project(config: Config, home: DataHome, engine: Engine, today: date | None =
             taken.add(slug)
             person_slug[pid] = slug
         group_slug = {gid: g["slug"] for gid, g in public_groups.items()}
+        # Approved plain-language summaries: only while their feature is on, and only of public
+        # people and groups.
+        lay: dict[str, dict[str, dict[str, Any]]] = {"person": {}, "group": {}}
+        if config.ai.enabled:
+            from tessera.ai import summaries as summary_store
+
+            for kind, ids in (("person", public_people), ("group", public_groups)):
+                lay[kind] = {
+                    sid: {"text": r["text"], "approved_by": r["decided_by"],
+                          "approved_on": _day(r["decided_at"]), "label": summary_store.LABEL}
+                    for sid, r in summary_store.approved(conn, kind, sorted(ids)).items()
+                }  # fmt: skip
         orcid = dict(
             conn.execute(
                 select(person_identifier.c.person_id, person_identifier.c.value).where(
@@ -201,6 +217,7 @@ def project(config: Config, home: DataHome, engine: Engine, today: date | None =
                 {
                     "slug": person_slug[pid],
                     "name": public_people[pid].display_name,
+                    "summary": lay["person"].get(pid),
                     "sort": (public_people[pid].family_name or public_people[pid].display_name),
                     "orcid": orcid.get(pid),
                     "groups": sorted(memberships.get(pid, []), key=lambda m: m["group"]),
@@ -305,6 +322,7 @@ def project(config: Config, home: DataHome, engine: Engine, today: date | None =
                     for c in data["children"]
                 ],
                 "blocks": data["blocks"],
+                "summary": lay["group"].get(gid),
                 "leaders": [person_ref(v) for v in data["current"] if v["leader"]],
                 "people": [person_ref(v) for v in data["current"]],
                 "alumni": [person_ref(v) for v in data["alumni"]],

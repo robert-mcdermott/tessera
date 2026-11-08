@@ -36,6 +36,7 @@ The site is built from an **allowlist**: every field on it is chosen by name, so
 | Grants by title, number, institute, and years; studies by title, NCT number, phase, and status | Anything from the internal app: IDs, accounts, history, the review queue |
 | Topics and research areas, with credit to MeSH | Unconfirmed papers: only papers someone confirmed are published |
 | A group's themes, projects, open openings, news, and contact | Openings that have closed |
+| Approved plain-language summaries, labeled as drafted with AI assistance and approved by whom, while [the assistant](assistant.md#plain-language-summaries) is on | Summary drafts, rejected summaries, and every summary while the assistant is off |
 
 `tessera publish` notes public profiles that have no confirmed papers yet: confirm their papers in the app, and they appear at the next publication.
 

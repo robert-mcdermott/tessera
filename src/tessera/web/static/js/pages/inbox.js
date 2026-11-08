@@ -11,6 +11,7 @@ import { grantItem, opportunityWhen } from "../components/items.js";
 import { toast } from "../components/toast.js";
 import { callout, card, emptyState, pageHeader, pill } from "../components/ui.js";
 import { show } from "./page.js";
+import { slot } from "../core/slots.js";
 
 const LABELS = {
   papers: ["paper to attribute", "papers to attribute"], grants: ["new grant", "new grants"],
@@ -45,6 +46,7 @@ export function inboxPage(main, ctx = {}) {
         queue ? h("li", {}, h("a", { href: "/review" }, `Review queue: ${number(queue)} suggestions`)) : null,
         review.candidates ? h("li", {}, h("a", { href: "/review/people" }, `Discovered people: ${number(review.candidates)}`)) : null,
         review.duplicates ? h("li", {}, h("a", { href: "/review/duplicates" }, `Possible duplicates: ${number(review.duplicates)}`)) : null,
+        ...slot("inbox:waiting", { digest }),
       ].filter(Boolean);
       return h("div", { class: "stack-lg" },
         pageHeader({
@@ -152,9 +154,9 @@ function groupInbox(items, reload) {
   return h("div", { class: "stack-lg" },
     h("div", { class: "row wrap" },
       h("div", { class: "stack-xs grow" }, h("h2", { class: "section-title" }, h("a", { href: `/groups/${group.slug}` }, group.name)),
-        h("span", { class: "subtle" }, `New grants and roster changes ${since}. ${Object.entries(counts).filter(([, n]) => n).map(([k, n]) => `${number(n)} ${LABELS[k][n === 1 ? 0 : 1]}`).join(", ") || "Nothing waiting."}`)),
+        h("span", { class: "subtle" }, `New grants and roster changes ${since}. ${Object.entries(counts).filter(([k, n]) => n && LABELS[k]).map(([k, n]) => `${number(n)} ${LABELS[k][n === 1 ? 0 : 1]}`).join(", ") || "Nothing waiting."}`)),
       done),
-    counts.papers || counts.grants || counts.roster || counts.openings || counts.opportunities ? null
+    Object.values(counts).some(Boolean) ? null
       : callout("Nothing is waiting. Mark it as reviewed to start a new week."),
-    papers, grants, roster, openings, opportunities);
+    papers, grants, roster, openings, opportunities, ...slot("group:inbox", { group, items }));
 }
