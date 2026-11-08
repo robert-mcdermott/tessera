@@ -26,7 +26,7 @@ from tessera.api.common import (
 )
 from tessera.core.errors import TesseraError
 from tessera.evidence import store
-from tessera.ledger.tables import assertion, curation_event, person, person_event
+from tessera.ledger.tables import assertion, curation_event, person, person_event, unit
 
 router = APIRouter(prefix="/api/v1", tags=["curation"])
 
@@ -45,6 +45,9 @@ CONFLICTS = frozenset(
 def _label(engine, ref: str, index) -> str | None:  # type: ignore[no-untyped-def]
     if ref.startswith("per_"):
         return store.display_names(engine, [ref]).get(ref)
+    if ref.startswith("unt_"):
+        with engine.connect() as conn:
+            return conn.execute(select(unit.c.name).where(unit.c.id == ref)).scalar()
     try:
         summary = index.summaries([ref]).get(ref)
     except Exception:
@@ -88,6 +91,8 @@ def _may_decide(request: Request, row: dict[str, Any]) -> bool:
     """Whether the principal may decide this link: one about a person needs that person (both,
     for a pair of records) in their scope; a link between records needs a curator for all."""
     principal = principal_of(request)
+    if row["object_id"].startswith("unt_"):  # a paper attributed to a group
+        return principal.edits_group(engine_of(request), row["object_id"])
     people = [ref for ref in (row["subject_id"], row["object_id"]) if ref.startswith("per_")]
     if not people:
         return principal.curates_all
@@ -120,7 +125,7 @@ def decide(request: Request, assertion_id: str, body: Decision) -> dict[str, Any
         raise HTTPException(status_code=404, detail="No such assertion.")
     if not _may_decide(request, row):
         raise HTTPException(
-            status_code=403, detail="You may decide only for the people in your scope."
+            status_code=403, detail="You may decide only for the people and groups in your scope."
         )
     try:
         store.decide(engine, assertion_id, body.action, principal_of(request).name, body.note)

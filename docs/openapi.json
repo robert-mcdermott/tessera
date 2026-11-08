@@ -4326,6 +4326,209 @@
           }
         }
       }
+    },
+    "/api/v1/groups/{group_ref}/overview": {
+      "get": {
+        "tags": [
+          "groups"
+        ],
+        "summary": "A group's showcase: leaders, people, topics, grants, studies, and connections",
+        "operationId": "overview_api_v1_groups__group_ref__overview_get",
+        "parameters": [
+          {
+            "name": "group_ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Ref"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Overview Api V1 Groups  Group Ref  Overview Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/groups/{group_ref}/publications": {
+      "get": {
+        "tags": [
+          "groups"
+        ],
+        "summary": "Publications attributed to a group, or suggested for it",
+        "operationId": "group_publications_api_v1_groups__group_ref__publications_get",
+        "parameters": [
+          {
+            "name": "group_ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Ref"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "accepted",
+                "suggested",
+                "rejected"
+              ],
+              "type": "string",
+              "default": "accepted",
+              "title": "Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "description": "Items per page",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Items per page"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from meta.next_cursor",
+              "title": "Cursor"
+            },
+            "description": "Opaque cursor from meta.next_cursor"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000000,
+              "minimum": 0,
+              "description": "Items to skip (without a cursor)",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Items to skip (without a cursor)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Group Publications Api V1 Groups  Group Ref  Publications Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/groups/{group_ref}/publications/decisions": {
+      "post": {
+        "tags": [
+          "groups"
+        ],
+        "summary": "Decide whether papers are the group's own (its managers, curators, and admins)",
+        "operationId": "decide_publications_api_v1_groups__group_ref__publications_decisions_post",
+        "parameters": [
+          {
+            "name": "group_ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Ref"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttributionDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Decide Publications Api V1 Groups  Group Ref  Publications Decisions Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4475,6 +4678,48 @@
           "roles"
         ],
         "title": "AccountIn"
+      },
+      "AttributionDecision": {
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Ids",
+            "description": "attributed_to link IDs"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "accept",
+              "reject",
+              "defer",
+              "undo"
+            ],
+            "title": "Action"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ids",
+          "action"
+        ],
+        "title": "AttributionDecision"
       },
       "AutoAcceptChange": {
         "properties": {
@@ -4695,6 +4940,32 @@
             "title": "Description",
             "description": "'' to clear"
           },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 320
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email",
+            "description": "'' to clear"
+          },
+          "website": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website",
+            "description": "'' to clear"
+          },
           "status": {
             "anyOf": [
               {
@@ -4792,6 +5063,31 @@
               }
             ],
             "title": "Description"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 320
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email",
+            "description": "A contact address"
+          },
+          "website": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Website"
           },
           "parents": {
             "items": {

@@ -264,6 +264,14 @@ usage: tessera groups import [-h] --source SOURCE [--complete] [--dry-run] path
 | `--complete` | the file is the source's whole list: archive its missing groups and end its missing current memberships today |
 | `--dry-run` | report what would change; change nothing |
 
+### `tessera groups attribute`
+
+Suggest which papers are each group's own (also run by sync).
+
+```text
+usage: tessera groups attribute [-h]
+```
+
 ### `tessera groups list`
 
 List groups.

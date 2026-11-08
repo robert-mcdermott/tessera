@@ -88,6 +88,29 @@ class Principal:
         self._people = people
         return people
 
+    def group_scopes(self) -> set[str]:
+        """Groups this principal curates or manages, without the groups beneath them."""
+        return {
+            g.scope_id
+            for g in self.grants
+            if g.role in ("curator", "manager") and g.scope_type == "unit" and g.scope_id
+        }
+
+    @property
+    def edits_any_group(self) -> bool:
+        return self.curates_all or bool(self.group_scopes())
+
+    def edits_group(self, engine: Engine, group_id: str) -> bool:
+        """May decide for this group (its attributions, and later its page): an admin, a
+        curator for everyone, or a curator or manager of it or a group above it."""
+        if self.curates_all:
+            return True
+        scopes = self.group_scopes()
+        if not scopes:
+            return False
+        with engine.connect() as conn:
+            return group_id in descendants(conn, scopes)
+
     def can_curate(self, engine: Engine, person_id: str) -> bool:
         scope = self.curated_people(engine)
         return scope is None or person_id in scope
@@ -107,6 +130,7 @@ class Principal:
                 "curate_all": self.curates_all,
                 "curate_any": self.curates_any,
                 "review": self.reviews,
+                "edit_groups": self.edits_any_group,
             },
         }
 

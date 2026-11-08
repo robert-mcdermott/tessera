@@ -147,6 +147,7 @@ What the app calls groups, the kinds of group it offers, and the roles people ho
 | `group`, `groups` | text | `Group`, `Groups` | What the app calls one group and several |
 | `leader_roles` | list of role keys | `["lead", "co_lead"]` | Roles listed as a group's leaders |
 | `default_role` | role key | `member` | The role of a membership that names none |
+| `attributable_kinds` | list of kind keys | `["program", "center", "core", "lab", "team"]` | Kinds of group whose members' papers are suggested as the group's own; see [Which papers are the group's](groups.md#which-papers-are-the-groups) |
 
 `[vocabulary.kinds]` lists the kinds of group, as `key = "Label"`, in the order the app offers them. The defaults are `division` (Division), `department` (Department), `program` (Program), `center` (Center), `institute` (Institute), `core` (Shared resource), `lab` (Lab), and `team` (Team). Roster rows that name no kind are departments, or the first kind when you have no `department`.
 

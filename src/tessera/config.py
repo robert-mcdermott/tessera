@@ -173,6 +173,8 @@ class VocabularyConfig:
     roles: tuple[tuple[str, str], ...] = DEFAULT_ROLES
     leader_roles: tuple[str, ...] = ("lead", "co_lead")  # shown as the group's leaders
     default_role: str = "member"  # for memberships that name no role
+    # Kinds whose papers are suggested as the group's own (divisions would claim everything).
+    attributable_kinds: tuple[str, ...] = ("program", "center", "core", "lab", "team")
 
     def kind_label(self, key: str) -> str:
         return dict(self.kinds).get(key) or key.replace("_", " ").capitalize()
@@ -194,6 +196,7 @@ class VocabularyConfig:
                 {"id": k, "label": v, "leader": k in self.leader_roles} for k, v in self.roles
             ],
             "default_role": self.default_role,
+            "attributable_kinds": list(self.attributable_kinds),
         }
 
 
@@ -451,7 +454,7 @@ def _build_vocabulary(table: dict[str, Any], problems: list[str]) -> VocabularyC
             converted = _convert(value, "str", f"vocabulary.{key}", problems)
             if converted:
                 kwargs[key] = converted.strip()
-        elif key == "leader_roles":
+        elif key in ("leader_roles", "attributable_kinds"):
             converted = _convert(value, "tuple[str, ...]", f"vocabulary.{key}", problems)
             if converted is not None:
                 kwargs[key] = converted
@@ -462,6 +465,16 @@ def _build_vocabulary(table: dict[str, Any], problems: list[str]) -> VocabularyC
     for role in vocabulary.leader_roles:
         if role not in roles:
             problems.append(f"vocabulary.leader_roles: {role!r} is not in [vocabulary.roles]")
+    kinds = {k for k, _ in vocabulary.kinds}
+    if "kinds" in table and "attributable_kinds" not in table:
+        # Custom kinds: keep the default attributable kinds that are still configured.
+        vocabulary = replace(
+            vocabulary,
+            attributable_kinds=tuple(k for k in vocabulary.attributable_kinds if k in kinds),
+        )
+    for kind in vocabulary.attributable_kinds if "attributable_kinds" in table else ():
+        if kind not in kinds:
+            problems.append(f"vocabulary.attributable_kinds: {kind!r} is not in [vocabulary.kinds]")
     if vocabulary.default_role not in roles:
         problems.append(
             f"vocabulary.default_role: {vocabulary.default_role!r} is not in [vocabulary.roles]"

@@ -84,10 +84,12 @@ def build_demo(
     labs_per_area: int = 3,
 ) -> dict[str, Any]:
     """Create ``path/tessera.toml`` and a data home at ``path/var`` for the demo organization."""
+    from tessera.demo.groups import registry
     from tessera.evidence import store
     from tessera.evidence.people import import_roster
     from tessera.evidence.resolve import resolve
-    from tessera.jobs.build import build_discovery, build_search
+    from tessera.groups.importer import import_groups
+    from tessera.jobs.build import build_attribution, build_discovery, build_search
 
     today = today or date.today()
     path = Path(path)
@@ -122,6 +124,11 @@ def build_demo(
         _write_roster(world, roster)
         # Before grants, as an organization would.
         import_roster(engine, roster, today=today, vocabulary=config.vocabulary)
+        # Labs, programs, and the shared resource come from the Institute's registry.
+        import_groups(
+            engine, registry(world, today), source="registry", vocabulary=config.vocabulary,
+            actor="Registry import", today=today,
+        )  # fmt: skip
         resolve(config, home, engine, today=today)
         merged = _merge_duplicates(engine, keep_open=2)
         resolve(config, home, engine, today=today)
@@ -131,6 +138,8 @@ def build_demo(
         _accounts(engine, world)
         build_search(config, home, engine)
         built = build_discovery(config, home, engine)
+        build_attribution(config, home, engine, today=today)
+        _attribute(engine)
         people = len(store.load_people(engine))
     finally:
         engine.dispose()
@@ -267,6 +276,36 @@ def _evaluate(engine: Engine, config: Config) -> None:
     from tessera.evidence.model import evaluate
 
     evaluate(engine, config, actor=CURATOR)
+
+
+def _attribute(engine: Engine) -> None:
+    """Decide group attributions as each group's people would: the papers with the strongest
+    evidence are the group's, weak ones are not, and the newest few wait for review."""
+    from sqlalchemy import select
+
+    from tessera.evidence import store
+    from tessera.ledger.tables import assertion
+
+    with engine.connect() as conn:
+        rows = conn.execute(
+            select(assertion.c.id, assertion.c.object_id, assertion.c.subject_id,
+                   assertion.c.score).where(
+                assertion.c.predicate == "attributed_to", assertion.c.status == "suggested"
+            )
+        ).all()  # fmt: skip
+    by_group: dict[str, list[Any]] = {}
+    for row in rows:
+        by_group.setdefault(row.object_id, []).append(row)
+    for items in by_group.values():
+        items.sort(key=lambda r: r.subject_id)  # PMIDs rise with time in the demo
+        waiting = {r.id for r in items[-2:]}
+        for i, r in enumerate(items):
+            if r.id in waiting:
+                continue
+            if (r.score or 0) >= 0.7:
+                store.decide(engine, r.id, "accept", CURATOR)
+            elif (r.score or 0) < 0.6 or i % 2 == 0:
+                store.decide(engine, r.id, "reject", CURATOR, "A member's work elsewhere")
 
 
 def _accounts(engine: Engine, world: World) -> None:

@@ -106,3 +106,67 @@ def test_mesh_synonyms_broader_headings_and_areas(demo) -> None:  # type: ignore
     assert all(a["category"] in "ABCFG" for a in areas)  # what someone studies, not methods
     landscape = data("/api/v1/graph/landscape")["data"]["nodes"]
     assert landscape and all(n["category"] for n in landscape)
+
+
+def test_groups_pages_and_attribution(demo) -> None:  # type: ignore[no-untyped-def]
+    _, client = demo
+    listing = client.get("/api/v1/groups", params={"limit": 200}).json()
+    kinds = {k["id"]: k["count"] for k in listing["meta"]["kinds"]}
+    assert kinds["division"] == 5 and kinds["program"] == 3 and kinds["core"] == 1
+    assert kinds["lab"] >= 20
+    labs = [g for g in listing["data"] if g["kind"] == "lab"]
+    assert all(g["leaders"] and g["parents"] for g in labs)
+    program = next(g for g in listing["data"] if g["slug"] == "cancer-immunotherapy-program")
+    assert len(program["parents"]) == 2  # a program spans two divisions
+
+    lab = labs[0]
+    overview = client.get(f"/api/v1/groups/{lab['slug']}/overview").json()["data"]
+    assert overview["leaders"][0]["role"] == "lead"
+    assert overview["topics"] and overview["people"]
+    assert overview["publications"]["accepted"] > 0
+    assert all(c["kind"] in ("lab", "program", "core") for c in overview["connections"])
+    papers = client.get(f"/api/v1/groups/{lab['slug']}/publications").json()
+    assert papers["meta"]["total"] == overview["publications"]["accepted"]
+    assert papers["data"][0]["summary"]["title"]
+
+    # Suggestions carry their evidence, and a paper is the group's only once someone says so.
+    suggested = client.get(
+        "/api/v1/groups/cancer-immunotherapy-program/publications", params={"status": "suggested"}
+    ).json()["data"]
+    assert suggested and all(
+        s["assertion"]["status"] == "suggested" and s["assertion"]["evidence"] for s in suggested
+    )
+    one = suggested[0]["assertion"]
+    features = {e["feature"] for e in one["evidence"]}
+    assert "member_authors" in features
+    decided = client.post(
+        "/api/v1/groups/cancer-immunotherapy-program/publications/decisions",
+        json={"ids": [one["id"]], "action": "accept"},
+    )
+    assert decided.status_code == 200, decided.text
+    alumni = [g for g in labs if client.get(f"/api/v1/groups/{g['slug']}/overview").json()[
+        "data"]["alumni"]]  # fmt: skip
+    assert alumni, "the demo has alumni"
+    person = overview["leaders"][0]["person_id"]
+    profile = client.get(f"/api/v1/people/{person}").json()["data"]
+    assert any(u["group_slug"] == lab["slug"] and u["role"] == "lead" for u in profile["units"])
+
+
+def test_a_leaders_authorship_alone_is_weak_evidence() -> None:
+    from tessera.groups.attribution import _evidence
+
+    evidence, score = _evidence(
+        "900000001", [("per_pi", {"author_position": 5, "author_count": 9})],
+        {"per_pi": {"lead"}}, {"lead"}, {"per_pi": "Ada Okafor"}, ["Okafor Lab"], set(), set(),
+        set(), set(), {},
+    )  # fmt: skip
+    assert score < 0.6 and [e["feature"] for e in evidence] == ["member_authors"]
+    _, two = _evidence(
+        "900000001",
+        [("per_pi", {"author_position": 9, "author_count": 9}),
+         ("per_pd", {"author_position": 1, "author_count": 9})],
+        {"per_pi": {"lead"}, "per_pd": {"trainee"}}, {"lead"}, {}, ["Okafor Lab"],
+        {"grt:R01"}, {"grt:R01"}, set(), set(),
+        {("900000001", 1): ["Okafor Lab, Corvane Institute"]},
+    )  # fmt: skip
+    assert two == pytest.approx(0.98)  # members, senior leader, affiliation, and grant: capped

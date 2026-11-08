@@ -57,6 +57,8 @@ GROUP_COLUMNS = {
     "code": ("code", "group_code"),
     "short_name": ("short_name", "abbreviation", "acronym"),
     "description": ("description", "summary", "mission"),
+    "email": ("email", "contact_email"),
+    "website": ("website", "url", "homepage"),
     "status": ("status",),
     "slug": ("slug", "address"),
     "parents": ("parents", "parent", "parent_id", "parent_ids"),

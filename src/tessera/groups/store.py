@@ -36,7 +36,10 @@ from tessera.core.ids import new_id
 from tessera.evidence.memberships import is_current, parse_partial_date
 from tessera.ledger.tables import assertion, person, role_grant, unit, unit_event, unit_parent
 
-GROUP_FIELDS = ("name", "kind", "slug", "short_name", "code", "description", "status")
+GROUP_FIELDS = (
+    "name", "kind", "slug", "short_name", "code", "description", "email", "website", "status",
+)  # fmt: skip
+_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 MEMBERSHIP_FIELDS = ("role", "title", "start", "end")
 _SOURCE = re.compile(r"^[a-z][a-z0-9_.-]{0,39}$")
 _SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -214,7 +217,15 @@ def _clean(
             raise GroupError(f"A group's {key.replace('_', ' ')} is at most 80 characters.")
         elif key == "description" and value and len(value) > 4000:
             raise GroupError("A group's description is at most 4,000 characters.")
-        optional = key in ("short_name", "code", "description", "slug")
+        elif key == "email" and value and (len(value) > 320 or not _EMAIL.match(value)):
+            raise GroupError(f"{value!r} is not an email address.")
+        elif (
+            key == "website"
+            and value
+            and (len(value) > 500 or not re.match(r"^https?://[^\s/]+\.[^\s]+$", value))
+        ):
+            raise GroupError("A website is an address starting with https://.")
+        optional = key in ("short_name", "code", "description", "slug", "email", "website")
         out[key] = (value or None) if optional else value
     if not partial and not out.get("name"):
         raise GroupError("A group needs a name.")
@@ -504,7 +515,7 @@ def find_for_import(
     name: str | None,
 ) -> dict[str, Any] | None:
     """The group an imported row describes: by its identifier in this source (following
-    merges), then by code, then by name among groups without an identifier."""
+    merges), then by code, then by name among groups that have no identifier anywhere."""
     if external_id:
         found = (
             conn.execute(
@@ -519,7 +530,7 @@ def find_for_import(
         found = conn.execute(select(unit).where(unit.c.code == code)).mappings().first()
         if found:
             return resolve(conn, found["id"])
-    if name and not external_id:
+    if name:  # only groups no source has given an identifier yet
         rows = (
             conn.execute(
                 select(unit).where(

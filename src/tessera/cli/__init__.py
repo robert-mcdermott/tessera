@@ -195,6 +195,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--dry-run", action="store_true", help="report what would change; change nothing"
     )
     group_import.set_defaults(handler=cmd_groups_import)
+    groups_actions.add_parser(
+        "attribute",
+        help="suggest which papers are each group's own (also run by sync)",
+    ).set_defaults(handler=cmd_groups_attribute)
     group_list = groups_actions.add_parser("list", help="list groups")
     group_list.add_argument("--kind", help="only groups of this kind")
     group_list.add_argument("--all", action="store_true", help="include archived groups")
@@ -797,6 +801,22 @@ def cmd_groups_import(args: argparse.Namespace) -> int:
     if len(stats.skipped) > 20:
         print(f"  … and {len(stats.skipped) - 20} more skipped")
     return EXIT_OK if not stats.skipped else EXIT_PARTIAL
+
+
+def cmd_groups_attribute(args: argparse.Namespace) -> int:
+    from tessera.jobs.build import build_attribution
+
+    config, home = _load(args)
+    engine = _engine(config)
+    try:
+        result = build_attribution(config, home, engine)
+    finally:
+        engine.dispose()
+    print(
+        f"attribution: {result['groups']} groups, {result['suggestions']} papers suggested "
+        f"({result['inserted']} new, {result['unreported']} no longer supported)"
+    )
+    return EXIT_OK
 
 
 def cmd_groups_list(args: argparse.Namespace) -> int:

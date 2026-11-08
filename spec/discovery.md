@@ -88,7 +88,7 @@ then normalize the vector to unit length, and keep the top 200 concepts
 - **Deep links.** Every profile links to its own focus view; every graph state is in the URL.
 - **Bounded size.** Views default to about 150 nodes; the network keeps the people with the most collaboration. Controls (minimum similarity, maximum people, unit filter) only filter precomputed data.
 - **Heatmaps sort by density** and open the underlying list on click, loading it in one request. Units are ordered by how alike their members are to everyone else's; the matrix shows the 30 largest units with two or more members by default, is keyboard navigable (arrow keys and Enter), and has a sortable list of every pair of units. `GET /api/v1/graph/units`, `GET /api/v1/graph/units/pairs`.
-- **Groups have their own colours.** People are coloured by unit when a view spans several units, otherwise by collaboration group. The six largest groups take the categorical series (`--series-0..5`), which a test keeps at least 0.1 apart in OKLab and 3:1 against cards in every palette and mode; smaller groups share a neutral colour.
+- **Clusters have their own colours.** People are coloured by group when a view spans several groups, otherwise by collaboration cluster (called "groups" in wave 2; renamed in wave 3, when the organization's own groups arrived). The six largest take the categorical series (`--series-0..5`), which a test keeps at least 0.1 apart in OKLab and 3:1 against cards in every palette and mode; smaller ones share a neutral colour.
 
 ## Rendering (vanilla, no libraries)
 

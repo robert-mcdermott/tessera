@@ -199,6 +199,10 @@ HARMLESS: dict[tuple[str, str], Any] = {
     ("POST", "/api/v1/merges/{merge_id}/undo"): {},
     ("POST", "/api/v1/accounts"): {"username": "x"},
     ("POST", "/api/v1/groups"): {"name": ""},
+    ("POST", "/api/v1/groups/{group_ref}/publications/decisions"): {
+        "ids": ["asr_missing"],
+        "action": "accept",
+    },
     ("POST", "/api/v1/accounts/{account_id}"): {},
     ("POST", "/api/v1/session/password"): {"current_password": "wrong", "new_password": "x"},
 }
@@ -344,6 +348,7 @@ def test_viewers_read_but_never_decide(world: World) -> None:
         "curate_all": False,
         "curate_any": False,
         "review": False,
+        "edit_groups": False,
     }
 
 

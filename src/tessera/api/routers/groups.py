@@ -6,6 +6,7 @@ answers with the group it was merged into.
 
 from __future__ import annotations
 
+from collections import Counter
 from datetime import date
 from typing import Annotated, Any, Literal
 
@@ -14,14 +15,26 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
 from sqlalchemy.engine import Connection
 
+from tessera.analytics.vocabulary import mesh_year
 from tessera.api.access import principal_of
-from tessera.api.common import Page, config_of, engine_of, envelope, page, refresh_index
+from tessera.api.common import (
+    Page,
+    assertion_view,
+    config_of,
+    engine_of,
+    envelope,
+    index_of,
+    lake_of,
+    page,
+    publication_summaries,
+    refresh_index,
+)
 from tessera.config import VocabularyConfig
 from tessera.core.errors import TesseraError
 from tessera.evidence import store as people_store
-from tessera.groups import store
+from tessera.groups import profile, store
 from tessera.groups.importer import import_groups, parse_rows
-from tessera.ledger.tables import person, unit
+from tessera.ledger.tables import assertion, person, unit
 
 router = APIRouter(prefix="/api/v1", tags=["groups"])
 
@@ -58,6 +71,8 @@ def _view(
         "short_name": row["short_name"],
         "code": row["code"],
         "description": row["description"],
+        "email": row["email"],
+        "website": row["website"],
         "status": row["status"],
         "source": row["source"],
         "external_id": row["external_id"],
@@ -106,6 +121,7 @@ def list_groups(
         total = len(rows)
         rows = rows[p.offset : p.offset + p.limit]
         parents = store.parents_of(conn, [r["id"] for r in rows])
+        leaders = _leaders(conn, [r["id"] for r in rows], vocabulary)
         kinds = dict(
             conn.execute(
                 select(unit.c.kind, func.count())
@@ -115,7 +131,12 @@ def list_groups(
         )
     return envelope(
         [
-            _view(r, vocabulary, parents=parents.get(r["id"], []), counts=counts.get(r["id"]))
+            {
+                **_view(
+                    r, vocabulary, parents=parents.get(r["id"], []), counts=counts.get(r["id"])
+                ),
+                "leaders": leaders.get(r["id"], []),
+            }
             for r in rows
         ],
         total=total,
@@ -127,6 +148,31 @@ def list_groups(
     )
 
 
+def _leaders(
+    conn: Connection, group_ids: list[str], vocabulary: VocabularyConfig
+) -> dict[str, list[str]]:
+    """The names of each group's current leaders."""
+    today = date.today()
+    found: dict[str, list[tuple[int, str]]] = {}
+    rows = [
+        r
+        for r in store.memberships(conn, group_ids=group_ids)
+        if (r["qualifiers"] or {}).get("role") in vocabulary.leader_roles
+        and store.membership_view(r, vocabulary, today)["current"]
+    ]
+    ids = sorted({r["subject_id"] for r in rows})
+    names = dict(
+        conn.execute(select(person.c.id, person.c.display_name).where(person.c.id.in_(ids))).all()
+    )
+    order = {k: i for i, k in enumerate(vocabulary.leader_roles)}
+    for r in rows:
+        if r["subject_id"] in names:
+            found.setdefault(r["object_id"], []).append(
+                (order.get(r["qualifiers"]["role"], 99), names[r["subject_id"]])
+            )
+    return {g: [n for _, n in sorted(v)] for g, v in found.items()}
+
+
 class GroupIn(BaseModel):
     name: str = Field(min_length=1, max_length=300)
     kind: str = Field(max_length=40)
@@ -136,6 +182,8 @@ class GroupIn(BaseModel):
     short_name: str | None = Field(None, max_length=80)
     code: str | None = Field(None, max_length=80, description="The organization's own code")
     description: str | None = Field(None, max_length=4000)
+    email: str | None = Field(None, max_length=320, description="A contact address")
+    website: str | None = Field(None, max_length=500)
     parents: list[str] = Field(
         default_factory=list, max_length=50, description="IDs, addresses, or codes"
     )
@@ -148,6 +196,8 @@ class GroupChange(BaseModel):
     short_name: str | None = Field(None, max_length=80, description="'' to clear")
     code: str | None = Field(None, max_length=80, description="'' to clear")
     description: str | None = Field(None, max_length=4000, description="'' to clear")
+    email: str | None = Field(None, max_length=320, description="'' to clear")
+    website: str | None = Field(None, max_length=500, description="'' to clear")
     status: Literal["active", "archived"] | None = None
     parents: list[str] | None = Field(None, max_length=50, description="Replaces the parents")
 
@@ -434,3 +484,185 @@ def history(
             for e in events
         ]
     )
+
+
+# --- the showcase (LAB-01, LAB-02, LAB-03) ------------------------------------------------------
+
+
+def _can_edit(request: Request, group_id: str) -> bool:
+    return principal_of(request).edits_group(engine_of(request), group_id)
+
+
+def _require_edit(request: Request, group_id: str) -> None:
+    if not _can_edit(request, group_id):
+        raise HTTPException(
+            status_code=403, detail="You may decide only for the groups in your scope."
+        )
+
+
+@router.get(
+    "/groups/{group_ref}/overview",
+    summary="A group's showcase: leaders, people, topics, grants, studies, and connections",
+)
+def overview(request: Request, group_ref: str) -> dict[str, Any]:
+    config = config_of(request)
+    home = request.app.state.home
+    today = date.today()
+    with engine_of(request).connect() as conn:
+        row = _resolve(conn, group_ref)
+        current, alumni = profile.people_of(conn, row["id"], config, today)
+        ids = sorted({v["person_id"] for v in current})
+        grants = profile.linked(conn, ids, "investigator_on")
+        studies = profile.linked(conn, ids, "official_of")
+        accepted = profile.attributions(conn, row["id"])
+        suggested = [
+            a for a in profile.attributions(conn, row["id"], ("suggested",)) if a["reported"]
+        ]
+        works_with = profile.connections(conn, row["id"], ids, config, today)
+        parents = store.parents_of(conn, [row["id"]]).get(row["id"], [])
+        children = store.children_of(conn, row["id"])
+        counts = store.member_counts(conn, today)
+    topics, areas = profile.topics_and_areas(home, ids)
+    index = index_of(request)
+    try:
+        summaries = index.summaries([*grants, *studies])
+    except Exception:  # no index yet
+        summaries = {}
+    names = {v["person_id"]: v["name"] for v in current}
+
+    def records(found: dict[str, list[str]]) -> list[dict[str, Any]]:
+        return [
+            {
+                "ref": ref,
+                "summary": summaries.get(ref, {"id": ref}),
+                "people": [{"id": p, "name": names.get(p, p)} for p in sorted(set(people))],
+            }
+            for ref, people in found.items()
+        ]
+
+    grant_items = records(grants)
+    grant_items.sort(key=lambda g: -((g["summary"].get("fiscal_years") or [0, 0])[1] or 0))
+    study_items = records(studies)
+    pubs = publication_summaries(
+        index, lake_of(request), [a["subject_id"].removeprefix("pub:") for a in accepted]
+    )
+    by_year = Counter(s.get("year") for s in pubs.values() if s.get("year"))
+    view = _view(row, config.vocabulary, parents=parents, counts=counts.get(row["id"]))
+    view["children"] = [
+        {**c, "kind_label": config.vocabulary.kind_label(c["kind"]),
+         "members": counts.get(c["id"], {}).get("current", 0)}
+        for c in children if c["status"] == "active"
+    ]  # fmt: skip
+    return envelope(
+        {
+            **view,
+            "leaders": [v for v in current if v["leader"]],
+            "people": current,
+            "alumni": alumni,
+            "topics": topics,
+            "areas": areas,
+            "grants": grant_items,
+            "studies": study_items,
+            "publications": {
+                "accepted": len(accepted),
+                "suggested": len(suggested),
+                "by_year": [{"year": y, "count": by_year[y]} for y in sorted(by_year)],
+            },
+            "connections": works_with,
+            "can_edit": _can_edit(request, row["id"]),
+        },
+        vocabulary=config.vocabulary.to_json(),
+        mesh_year=mesh_year(home),
+    )
+
+
+@router.get(
+    "/groups/{group_ref}/publications",
+    summary="Publications attributed to a group, or suggested for it",
+)
+def group_publications(
+    request: Request,
+    group_ref: str,
+    p: Annotated[Page, Depends(page)],
+    status: Literal["accepted", "suggested", "rejected"] = "accepted",
+) -> dict[str, Any]:
+    config = config_of(request)
+    with engine_of(request).connect() as conn:
+        row = _resolve(conn, group_ref)
+        rows = profile.attributions(conn, row["id"], (status,))
+        if status == "suggested":
+            rows = [r for r in rows if r["reported"]]
+        members = sorted({m for r in rows for m in (r["qualifiers"] or {}).get("members", [])})
+        names = dict(
+            conn.execute(
+                select(person.c.id, person.c.display_name).where(person.c.id.in_(members))
+            ).all()
+        )
+    pmids = [r["subject_id"].removeprefix("pub:") for r in rows]
+    summaries = publication_summaries(index_of(request), lake_of(request), pmids)
+    items = [
+        {
+            "assertion": assertion_view(r, config),
+            "summary": summaries.get(r["subject_id"].removeprefix("pub:"), {}),
+            "members": [
+                {"id": m, "name": names.get(m, m)}
+                for m in (r["qualifiers"] or {}).get("members", [])
+            ],
+        }
+        for r in rows
+    ]
+    if status == "suggested":
+        items.sort(
+            key=lambda i: (-(i["assertion"]["score"] or 0), -(i["summary"].get("year") or 0))
+        )
+    else:
+        items.sort(
+            key=lambda i: (-(i["summary"].get("year") or 0), i["summary"].get("title") or "")
+        )
+    total = len(items)
+    return envelope(
+        items[p.offset : p.offset + p.limit],
+        total=total,
+        next_cursor=p.next_cursor(total),
+        can_edit=_can_edit(request, row["id"]),
+    )
+
+
+class AttributionDecision(BaseModel):
+    ids: list[str] = Field(min_length=1, max_length=500, description="attributed_to link IDs")
+    action: Literal["accept", "reject", "defer", "undo"]
+    note: str | None = Field(None, max_length=1000)
+
+
+@router.post(
+    "/groups/{group_ref}/publications/decisions",
+    summary="Decide whether papers are the group's own (its managers, curators, and admins)",
+)
+def decide_publications(
+    request: Request, group_ref: str, body: AttributionDecision
+) -> dict[str, Any]:
+    engine = engine_of(request)
+    with engine.connect() as conn:
+        row = _resolve(conn, group_ref)
+        found = {
+            r.id: r.subject_id
+            for r in conn.execute(
+                select(assertion.c.id, assertion.c.subject_id).where(
+                    assertion.c.id.in_(body.ids),
+                    assertion.c.predicate == "attributed_to",
+                    assertion.c.object_id == row["id"],
+                )
+            )
+        }
+    _require_edit(request, row["id"])
+    missing = [i for i in body.ids if i not in found]
+    if missing:
+        raise HTTPException(status_code=404, detail=f"No suggestion {missing[0]!r} for this group.")
+    actor = principal_of(request).name
+    results = []
+    for assertion_id in body.ids:
+        try:
+            results.append(people_store.decide(engine, assertion_id, body.action, actor, body.note))
+        except TesseraError as exc:
+            raise _fail(exc) from exc
+    return envelope(results, total=len(results))

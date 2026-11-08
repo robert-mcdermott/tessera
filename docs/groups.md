@@ -14,6 +14,7 @@ group = "Group"
 groups = "Groups"
 leader_roles = ["lead", "co_lead"]   # listed as a group's leaders
 default_role = "member"              # for memberships that name no role
+attributable_kinds = ["program", "lab"]  # kinds whose papers are suggested as their own
 
 [vocabulary.kinds]
 division = "Division"
@@ -28,6 +29,35 @@ trainee = "Trainee"
 
 Groups and memberships store the **key** (`lab`, `trainee`), and the app shows the **label**. You can rename a label at any time, but keep its key. See [Configuration](configuration.md#vocabulary) for the defaults.
 
+## Group pages
+
+Every group has a page of its own at `/groups/<address>`, and **Groups** in the menu lists them all by kind. A group's page shows:
+
+- **What it does**, its kind, the groups it sits within, and its website and contact address.
+- **Its leaders** (the roles in `leader_roles`) and **its people**, with their roles, titles, and dates. **Alumni** lists the people whose memberships have ended.
+- **Publications attributed to it**, with a chart by year. A paper is the group's only once someone decides it is (see below).
+- **Grants** held by its current members, and **studies** they lead.
+- **Topics** and broader research areas: what its current members work on, from their papers' MeSH headings.
+- **Writes most with**: the labs, programs, and other groups whose people write papers with this group's people.
+- The groups **within** it.
+
+Anyone who can sign in can read group pages. Admins see **Manage**, which opens the group in Admin → Groups.
+
+## Which papers are the group's
+
+A lab's members write papers that are not the lab's: a principal investigator collaborates with other labs, and a postdoc publishes work from a previous position. So Tessera does not count every member's paper as the group's. Instead, each sync suggests papers for each lab, program, center, shared resource, and team (the kinds in `attributable_kinds`), with the evidence:
+
+| Evidence | Weight |
+|---|---|
+| Written by one member while they belonged | 0.30 |
+| Written by two or more members | 0.55 |
+| A leader of the group is the last author | +0.15 |
+| A member's affiliation on the paper names the group | +0.30 |
+| The paper acknowledges a grant a member holds | +0.15 |
+| Most of its MeSH headings are among the group's topics | +0.10 |
+
+A leader's authorship alone is weak evidence. **Every attribution is decided by a person**: the group's curators (or, from the next section, its managers) choose **The group's** or **Not** under **Publications → To review** on the group's page. The score only orders the suggestions, and decisions stand through later syncs. Run `tessera groups attribute` to refresh suggestions without a full sync.
+
 ## Curating groups in the app
 
 **Admin → Groups** lists every group with its kind, the groups it sits within, its current members and alumni, and where it came from. Filter by kind or find a group by name or code. Archived groups are hidden unless you ask for them.
@@ -37,7 +67,7 @@ Open a group to see its members. **Current** lists the people who belong now, le
 - **Add member:** find a person in the directory, then choose their role, an optional title, and the dates. Dates can be as precise as you know them: `2015`, `2015-07`, or `2015-07-01`. Leave **Until** empty while the membership is current.
 - **Edit** a membership to change its role, title, or dates. To record that someone left, set **Until**: they move to Alumni and stay there.
 - **Remove** a membership only if it was a mistake. It disappears from the group, and later imports will not bring it back.
-- **Edit** the group: its name, kind, short name, code, description, address, and the groups it sits within. A group can sit within any number of others, but never within a group inside itself.
+- **Edit** the group: its name, kind, short name, code, description, website, contact address, page address, and the groups it sits within. A group can sit within any number of others, but never within a group inside itself.
 - **Archive** a group that no longer exists. Its memberships and history stay, and you can restore it at any time.
 - **Merge** a group into another: its members, the groups within it, its place under other groups, and curator roles limited to it all move to the group you choose. Where the same person holds the same role in both, the dates widen to cover both. The merged group's address leads to the group that remains. A merge cannot be undone from the app.
 
@@ -67,6 +97,7 @@ A CSV file with a `name` column is a list of groups:
 | `code` | no | Your organization's own code for the group |
 | `short_name` | no | An abbreviation |
 | `description` | no | What the group does |
+| `email`, `website` | no | A contact address and a website for its page |
 | `status` | no | `active` or `archived` |
 | `slug` | no | The address, used only when the group is created |
 

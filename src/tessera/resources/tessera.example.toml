@@ -119,6 +119,8 @@ group = "Group"
 groups = "Groups"
 leader_roles = ["lead", "co_lead"]   # listed as a group's leaders
 default_role = "member"              # for memberships that name no role
+# Kinds whose members' papers are suggested as the group's own (always decided by a person).
+attributable_kinds = ["program", "center", "core", "lab", "team"]
 
 [vocabulary.kinds]
 division = "Division"

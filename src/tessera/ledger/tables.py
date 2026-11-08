@@ -119,6 +119,8 @@ unit = Table(
     Column("slug", String(120), unique=True),  # the group's address, /groups/<slug>
     Column("short_name", String(80)),
     Column("description", Text),
+    Column("email", String(320)),  # contact, shown on the group's page
+    Column("website", String(500)),
     Column("status", String(16), nullable=False, server_default="active"),
     Column("merged_into", ID, ForeignKey("unit.id", ondelete="SET NULL")),
     Column("source", String(40), nullable=False, server_default="manual"),

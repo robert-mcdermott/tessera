@@ -18,6 +18,7 @@ const NAV = [
   ] },
   { section: "Explore", items: [
     { href: "/people", label: "People", iconName: "people", match: (p) => p.startsWith("/people") },
+    { href: "/groups", label: () => groupsLabel, iconName: "unit", match: (p) => p.startsWith("/groups") },
     { href: "/experts", label: "Find experts", iconName: "compass", match: (p) => p.startsWith("/experts") },
     { href: "/graph", label: "Connections", iconName: "network", match: (p) => p.startsWith("/graph") },
     { href: "/publications", label: "Publications", iconName: "publication", match: (p) => p.startsWith("/publications") },

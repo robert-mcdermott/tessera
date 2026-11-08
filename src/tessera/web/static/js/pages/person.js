@@ -264,16 +264,20 @@ function addPublication(profile, refresh) {
   });
 }
 
-/** Units the person belongs to, with titles and dates; past memberships after current ones. */
+/** Groups the person belongs to, with roles, titles, and dates; past memberships last. */
 function membershipsCard(profile) {
   if (!profile.units.length) return null;
   const span = (u) => u.start && u.end ? `${u.start} – ${u.end}` : u.start ? `since ${u.start}` : u.end ? `until ${u.end}` : null;
-  return card({ title: "Memberships", pad: true, attrs: { "data-entity": "unit" },
-    body: h("ul", { class: "plain-list memberships" }, profile.units.map((u) =>
-      h("li", { class: u.current ? "" : "past" },
-        h("span", { class: u.current ? "strong" : "" }, u.unit),
-        [u.title, span(u), u.current ? null : "past"].filter(Boolean).length
-          ? h("span", { class: "subtle" }, ` · ${[u.title, span(u), u.current ? null : "past"].filter(Boolean).join(" · ")}`) : null))) });
+  const role = (u) => (u.role && u.role !== "member") || u.leader ? u.role_label : null;
+  return card({ title: "Groups", pad: true, attrs: { "data-entity": "unit" },
+    body: h("ul", { class: "plain-list memberships" }, profile.units.map((u) => {
+      const details = [u.kind_label, role(u), u.title, span(u), u.current ? null : "past"].filter(Boolean);
+      return h("li", { class: u.current ? "" : "past" },
+        u.group_slug && u.group_status !== "merged"
+          ? h("a", { class: u.current ? "strong" : "", href: `/groups/${u.group_slug}` }, u.unit)
+          : h("span", { class: u.current ? "strong" : "" }, u.unit),
+        details.length ? h("span", { class: "subtle" }, ` · ${details.join(" · ")}`) : null);
+    })) });
 }
 
 async function undoMerge(mergeId, button, refresh) {

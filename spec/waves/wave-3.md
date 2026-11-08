@@ -2,7 +2,7 @@
 
 **Goal:** give groups (labs, programs, divisions, centers, and others) a living home that their own representatives maintain, open a public window onto them, and deepen topics with the MeSH hierarchy.
 
-**Branch:** `wave-3` · **Target version:** `0.3.0` · **Status:** ◐ slices 1 and 2 done; slice 3 next
+**Branch:** `wave-3` · **Target version:** `0.3.0` · **Status:** ◐ slices 1 to 3 done; slice 4 next
 
 ## Exit criteria
 
@@ -51,13 +51,15 @@ Requirements delivered: LAB-01 to LAB-08, PLT-07, PLT-11, PLT-13, CUR-08, and th
 
 **Acceptance (met):** existing units migrate to groups from the roster with addresses, and their memberships become plain members; an import from a named source creates, then updates, nests under several parents, archives what it no longer lists, and ends memberships it drops; a merged group's address and identifier lead to the group that remains; a curator scoped to a division reaches people in a program that spans two divisions; the directory's filters follow membership changes without a rebuild.
 
-## Slice 3: Group pages ☐
+## Slice 3: Group pages ☑
 
 **Goal:** a showcase for every group (LAB-01, LAB-02, LAB-03).
 
-- [ ] `/groups` (a directory) and `/groups/<slug>`: what the group does, leaders and contact, people (current and alumni), publications attributed to the group, grants, studies, topics and broader areas, and connections
-- [ ] Lab attribution as its own assertion (`attributed_to`): suggested from members' papers with evidence (authorship, grants, affiliation, the group's topics), decided by the group's managers or curators; a PI's authorship alone never makes a paper a group output
-- [ ] Profiles list a person's groups and roles; the demo organization gains labs, programs, and divisions
+- [x] `/groups` (a directory) and `/groups/<slug>`: what the group does, leaders and contact, people (current and alumni), publications attributed to the group, grants, studies, topics and broader areas, and connections
+- [x] Lab attribution as its own assertion (`attributed_to`): suggested from members' papers with evidence (authorship, grants, affiliation, the group's topics), decided by the group's managers or curators; a PI's authorship alone never makes a paper a group output
+- [x] Profiles list a person's groups and roles; the demo organization gains labs, programs, and divisions
+
+**Acceptance (met):** the demo has 5 divisions, 22 labs, 3 programs that each span two divisions, and a shared resource, from an import of its registry; each lab's page shows its leader, people and alumni, attributed papers by year, grants, topics and areas, and the labs and programs it writes with; suggestions show their evidence and are decided on the page; a leader's authorship alone scores below the review threshold.
 
 ## Slice 4: Managers and the editorial workflow ☐
 
@@ -95,6 +97,7 @@ Requirements delivered: LAB-01 to LAB-08, PLT-07, PLT-11, PLT-13, CUR-08, and th
 
 | Date | Note |
 |---|---|
+| 2026-11-09 | Slice 3 done. Attribution is a separate link because membership and authorship together are not enough: a PI's collaborations and a postdoc's earlier work are not the lab's. Every attribution is decided by a person, so the score only orders suggestions and is kept simple (additive, documented in the guide); a learned model can wait for decisions to learn from. Divisions and departments are not attributable by default, and "writes most with" lists only attributable kinds, because a division would claim, and work with, everything. The graph's collaboration communities became "clusters" so that "group" means one thing. Group contact details (email, website) went into the ledger (migration 0008) rather than page blocks, because the public site needs them as data. |
 | 2026-11-08 | Slice 2 done. The `unit` table keeps its name (and the `unt_` IDs, the curator scope type `unit`, and the `/graph/units` routes) so that nothing outside the groups work had to move; the product and the new API say "group". A membership's role is its qualifier key, so one person can be a lab's lead and a member of it at once, and a role change from a feed updates the same membership when the feed gives membership identifiers. Feeds are in charge of what they supply; removing a membership by hand is the one decision a feed cannot undo. Group merges are recorded but not undoable from the app, unlike person merges: a group merge touches roles and nesting as well as links, and a reversible journal can wait until someone needs it. |
 | 2026-11-08 | Slice 1 done. Areas are rolled up only in the branches that say what someone studies (anatomy, organisms, diseases, psychology, phenomena); the first attempt rolled up everything and every chemist's top area was "Amino Acids, Peptides, and Proteins". Areas shared by nearly everyone ("Cells") are weighed down by IDF, as topics are. Two quirks of NLM's file server: a missing file comes back as an HTML page with a 200 status, and asking for gzip makes clients unpack the 17 MB file into 300 MB of XML. DuckDB 2.0 rejects the old `x -> …` lambda syntax. |
 | 2026-11-08 | Wave planned. NLM discontinued the ASCII MeSH files in 2026, so the connector reads the XML descriptor file. NLM's terms ask users to credit NLM as the source clearly, not to imply its endorsement, and to name the MeSH version when the data is redistributed. |

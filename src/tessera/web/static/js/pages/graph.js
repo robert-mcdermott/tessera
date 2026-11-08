@@ -166,7 +166,7 @@ function focusOn(state, id) {
 
 const personFill = (node) => (node.status === "former" ? "var(--text-subtle)" : "var(--ent-person)");
 
-/** Colour people by unit where the view spans several, otherwise by collaboration group;
+/** Colour people by group where the view spans several, otherwise by collaboration cluster;
  * hues go to the largest groups first, so the main groups never share a colour. */
 function colouring(nodes) {
   const byUnit = new Set(nodes.map((n) => n.group).filter(Boolean)).size > 1;
@@ -199,8 +199,8 @@ const LOOKS = {
       force: (e) => e.kind === "collaboration"
         ? { distance: 48 + 36 / (1 + e.weight), strength: Math.min(0.7, 0.2 + e.weight / 8) }
         : { distance: 110, strength: 0.06 },
-      describe: (n) => [n.units?.length ? n.units.join(", ") : null, n.cluster ? `Group: ${n.cluster}` : null,
-        n.bridge ? "Connects groups" : null, n.status === "former" ? "Former member" : null],
+      describe: (n) => [n.units?.length ? n.units.join(", ") : null, n.cluster ? `Cluster: ${n.cluster}` : null,
+        n.bridge ? "Connects clusters" : null, n.status === "former" ? "Former member" : null],
     };
   },
   focus(nodes) {
@@ -301,18 +301,18 @@ function overview(state, body, look) {
       h("ul", { class: "legend" },
         legendRow("swatch-line", "Published, funded, or ran a study together (thicker: more, and with fewer others)"),
         legendRow("swatch-dashed", "Similar interests, not yet working together"),
-        bridges.length ? legendRow("swatch-ring", "Connects groups") : null,
+        bridges.length ? legendRow("swatch-ring", "Connects clusters") : null,
         body.data.nodes.some((n) => n.status === "former") ? legendRow("swatch-former", "Former member") : null),
-      legend.length ? h("h3", {}, byUnit ? "Units" : "Groups that work together") : null,
+      legend.length ? h("h3", {}, byUnit ? "Groups" : "Clusters that work together") : null,
       legend.length ? h("ul", { class: "legend" }, legend.slice(0, 12).map((g) => {
         const swatch = h("span", { class: "legend-swatch swatch-dot", "aria-hidden": "true" });
         swatch.style.setProperty("background", g.colour);
         return h("li", {}, swatch, h("span", {}, `${g.label} (${number(g.people)})`));
       })) : null,
-      bridges.length ? h("h3", {}, "People who connect groups") : null,
+      bridges.length ? h("h3", {}, "People who connect clusters") : null,
       bridges.length ? h("ul", { class: "plain-list side-list" }, bridges.map((b) =>
         sideItem(b.id, b.name, `works with ${b.groups.slice(0, 3).map((g) => `${number(g.people)} in ${g.label}`).join(", ")}`, state))) : null,
-      bridges.length ? h("p", { class: "subtle" }, "Listed by name: connecting groups is a role in this network, not a ranking.") : null,
+      bridges.length ? h("p", { class: "subtle" }, "Listed by name: connecting clusters is a role in this network, not a ranking.") : null,
       h("p", { class: "subtle" }, "Hover to see someone's connections, select for details, double-click to focus on them. Drag a person to pin them in place."),
     ];
   }
