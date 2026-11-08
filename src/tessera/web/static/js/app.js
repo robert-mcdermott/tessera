@@ -88,6 +88,7 @@ async function boot() {
   route("/grants/:core", (params) => grant(main, params));
   route("/studies", (_, ctx) => browse(main, "study", ctx));
   route("/studies/:nct", (params) => study(main, params));
+  route("/inbox", async (_, ctx) => (await import("./pages/inbox.js")).inboxPage(main, ctx));
   route("/review", () => review(main));
   route("/review/people", (_, ctx) => candidates(main, ctx));
   route("/review/duplicates", (_, ctx) => duplicates(main, ctx));

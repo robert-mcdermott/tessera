@@ -285,6 +285,39 @@ usage: tessera groups list [-h] [--kind KIND] [--all]
 | `--kind KIND` | only groups of this kind |
 | `--all` | include archived groups |
 
+## `tessera digest`
+
+Pending work for each account: groups' inboxes and review queues.
+
+```text
+usage: tessera digest [-h] ACTION ...
+```
+
+### `tessera digest show`
+
+Print the digests.
+
+```text
+usage: tessera digest show [-h] [--account ACCOUNT]
+```
+
+| Argument | Meaning |
+|---|---|
+| `--account ACCOUNT` | only this account (username) |
+
+### `tessera digest send`
+
+Email each account with pending work its digest ([mail]); run it weekly.
+
+```text
+usage: tessera digest send [-h] [--account ACCOUNT] [--dry-run]
+```
+
+| Argument | Meaning |
+|---|---|
+| `--account ACCOUNT` | only this account (username) |
+| `--dry-run` | print the messages instead of sending them |
+
 ## `tessera users`
 
 Local accounts and their roles.

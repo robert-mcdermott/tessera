@@ -356,6 +356,8 @@ def _pages(engine: Engine, today: date) -> None:
                 {"type": "about", "text": about},
                 {"type": "people"},
                 {"type": "publications", "featured": [p.removeprefix("pub:") for p in featured]},
+                {"type": "themes"},
+                {"type": "openings"},
                 {"type": "news", "items": [
                     {"date": today.replace(day=1).isoformat(), "title": "Welcome, new fellows",
                      "text": "Three postdoctoral fellows joined this autumn."},
@@ -369,6 +371,105 @@ def _pages(engine: Engine, today: date) -> None:
             ]  # fmt: skip
             pages.save_draft(conn, group_id, blocks, actor=CURATOR)
             pages.publish(conn, group_id, actor=CURATOR, note="First version")
+        if program:
+            _program_work(conn, program, today)
+        # Every inbox was reviewed when the demo was built; one roster change came after.
+        from tessera.groups import inbox
+
+        for group_id in conn.execute(select(unit.c.id)).scalars():
+            inbox.mark_reviewed(conn, group_id, actor=CURATOR)
+        if lab:
+            _late_arrival(conn, lab.id, today)
+
+
+def _program_work(conn: Any, program: str, today: date) -> None:
+    """Themes and openings for the immunotherapy program."""
+    from datetime import timedelta
+
+    from sqlalchemy import select
+
+    from tessera.groups import openings, store, themes
+    from tessera.ledger.tables import assertion
+
+    people = sorted(store.current_members(conn, [program], today))
+    grants = sorted(
+        set(
+            conn.execute(
+                select(assertion.c.object_id).where(
+                    assertion.c.predicate == "investigator_on",
+                    assertion.c.status == "accepted",
+                    assertion.c.subject_id.in_(people),
+                )
+            ).scalars()
+        )
+    )
+    papers = list(
+        conn.execute(
+            select(assertion.c.subject_id)
+            .where(
+                assertion.c.predicate == "attributed_to",
+                assertion.c.status == "accepted",
+                assertion.c.object_id == program,
+            )
+            .order_by(assertion.c.subject_id.desc())
+            .limit(6)
+        ).scalars()
+    )
+    themes.create_theme(
+        conn, program,
+        {"name": "Engineered T cells for solid tumors", "kind": "theme",
+         "summary": "Why cell therapies that work in blood cancers stall in solid tumors, and "
+         "how to change the microenvironment so they do not."},
+        actor=CURATOR, links=[*people[:3], *grants[:2], *papers[:3]],
+    )  # fmt: skip
+    themes.create_theme(
+        conn, program,
+        {"name": "A shared atlas of tumor-infiltrating lymphocytes", "kind": "project",
+         "summary": "One single-cell atlas of the T cells found in tumors across the program's "
+         "studies, open to every lab."},
+        actor=CURATOR, links=[*people[2:5], *papers[3:6]],
+    )  # fmt: skip
+    openings.create_opening(
+        conn, program,
+        {"title": "Postdoctoral fellow in cell therapy", "kind": "job",
+         "closes_on": today + timedelta(days=10),
+         "description": "Join a team building and testing engineered T cells. Experience with "
+         "flow cytometry or single-cell methods is welcome.",
+         "url": "https://www.corvane.example/careers/cell-therapy-fellow",
+         "contact": "cip@corvane.example"},
+        actor=CURATOR, today=today - timedelta(days=30),
+    )  # fmt: skip
+    openings.create_opening(
+        conn, program,
+        {"title": "Summer research internship", "kind": "training",
+         "closes_on": today + timedelta(days=75),
+         "description": "Ten weeks in a program lab for undergraduates, with a stipend.",
+         "contact": "cip@corvane.example"},
+        actor=CURATOR, today=today,
+    )  # fmt: skip
+
+
+def _late_arrival(conn: Any, lab: str, today: date) -> None:
+    """Someone joins a lab after its inbox was reviewed, so the inbox has a roster change."""
+    from sqlalchemy import select
+
+    from tessera.config import VocabularyConfig
+    from tessera.groups import store
+    from tessera.ledger.tables import person
+
+    here = store.current_members(conn, [lab], today)
+    newcomer = conn.execute(
+        select(person.c.id)
+        .where(person.c.status == "active", person.c.id.notin_(sorted(here)))
+        .order_by(person.c.family_name)
+        .limit(1)
+    ).scalar()
+    if newcomer:
+        store.add_membership(
+            conn, person_id=newcomer, group_id=lab, vocabulary=VocabularyConfig(),
+            actor="Registry import", role="affiliate", start=today.isoformat()[:7],
+            source="registry",
+        )  # fmt: skip
 
 
 def _accounts(engine: Engine, world: World) -> None:

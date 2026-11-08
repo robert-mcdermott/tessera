@@ -155,3 +155,27 @@ What the app calls groups, the kinds of group it offers, and the roles people ho
 
 Keys are lowercase letters, digits, and underscores. Replacing a table replaces the defaults entirely, and `leader_roles` and `default_role` must name roles in it.
 
+## `[mail]`
+
+A mail server for the weekly digest of pending work (`tessera digest send`). Without a `host`, nothing is sent and digests stay in the app's **Inbox**.
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `host` | text | empty | The SMTP server |
+| `port` | number | `587` | Its port |
+| `username` | text | empty | The user to sign in as, if the server needs one |
+| `password_env` | text | empty | The name of the environment variable that holds the password; the password itself never goes in the file |
+| `sender` | address | empty | The From address, such as `Tessera <tessera@example.edu>`; required with a `host` |
+| `starttls` | true or false | `true` | Upgrade the connection with STARTTLS |
+| `ssl` | true or false | `false` | Connect with TLS from the start (usually port 465) instead of STARTTLS |
+| `base_url` | address | empty | The app's address, such as `https://tessera.example.edu`, for links in messages |
+
+```toml
+[mail]
+host = "smtp.example.edu"
+username = "tessera"
+password_env = "TESSERA_SMTP_PASSWORD"
+sender = "Tessera <tessera@example.edu>"
+base_url = "https://tessera.example.edu"
+```
+

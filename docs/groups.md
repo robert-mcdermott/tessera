@@ -70,7 +70,9 @@ uv run tessera users add ines --role "manager=group:division-of-neuroscience+bel
 or, in **Admin → Accounts**, choose **Manager** and the group, and tick **and the groups below it** if they should keep those pages too. Managers can:
 
 - edit, preview, and publish their group's page, and restore any earlier version;
-- decide which suggested papers are the group's.
+- decide which suggested papers are the group's;
+- add themes and projects, and post openings;
+- review the group's weekly inbox.
 
 They cannot change memberships, other groups, or decisions about people; those stay with admins and curators. Curators limited to a group can do everything a manager of that group can.
 
@@ -93,6 +95,27 @@ A group's page is made of **blocks**, chosen and arranged by its managers (or a 
 About and News can appear more than once; the others once each. Topics, Writes most with, and Contact sit beside the others on wide screens. A group whose page has never been published shows the standard arrangement of all of them.
 
 Changes go into a **draft**. **Preview** shows the draft as the page will look. **Publish** makes it the page everyone sees, as a new numbered version with an optional note. **Published versions** lists every version with who published it and when; **View** opens any of them, and **Restore** publishes an old one again as a new version, so nothing is ever lost. **Discard draft** throws away unpublished changes. The group's history records every save, publication, and restore.
+
+## Themes and projects
+
+A group can describe what it works on in its own words: **themes** (long-lived questions) and **projects** (pieces of work with an end). Each has a name and a summary, and links to the people, grants, publications, and studies behind it, chosen from the group's own. Add them with **Add** in the page's Themes and projects block; archive one to take it off the page.
+
+## Openings
+
+A group can post **openings**: jobs, training, and other opportunities, each with a description, a link to apply, a contact address, and a closing date. An opening leaves the page by itself after its closing date, so nobody has to remember to take it down. **Close now** takes it down early; changing its date extends it.
+
+## The inbox
+
+**Inbox** (in the menu, for managers and curators) gathers each group's weekly review in one place:
+
+- **Papers to attribute:** suggestions waiting for a decision, with their evidence. **The group's** and **Not** decide one; **Accept strong** decides all the strong ones at once.
+- **New grants:** grants the group's current members gained since the inbox was last reviewed.
+- **Roster changes:** people who joined, left, or changed role since then, by import or by hand.
+- **Openings closing soon:** open openings that close within two weeks, with **Extend 30 days** and **Close now**.
+
+**Mark as reviewed** starts a new week: new grants and roster changes count from then on. Papers and openings stay until they are decided. A group never reviewed counts the last week. The menu shows how many items are waiting.
+
+Once a week, `tessera digest send` emails everyone with pending work a summary of it, when a mail server is configured; see [Running Tessera](operations.md#keeping-data-fresh).
 
 ## Curating groups in the app
 

@@ -140,6 +140,20 @@ class DiscoveryConfig:
     similar_per_person: int = 25  # at most this many similar people kept for each person
 
 
+@dataclass(frozen=True)
+class MailConfig:
+    """An SMTP server for digests (CUR-08). Without a host, digests stay in the app."""
+
+    host: str = ""
+    port: int = 587
+    username: str = ""
+    password_env: str = ""  # the environment variable holding the password
+    sender: str = ""  # the From address, such as "Tessera <tessera@example.edu>"
+    starttls: bool = True
+    ssl: bool = False  # connect with TLS from the start (port 465) instead of STARTTLS
+    base_url: str = ""  # the app's address, for links in messages
+
+
 # Group kinds and membership roles: (key, label) pairs, in the order the app offers them. Keys
 # are stored with each group and membership, so rename a label freely but keep its key.
 DEFAULT_KINDS: tuple[tuple[str, str], ...] = (
@@ -212,6 +226,7 @@ class Config:
     evidence: EvidenceConfig = field(default_factory=EvidenceConfig)
     discovery: DiscoveryConfig = field(default_factory=DiscoveryConfig)
     vocabulary: VocabularyConfig = field(default_factory=VocabularyConfig)
+    mail: MailConfig = field(default_factory=MailConfig)
     path: Path | None = None  # the file this configuration was loaded from
 
     @property
@@ -232,6 +247,7 @@ _SECTIONS: dict[str, type] = {
     "evidence": EvidenceConfig,
     "discovery": DiscoveryConfig,
     "vocabulary": VocabularyConfig,
+    "mail": MailConfig,
 }
 _SOURCE_NAMES = ("pubmed", "icite", "reporter", "ctgov", "orcid", "mesh")
 _PATH_FIELDS = {("data", "home"), ("branding", "logo_light"), ("branding", "logo_dark")}
@@ -571,6 +587,17 @@ def validate(config: Config) -> list[str]:
         problems.append("discovery.similarity_floor must be at least 0 and below 1")
     if not 1 <= dis.similar_per_person <= 200:
         problems.append("discovery.similar_per_person must be between 1 and 200")
+    mail = config.mail
+    if mail.host:
+        if not 1 <= mail.port <= 65535:
+            problems.append("mail.port must be between 1 and 65535")
+        address = mail.sender.rsplit("<", 1)[-1].rstrip(">").strip()
+        if not _EMAIL.match(address):
+            problems.append("mail.sender must be an email address when mail.host is set")
+        if mail.ssl and mail.starttls:
+            problems.append("mail.ssl and mail.starttls are alternatives; set one")
+    if mail.base_url and not re.match(r"^https?://", mail.base_url):
+        problems.append("mail.base_url must start with http:// or https://")
     return problems
 
 

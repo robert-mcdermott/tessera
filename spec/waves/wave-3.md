@@ -2,7 +2,7 @@
 
 **Goal:** give groups (labs, programs, divisions, centers, and others) a living home that their own representatives maintain, open a public window onto them, and deepen topics with the MeSH hierarchy.
 
-**Branch:** `wave-3` · **Target version:** `0.3.0` · **Status:** ◐ slices 1 to 4 done; slice 5 next
+**Branch:** `wave-3` · **Target version:** `0.3.0` · **Status:** ◐ slices 1 to 5 done; slice 6 next
 
 ## Exit criteria
 
@@ -71,11 +71,13 @@ Requirements delivered: LAB-01 to LAB-08, PLT-07, PLT-11, PLT-13, CUR-08, and th
 
 **Acceptance (met):** a manager of one group saves a draft, previews it, and publishes it; viewers see the published page and never the draft; the manager cannot edit another group or decide about people; publishing again and restoring version 1 gives version 3 with version 1's blocks; text with markup stays text; the demo's immunotherapy program and busiest lab have published pages and the program has a manager account.
 
-## Slice 5: Inbox, openings, themes ☐
+## Slice 5: Inbox, openings, themes ☑
 
-- [ ] The weekly approval inbox for managers (LAB-06): new papers to attribute, new grants, roster changes, and expiring openings, decided in one place
-- [ ] In-app digests of pending work (CUR-08); email when a mail server is configured
-- [ ] Openings with an expiry date (LAB-08); research themes and projects that link people, funding, outputs, and studies (LAB-07)
+- [x] The weekly approval inbox for managers (LAB-06): new papers to attribute, new grants, roster changes, and expiring openings, decided in one place
+- [x] In-app digests of pending work (CUR-08); email when a mail server is configured
+- [x] Openings with an expiry date (LAB-08); research themes and projects that link people, funding, outputs, and studies (LAB-07)
+
+**Acceptance (met):** an opening disappears from its group's page the day after it closes without anyone touching it; a membership added by an import shows in the group's inbox until someone marks it reviewed; a manager's digest lists only their group and its counts; `tessera digest send` sends one message per person through the configured server with STARTTLS and a password from the environment; the demo program has two themes and two openings, one closing within two weeks.
 
 ## Slice 6: The public site ☐
 
@@ -99,6 +101,7 @@ Requirements delivered: LAB-01 to LAB-08, PLT-07, PLT-11, PLT-13, CUR-08, and th
 
 | Date | Note |
 |---|---|
+| 2026-11-09 | Slice 5 done. The inbox is computed, not stored: what is waiting is read from the ledger each time, and the only thing kept is when each group was last reviewed. Papers and openings stay in the inbox until decided; grants and roster changes count from the last review, so marking a week reviewed is cheap and nothing is lost. Digests use the same code in the app and by email. Email is plain text through any SMTP server, sent by a command run from cron rather than a scheduler inside the app, like sync. |
 | 2026-11-09 | Slice 4 done. Access levels gained MANAGE (below REVIEW) so that a manager reaches group routes without the review queue; each handler still checks the group. Blocks are settings, not HTML: about and news are plain paragraphs, links must be http(s), and featured papers are PubMed IDs, so a page can carry no markup into the app or the public site. Restoring a version publishes it again as a new version rather than rewinding, so the history only grows. Page drafts are per group, not per editor: two managers of one group share a draft, and the last save wins (with who and when shown), which is simple and enough for groups with one or two editors. |
 | 2026-11-09 | Slice 3 done. Attribution is a separate link because membership and authorship together are not enough: a PI's collaborations and a postdoc's earlier work are not the lab's. Every attribution is decided by a person, so the score only orders suggestions and is kept simple (additive, documented in the guide); a learned model can wait for decisions to learn from. Divisions and departments are not attributable by default, and "writes most with" lists only attributable kinds, because a division would claim, and work with, everything. The graph's collaboration communities became "clusters" so that "group" means one thing. Group contact details (email, website) went into the ledger (migration 0008) rather than page blocks, because the public site needs them as data. |
 | 2026-11-08 | Slice 2 done. The `unit` table keeps its name (and the `unt_` IDs, the curator scope type `unit`, and the `/graph/units` routes) so that nothing outside the groups work had to move; the product and the new API say "group". A membership's role is its qualifier key, so one person can be a lab's lead and a member of it at once, and a role change from a feed updates the same membership when the feed gives membership identifiers. Feeds are in charge of what they supply; removing a membership by hand is the one decision a feed cannot undo. Group merges are recorded but not undoable from the app, unlike person merges: a group merge touches roles and nesting as well as links, and a reversible journal can wait until someone needs it. |

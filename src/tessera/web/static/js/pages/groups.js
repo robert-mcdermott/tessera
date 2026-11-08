@@ -7,7 +7,7 @@ import { h, icon } from "../core/dom.js";
 import { number, paragraphs, percent, plural } from "../core/format.js";
 import { query, setQuery } from "../core/router.js";
 import { can } from "../core/session.js";
-import { openEvidence } from "../components/drawer.js";
+import { openDrawer, openEvidence } from "../components/drawer.js";
 import { grantItem, publicationItem, studyItem } from "../components/items.js";
 import { toast } from "../components/toast.js";
 import { avatar, barChart, callout, card, debounce, emptyState, pageHeader, pager, pill, tabs } from "../components/ui.js";
@@ -247,9 +247,173 @@ const RENDER = {
       n.date ? h("span", { class: "eyebrow tabular" }, n.date) : null,
       n.url ? h("a", { class: "strong", href: n.url, rel: "noopener", target: "_blank" }, n.title) : h("strong", {}, n.title),
       n.text ? h("p", { class: "muted" }, n.text) : null))) }) : null,
-  themes: () => null,
-  openings: () => null,
+  themes: (b, ctx) => themesBlock(b, ctx),
+  openings: (b, ctx) => openingsBlock(b, ctx),
 };
+
+const RECORD_PATH = { person: "/people/", grant: "/grants/", publication: "/publications/", study: "/studies/" };
+
+function linkChip(link) {
+  const id = link.ref.includes(":") ? link.ref.split(":")[1] : link.ref;
+  const label = link.label.length > 70 ? `${link.label.slice(0, 68)}…` : link.label;
+  return h("a", { class: "chip", "data-entity": link.kind, href: `${RECORD_PATH[link.kind]}${id}`, title: link.label }, label);
+}
+
+function themesBlock(b, { group, page, reload }) {
+  const editor = page.can_edit;
+  if (!group.themes.length && !editor) return null;
+  return card({
+    title: b.title ?? "Themes and projects",
+    attrs: { "data-entity": "concept" },
+    action: editor ? h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => themeDrawer(group, null, reload) },
+      icon("plus", "icon icon-sm"), "Add") : null,
+    pad: true,
+    body: group.themes.length ? h("ul", { class: "plain-list theme-list" }, group.themes.map((t) => h("li", { class: "stack-sm" },
+      h("div", { class: "row-sm" }, h("strong", { class: "grow" }, t.name), pill(t.kind_label, t.kind === "project" ? "info" : ""),
+        editor ? h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => themeDrawer(group, t, reload) }, "Edit") : null),
+      t.summary ? h("div", { class: "prose" }, textBody(t.summary)) : null,
+      t.links.length ? h("div", { class: "chips" }, t.links.map(linkChip)) : null)))
+      : h("p", { class: "subtle" }, "No themes or projects yet. Add one to show what the group works on, with its people, grants, papers, and studies."),
+  });
+}
+
+function openingsBlock(b, { group, page, reload }) {
+  const editor = page.can_edit;
+  if (!group.openings.length && !editor) return null;
+  return card({
+    title: b.title ?? "Openings",
+    action: editor ? h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => openingDrawer(group, null, reload) },
+      icon("plus", "icon icon-sm"), "Post") : null,
+    pad: true,
+    body: group.openings.length ? h("ul", { class: "plain-list opening-list" }, group.openings.map((o) => h("li", { class: "stack-xs" },
+      h("div", { class: "row-sm wrap" }, h("strong", { class: "grow" }, o.title), pill(o.kind_label, "accent"),
+        h("span", { class: "subtle tabular" }, `closes ${o.closes_on}`),
+        editor ? h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => openingDrawer(group, o, reload) }, "Edit") : null),
+      o.description ? h("div", { class: "prose muted" }, textBody(o.description)) : null,
+      h("div", { class: "row-sm" },
+        o.url ? h("a", { class: "btn btn-sm", href: o.url, rel: "noopener", target: "_blank" }, "How to apply") : null,
+        o.contact ? h("a", { href: `mailto:${o.contact}` }, o.contact) : null))))
+      : h("p", { class: "subtle" }, "No open positions. Openings you post close by themselves on their closing date."),
+  });
+}
+
+function drawerForm({ title, subtitle = null, fields, submitLabel, onSubmit, extra = null }) {
+  openDrawer({
+    title, subtitle, label: title,
+    render: (body, footer, close) => {
+      const error = h("p", { class: "field-error", role: "alert", hidden: true });
+      const submit = h("button", { type: "submit", class: "btn btn-primary" }, submitLabel);
+      body.append(h("form", { class: "stack", novalidate: true, onsubmit: async (event) => {
+        event.preventDefault();
+        submit.disabled = true;
+        try {
+          await onSubmit();
+        } catch (failure) {
+          error.textContent = failure.detail || failure.message || "That did not work.";
+          error.hidden = false;
+          submit.disabled = false;
+          return;
+        }
+        close();
+      } }, fields, error, h("div", { class: "row wrap" }, submit, h("button", { type: "button", class: "btn btn-ghost", onclick: close }, "Cancel"), extra)));
+    },
+  });
+}
+
+const labelled = (id, label, control) => h("div", { class: "field" }, h("label", { for: id }, label), control);
+
+async function themeDrawer(group, theme, reload) {
+  const papers = (await get(`/api/v1/groups/${group.id}/publications`, { limit: 200 })).data;
+  const chosen = new Set((theme?.links ?? []).map((l) => l.ref));
+  const name = h("input", { class: "input", id: "theme-name", value: theme?.name ?? "", maxlength: 200 });
+  const kind = h("select", { class: "input", id: "theme-kind" }, h("option", { value: "theme" }, "Theme"), h("option", { value: "project" }, "Project"));
+  kind.value = theme?.kind ?? "theme";
+  const summary = h("textarea", { class: "input", id: "theme-summary", rows: 4, maxlength: 4000 }, theme?.summary ?? "");
+  const choices = (label, items) => {
+    if (!items.length) return null;
+    const count = h("span", { class: "subtle" });
+    const update = () => { count.textContent = ` (${items.filter((i) => chosen.has(i.ref)).length} of ${items.length})`; };
+    update();
+    return h("details", { class: "feature-picker", open: items.some((i) => chosen.has(i.ref)) },
+      h("summary", {}, label, count),
+      h("div", { class: "stack-xs" }, items.map((i) => h("label", { class: "row-sm feature-option" },
+        h("input", { type: "checkbox", checked: chosen.has(i.ref), onchange: (e) => {
+          if (e.target.checked) chosen.add(i.ref); else chosen.delete(i.ref);
+          update();
+        } }), h("span", { class: "grow" }, i.label)))));
+  };
+  const people = [...group.people, ...group.alumni].map((m) => ({ ref: m.person_id, label: m.name }));
+  const uniquePeople = [...new Map(people.map((p) => [p.ref, p])).values()];
+  const archive = theme ? h("label", { class: "row-sm subtle" },
+    h("input", { type: "checkbox", id: "theme-archived", checked: theme.status === "archived" }), "Archived (hidden from the page)") : null;
+  drawerForm({
+    title: theme ? `Edit ${theme.name}` : "Add a theme or project",
+    subtitle: group.name,
+    fields: [
+      labelled("theme-name", "Name", name),
+      labelled("theme-kind", "Kind", kind),
+      labelled("theme-summary", "Summary", summary),
+      h("div", { class: "stack-sm" }, h("strong", {}, "Linked to"),
+        choices("People", uniquePeople),
+        choices("Grants", group.grants.map((g) => ({ ref: g.ref, label: g.summary.title ?? g.ref }))),
+        choices("Publications", papers.map((p) => ({ ref: `pub:${p.summary.pmid}`, label: `${p.summary.title} (${p.summary.year ?? "?"})` }))),
+        choices("Studies", group.studies.map((st) => ({ ref: st.ref, label: st.summary.title ?? st.ref })))),
+      archive,
+    ],
+    submitLabel: theme ? "Save" : "Add",
+    onSubmit: async () => {
+      const body = { name: name.value.trim(), kind: kind.value, summary: summary.value.trim() || null, links: [...chosen] };
+      if (theme) body.status = archive.querySelector("input").checked ? "archived" : "active";
+      await post(theme ? `/api/v1/groups/${group.id}/themes/${theme.id}` : `/api/v1/groups/${group.id}/themes`, body);
+      toast(theme ? `Saved ${body.name}.` : `Added ${body.name}.`);
+      reload();
+    },
+  });
+}
+
+function openingDrawer(group, opening, reload) {
+  const inMonths = (n) => { const d = new Date(); d.setMonth(d.getMonth() + n); return d.toISOString().slice(0, 10); };
+  const title = h("input", { class: "input", id: "opening-title", value: opening?.title ?? "", maxlength: 200, placeholder: "Postdoctoral fellow in …" });
+  const kind = h("select", { class: "input", id: "opening-kind" },
+    h("option", { value: "job" }, "Job"), h("option", { value: "training" }, "Training"), h("option", { value: "other" }, "Other opportunity"));
+  kind.value = opening?.kind ?? "job";
+  const closes = h("input", { class: "input mono", id: "opening-closes", type: "date", value: opening?.closes_on ?? inMonths(2) });
+  const description = h("textarea", { class: "input", id: "opening-description", rows: 5, maxlength: 4000 }, opening?.description ?? "");
+  const url = h("input", { class: "input", id: "opening-url", type: "url", value: opening?.url ?? "", placeholder: "https://… (how to apply)" });
+  const contact = h("input", { class: "input", id: "opening-contact", type: "email", value: opening?.contact ?? group.email ?? "" });
+  const closeNow = opening ? h("button", { type: "button", class: "btn btn-reject", onclick: async () => {
+    try {
+      await post(`/api/v1/groups/${group.id}/openings/${opening.id}`, { closed: true });
+    } catch (failure) {
+      toast(failure.detail || "That did not work.");
+      return;
+    }
+    document.querySelector(".drawer .btn-ghost")?.click();
+    toast(`Closed ${opening.title}.`);
+    reload();
+  } }, "Close now") : null;
+  drawerForm({
+    title: opening ? `Edit ${opening.title}` : "Post an opening",
+    subtitle: group.name,
+    fields: [
+      labelled("opening-title", "Title", title),
+      h("div", { class: "grid-2" }, labelled("opening-kind", "Kind", kind), labelled("opening-closes", "Closes after", closes)),
+      labelled("opening-description", "Description", description),
+      labelled("opening-url", "Link (optional)", url),
+      labelled("opening-contact", "Contact (optional)", contact),
+      h("p", { class: "subtle" }, "It leaves the page by itself after its closing date."),
+    ],
+    submitLabel: opening ? "Save" : "Post",
+    extra: closeNow ? h("span", { class: "spacer" }, closeNow) : null,
+    onSubmit: async () => {
+      const body = { title: title.value.trim(), kind: kind.value, closes_on: closes.value,
+        description: description.value.trim() || null, url: url.value.trim() || null, contact: contact.value.trim() || null };
+      await post(opening ? `/api/v1/groups/${group.id}/openings/${opening.id}` : `/api/v1/groups/${group.id}/openings`, body);
+      toast(opening ? `Saved ${body.title}.` : `Posted ${body.title}.`);
+      reload();
+    },
+  });
+}
 
 function stat(kind, label, value, note) {
   return h("div", { class: "card stat", "data-entity": kind },

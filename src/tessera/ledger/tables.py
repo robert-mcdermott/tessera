@@ -10,6 +10,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Column,
+    Date,
     Float,
     ForeignKey,
     Index,
@@ -322,6 +323,67 @@ group_page_revision = Table(
     Column("note", Text),
     Column("at", UtcDateTime, nullable=False),
     UniqueConstraint("unit_id", "number"),
+)
+
+# A job or training opportunity a group posts (LAB-08). Open until ``closes_on`` has passed,
+# or until an editor closes it early (``closed_at``).
+OPENING_KINDS = ("job", "training", "other")
+opening = Table(
+    "opening",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("unit_id", ID, ForeignKey("unit.id", ondelete="CASCADE"), nullable=False),
+    Column("title", String(200), nullable=False),
+    Column("kind", String(20), nullable=False),
+    Column("description", Text),
+    Column("url", String(500)),
+    Column("contact", String(320)),
+    Column("posted_on", Date, nullable=False),
+    Column("closes_on", Date, nullable=False),
+    Column("closed_at", UtcDateTime),
+    Column("created_by", String(200), nullable=False),
+    Column("created_at", UtcDateTime, nullable=False),
+    Column("updated_at", UtcDateTime, nullable=False),
+    CheckConstraint(_in("kind", OPENING_KINDS), name="kind"),
+)
+Index(None, opening.c.unit_id)
+Index(None, opening.c.closes_on)
+
+# A group's research themes and projects (LAB-07), each linking people (``per_``), grants
+# (``grt:``), publications (``pub:``), and studies (``stu:``).
+theme = Table(
+    "theme",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("unit_id", ID, ForeignKey("unit.id", ondelete="CASCADE"), nullable=False),
+    Column("name", String(200), nullable=False),
+    Column("kind", String(20), nullable=False),
+    Column("summary", Text),
+    Column("status", String(16), nullable=False, server_default="active"),
+    Column("created_by", String(200), nullable=False),
+    Column("created_at", UtcDateTime, nullable=False),
+    Column("updated_at", UtcDateTime, nullable=False),
+    CheckConstraint(_in("kind", ("theme", "project")), name="kind"),
+    CheckConstraint(_in("status", ("active", "archived")), name="status"),
+)
+Index(None, theme.c.unit_id)
+
+theme_link = Table(
+    "theme_link",
+    metadata,
+    Column("theme_id", ID, ForeignKey("theme.id", ondelete="CASCADE"), primary_key=True),
+    Column("ref", ENTITY_REF, primary_key=True),
+    Column("added_by", String(200), nullable=False),
+    Column("added_at", UtcDateTime, nullable=False),
+)
+
+# When a group's editors last went through its weekly inbox (LAB-06).
+group_inbox = Table(
+    "group_inbox",
+    metadata,
+    Column("unit_id", ID, ForeignKey("unit.id", ondelete="CASCADE"), primary_key=True),
+    Column("reviewed_at", UtcDateTime, nullable=False),
+    Column("reviewed_by", String(200), nullable=False),
 )
 
 # Signed-in browsers. Only a hash of the session token is stored.

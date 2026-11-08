@@ -170,3 +170,22 @@ def test_a_leaders_authorship_alone_is_weak_evidence() -> None:
         {("900000001", 1): ["Okafor Lab, Corvane Institute"]},
     )  # fmt: skip
     assert two == pytest.approx(0.98)  # members, senior leader, affiliation, and grant: capped
+
+
+def test_inbox_themes_and_openings(demo) -> None:  # type: ignore[no-untyped-def]
+    _, client = demo
+    overview = client.get("/api/v1/groups/cancer-immunotherapy-program/overview").json()["data"]
+    assert [t["kind"] for t in overview["themes"]] == ["project", "theme"]
+    assert {link["kind"] for t in overview["themes"] for link in t["links"]} >= {
+        "person", "publication",
+    }  # fmt: skip
+    assert len(overview["openings"]) == 2 and overview["openings"][0]["days_left"] <= 14
+    digest = client.get("/api/v1/inbox").json()["data"]
+    program = next(g for g in digest["groups"] if g["slug"] == "cancer-immunotherapy-program")
+    assert program["counts"]["openings"] == 1 and program["counts"]["papers"] >= 1
+    lab = next(g for g in digest["groups"] if g["counts"]["roster"])
+    items = client.get(f"/api/v1/groups/{lab['id']}/inbox").json()["data"]
+    assert items["roster"][0]["action"] == "member_add" and items["papers"][0]["summary"]["title"]
+    assert client.post(f"/api/v1/groups/{lab['id']}/inbox/reviewed").status_code == 200
+    again = client.get(f"/api/v1/groups/{lab['id']}/inbox").json()["data"]
+    assert again["counts"]["roster"] == 0

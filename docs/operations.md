@@ -35,6 +35,14 @@ A daily cron entry (Linux or macOS):
 
 A systemd timer works the same way: run `uv run tessera --quiet sync` from the folder that holds `tessera.toml`, as the user who owns the data home.
 
+Send the weekly digest of pending work (each group's inbox, and the review queues) by email once a week, after a sync. It needs a mail server under `[mail]` (see [Configuration](configuration.md#mail)); without one, digests stay in the app's **Inbox**:
+
+```cron
+0 7 * * 1 cd /srv/tessera && /usr/local/bin/uv run tessera --quiet digest send
+```
+
+`tessera digest show` prints the digests instead, and `tessera digest send --dry-run` prints the messages it would send.
+
 `uv run tessera runs` lists recent runs with their status and counts. A run that ends *partial* fetched some but not all of its batches; the next sync retries from the last complete checkpoint, so nothing is skipped.
 
 ![Admin, Sources: each source's last successful fetch, the evidence engine, and the search index](images/sources-light.webp "Admin → Sources: data health")

@@ -204,6 +204,25 @@ def build_parser() -> argparse.ArgumentParser:
     group_list.add_argument("--all", action="store_true", help="include archived groups")
     group_list.set_defaults(handler=cmd_groups_list)
 
+    digest_cmd = commands.add_parser(
+        "digest", help="pending work for each account: groups' inboxes and review queues"
+    )
+    digest_actions = digest_cmd.add_subparsers(
+        dest="digest_command", metavar="ACTION", required=True
+    )
+    digest_show = digest_actions.add_parser("show", help="print the digests")
+    digest_show.add_argument("--account", help="only this account (username)")
+    digest_show.set_defaults(handler=cmd_digest, send=False, dry_run=True)
+    digest_send = digest_actions.add_parser(
+        "send",
+        help="email each account with pending work its digest ([mail]); run it weekly",
+    )
+    digest_send.add_argument("--account", help="only this account (username)")
+    digest_send.add_argument(
+        "--dry-run", action="store_true", help="print the messages instead of sending them"
+    )
+    digest_send.set_defaults(handler=cmd_digest, send=True)
+
     users_cmd = commands.add_parser("users", help="local accounts and their roles")
     users_actions = users_cmd.add_subparsers(dest="users_command", metavar="ACTION", required=True)
     role_help = (
@@ -818,6 +837,64 @@ def cmd_groups_attribute(args: argparse.Namespace) -> int:
         f"attribution: {result['groups']} groups, {result['suggestions']} papers suggested "
         f"({result['inserted']} new, {result['unreported']} no longer supported)"
     )
+    return EXIT_OK
+
+
+def cmd_digest(args: argparse.Namespace) -> int:
+    from tessera.auth.accounts import grants_of, list_accounts
+    from tessera.auth.principal import Principal
+    from tessera.groups.inbox import digest, digest_text
+    from tessera.mail import message, send
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    outgoing = []
+    try:
+        if config.server.accounts:
+            accounts = [
+                a
+                for a in list_accounts(engine)
+                if a["status"] == "active" and (not args.account or a["username"] == args.account)
+            ]
+            if args.account and not accounts:
+                raise TesseraError(f"No active account {args.account!r}.")
+            principals = []
+            with engine.connect() as conn:
+                for a in accounts:
+                    principals.append(
+                        (
+                            a,
+                            Principal(
+                                name=a["display_name"],
+                                account_id=a["id"],
+                                username=a["username"],
+                                person_id=a["person_id"],
+                                grants=tuple(grants_of(conn, a["id"])),
+                            ),
+                        )
+                    )
+        else:
+            operator = config.server.operator
+            principals = [({"username": operator, "email": None, "display_name": operator},
+                           Principal(name=operator, single_operator=True))]  # fmt: skip
+        for account, principal in principals:
+            result = digest(engine, principal, config)
+            if not result["total"]:
+                continue
+            subject, text = digest_text(result, config, account["display_name"])
+            if args.send and not args.dry_run:
+                if account.get("email"):
+                    outgoing.append(message(config.mail, account["email"], subject, text))
+                continue
+            to = account.get("email") or "(no email address)"
+            print(f"To: {account['username']} <{to}>\nSubject: {subject}\n\n{text}")
+    finally:
+        engine.dispose()
+    if outgoing:
+        sent = send(config.mail, outgoing)
+        print(f"digest: sent {sent} {'message' if sent == 1 else 'messages'}")
+    elif args.send and not args.dry_run:
+        print("digest: nothing to send")
     return EXIT_OK
 
 

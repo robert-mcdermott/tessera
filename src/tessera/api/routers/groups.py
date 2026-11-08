@@ -32,7 +32,7 @@ from tessera.api.common import (
 from tessera.config import VocabularyConfig
 from tessera.core.errors import TesseraError
 from tessera.evidence import store as people_store
-from tessera.groups import pages, profile, store
+from tessera.groups import inbox, openings, pages, profile, store, themes
 from tessera.groups.importer import import_groups, parse_rows
 from tessera.ledger.tables import assertion, person, unit
 
@@ -522,6 +522,8 @@ def overview(request: Request, group_ref: str) -> dict[str, Any]:
         parents = store.parents_of(conn, [row["id"]]).get(row["id"], [])
         children = store.children_of(conn, row["id"])
         counts = store.member_counts(conn, today)
+        open_now = openings.list_openings(conn, [row["id"]], today)
+        theme_rows = themes.list_themes(conn, row["id"])
     topics, areas = profile.topics_and_areas(home, ids)
     index = index_of(request)
     try:
@@ -569,6 +571,8 @@ def overview(request: Request, group_ref: str) -> dict[str, Any]:
                 "by_year": [{"year": y, "count": by_year[y]} for y in sorted(by_year)],
             },
             "connections": works_with,
+            "openings": open_now,
+            "themes": themes_view(request, theme_rows),
             "can_edit": _can_edit(request, row["id"]),
         },
         vocabulary=config.vocabulary.to_json(),
@@ -812,3 +816,202 @@ def page_revisions(request: Request, group_ref: str) -> dict[str, Any]:
             for r in found
         ]
     )
+
+
+# --- openings, themes, the inbox, and digests (LAB-06, LAB-07, LAB-08, CUR-08) ----------------
+
+
+def _expand_links(request: Request, refs: list[str]) -> dict[str, dict[str, Any]]:
+    """Labels for theme links: people's names and records' titles."""
+    people = [r for r in refs if r.startswith("per_")]
+    records = [r for r in refs if not r.startswith("per_")]
+    out: dict[str, dict[str, Any]] = {}
+    if people:
+        names = people_store.display_names(engine_of(request), people)
+        out |= {p: {"ref": p, "kind": "person", "label": names.get(p, p)} for p in people}
+    if records:
+        try:
+            summaries = index_of(request).summaries(records)
+        except Exception:
+            summaries = {}
+        kinds = {"grt": "grant", "pub": "publication", "stu": "study"}
+        for r in records:
+            s = summaries.get(r) or {}
+            out[r] = {"ref": r, "kind": kinds[r[:3]], "label": s.get("title") or r.split(":", 1)[1]}
+    return out
+
+
+def themes_view(request: Request, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    labels = _expand_links(request, sorted({r for t in rows for r in t["links"]}))
+    return [{**t, "links": [labels[r] for r in t["links"] if r in labels]} for t in rows]
+
+
+@router.get("/groups/{group_ref}/openings", summary="A group's openings (open ones, or all)")
+def group_openings(
+    request: Request, group_ref: str, include: Literal["open", "all"] = "open"
+) -> dict[str, Any]:
+    with engine_of(request).connect() as conn:
+        row = _resolve(conn, group_ref)
+        if include == "all":
+            _require_edit(request, row["id"])
+        items = openings.list_openings(
+            conn, [row["id"]], date.today(), include_closed=include == "all"
+        )
+    return envelope(items, total=len(items), kinds=openings.KINDS)
+
+
+class OpeningIn(BaseModel):
+    title: str | None = Field(None, max_length=200)
+    kind: Literal["job", "training", "other"] | None = None
+    description: str | None = Field(None, max_length=4000)
+    url: str | None = Field(None, max_length=500, description="Where to apply")
+    contact: str | None = Field(None, max_length=320)
+    posted_on: date | None = None
+    closes_on: date | None = Field(None, description="It closes by itself after this day")
+    closed: bool | None = Field(None, description="true closes it now; false opens it again")
+
+
+def _opening_change(request: Request, group_ref: str, run) -> dict[str, Any]:  # type: ignore[no-untyped-def]
+    try:
+        with engine_of(request).begin() as conn:
+            row = _resolve(conn, group_ref)
+            _require_edit(request, row["id"])
+            opening_id = run(conn, row["id"], principal_of(request).name)
+            view = openings.view(openings.get_opening(conn, opening_id), date.today())
+    except TesseraError as exc:
+        raise _fail(exc) from exc
+    return envelope(view)
+
+
+@router.post("/groups/{group_ref}/openings", summary="Post an opening", status_code=201)
+def add_opening(request: Request, group_ref: str, body: OpeningIn) -> dict[str, Any]:
+    fields = body.model_dump(exclude={"closed"}, exclude_none=True)
+    return _opening_change(
+        request,
+        group_ref,
+        lambda conn, gid, actor: openings.create_opening(
+            conn, gid, fields, actor=actor, today=date.today()
+        ),
+    )
+
+
+@router.post("/groups/{group_ref}/openings/{opening_id}", summary="Change, close, or reopen")
+def change_opening(
+    request: Request, group_ref: str, opening_id: str, body: OpeningIn
+) -> dict[str, Any]:
+    fields = body.model_dump(exclude={"closed"}, exclude_unset=True)
+
+    def run(conn: Connection, gid: str, actor: str) -> str:
+        if openings.get_opening(conn, opening_id)["unit_id"] != gid:
+            raise store.GroupNotFound(f"No opening {opening_id!r} in this group.")
+        openings.update_opening(conn, opening_id, fields, actor=actor, close=body.closed)
+        return opening_id
+
+    return _opening_change(request, group_ref, run)
+
+
+@router.get("/groups/{group_ref}/themes", summary="A group's research themes and projects")
+def group_themes(
+    request: Request, group_ref: str, include: Literal["active", "all"] = "active"
+) -> dict[str, Any]:
+    with engine_of(request).connect() as conn:
+        row = _resolve(conn, group_ref)
+        rows = themes.list_themes(conn, row["id"], include_archived=include == "all")
+    return envelope(themes_view(request, rows), total=len(rows), kinds=themes.KINDS)
+
+
+class ThemeIn(BaseModel):
+    name: str | None = Field(None, max_length=200)
+    kind: Literal["theme", "project"] | None = None
+    summary: str | None = Field(None, max_length=4000)
+    status: Literal["active", "archived"] | None = None
+    links: list[str] | None = Field(
+        None, max_length=themes.MAX_LINKS, description="per_…, grt:…, pub:…, or stu:… references"
+    )
+
+
+def _theme_change(request: Request, group_ref: str, run) -> dict[str, Any]:  # type: ignore[no-untyped-def]
+    try:
+        with engine_of(request).begin() as conn:
+            row = _resolve(conn, group_ref)
+            _require_edit(request, row["id"])
+            theme_id = run(conn, row["id"], principal_of(request).name)
+            found = [t for t in themes.list_themes(conn, row["id"], include_archived=True)
+                     if t["id"] == theme_id]  # fmt: skip
+    except TesseraError as exc:
+        raise _fail(exc) from exc
+    return envelope(themes_view(request, found)[0])
+
+
+@router.post("/groups/{group_ref}/themes", summary="Add a theme or project", status_code=201)
+def add_theme(request: Request, group_ref: str, body: ThemeIn) -> dict[str, Any]:
+    fields = body.model_dump(exclude={"links"}, exclude_none=True)
+    return _theme_change(
+        request,
+        group_ref,
+        lambda conn, gid, actor: themes.create_theme(
+            conn, gid, fields, actor=actor, links=body.links or []
+        ),
+    )
+
+
+@router.post("/groups/{group_ref}/themes/{theme_id}", summary="Change a theme or its links")
+def change_theme(request: Request, group_ref: str, theme_id: str, body: ThemeIn) -> dict[str, Any]:
+    fields = body.model_dump(exclude={"links"}, exclude_unset=True)
+
+    def run(conn: Connection, gid: str, actor: str) -> str:
+        if themes.get_theme(conn, theme_id)["unit_id"] != gid:
+            raise store.GroupNotFound(f"No theme {theme_id!r} in this group.")
+        themes.update_theme(conn, theme_id, fields, actor=actor, links=body.links)
+        return theme_id
+
+    return _theme_change(request, group_ref, run)
+
+
+@router.get("/groups/{group_ref}/inbox", summary="The group's weekly inbox (its editors)")
+def group_inbox(request: Request, group_ref: str) -> dict[str, Any]:
+    config = config_of(request)
+    with engine_of(request).connect() as conn:
+        row = _resolve(conn, group_ref)
+        _require_edit(request, row["id"])
+        items = inbox.group_inbox_items(conn, row["id"], config, date.today())
+    pmids = [a["subject_id"].removeprefix("pub:") for a in items["papers"]]
+    summaries = publication_summaries(index_of(request), lake_of(request), pmids)
+    try:
+        grant_summaries = index_of(request).summaries([g["ref"] for g in items["grants"]])
+    except Exception:
+        grant_summaries = {}
+    return envelope(
+        {
+            **items,
+            "group": {"id": row["id"], "name": row["name"], "slug": row["slug"]},
+            "papers": [
+                {
+                    "assertion": assertion_view(a, config),
+                    "summary": summaries.get(a["subject_id"].removeprefix("pub:"), {}),
+                }
+                for a in sorted(items["papers"], key=lambda a: -(a["score"] or 0))
+            ],
+            "grants": [
+                {**g, "summary": grant_summaries.get(g["ref"], {"id": g["ref"]})}
+                for g in items["grants"]
+            ],
+        }
+    )
+
+
+@router.post("/groups/{group_ref}/inbox/reviewed", summary="Mark the group's inbox as reviewed")
+def inbox_reviewed(request: Request, group_ref: str) -> dict[str, Any]:
+    try:
+        with engine_of(request).begin() as conn:
+            row = _resolve(conn, group_ref)
+            _require_edit(request, row["id"])
+            at = inbox.mark_reviewed(conn, row["id"], actor=principal_of(request).name)
+    except TesseraError as exc:
+        raise _fail(exc) from exc
+    return envelope({"group_id": row["id"], "reviewed_at": at})
+
+
+@router.get("/inbox", summary="Your digest: pending work in your groups and review queues")
+def my_digest(request: Request) -> dict[str, Any]:
+    return envelope(inbox.digest(engine_of(request), principal_of(request), config_of(request)))

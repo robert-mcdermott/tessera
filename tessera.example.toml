@@ -139,3 +139,14 @@ member = "Member"
 staff = "Staff"
 trainee = "Trainee"
 affiliate = "Affiliate"
+
+[mail]
+# A mail server for the weekly digest of pending work (tessera digest send). With no host,
+# digests stay in the app's Inbox.
+host = ""
+port = 587
+username = ""
+password_env = ""   # the environment variable that holds the password
+sender = ""         # for example "Tessera <tessera@example.edu>"
+starttls = true
+base_url = ""       # the app's address, for links in messages

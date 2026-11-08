@@ -26,6 +26,7 @@ const NAV = [
     { href: "/studies", label: "Studies", iconName: "study", match: (p) => p.startsWith("/studies") },
   ] },
   { section: "Curate", items: [
+    { href: "/inbox", label: "Inbox", iconName: "list", badge: "inbox", when: "edit_groups", match: (p) => p.startsWith("/inbox") },
     { href: "/review", label: () => (can("curate_any") ? "Review queue" : "My suggestions"), iconName: "review", badge: "review", when: "review", match: (p) => p === "/review" },
     { href: "/review/people", label: "Discovered people", iconName: "userPlus", badge: "candidates", when: "curate_all", match: (p) => p.startsWith("/review/people") },
     { href: "/review/duplicates", label: "Possible duplicates", iconName: "layers", badge: "duplicates", when: "curate_all", match: (p) => p.startsWith("/review/duplicates") },
@@ -130,12 +131,14 @@ export function mountShell(root, meta, { onSearch }) {
     clearTimeout(pending);
     pending = setTimeout(async () => {
       const ask = (allowed, path) => (allowed ? get(path, { limit: 1 }, { fresh: true }).catch(() => null) : null);
-      const [queue, found, pairs] = await Promise.all([
+      const [queue, found, pairs, inbox] = await Promise.all([
         ask(can("review"), "/api/v1/review"),
         ask(can("curate_all"), "/api/v1/candidates"),
         ask(can("curate_all"), "/api/v1/duplicates"),
+        ask(can("edit_groups"), "/api/v1/inbox"),
       ]);
       const counts = {
+        inbox: inbox ? inbox.data.groups.reduce((n, g) => n + g.total, 0) : null,
         review: queue ? (queue.meta.bands?.strong ?? 0) + (queue.meta.bands?.possible ?? 0) : null,
         candidates: found ? found.meta.total : null,
         duplicates: pairs ? pairs.meta.total : null,

@@ -559,3 +559,137 @@ def test_a_manager_scope_covers_the_groups_below_only_when_granted(engine) -> No
     assert only.edits_group(engine, division) and not only.edits_group(engine, lab)
     assert below.edits_group(engine, lab) and curator.edits_group(engine, lab)
     assert not only.reviews and only.manages_any
+
+
+# --- openings, themes, the inbox, and digests (LAB-06, LAB-07, LAB-08, CUR-08) --------------
+
+
+def test_openings_close_by_themselves(engine) -> None:  # type: ignore[no-untyped-def]
+    from datetime import timedelta
+
+    from tessera.groups import openings
+
+    lab = group(engine, "Okafor Lab")
+    with engine.begin() as conn:
+        soon = openings.create_opening(
+            conn, lab, {"title": "Postdoc", "closes_on": TODAY + timedelta(days=5)},
+            actor="Ann", today=TODAY,
+        )  # fmt: skip
+        later = openings.create_opening(
+            conn, lab, {"title": "Intern", "kind": "training", "closes_on": "2027-02-01",
+                        "url": "https://example.org/apply"}, actor="Ann", today=TODAY,
+        )  # fmt: skip
+        assert [o["title"] for o in openings.list_openings(conn, [lab], TODAY)] == [
+            "Postdoc",
+            "Intern",
+        ]
+        # A week later the first has closed on its own; nobody had to take it down.
+        week = TODAY + timedelta(days=7)
+        assert [o["id"] for o in openings.list_openings(conn, [lab], week)] == [later]
+        assert [o["id"] for o in openings.expiring(conn, [lab], TODAY, 14)] == [soon]
+        openings.update_opening(conn, later, {}, actor="Ann", close=True)
+        assert openings.list_openings(conn, [lab], TODAY) == [
+            o for o in openings.list_openings(conn, [lab], TODAY) if o["id"] == soon
+        ]
+        for bad, message in (
+            ({"title": "x", "closes_on": "2026-01-01"}, "closes after"),
+            ({"title": "x", "closes_on": "2030-01-01"}, "two years"),
+            ({"title": "x", "closes_on": "2027-01-01", "url": "ftp://x"}, "https://"),
+            ({"title": "", "closes_on": "2027-01-01"}, "title"),
+        ):
+            with pytest.raises(store.GroupError, match=message):
+                openings.create_opening(conn, lab, bad, actor="Ann", today=TODAY)
+
+
+def test_themes_link_people_and_records(engine) -> None:  # type: ignore[no-untyped-def]
+    from tessera.groups import themes
+
+    lab = group(engine, "Okafor Lab")
+    ada = person(engine, "Okafor", "Ada")
+    with engine.begin() as conn:
+        theme_id = themes.create_theme(
+            conn, lab, {"name": "Memory T cells", "summary": "Why they last."}, actor="Ann",
+            links=[ada, "grt:R01CA123456", "pub:12345678", "stu:NCT01234567", ada],
+        )  # fmt: skip
+        [t] = themes.list_themes(conn, lab)
+        assert t["links"] == [ada, "grt:R01CA123456", "pub:12345678", "stu:NCT01234567"]
+        themes.update_theme(conn, theme_id, {"kind": "project"}, actor="Ann", links=[ada])
+        assert themes.list_themes(conn, lab)[0]["links"] == [ada]
+        themes.update_theme(conn, theme_id, {"status": "archived"}, actor="Ann")
+        assert themes.list_themes(conn, lab) == []
+        with pytest.raises(store.GroupError, match="not a person or a record"):
+            themes.create_theme(conn, lab, {"name": "X"}, actor="Ann", links=["javascript:1"])
+        with pytest.raises(store.GroupError, match="not a person in the directory"):
+            themes.create_theme(conn, lab, {"name": "X"}, actor="Ann",
+                                links=["per_0000000000000000000000000Z"])  # fmt: skip
+
+
+def test_the_inbox_counts_since_the_last_review(engine, instance: Instance) -> None:  # type: ignore[no-untyped-def]
+    from datetime import timedelta
+
+    from tessera.groups import inbox, openings
+
+    lab = group(engine, "Okafor Lab")
+    ada = person(engine, "Okafor", "Ada")
+    config = instance.config
+    with engine.begin() as conn:
+        store.add_membership(conn, person_id=ada, group_id=lab, vocabulary=V, actor="hr import",
+                             source="hr")  # fmt: skip
+        closes = date.today() + timedelta(days=3)
+        openings.create_opening(
+            conn, lab, {"title": "Postdoc", "closes_on": closes}, actor="Ann", today=date.today()
+        )
+        items = inbox.group_inbox_items(conn, lab, config, date.today())
+        assert items["counts"] == {"papers": 0, "grants": 0, "roster": 1, "openings": 1}
+        assert items["roster"][0]["person"] == "Ada Okafor"
+        inbox.mark_reviewed(conn, lab, actor="Ann")
+        items = inbox.group_inbox_items(conn, lab, config, date.today())
+        assert items["counts"] == {"papers": 0, "grants": 0, "roster": 0, "openings": 1}
+    manager = Principal(name="Wren", grants=(Grant("manager", "unit", lab),))
+    result = inbox.digest(engine, manager, config)
+    assert [g["name"] for g in result["groups"]] == ["Okafor Lab"] and result["total"] == 1
+    subject, text = inbox.digest_text(result, config, "Wren")
+    assert subject == "Tessera: 1 item waiting for you"
+    assert "Okafor Lab (Lab): 1 opening closing soon" in text
+
+
+def test_digests_are_sent_through_the_configured_server(monkeypatch: pytest.MonkeyPatch) -> None:
+    import smtplib
+
+    from tessera.config import MailConfig
+    from tessera.mail import MailError, message, send
+
+    sent: list[Any] = []
+
+    class FakeSMTP:
+        def __init__(self, host: str, port: int, timeout: int) -> None:
+            sent.append(("connect", host, port))
+
+        def __enter__(self):  # type: ignore[no-untyped-def]
+            return self
+
+        def __exit__(self, *exc: object) -> None:
+            sent.append(("quit",))
+
+        def starttls(self, context: object) -> None:
+            sent.append(("starttls",))
+
+        def login(self, user: str, password: str) -> None:
+            sent.append(("login", user, password))
+
+        def send_message(self, msg: Any) -> None:
+            sent.append(("send", msg["To"], msg["Subject"]))
+
+    monkeypatch.setattr(smtplib, "SMTP", FakeSMTP)
+    monkeypatch.setenv("TESSERA_TEST_SMTP", "s3cret")
+    mail = MailConfig(host="smtp.example.org", sender="Tessera <tessera@example.org>",
+                      username="tessera", password_env="TESSERA_TEST_SMTP")  # fmt: skip
+    msg = message(mail, "wren@example.org", "Tessera: 1 item", "Hello\n")
+    assert msg["Auto-Submitted"] == "auto-generated"
+    assert send(mail, [msg]) == 1
+    assert sent == [
+        ("connect", "smtp.example.org", 587), ("starttls",), ("login", "tessera", "s3cret"),
+        ("send", "wren@example.org", "Tessera: 1 item"), ("quit",),
+    ]  # fmt: skip
+    with pytest.raises(MailError, match="No mail server"):
+        send(MailConfig(), [msg])

@@ -25,6 +25,8 @@ PREFIXES = {
     "usr": "user",
     "mrg": "merge",
     "bat": "batch",
+    "opn": "opening",
+    "thm": "theme",
 }
 
 _CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
