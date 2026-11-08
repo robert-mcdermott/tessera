@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The API · Tessera</title>
+<meta name="description" content="Everything the web app shows comes from a JSON API under /api/v1 , and the same API is open to scripts and other tools. A running Tessera documents it at /api/docs ; the OpenAPI document is at /api/op">
+<meta property="og:title" content="The API">
+<meta property="og:description" content="Everything the web app shows comes from a JSON API under /api/v1 , and the same API is open to scripts and other tools. A running Tessera documents it at /api/docs ; the OpenAPI document is at /api/op">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://robert-mcdermott.github.io/tessera/images/social-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="assets/tessera-mark.svg">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/site.css">
+<script src="assets/theme.js"></script>
+<script src="assets/site.js" defer></script>
+</head>
+<body class="page-api">
+<a class="skip" href="#content">Skip to content</a>
+<header class="top">
+  <button class="menu-button" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu">☰</button>
+  <a class="brand" href="index.html"><img src="assets/tessera-mark.svg" alt="" width="26" height="26"><span>Tessera</span><span class="version">v0.2.0</span></a>
+  <div class="search" role="search">
+    <input id="search" type="search" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off" spellcheck="false">
+    <kbd>/</kbd>
+    <div class="results" id="results" role="listbox" hidden></div>
+  </div>
+  <div class="theme" role="group" aria-label="Theme">
+    <button type="button" data-theme-choice="light" title="Light">☀</button><button type="button" data-theme-choice="system" title="System">◐</button><button type="button" data-theme-choice="dark" title="Dark">☾</button>
+  </div>
+  <a class="github" href="https://github.com/robert-mcdermott/tessera" rel="noopener">GitHub</a>
+</header>
+<div class="layout">
+  <nav class="menu" id="menu" aria-label="Documentation"><div class="menu-group"><div class="menu-title">Start</div><ul><li><a href="index.html">Overview</a></li><li><a href="getting-started.html">Getting started</a></li><li><a href="organization-profile.html">Describing your organization</a></li></ul></div><div class="menu-group"><div class="menu-title">Use</div><ul><li><a href="curation.html">Curating</a></li><li><a href="discovery.html">Finding experts</a></li></ul></div><div class="menu-group"><div class="menu-title">Run</div><ul><li><a href="configuration.html">Configuration</a></li><li><a href="operations.html">Running Tessera</a></li></ul></div><div class="menu-group"><div class="menu-title">Reference</div><ul><li><a href="api.html" aria-current="page">The API</a></li><li><a href="api-reference.html">API reference</a></li><li><a href="cli.html">Command reference</a></li><li><a href="changelog.html">Changelog</a></li></ul></div></nav>
+  <main id="content" class="content">
+<h1 id="the-api">The API</h1>
+<p>Everything the web app shows comes from a JSON API under <code>/api/v1</code>, and the same API is open to scripts and other tools. A running Tessera documents it at <code>/api/docs</code>; the OpenAPI document is at <code>/api/openapi.json</code>, and a copy for this version is in <a href="https://github.com/robert-mcdermott/tessera/blob/main/docs/openapi.json" rel="noopener">openapi.json</a>.</p>
+<p>Without accounts (single-operator mode), the API answers only on this machine and needs no sign-in. With accounts on, a script signs in like the web app:</p>
+<div class="code"><pre><code class="language-bash">curl -s -c jar -H &quot;Content-Type: application/json&quot; -X POST http://127.0.0.1:8000/api/v1/session \
+  -d '{&quot;username&quot;: &quot;ada&quot;, &quot;password&quot;: &quot;…&quot;}'           # returns data.csrf_token
+curl -s -b jar &quot;http://127.0.0.1:8000/api/v1/people?q=circadian&quot;
+curl -s -b jar -H &quot;X-CSRF-Token: &lt;csrf_token&gt;&quot; -H &quot;Content-Type: application/json&quot; \
+  -X POST &quot;http://127.0.0.1:8000/api/v1/assertions/asr_…/decision&quot; -d '{&quot;action&quot;: &quot;accept&quot;}'</code></pre></div>
+<p>Every change needs the session's CSRF token in <code>X-CSRF-Token</code>, and each route needs a role: reading needs any account, deciding needs a curator for that person (or the person themselves, as a researcher), and managing accounts needs an admin. A missing session is a <code>401</code>, a missing role or scope a <code>403</code>.</p>
+<h2 id="conventions">Conventions<a class="anchor" href="#conventions" aria-label="Link to this section">#</a></h2>
+<ul><li><strong>Envelopes.</strong> A successful response is <code>{&quot;data&quot;: …, &quot;meta&quot;: {…}}</code>. Lists put paging details and facet counts in <code>meta</code>.</li><li><strong>Paging.</strong> Lists take <code>limit</code> (up to 200) and either <code>offset</code> or the opaque <code>cursor</code> from the previous page's <code>meta.next_cursor</code>, which is <code>null</code> on the last page.</li><li><strong>Sparse fields.</strong> <code>fields=id,name</code> returns only those keys of each list item.</li><li><strong>Errors</strong> are <a href="https://www.rfc-editor.org/rfc/rfc9457" rel="noopener">RFC 9457</a> problem details (<code>application/problem+json</code>) with a <code>title</code>, a <code>status</code>, and a plain-language <code>detail</code>.</li><li><strong>Search highlights</strong> in <code>highlights</code> mark matches with the private-use characters U+E000 and U+E001, never HTML. Escape the text, then replace those characters with your own markup.</li><li><strong>Identifiers.</strong> People have IDs such as <code>per_01…</code>. Records use their public identifiers: a PubMed ID, a grant's core project number (for example <code>R01CA123456</code>), or an NCT number.</li></ul>
+<h2 id="what-is-available">What is available<a class="anchor" href="#what-is-available" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table><thead><tr><th>Area</th><th>Endpoints</th></tr></thead><tbody><tr><td>System</td><td><code>GET /health</code>, <code>GET /meta</code></td></tr><tr><td>Search and overview</td><td><code>GET /search</code> (everything, or one kind with facets), <code>GET /stats</code>, <code>GET /sources</code>, <code>GET /runs</code></td></tr><tr><td>People</td><td><code>GET /people</code>, <code>GET /people/{id}</code>, and the person's <code>/publications</code>, <code>/grants</code>, <code>/studies</code>, and <code>/history</code>; <code>POST /people/{id}/publications</code> adds a paper by PubMed ID; <code>POST /people/{id}/identifiers</code> adds, confirms, rejects, or removes an identifier</td></tr><tr><td>Records</td><td><code>GET /publications</code>, <code>/grants</code>, <code>/studies</code>, each with search and facets, and one record by its identifier with its connections and provenance</td></tr><tr><td>Curation</td><td><code>GET /assertions/{id}</code> (a link with its evidence and history), <code>POST /assertions/{id}/decision</code>, <code>POST /assertions/decisions</code> (one decision for many), <code>GET /review</code> (the queue), <code>POST /review/bulk</code>, <code>GET /decisions</code> (the log)</td></tr><tr><td>Discovered people</td><td><code>GET /candidates</code>, <code>POST /candidates/decisions</code> (promote, dismiss, or undo)</td></tr><tr><td>Evidence model</td><td><code>GET /evidence</code> (active model, latest evaluation, auto-accept, batches); admins: <code>POST /evidence/evaluate</code>, <code>/evidence/release</code>, <code>/evidence/revert</code>, <code>/evidence/auto-accept</code>, <code>/evidence/auto-accept/batches/{id}/undo</code></td></tr><tr><td>Sessions and accounts</td><td><code>GET /session</code> (who is signed in), <code>POST /session</code> (sign in), <code>DELETE /session</code> (sign out), <code>POST /session/password</code>; admins: <code>GET /accounts</code>, <code>POST /accounts</code>, <code>POST /accounts/{id}</code></td></tr><tr><td>Duplicates and merges</td><td><code>GET /duplicates</code> (possible duplicate pairs with evidence), <code>POST /merges</code> (merge two records), <code>POST /merges/{id}/undo</code></td></tr><tr><td>Graph views</td><td><code>GET /graph/network</code> (people linked by collaboration and, where they have none, by similarity; <code>unit</code>, <code>max_people</code>, <code>min_similarity</code>, <code>similar</code>), <code>GET /graph/focus/{id}</code> (a person, their top concepts, and who shares them, with their collaborators), <code>GET /graph/landscape</code> (concepts linked by the people who hold them together). Each returns <code>{&quot;nodes&quot;: [...], &quot;edges&quot;: [...]}</code>; the network's <code>meta</code> also names the collaboration groups and the people who bridge them</td></tr><tr><td>Missed connections and units</td><td><code>GET /graph/missed</code> (alike, current, and never worked together; <code>min_similarity</code>, <code>unit</code>, <code>across</code>, paging), <code>GET /graph/units</code> (unit-by-unit interest and collaboration densities), <code>GET /graph/units/pairs?a=&amp;b=</code> (the pairs behind one cell)</td></tr><tr><td>Discovery</td><td><code>GET /experts</code> (people ranked by matching concepts, from words <code>q</code> or descriptors <code>concept</code>, with the concepts the query became in <code>meta.concepts</code>), <code>GET /concepts?q=</code> (descriptors by name), <code>GET /people/{id}/similar</code> (similar people with shared concepts, and whether they have worked together), <code>GET /people/{id}/concepts</code> (what drives a profile)</td></tr></tbody></table></div>
+<p>All paths are under <code>/api/v1</code>.</p>
+<h2 id="examples">Examples<a class="anchor" href="#examples" aria-label="Link to this section">#</a></h2>
+<p>Find people who work on a topic, with the concepts that match:</p>
+<div class="code"><pre><code class="language-bash">curl -s &quot;http://127.0.0.1:8000/api/v1/experts?q=circadian+rhythms&amp;limit=10&quot;</code></pre></div>
+<p>Or start from a MeSH descriptor (here, Neoplasms) and find who shares it:</p>
+<div class="code"><pre><code class="language-bash">curl -s &quot;http://127.0.0.1:8000/api/v1/experts?concept=D009369&quot;</code></pre></div>
+<p>The organization's active grants, largest first:</p>
+<div class="code"><pre><code class="language-bash">curl -s &quot;http://127.0.0.1:8000/api/v1/grants?status=active&amp;sort=amount&amp;limit=10&quot;</code></pre></div>
+<p>Why Tessera links a person to a paper, and how to accept it:</p>
+<div class="code"><pre><code class="language-bash">curl -s &quot;http://127.0.0.1:8000/api/v1/assertions/asr_…&quot;
+curl -s -X POST &quot;http://127.0.0.1:8000/api/v1/assertions/asr_…/decision&quot; \
+  -H &quot;Content-Type: application/json&quot; -d '{&quot;action&quot;: &quot;accept&quot;, &quot;note&quot;: &quot;Checked the author list&quot;}'</code></pre></div>
+<p>Decisions made through the API are recorded under the signed-in person's name (or, without accounts, the <code>[server] operator</code> name), exactly like decisions in the web app.</p>
+    <nav class="pager" aria-label="Pages"><a class="prev" href="operations.html"><span>Previous</span>Running Tessera</a><a class="next" href="api-reference.html"><span>Next</span>API reference</a></nav>
+    <footer class="foot">Describes Tessera 0.2.0. Apache License 2.0. Screenshots show an invented organization; every person and record in them is fictional.</footer>
+  </main>
+  <aside class="toc" aria-label="On this page"><div class="menu-title">On this page</div><ul><li class="l2"><a href="#conventions">Conventions</a></li><li class="l2"><a href="#what-is-available">What is available</a></li><li class="l2"><a href="#examples">Examples</a></li></ul></aside>
+</div>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Configuration · Tessera</title>
+<meta name="description" content="Tessera reads one file, tessera.toml . uv run tessera init writes a commented starting point; the same file is in the repository as tessera.example.toml . Every setting has a sensible default except t">
+<meta property="og:title" content="Configuration">
+<meta property="og:description" content="Tessera reads one file, tessera.toml . uv run tessera init writes a commented starting point; the same file is in the repository as tessera.example.toml . Every setting has a sensible default except t">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://robert-mcdermott.github.io/tessera/images/social-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="assets/tessera-mark.svg">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/site.css">
+<script src="assets/theme.js"></script>
+<script src="assets/site.js" defer></script>
+</head>
+<body class="page-configuration">
+<a class="skip" href="#content">Skip to content</a>
+<header class="top">
+  <button class="menu-button" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu">☰</button>
+  <a class="brand" href="index.html"><img src="assets/tessera-mark.svg" alt="" width="26" height="26"><span>Tessera</span><span class="version">v0.2.0</span></a>
+  <div class="search" role="search">
+    <input id="search" type="search" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off" spellcheck="false">
+    <kbd>/</kbd>
+    <div class="results" id="results" role="listbox" hidden></div>
+  </div>
+  <div class="theme" role="group" aria-label="Theme">
+    <button type="button" data-theme-choice="light" title="Light">☀</button><button type="button" data-theme-choice="system" title="System">◐</button><button type="button" data-theme-choice="dark" title="Dark">☾</button>
+  </div>
+  <a class="github" href="https://github.com/robert-mcdermott/tessera" rel="noopener">GitHub</a>
+</header>
+<div class="layout">
+  <nav class="menu" id="menu" aria-label="Documentation"><div class="menu-group"><div class="menu-title">Start</div><ul><li><a href="index.html">Overview</a></li><li><a href="getting-started.html">Getting started</a></li><li><a href="organization-profile.html">Describing your organization</a></li></ul></div><div class="menu-group"><div class="menu-title">Use</div><ul><li><a href="curation.html">Curating</a></li><li><a href="discovery.html">Finding experts</a></li></ul></div><div class="menu-group"><div class="menu-title">Run</div><ul><li><a href="configuration.html" aria-current="page">Configuration</a></li><li><a href="operations.html">Running Tessera</a></li></ul></div><div class="menu-group"><div class="menu-title">Reference</div><ul><li><a href="api.html">The API</a></li><li><a href="api-reference.html">API reference</a></li><li><a href="cli.html">Command reference</a></li><li><a href="changelog.html">Changelog</a></li></ul></div></nav>
+  <main id="content" class="content">
+<h1 id="configuration">Configuration</h1>
+<p>Tessera reads one file, <code>tessera.toml</code>. <code>uv run tessera init</code> writes a commented starting point; the same file is in the repository as <a href="https://github.com/robert-mcdermott/tessera/blob/main/tessera.example.toml" rel="noopener"><code>tessera.example.toml</code></a>. Every setting has a sensible default except the organization profile.</p>
+<p>Tessera checks the whole file when it starts and reports every problem at once, with the setting's name, so a typo never fails silently. Unknown sections and settings are errors too.</p>
+<h2 id="where-the-file-is">Where the file is<a class="anchor" href="#where-the-file-is" aria-label="Link to this section">#</a></h2>
+<p>Commands look for the configuration in this order:</p>
+<ol><li><code>--config PATH</code> (or <code>-c PATH</code>) on the command line;</li><li>the <code>TESSERA_CONFIG</code> environment variable;</li><li><code>tessera.toml</code> in the current folder.</li></ol>
+<p>Relative paths inside the file (the data home, logo files) are relative to the file's own folder.</p>
+<h2 id="environment-variables">Environment variables<a class="anchor" href="#environment-variables" aria-label="Link to this section">#</a></h2>
+<p>A simple setting can be overridden by an environment variable named <code>TESSERA_&lt;SECTION&gt;_&lt;SETTING&gt;</code>, which is handy for containers and services:</p>
+<div class="code"><pre><code class="language-bash">TESSERA_SERVER_PORT=9000 uv run tessera serve
+TESSERA_DATA_HOME=/srv/tessera/data uv run tessera sync
+TESSERA_LEDGER_URL=&quot;postgresql+psycopg://tessera@db/tessera&quot; uv run tessera serve</code></pre></div>
+<p>Secrets never go in the file. The only secret Tessera uses, an optional NCBI API key, is read from the environment variable named by <code>[sources.pubmed] api_key_env</code>.</p>
+<h2 id="organization"><code>[organization]</code><a class="anchor" href="#organization" aria-label="Link to this section">#</a></h2>
+<p>How the organization appears in public records. See <a href="organization-profile.html">Describing your organization</a> for how to choose values.</p>
+<div class="table-wrap"><table><thead><tr><th>Setting</th><th>Type</th><th>Default</th><th>Meaning</th></tr></thead><tbody><tr><td><code>name</code></td><td>text</td><td>(required)</td><td>Full name, shown in the app and used as an alias</td></tr><tr><td><code>short_name</code></td><td>text</td><td><code>&quot;&quot;</code></td><td>Short form for the sidebar</td></tr><tr><td><code>aliases</code></td><td>list</td><td><code>[]</code></td><td>Names as written in affiliations, sponsor and site names</td></tr><tr><td><code>affiliation_patterns</code></td><td>list</td><td><code>[]</code></td><td>Affiliation patterns; <code>*</code> matches any run of characters in a word</td></tr><tr><td><code>reporter_org_names</code></td><td>list</td><td><code>[]</code></td><td>Organization names exactly as NIH RePORTER writes them</td></tr><tr><td><code>ctgov_org_names</code></td><td>list</td><td><code>[]</code></td><td>Sponsor, collaborator, and site names in ClinicalTrials.gov (falls back to <code>aliases</code>)</td></tr><tr><td><code>email_domains</code></td><td>list</td><td><code>[]</code></td><td>Domains whose addresses count as evidence of membership</td></tr><tr><td><code>exclusions</code></td><td>list</td><td><code>[]</code></td><td>Look-alike organizations that contain one of the aliases</td></tr></tbody></table></div>
+<p><code>name</code> and at least one of <code>aliases</code>, <code>affiliation_patterns</code>, or <code>reporter_org_names</code> are required, so Tessera can recognize the organization.</p>
+<h2 id="branding"><code>[branding]</code><a class="anchor" href="#branding" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table><thead><tr><th>Setting</th><th>Type</th><th>Default</th><th>Meaning</th></tr></thead><tbody><tr><td><code>product_name</code></td><td>text</td><td><code>&quot;Tessera&quot;</code></td><td>The product's name in the sidebar and page titles</td></tr><tr><td><code>theme</code></td><td>text</td><td><code>&quot;tessera&quot;</code></td><td>The default color palette: <code>tessera</code>, <code>harbor</code>, or <code>cassette</code></td></tr><tr><td><code>accent_color</code></td><td>color</td><td>(none)</td><td>Replaces the palette's accent: a hex value, a color name, or <code>rgb()</code>, <code>hsl()</code>, or <code>oklch()</code></td></tr><tr><td><code>logo_light</code></td><td>path</td><td>(none)</td><td>Your logo, shown in the sidebar in place of the Tessera mark and name (SVG, PNG, JPEG, or WebP)</td></tr><tr><td><code>logo_dark</code></td><td>path</td><td>(none)</td><td>The logo for dark mode; the light one is used if absent</td></tr><tr><td><code>show_powered_by</code></td><td>true/false</td><td><code>true</code></td><td>The small &quot;Powered by Tessera&quot; line in the sidebar</td></tr></tbody></table></div>
+<p><strong>Palettes.</strong> Each palette has a light and a dark version, and every viewer can switch palettes and modes for themselves under <strong>Appearance</strong> in the top bar; <code>theme</code> sets what everyone sees first.</p>
+<div class="table-wrap"><table><thead><tr><th>Palette</th><th>By day</th><th>After dark</th></tr></thead><tbody><tr><td><code>tessera</code></td><td>Calm cool neutrals with an indigo accent</td><td>Neutral graphite with a soft indigo accent</td></tr><tr><td><code>harbor</code></td><td>White and light grey, dark navy text, teal actions, a navy-to-gold rule</td><td>Deep navy, bright blue actions, gold and purple accents</td></tr><tr><td><code>cassette</code></td><td>Cream label paper, a red-orange accent, a thin sunset stripe</td><td>Black labels, an orange accent, the same sunset stripe</td></tr></tbody></table></div>
+<p>A configured <code>accent_color</code> is used as given by day and lightened for dark mode. It also colors links and labels, so choose one that reads on white at a contrast of at least 4.5:1, such as a deep blue or teal rather than a yellow. Write it as a hex value so that text on accent-colored buttons can be chosen for contrast; with other forms that text is white. Tessera and Harbor suit public and leadership views best; Cassette is playful by design. Logos look best at about 190 by 30 pixels.</p>
+<h2 id="data"><code>[data]</code><a class="anchor" href="#data" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table><thead><tr><th>Setting</th><th>Type</th><th>Default</th><th>Meaning</th></tr></thead><tbody><tr><td><code>home</code></td><td>path</td><td><code>&quot;var&quot;</code></td><td>The data home: raw downloads, the Parquet lake, the ledger (with SQLite), the search index, and logs. See <a href="operations.html#the-data-home">Running Tessera</a></td></tr></tbody></table></div>
+<h2 id="server"><code>[server]</code><a class="anchor" href="#server" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table><thead><tr><th>Setting</th><th>Type</th><th>Default</th><th>Meaning</th></tr></thead><tbody><tr><td><code>host</code></td><td>text</td><td><code>&quot;127.0.0.1&quot;</code></td><td>Address to listen on. Anything other than this machine needs <code>accounts = true</code></td></tr><tr><td><code>port</code></td><td>number</td><td><code>8000</code></td><td>Port to listen on</td></tr><tr><td><code>operator</code></td><td>text</td><td><code>&quot;Operator&quot;</code></td><td>Without accounts, the name recorded on every curation decision</td></tr><tr><td><code>accounts</code></td><td>true/false</td><td><code>false</code></td><td>Require sign-in with local accounts and roles; see <a href="operations.html#accounts-and-sign-in">Accounts and sign-in</a></td></tr><tr><td><code>session_idle_hours</code></td><td>number</td><td><code>12</code></td><td>A session ends this long after it was last used (1 to 720)</td></tr><tr><td><code>session_max_days</code></td><td>number</td><td><code>7</code></td><td>A session never lasts longer than this from sign-in (1 to 90)</td></tr></tbody></table></div>
+<h2 id="ledger"><code>[ledger]</code><a class="anchor" href="#ledger" aria-label="Link to this section">#</a></h2>
+<p>The ledger holds people, links, and decisions.</p>
+<div class="table-wrap"><table><thead><tr><th>Setting</th><th>Type</th><th>Default</th><th>Meaning</th></tr></thead><tbody><tr><td><code>url</code></td><td>text</td><td><code>&quot;&quot;</code></td><td>Empty means SQLite at <code>&lt;data home&gt;/ledger.db</code>. For PostgreSQL: <code>postgresql+psycopg://user@host/dbname</code></td></tr></tbody></table></div>
+<p>PostgreSQL support needs the <code>postgres</code> extra: <code>uv sync --extra postgres</code>. See <a href="operations.html#postgresql">Running Tessera</a>.</p>
+<h2 id="sources"><code>[sources]</code><a class="anchor" href="#sources" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table><thead><tr><th>Setting</th><th>Type</th><th>Default</th><th>Meaning</th></tr></thead><tbody><tr><td><code>contact_email</code></td><td>text</td><td><code>&quot;&quot;</code></td><td>Sent with requests to the public APIs, as their usage policies ask. Set it to an address that can be reached</td></tr></tbody></table></div>
+<p>Each source has its own table, <code>[sources.pubmed]</code>, <code>[sources.icite]</code>, <code>[sources.reporter]</code>, <code>[sources.ctgov]</code>, and <code>[sources.orcid]</code>:</p>
+<div class="table-wrap"><table><thead><tr><th>Setting</th><th>Type</th><th>Default</th><th>Meaning</th></tr></thead><tbody><tr><td><code>enabled</code></td><td>true/false</td><td><code>true</code></td><td>Whether <code>sync</code> and <code>ingest all</code> use the source</td></tr><tr><td><code>api_key_env</code></td><td>text</td><td><code>&quot;NCBI_API_KEY&quot;</code> for PubMed, else <code>&quot;&quot;</code></td><td>The environment variable holding an optional API key</td></tr></tbody></table></div>
+<p>An NCBI API key (created under <em>API Key Management</em> in your NCBI account settings) raises PubMed's request limit from three to ten per second, which shortens the first sync of a large organization considerably.</p>
+<h2 id="sync"><code>[sync]</code><a class="anchor" href="#sync" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table><thead><tr><th>Setting</th><th>Type</th><th>Default</th><th>Meaning</th></tr></thead><tbody><tr><td><code>window_years</code></td><td>number</td><td><code>5</code></td><td>How many years of history the first sync collects. Later syncs fetch only what changed</td></tr></tbody></table></div>
+<h2 id="evidence"><code>[evidence]</code><a class="anchor" href="#evidence" aria-label="Link to this section">#</a></h2>
+<p>Thresholds for authorship suggestions. See <a href="curation.html#how-suggestions-are-scored">Curating</a>.</p>
+<div class="table-wrap"><table><thead><tr><th>Setting</th><th>Type</th><th>Default</th><th>Meaning</th></tr></thead><tbody><tr><td><code>strong_threshold</code></td><td>0 to 1</td><td><code>0.95</code></td><td>Suggestions at or above this likelihood are <em>strong</em></td></tr><tr><td><code>review_threshold</code></td><td>0 to 1</td><td><code>0.60</code></td><td>Suggestions below this are <em>unlikely</em> and hidden by default</td></tr><tr><td><code>store_threshold</code></td><td>0 to 1</td><td><code>0.05</code></td><td>Candidates below this are not recorded at all</td></tr><tr><td><code>discover_min_papers</code></td><td>number</td><td><code>2</code></td><td>Affiliated papers needed before a person is proposed under Discovered people, or a grant co-investigator is promoted</td></tr></tbody></table></div>
+<p>Changing a threshold takes effect at the next <code>tessera resolve</code> or <code>sync</code>; decisions already made are not affected.</p>
+<h2 id="discovery"><code>[discovery]</code><a class="anchor" href="#discovery" aria-label="Link to this section">#</a></h2>
+<p>Concept profiles and similar people. See <a href="discovery.html">Finding experts</a>.</p>
+<div class="table-wrap"><table><thead><tr><th>Setting</th><th>Type</th><th>Default</th><th>Meaning</th></tr></thead><tbody><tr><td><code>half_life_years</code></td><td>0.5 to 50</td><td><code>5.0</code></td><td>A paper's weight in a profile halves every this many years</td></tr><tr><td><code>likely_weight</code></td><td>0 to 1</td><td><code>0.5</code></td><td>How much a strong suggestion not yet confirmed counts, relative to a confirmed paper. <code>0</code> builds profiles from confirmed papers only</td></tr><tr><td><code>similarity_floor</code></td><td>0 to below 1</td><td><code>0.10</code></td><td>Pairs of people less similar than this are not listed as similar</td></tr><tr><td><code>similar_per_person</code></td><td>1 to 200</td><td><code>25</code></td><td>At most this many similar people are kept for each person</td></tr></tbody></table></div>
+<p>Changes take effect at the next <code>tessera sync</code> or <code>tessera build discovery</code>.</p>
+    <nav class="pager" aria-label="Pages"><a class="prev" href="discovery.html"><span>Previous</span>Finding experts</a><a class="next" href="operations.html"><span>Next</span>Running Tessera</a></nav>
+    <footer class="foot">Describes Tessera 0.2.0. Apache License 2.0. Screenshots show an invented organization; every person and record in them is fictional.</footer>
+  </main>
+  <aside class="toc" aria-label="On this page"><div class="menu-title">On this page</div><ul><li class="l2"><a href="#where-the-file-is">Where the file is</a></li><li class="l2"><a href="#environment-variables">Environment variables</a></li><li class="l2"><a href="#organization">[organization]</a></li><li class="l2"><a href="#branding">[branding]</a></li><li class="l2"><a href="#data">[data]</a></li><li class="l2"><a href="#server">[server]</a></li><li class="l2"><a href="#ledger">[ledger]</a></li><li class="l2"><a href="#sources">[sources]</a></li><li class="l2"><a href="#sync">[sync]</a></li><li class="l2"><a href="#evidence">[evidence]</a></li><li class="l2"><a href="#discovery">[discovery]</a></li></ul></aside>
+</div>
+</body>
+</html>

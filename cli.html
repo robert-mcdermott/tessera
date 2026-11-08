@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Command reference · Tessera</title>
+<meta name="description" content="Every command, with its options. Run any command with --help for the same text. Global options go before the command: uv run tessera --config site.toml sync .">
+<meta property="og:title" content="Command reference">
+<meta property="og:description" content="Every command, with its options. Run any command with --help for the same text. Global options go before the command: uv run tessera --config site.toml sync .">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://robert-mcdermott.github.io/tessera/images/social-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="assets/tessera-mark.svg">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/site.css">
+<script src="assets/theme.js"></script>
+<script src="assets/site.js" defer></script>
+</head>
+<body class="page-cli">
+<a class="skip" href="#content">Skip to content</a>
+<header class="top">
+  <button class="menu-button" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu">☰</button>
+  <a class="brand" href="index.html"><img src="assets/tessera-mark.svg" alt="" width="26" height="26"><span>Tessera</span><span class="version">v0.2.0</span></a>
+  <div class="search" role="search">
+    <input id="search" type="search" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off" spellcheck="false">
+    <kbd>/</kbd>
+    <div class="results" id="results" role="listbox" hidden></div>
+  </div>
+  <div class="theme" role="group" aria-label="Theme">
+    <button type="button" data-theme-choice="light" title="Light">☀</button><button type="button" data-theme-choice="system" title="System">◐</button><button type="button" data-theme-choice="dark" title="Dark">☾</button>
+  </div>
+  <a class="github" href="https://github.com/robert-mcdermott/tessera" rel="noopener">GitHub</a>
+</header>
+<div class="layout">
+  <nav class="menu" id="menu" aria-label="Documentation"><div class="menu-group"><div class="menu-title">Start</div><ul><li><a href="index.html">Overview</a></li><li><a href="getting-started.html">Getting started</a></li><li><a href="organization-profile.html">Describing your organization</a></li></ul></div><div class="menu-group"><div class="menu-title">Use</div><ul><li><a href="curation.html">Curating</a></li><li><a href="discovery.html">Finding experts</a></li></ul></div><div class="menu-group"><div class="menu-title">Run</div><ul><li><a href="configuration.html">Configuration</a></li><li><a href="operations.html">Running Tessera</a></li></ul></div><div class="menu-group"><div class="menu-title">Reference</div><ul><li><a href="api.html">The API</a></li><li><a href="api-reference.html">API reference</a></li><li><a href="cli.html" aria-current="page">Command reference</a></li><li><a href="changelog.html">Changelog</a></li></ul></div></nav>
+  <main id="content" class="content">
+<h1 id="command-reference">Command reference</h1>
+<p>Every command, with its options. Run any command with <code>--help</code> for the same text. Global
+options go before the command: <code>uv run tessera --config site.toml sync</code>.</p>
+<p>This page is generated from the commands themselves.</p>
+<h2 id="global-options">Global options<a class="anchor" href="#global-options" aria-label="Link to this section">#</a></h2>
+<div class="code"><pre><code class="language-text">usage: tessera [-h] [--version] [-c PATH] [-v | -q] COMMAND ...</code></pre></div>
+<div class="table-wrap"><table><thead><tr><th>Argument</th><th>Meaning</th></tr></thead><tbody><tr><td><code>--version</code></td><td>show program's version number and exit</td></tr><tr><td><code>-c, --config PATH</code></td><td>configuration file (default: $TESSERA_CONFIG or ./tessera.toml)</td></tr><tr><td><code>-v, --verbose</code></td><td>more output</td></tr><tr><td><code>-q, --quiet</code></td><td>only warnings and errors</td></tr></tbody></table></div>
+<h2 id="tessera-init"><code>tessera init</code><a class="anchor" href="#tessera-init" aria-label="Link to this section">#</a></h2>
+<p>Create a configuration file and data home.</p>
+<div class="code"><pre><code class="language-text">usage: tessera init [-h] [--force]</code></pre></div>
+<div class="table-wrap"><table><thead><tr><th>Argument</th><th>Meaning</th></tr></thead><tbody><tr><td><code>--force</code></td><td>overwrite an existing config file</td></tr></tbody></table></div>
+<h2 id="tessera-demo"><code>tessera demo</code><a class="anchor" href="#tessera-demo" aria-label="Link to this section">#</a></h2>
+<p>Build a fictional organization to explore (and to take screenshots of).</p>
+<div class="code"><pre><code class="language-text">usage: tessera demo [-h] [--force] [--seed SEED] [path]</code></pre></div>
+<div class="table-wrap"><table><thead><tr><th>Argument</th><th>Meaning</th></tr></thead><tbody><tr><td><code>path</code></td><td>where to build it (default: ./demo)</td></tr><tr><td><code>--force</code></td><td>replace a demo already there</td></tr><tr><td><code>--seed SEED</code></td><td>another seed, other people</td></tr></tbody></table></div>
+<h2 id="tessera-doctor"><code>tessera doctor</code><a class="anchor" href="#tessera-doctor" aria-label="Link to this section">#</a></h2>
+<p>Check that this installation is ready.</p>
+<div class="code"><pre><code class="language-text">usage: tessera doctor [-h] [--online]</code></pre></div>
+<div class="table-wrap"><table><thead><tr><th>Argument</th><th>Meaning</th></tr></thead><tbody><tr><td><code>--online</code></td><td>also test public API reachability</td></tr></tbody></table></div>
+<h2 id="tessera-db"><code>tessera db</code><a class="anchor" href="#tessera-db" aria-label="Link to this section">#</a></h2>
+<p>Ledger database maintenance.</p>
+<div class="code"><pre><code class="language-text">usage: tessera db [-h] ACTION ...</code></pre></div>
+<h3 id="tessera-db-upgrade"><code>tessera db upgrade</code><a class="anchor" href="#tessera-db-upgrade" aria-label="Link to this section">#</a></h3>
+<p>Apply pending migrations.</p>
+<div class="code"><pre><code class="language-text">usage: tessera db upgrade [-h]</code></pre></div>
+<h3 id="tessera-db-current"><code>tessera db current</code><a class="anchor" href="#tessera-db-current" aria-label="Link to this section">#</a></h3>
+<p>Show the schema revision.</p>
+<div class="code"><pre><code class="language-text">usage: tessera db current [-h]</code></pre></div>
+<h2 id="tessera-lake"><code>tessera lake</code><a class="anchor" href="#tessera-lake" aria-label="Link to this section">#</a></h2>
+<p>Lake (Parquet) maintenance.</p>
+<div class="code"><pre><code class="language-text">usage: tessera lake [-h] ACTION ...</code></pre></div>
+<h3 id="tessera-lake-status"><code>tessera lake status</code><a class="anchor" href="#tessera-lake-status" aria-label="Link to this section">#</a></h3>
+<p>Files and rows per table.</p>
+<div class="code"><pre><code class="language-text">usage: tessera lake status [-h]</code></pre></div>
+<h3 id="tessera-lake-compact"><code>tessera lake compact</code><a class="anchor" href="#tessera-lake-compact" aria-label="Link to this section">#</a></h3>
+<p>Rewrite tables to current rows only.</p>
+<div class="code"><pre><code class="language-text">usage: tessera lake compact [-h] [datasets ...]</code></pre></div>
+<div class="table-wrap"><table><thead><tr><th>Argument</th><th>Meaning</th></tr></thead><tbody><tr><td><code>datasets</code></td><td>datasets to compact (default: all)</td></tr></tbody></table></div>
+<h3 id="tessera-lake-gc"><code>tessera lake gc</code><a class="anchor" href="#tessera-lake-gc" aria-label="Link to this section">#</a></h3>
+<p>Delete superseded files past retention.</p>
+<div class="code"><pre><code class="language-text">usage: tessera lake gc [-h] [--retention-days DAYS]</code></pre></div>
+<div class="table-wrap"><table><thead><tr><th>Argument</th><th>Meaning</th></tr></thead><tbody><tr><td><code>--retention-days DAYS</code></td><td>keep superseded files younger than this (default: 7)</td></tr></tbody></table></div>
+<h2 id="tessera-ingest"><code>tessera ingest</code><a class="anchor" href="#tessera-ingest" aria-label="Link to this section">#</a></h2>
+<p>Fetch public data into the lake.</p>
+<p>Fetch from a public source. SOURCE is pubmed, icite, reporter, ctgov, orcid, or 'all' (every enabled source in a sensible order). Without --mode, an organization sweep is run (or an ID fetch if --ids is given); iCite and ORCID read what the lake and the directory need.</p>
+<div class="code"><pre><code class="language-text">usage: tessera ingest [-h] [--mode MODE] [--ids ID [ID ...]] [--ids-file PATH] [--query QUERY]
+                      [--since YYYY-MM-DD] [--until YYYY-MM-DD] [--full] [--max-results N]
+                      source</code></pre></div>
+<div class="table-wrap"><table><thead><tr><th>Argument</th><th>Meaning</th></tr></thead><tbody><tr><td><code>source</code></td><td>pubmed \</td><td>icite \</td><td>reporter \</td><td>ctgov \</td><td>orcid \</td><td>all</td></tr><tr><td><code>--mode MODE</code></td><td>org \</td><td>query \</td><td>ids \</td><td>linked or people (pubmed) \</td><td>pi (reporter) \</td><td>refresh (icite, orcid)</td></tr><tr><td><code>--ids ID</code></td><td>IDs to fetch</td></tr><tr><td><code>--ids-file PATH</code></td><td>file with one ID per line</td></tr><tr><td><code>--query QUERY</code></td><td>source query (PubMed syntax, Essie, or RePORTER JSON)</td></tr><tr><td><code>--since YYYY-MM-DD</code></td><td>start of the window to fetch</td></tr><tr><td><code>--until YYYY-MM-DD</code></td><td>end of the window to fetch</td></tr><tr><td><code>--full</code></td><td>ignore the saved checkpoint</td></tr><tr><td><code>--max-results N</code></td><td>stop after N records (for quick checks)</td></tr></tbody></table></div>
+<h2 id="tessera-replay"><code>tessera replay</code><a class="anchor" href="#tessera-replay" aria-label="Link to this section">#</a></h2>
+<p>Rebuild lake records from a run's raw payloads.</p>
+<div class="code"><pre><code class="language-text">usage: tessera replay [-h] source run_id</code></pre></div>
+<div class="table-wrap"><table><thead><tr><th>Argument</th><th>Meaning</th></tr></thead><tbody><tr><td><code>source</code></td><td>pubmed \</td><td>icite \</td><td>reporter \</td><td>ctgov \</td><td>orcid</td></tr><tr><td><code>run_id</code></td><td>the run to replay (see <code>tessera runs</code>)</td></tr></tbody></table></div>
+<h2 id="tessera-resolve"><code>tessera resolve</code><a class="anchor" href="#tessera-resolve" aria-label="Link to this section">#</a></h2>
+<p>Update people, links, and authorship suggestions from the lake.</p>
+<div class="code"><pre><code class="language-text">usage: tessera resolve [-h] [--people-only]</code></pre></div>
+<div class="table-wrap"><table><thead><tr><th>Argument</th><th>Meaning</th></tr></thead><tbody><tr><td><code>--people-only</code></td><td>stop after people</td></tr></tbody></table></div>
+<h2 id="tessera-build"><code>tessera build</code><a class="anchor" href="#tessera-build" aria-label="Link to this section">#</a></h2>
+<p>Rebuild derived artifacts.</p>
+<div class="code"><pre><code class="language-text">usage: tessera build [-h] WHAT ...</code></pre></div>
+<h3 id="tessera-build-search"><code>tessera build search</code><a class="anchor" href="#tessera-build-search" aria-label="Link to this section">#</a></h3>
+<p>The search and serving index.</p>
+<div class="code"><pre><code class="language-text">usage: tessera build search [-h]</code></pre></div>
+<h3 id="tessera-build-discovery"><code>tessera build discovery</code><a class="anchor" href="#tessera-build-discovery" aria-label="Link to this section">#</a></h3>
+<p>Concept profiles, similar people, and the collaboration graph.</p>
+<div class="code"><pre><code class="language-text">usage: tessera build discovery [-h]</code></pre></div>
+<h2 id="tessera-sync"><code>tessera sync</code><a class="anchor" href="#tessera-sync" aria-label="Link to this section">#</a></h2>
+<p>Fetch every source and resolve, in the right order (the usual command).</p>
+<div class="code"><pre><code class="language-text">usage: tessera sync [-h] [--no-fetch] [--full]</code></pre></div>
+<div class="table-wrap"><table><thead><tr><th>Argument</th><th>Meaning</th></tr></thead><tbody><tr><td><code>--no-fetch</code></td><td>only resolve the lake</td></tr><tr><td><code>--full</code></td><td>ignore saved checkpoints</td></tr></tbody></table></div>
+<h2 id="tessera-people"><code>tessera people</code><a class="anchor" href="#tessera-people" aria-label="Link to this section">#</a></h2>
+<p>The people directory.</p>
+<div class="code"><pre><code class="language-text">usage: tessera people [-h] ACTION ...</code></pre></div>
+<h3 id="tessera-people-import"><code>tessera people import</code><a class="anchor" href="#tessera-people-import" aria-label="Link to this section">#</a></h3>
+<p>Import a roster CSV file.</p>
+<div class="code"><pre><code class="language-text">usage: tessera people import [-h] path</code></pre></div>
+<div class="table-wrap"><table><thead><tr><th>Argument</th><th>Meaning</th></tr></thead><tbody><tr><td><code>path</code></td><td>CSV file with a header row</td></tr></tbody></table></div>
+<h3 id="tessera-people-list"><code>tessera people list</code><a class="anchor" href="#tessera-people-list" aria-label="Link to this section">#</a></h3>
+<p>List people.</p>
+<div class="code"><pre><code class="language-text">usage: tessera people list [-h] [--status STATUS] [--limit LIMIT]</code></pre></div>
+<div class="table-wrap"><table><thead><tr><th>Argument</th><th>Meaning</th></tr></thead><tbody><tr><td><code>--status STATUS</code></td><td>active \</td><td>former \</td><td>candidate \</td><td>all</td></tr><tr><td><code>--limit LIMIT</code></td><td>at most this many (default: 50)</td></tr></tbody></table></div>
+<h2 id="tessera-users"><code>tessera users</code><a class="anchor" href="#tessera-users" aria-label="Link to this section">#</a></h2>
+<p>Local accounts and their roles.</p>
+<div class="code"><pre><code class="language-text">usage: tessera users [-h] ACTION ...</code></pre></div>
+<h3 id="tessera-users-add"><code>tessera users add</code><a class="anchor" href="#tessera-users-add" aria-label="Link to this section">#</a></h3>
+<p>Create an account (prompts for a password).</p>
+<div class="code"><pre><code class="language-text">usage: tessera users add [-h] [--name NAME] --role ROLE [--email EMAIL] [--person ID]
+                         [--password-stdin]
+                         username</code></pre></div>
+<div class="table-wrap"><table><thead><tr><th>Argument</th><th>Meaning</th></tr></thead><tbody><tr><td><code>username</code></td><td>lowercase letters, digits, dots, dashes, underscores</td></tr><tr><td><code>--name NAME</code></td><td>the name shown and recorded on decisions</td></tr><tr><td><code>--role ROLE</code></td><td>admin, curator, researcher, or viewer; a curator for some people only is curator=unit:&lt;name or code&gt; or curator=person:&lt;ID&gt; (repeatable)</td></tr><tr><td><code>--email EMAIL</code></td><td>contact address</td></tr><tr><td><code>--person ID</code></td><td>the person a researcher account belongs to</td></tr><tr><td><code>--password-stdin</code></td><td>read the password from standard input</td></tr></tbody></table></div>
+<h3 id="tessera-users-list"><code>tessera users list</code><a class="anchor" href="#tessera-users-list" aria-label="Link to this section">#</a></h3>
+<p>List accounts and roles.</p>
+<div class="code"><pre><code class="language-text">usage: tessera users list [-h]</code></pre></div>
+<h3 id="tessera-users-disable"><code>tessera users disable</code><a class="anchor" href="#tessera-users-disable" aria-label="Link to this section">#</a></h3>
+<p>Sign an account out and block it.</p>
+<div class="code"><pre><code class="language-text">usage: tessera users disable [-h] username</code></pre></div>
+<div class="table-wrap"><table><thead><tr><th>Argument</th><th>Meaning</th></tr></thead><tbody><tr><td><code>username</code></td><td></td></tr></tbody></table></div>
+<h3 id="tessera-users-enable"><code>tessera users enable</code><a class="anchor" href="#tessera-users-enable" aria-label="Link to this section">#</a></h3>
+<p>Unblock.</p>
+<div class="code"><pre><code class="language-text">usage: tessera users enable [-h] username</code></pre></div>
+<div class="table-wrap"><table><thead><tr><th>Argument</th><th>Meaning</th></tr></thead><tbody><tr><td><code>username</code></td><td></td></tr></tbody></table></div>
+<h3 id="tessera-users-reset-password"><code>tessera users reset-password</code><a class="anchor" href="#tessera-users-reset-password" aria-label="Link to this section">#</a></h3>
+<p>Set a new password (signs the account out everywhere).</p>
+<div class="code"><pre><code class="language-text">usage: tessera users reset-password [-h] [--password-stdin] username</code></pre></div>
+<div class="table-wrap"><table><thead><tr><th>Argument</th><th>Meaning</th></tr></thead><tbody><tr><td><code>username</code></td><td></td></tr><tr><td><code>--password-stdin</code></td><td>read the password from standard input</td></tr></tbody></table></div>
+<h3 id="tessera-users-roles"><code>tessera users roles</code><a class="anchor" href="#tessera-users-roles" aria-label="Link to this section">#</a></h3>
+<p>Replace an account's roles.</p>
+<div class="code"><pre><code class="language-text">usage: tessera users roles [-h] --role ROLE username</code></pre></div>
+<div class="table-wrap"><table><thead><tr><th>Argument</th><th>Meaning</th></tr></thead><tbody><tr><td><code>username</code></td><td></td></tr><tr><td><code>--role ROLE</code></td><td>admin, curator, researcher, or viewer; a curator for some people only is curator=unit:&lt;name or code&gt; or curator=person:&lt;ID&gt; (repeatable)</td></tr></tbody></table></div>
+<h2 id="tessera-evidence"><code>tessera evidence</code><a class="anchor" href="#tessera-evidence" aria-label="Link to this section">#</a></h2>
+<p>The authorship model: learned weights and auto-accept.</p>
+<div class="code"><pre><code class="language-text">usage: tessera evidence [-h] ACTION ...</code></pre></div>
+<h3 id="tessera-evidence-status"><code>tessera evidence status</code><a class="anchor" href="#tessera-evidence-status" aria-label="Link to this section">#</a></h3>
+<p>The active model, the latest evaluation, and auto-accept.</p>
+<div class="code"><pre><code class="language-text">usage: tessera evidence status [-h]</code></pre></div>
+<h3 id="tessera-evidence-evaluate"><code>tessera evidence evaluate</code><a class="anchor" href="#tessera-evidence-evaluate" aria-label="Link to this section">#</a></h3>
+<p>Fit learned weights to decisions and compare on held-out people.</p>
+<div class="code"><pre><code class="language-text">usage: tessera evidence evaluate [-h]</code></pre></div>
+<h3 id="tessera-evidence-release"><code>tessera evidence release</code><a class="anchor" href="#tessera-evidence-release" aria-label="Link to this section">#</a></h3>
+<p>Make the evaluated learned model active (if it was better).</p>
+<div class="code"><pre><code class="language-text">usage: tessera evidence release [-h]</code></pre></div>
+<h3 id="tessera-evidence-revert"><code>tessera evidence revert</code><a class="anchor" href="#tessera-evidence-revert" aria-label="Link to this section">#</a></h3>
+<p>Go back to the hand-set weights.</p>
+<div class="code"><pre><code class="language-text">usage: tessera evidence revert [-h]</code></pre></div>
+<h3 id="tessera-evidence-auto-accept"><code>tessera evidence auto-accept</code><a class="anchor" href="#tessera-evidence-auto-accept" aria-label="Link to this section">#</a></h3>
+<p>Accept strong suggestions automatically, where precision allows.</p>
+<div class="code"><pre><code class="language-text">usage: tessera evidence auto-accept [-h] (--threshold THRESHOLD | --off | --undo BATCH)</code></pre></div>
+<div class="table-wrap"><table><thead><tr><th>Argument</th><th>Meaning</th></tr></thead><tbody><tr><td><code>--threshold THRESHOLD</code></td><td>switch on at this score (one the evaluation measured)</td></tr><tr><td><code>--off</code></td><td>switch off</td></tr><tr><td><code>--undo BATCH</code></td><td>undo one automatic batch</td></tr></tbody></table></div>
+<h2 id="tessera-eval"><code>tessera eval</code><a class="anchor" href="#tessera-eval" aria-label="Link to this section">#</a></h2>
+<p>Evaluate matching quality.</p>
+<div class="code"><pre><code class="language-text">usage: tessera eval [-h] WHAT ...</code></pre></div>
+<h3 id="tessera-eval-authorship"><code>tessera eval authorship</code><a class="anchor" href="#tessera-eval-authorship" aria-label="Link to this section">#</a></h3>
+<p>Precision, recall, and calibration of authorship suggestions.</p>
+<div class="code"><pre><code class="language-text">usage: tessera eval authorship [-h] [--gold CSV]</code></pre></div>
+<div class="table-wrap"><table><thead><tr><th>Argument</th><th>Meaning</th></tr></thead><tbody><tr><td><code>--gold CSV</code></td><td>adjudicated pairs: person,pmid,label</td></tr></tbody></table></div>
+<h2 id="tessera-runs"><code>tessera runs</code><a class="anchor" href="#tessera-runs" aria-label="Link to this section">#</a></h2>
+<p>Recent ingest runs.</p>
+<div class="code"><pre><code class="language-text">usage: tessera runs [-h] [--source SOURCE] [--limit LIMIT]</code></pre></div>
+<div class="table-wrap"><table><thead><tr><th>Argument</th><th>Meaning</th></tr></thead><tbody><tr><td><code>--source SOURCE</code></td><td>only this source</td></tr><tr><td><code>--limit LIMIT</code></td><td>at most this many (default: 20)</td></tr></tbody></table></div>
+<h2 id="tessera-serve"><code>tessera serve</code><a class="anchor" href="#tessera-serve" aria-label="Link to this section">#</a></h2>
+<p>Run the web app and API.</p>
+<div class="code"><pre><code class="language-text">usage: tessera serve [-h] [--host HOST] [--port PORT] [--reload]</code></pre></div>
+<div class="table-wrap"><table><thead><tr><th>Argument</th><th>Meaning</th></tr></thead><tbody><tr><td><code>--host HOST</code></td><td>override server.host</td></tr><tr><td><code>--port PORT</code></td><td>override server.port</td></tr><tr><td><code>--reload</code></td><td>restart on code changes (development)</td></tr></tbody></table></div>
+    <nav class="pager" aria-label="Pages"><a class="prev" href="api-reference.html"><span>Previous</span>API reference</a><a class="next" href="changelog.html"><span>Next</span>Changelog</a></nav>
+    <footer class="foot">Describes Tessera 0.2.0. Apache License 2.0. Screenshots show an invented organization; every person and record in them is fictional.</footer>
+  </main>
+  <aside class="toc" aria-label="On this page"><div class="menu-title">On this page</div><ul><li class="l2"><a href="#global-options">Global options</a></li><li class="l2"><a href="#tessera-init">tessera init</a></li><li class="l2"><a href="#tessera-demo">tessera demo</a></li><li class="l2"><a href="#tessera-doctor">tessera doctor</a></li><li class="l2"><a href="#tessera-db">tessera db</a></li><li class="l3"><a href="#tessera-db-upgrade">tessera db upgrade</a></li><li class="l3"><a href="#tessera-db-current">tessera db current</a></li><li class="l2"><a href="#tessera-lake">tessera lake</a></li><li class="l3"><a href="#tessera-lake-status">tessera lake status</a></li><li class="l3"><a href="#tessera-lake-compact">tessera lake compact</a></li><li class="l3"><a href="#tessera-lake-gc">tessera lake gc</a></li><li class="l2"><a href="#tessera-ingest">tessera ingest</a></li><li class="l2"><a href="#tessera-replay">tessera replay</a></li><li class="l2"><a href="#tessera-resolve">tessera resolve</a></li><li class="l2"><a href="#tessera-build">tessera build</a></li><li class="l3"><a href="#tessera-build-search">tessera build search</a></li><li class="l3"><a href="#tessera-build-discovery">tessera build discovery</a></li><li class="l2"><a href="#tessera-sync">tessera sync</a></li><li class="l2"><a href="#tessera-people">tessera people</a></li><li class="l3"><a href="#tessera-people-import">tessera people import</a></li><li class="l3"><a href="#tessera-people-list">tessera people list</a></li><li class="l2"><a href="#tessera-users">tessera users</a></li><li class="l3"><a href="#tessera-users-add">tessera users add</a></li><li class="l3"><a href="#tessera-users-list">tessera users list</a></li><li class="l3"><a href="#tessera-users-disable">tessera users disable</a></li><li class="l3"><a href="#tessera-users-enable">tessera users enable</a></li><li class="l3"><a href="#tessera-users-reset-password">tessera users reset-password</a></li><li class="l3"><a href="#tessera-users-roles">tessera users roles</a></li><li class="l2"><a href="#tessera-evidence">tessera evidence</a></li><li class="l3"><a href="#tessera-evidence-status">tessera evidence status</a></li><li class="l3"><a href="#tessera-evidence-evaluate">tessera evidence evaluate</a></li><li class="l3"><a href="#tessera-evidence-release">tessera evidence release</a></li><li class="l3"><a href="#tessera-evidence-revert">tessera evidence revert</a></li><li class="l3"><a href="#tessera-evidence-auto-accept">tessera evidence auto-accept</a></li><li class="l2"><a href="#tessera-eval">tessera eval</a></li><li class="l3"><a href="#tessera-eval-authorship">tessera eval authorship</a></li><li class="l2"><a href="#tessera-runs">tessera runs</a></li><li class="l2"><a href="#tessera-serve">tessera serve</a></li></ul></aside>
+</div>
+</body>
+</html>

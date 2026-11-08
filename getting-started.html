@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Getting started · Tessera</title>
+<meta name="description" content="This guide takes you from a fresh checkout to a running Tessera with your organization's public research footprint: people, publications, grants, and clinical studies, connected with evidence. It take">
+<meta property="og:title" content="Getting started">
+<meta property="og:description" content="This guide takes you from a fresh checkout to a running Tessera with your organization's public research footprint: people, publications, grants, and clinical studies, connected with evidence. It take">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://robert-mcdermott.github.io/tessera/images/social-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="assets/tessera-mark.svg">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/site.css">
+<script src="assets/theme.js"></script>
+<script src="assets/site.js" defer></script>
+</head>
+<body class="page-getting-started">
+<a class="skip" href="#content">Skip to content</a>
+<header class="top">
+  <button class="menu-button" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu">☰</button>
+  <a class="brand" href="index.html"><img src="assets/tessera-mark.svg" alt="" width="26" height="26"><span>Tessera</span><span class="version">v0.2.0</span></a>
+  <div class="search" role="search">
+    <input id="search" type="search" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off" spellcheck="false">
+    <kbd>/</kbd>
+    <div class="results" id="results" role="listbox" hidden></div>
+  </div>
+  <div class="theme" role="group" aria-label="Theme">
+    <button type="button" data-theme-choice="light" title="Light">☀</button><button type="button" data-theme-choice="system" title="System">◐</button><button type="button" data-theme-choice="dark" title="Dark">☾</button>
+  </div>
+  <a class="github" href="https://github.com/robert-mcdermott/tessera" rel="noopener">GitHub</a>
+</header>
+<div class="layout">
+  <nav class="menu" id="menu" aria-label="Documentation"><div class="menu-group"><div class="menu-title">Start</div><ul><li><a href="index.html">Overview</a></li><li><a href="getting-started.html" aria-current="page">Getting started</a></li><li><a href="organization-profile.html">Describing your organization</a></li></ul></div><div class="menu-group"><div class="menu-title">Use</div><ul><li><a href="curation.html">Curating</a></li><li><a href="discovery.html">Finding experts</a></li></ul></div><div class="menu-group"><div class="menu-title">Run</div><ul><li><a href="configuration.html">Configuration</a></li><li><a href="operations.html">Running Tessera</a></li></ul></div><div class="menu-group"><div class="menu-title">Reference</div><ul><li><a href="api.html">The API</a></li><li><a href="api-reference.html">API reference</a></li><li><a href="cli.html">Command reference</a></li><li><a href="changelog.html">Changelog</a></li></ul></div></nav>
+  <main id="content" class="content">
+<h1 id="getting-started">Getting started</h1>
+<p>This guide takes you from a fresh checkout to a running Tessera with your organization's public research footprint: people, publications, grants, and clinical studies, connected with evidence. It takes about 15 minutes of your time; the first sync then runs on its own for a few minutes to an hour, depending on the size of the organization.</p>
+<h2 id="what-you-need">What you need<a class="anchor" href="#what-you-need" aria-label="Link to this section">#</a></h2>
+<ul><li>A Mac, Linux, or Windows machine (a laptop is fine) with internet access to the public sources: NCBI (PubMed and iCite), NIH RePORTER, ClinicalTrials.gov, and ORCID.</li><li><a href="https://docs.astral.sh/uv/" rel="noopener">uv</a>, which installs the right Python (3.12 or newer) and Tessera's dependencies for you.</li><li>Disk space: about 100 MB for a mid-sized research institute (a few thousand papers over five years), and a few gigabytes for a large academic medical center. Everything lives in one folder, the <em>data home</em>.</li></ul>
+<p>Tessera needs no institutional systems, accounts, or credentials. An NCBI API key is optional and makes PubMed requests faster (see <a href="configuration.html#sources">Configuration</a>).</p>
+<h2 id="install">Install<a class="anchor" href="#install" aria-label="Link to this section">#</a></h2>
+<div class="code"><pre><code class="language-bash">git clone https://github.com/robert-mcdermott/tessera.git
+cd tessera
+uv sync</code></pre></div>
+<p>Then create a configuration file and a data home:</p>
+<div class="code"><pre><code class="language-bash">uv run tessera init</code></pre></div>
+<p>This writes <code>tessera.toml</code> in the current folder and creates <code>./var</code> for data. Run <code>uv run tessera doctor</code> at any time to check the installation.</p>
+<h2 id="try-the-demo-first-optional">Try the demo first (optional)<a class="anchor" href="#try-the-demo-first-optional" aria-label="Link to this section">#</a></h2>
+<p>To see Tessera working before you describe your own organization, build the demo, an invented research institute with about 100 people, their publications, grants, and studies, and a curator's decisions:</p>
+<div class="code"><pre><code class="language-bash">uv run tessera demo                       # builds ./demo in a few seconds
+uv run tessera --config demo/tessera.toml serve</code></pre></div>
+<p>Everyone and everything in it is invented. Delete the <code>demo</code> folder when you are done; it is separate from your own installation.</p>
+<h2 id="describe-your-organization">Describe your organization<a class="anchor" href="#describe-your-organization" aria-label="Link to this section">#</a></h2>
+<p>Tessera finds your organization in public records by name, so the <code>[organization]</code> section of <code>tessera.toml</code> matters more than anything else. Open the file and fill in:</p>
+<ul><li><code>name</code>: the organization's full name, such as <code>&quot;Example University&quot;</code>.</li><li><code>aliases</code>: every way the name is written in publication affiliations and trial records.</li><li><code>affiliation_patterns</code>: wildcard patterns for affiliation text, such as <code>&quot;example univ*&quot;</code>.</li><li><code>reporter_org_names</code>: the organization's name exactly as NIH RePORTER writes it on grants, usually in capitals.</li><li><code>ctgov_org_names</code>: sponsor and site names as ClinicalTrials.gov writes them.</li><li><code>email_domains</code>: domains such as <code>example.edu</code>, which count as strong evidence when they appear in an author's affiliation.</li><li><code>exclusions</code>: different organizations whose names contain one of your aliases.</li></ul>
+<p><a href="organization-profile.html">Describing your organization</a> explains each setting, how to find the right values, and how to check the results. Also set <code>[sources] contact_email</code> to an address the public APIs can reach; their usage policies ask for one.</p>
+<h2 id="run-the-first-sync">Run the first sync<a class="anchor" href="#run-the-first-sync" aria-label="Link to this section">#</a></h2>
+<div class="code"><pre><code class="language-bash">uv run tessera sync</code></pre></div>
+<p><code>sync</code> does everything in the right order:</p>
+<ol><li>Fetches the organization's grants from NIH RePORTER, its studies from ClinicalTrials.gov, affiliated papers from PubMed, and papers linked to those grants.</li><li>Builds the people directory: grant investigators, plus anyone on a roster you imported.</li><li>Searches PubMed for each person by name, then fetches citation metrics from iCite and the public ORCID records of people whose ORCID iD it knows.</li><li>Scores every candidate paper for every person and records suggestions with their evidence, along with links between papers, grants, and studies.</li><li>Builds the search index the web app reads, and the concept profiles behind <strong>Find experts</strong> and similar people.</li></ol>
+<p>Each step is recorded as a run. <code>uv run tessera runs</code> shows what was fetched and whether each run completed. Later syncs are incremental and much faster: run <code>sync</code> daily or weekly (see <a href="operations.html#keeping-data-fresh">Running Tessera</a>).</p>
+<p>By default the first sync looks back five years (<code>[sync] window_years</code>).</p>
+<h2 id="open-the-web-app">Open the web app<a class="anchor" href="#open-the-web-app" aria-label="Link to this section">#</a></h2>
+<div class="code"><pre><code class="language-bash">uv run tessera serve</code></pre></div>
+<p>Open <a href="http://127.0.0.1:8000" rel="noopener">http://127.0.0.1:8000</a>. You will find:</p>
+<ul><li><strong>Home:</strong> counts, recent publications, publications by year, the largest active grants, and how fresh each source is.</li><li><strong>People, Publications, Grants, Studies:</strong> browse with search and filters. Every link between a person and a record carries a status mark (<em>Confirmed</em> or <em>Suggested</em>, with how likely it is); select it to see the evidence.</li><li><strong>Find experts:</strong> who works on a topic, described in your own words, with the concepts behind every answer. See <a href="discovery.html">Finding experts</a>.</li><li><strong>Connections:</strong> who works with whom, a person's topics and who shares them, how research areas connect, missed connections, and units compared.</li><li><strong>Review queue:</strong> suggested authorships in priority order, ready to accept or reject from the keyboard. See <a href="curation.html">Curating</a>.</li><li><strong>Discovered people</strong> and <strong>Possible duplicates:</strong> affiliated authors who are not in the directory yet, and records that look like one person, for you to decide.</li><li><strong>Sources:</strong> data health, recent runs, and the search index.</li><li><strong>API reference</strong> at <code>/api/docs</code>, for building on Tessera. See <a href="api.html">The API</a>.</li></ul>
+<figure><img src="images/home-light.webp" alt="Tessera's home page: counts of people, publications, active grants, and studies, recent publications, and the largest active grants" loading="lazy" class="only-light"><img src="images/home-dark.webp" alt="Tessera's home page: counts of people, publications, active grants, and studies, recent publications, and the largest active grants" loading="lazy" class="only-dark"><figcaption>The home page (the demo organization)</figcaption></figure>
+<p>Out of the box Tessera has no sign-in and answers on this machine only (<code>127.0.0.1</code>); decisions are recorded under the <code>[server] operator</code> name. To let several people sign in with their own roles, see <a href="operations.html#accounts-and-sign-in">Accounts and sign-in</a>.</p>
+<h2 id="optional-import-a-roster">Optional: import a roster<a class="anchor" href="#optional-import-a-roster" aria-label="Link to this section">#</a></h2>
+<p>If you have a list of people (from a department page, a grant office, or a spreadsheet), import it to add people grant records would miss and to attach ORCID iDs, emails, and units:</p>
+<div class="code"><pre><code class="language-bash">uv run tessera people import roster.csv</code></pre></div>
+<p>The CSV needs a header row. Recognized columns are <code>name</code> (or <code>family</code> and <code>given</code>), <code>email</code>, <code>orcid</code>, <code>local_id</code>, <code>unit</code>, <code>unit_code</code>, <code>title</code>, <code>start</code>, and <code>end</code>, with common spellings such as <code>last_name</code>, <code>first_name</code>, <code>department</code>, or <code>start_date</code> also understood; other columns are ignored. Dates may be a year (<code>2015</code>), a month (<code>2015-07</code>), or a day (<code>2015-07-01</code>).</p>
+<ul><li>List a person once per unit for concurrent memberships; give their rows the same email, ORCID iD, or local ID (without any identifier, rows with the same full name count as one person).</li><li>Someone whose memberships have all ended becomes a former member; everyone else on the roster is active. Importing an updated roster updates titles and dates.</li><li>People are matched to existing records by ORCID, email, or local ID before new ones are created. A roster person who is also in the grant records under no shared identifier gets a second record; Tessera proposes the pair under <strong>Possible duplicates</strong>, where you merge them.</li></ul>
+<p>Run <code>sync</code> again afterward so the new people's papers are found.</p>
+<h2 id="next-steps">Next steps<a class="anchor" href="#next-steps" aria-label="Link to this section">#</a></h2>
+<ul><li><a href="organization-profile.html">Describing your organization</a>: tune what counts as &quot;us&quot;.</li><li><a href="curation.html">Curating</a>: clear the review queue and promote discovered people.</li><li><a href="discovery.html">Finding experts</a>: expert search, similar people, and the graphs.</li><li><a href="configuration.html">Configuration</a>: every setting, including palettes and your logo.</li><li><a href="operations.html">Running Tessera</a>: scheduling syncs, backups, upgrades, and PostgreSQL.</li></ul>
+    <nav class="pager" aria-label="Pages"><a class="prev" href="index.html"><span>Previous</span>Overview</a><a class="next" href="organization-profile.html"><span>Next</span>Describing your organization</a></nav>
+    <footer class="foot">Describes Tessera 0.2.0. Apache License 2.0. Screenshots show an invented organization; every person and record in them is fictional.</footer>
+  </main>
+  <aside class="toc" aria-label="On this page"><div class="menu-title">On this page</div><ul><li class="l2"><a href="#what-you-need">What you need</a></li><li class="l2"><a href="#install">Install</a></li><li class="l2"><a href="#try-the-demo-first-optional">Try the demo first (optional)</a></li><li class="l2"><a href="#describe-your-organization">Describe your organization</a></li><li class="l2"><a href="#run-the-first-sync">Run the first sync</a></li><li class="l2"><a href="#open-the-web-app">Open the web app</a></li><li class="l2"><a href="#optional-import-a-roster">Optional: import a roster</a></li><li class="l2"><a href="#next-steps">Next steps</a></li></ul></aside>
+</div>
+</body>
+</html>

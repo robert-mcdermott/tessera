@@ -1,0 +1,156 @@
+/* Tessera design tokens. Every visual value lives here; components never hard-code colors.
+
+   Colors are light-dark() pairs: the browser picks one by color-scheme, which follows the
+   system unless the viewer chose light or dark (data-theme on <html>). A palette
+   (data-palette on <html>, see palettes.css) overrides the color tokens; this file is the
+   default palette, "Tessera". An accent from configuration (/theme.css) sets --brand-accent
+   and wins over the palette's accent. */
+
+:root { color-scheme: light dark; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+
+:root {
+  /* Surfaces: a cool neutral by day, graphite by night */
+  --bg: light-dark(oklch(98.4% 0.003 265), oklch(15.6% 0.004 260));
+  --surface-1: light-dark(oklch(100% 0 0), oklch(18.6% 0.005 260));
+  --surface-2: light-dark(oklch(97.4% 0.004 265), oklch(21.8% 0.006 260));
+  --surface-3: light-dark(oklch(94.8% 0.006 265), oklch(25.6% 0.007 260));
+  --overlay: light-dark(oklch(20% 0.02 265 / 0.38), oklch(4% 0 0 / 0.62));
+  --border: light-dark(oklch(91.6% 0.007 265), oklch(27.8% 0.007 260));
+  --border-strong: light-dark(oklch(85.5% 0.01 265), oklch(35.5% 0.009 260));
+
+  /* Text */
+  --text: light-dark(oklch(21% 0.02 265), oklch(95.5% 0.003 260));
+  --text-muted: light-dark(oklch(45% 0.02 265), oklch(77% 0.006 260));
+  --text-subtle: light-dark(oklch(53% 0.018 265), oklch(67% 0.008 260));
+  --text-inverse: light-dark(oklch(98% 0.003 265), oklch(18% 0.01 260));
+
+  /* Accent: the palette's, unless configuration sets one */
+  --palette-accent: light-dark(#4f46e5, oklch(74% 0.12 280));
+  --palette-on-accent: light-dark(oklch(99% 0 0), oklch(17% 0.03 277));
+  --accent: var(--brand-accent, var(--palette-accent));
+  --on-accent: var(--brand-on-accent, var(--palette-on-accent));
+  /* accent text on accent-tinted backgrounds: a step darker by day, lighter at night */
+  --accent-strong: light-dark(color-mix(in oklch, var(--accent) 82%, black), color-mix(in oklch, var(--accent) 72%, white));
+  --accent-hover: light-dark(color-mix(in oklch, var(--accent) 86%, black), color-mix(in oklch, var(--accent) 82%, white));
+  --accent-soft: light-dark(color-mix(in oklch, var(--accent) 11%, transparent), color-mix(in oklch, var(--accent) 22%, transparent));
+  --accent-softer: light-dark(color-mix(in oklch, var(--accent) 6%, transparent), color-mix(in oklch, var(--accent) 12%, transparent));
+  --focus: light-dark(color-mix(in oklch, var(--accent) 70%, white), color-mix(in oklch, var(--accent) 80%, white));
+
+  /* Entities: strong (text and icons) and soft (backgrounds). Record hues stay clear of the
+     status hues below (green, amber, red), so a record's color never reads as a status. */
+  --ent-person: light-dark(oklch(50% 0.19 277), oklch(78% 0.1 277));
+  --ent-person-soft: light-dark(oklch(95.5% 0.03 277), oklch(29% 0.05 277));
+  --ent-pub: light-dark(oklch(48% 0.085 192), oklch(80% 0.09 192));
+  --ent-pub-soft: light-dark(oklch(95.5% 0.025 192), oklch(28% 0.04 192));
+  --ent-grant: light-dark(oklch(52% 0.11 92), oklch(86% 0.12 94));
+  --ent-grant-soft: light-dark(oklch(96% 0.04 92), oklch(29% 0.045 94));
+  --ent-grant-fill: light-dark(oklch(66% 0.14 82), oklch(80% 0.13 88));
+  --ent-study: light-dark(oklch(50% 0.18 350), oklch(78% 0.13 350));
+  --ent-study-soft: light-dark(oklch(95.6% 0.025 350), oklch(29% 0.05 350));
+  --ent-concept: light-dark(oklch(49% 0.19 302), oklch(79% 0.12 302));
+  --ent-concept-soft: light-dark(oklch(95.6% 0.028 302), oklch(29% 0.05 302));
+  --ent-unit: light-dark(oklch(46% 0.03 265), oklch(80% 0.01 260));
+  --ent-unit-soft: light-dark(oklch(95% 0.008 265), oklch(27% 0.006 260));
+  /* Categorical series for charts and graphs: distinct from one another in both modes, and
+     at least 3:1 against cards (a test checks every palette). */
+  --series-0: light-dark(oklch(50% 0.17 277), oklch(74% 0.12 277));
+  --series-1: light-dark(oklch(52% 0.1 200), oklch(78% 0.1 200));
+  --series-2: light-dark(oklch(62% 0.16 50), oklch(78% 0.14 50));
+  --series-3: light-dark(oklch(52% 0.19 350), oklch(72% 0.16 350));
+  --series-4: light-dark(oklch(54% 0.14 140), oklch(82% 0.15 140));
+  --series-5: light-dark(oklch(58% 0.12 95), oklch(88% 0.13 100));
+
+  /* Status */
+  --ok: light-dark(oklch(48% 0.12 155), oklch(78% 0.13 155));
+  --ok-soft: light-dark(oklch(95.5% 0.04 155), oklch(28% 0.05 155));
+  --warn: light-dark(oklch(53% 0.125 62), oklch(80% 0.13 62));
+  --warn-soft: light-dark(oklch(96% 0.045 70), oklch(29% 0.05 62));
+  --danger: light-dark(oklch(52% 0.19 25), oklch(76% 0.13 25));
+  --danger-soft: light-dark(oklch(95.8% 0.03 25), oklch(29% 0.06 25));
+  --info: light-dark(oklch(50% 0.13 245), oklch(78% 0.1 245));
+  --info-soft: light-dark(oklch(95.6% 0.03 245), oklch(28% 0.05 245));
+  --accepted: var(--ok);
+  --suggested: var(--warn);
+  --rejected: var(--danger);
+
+  /* Avatar tiles: six mid-tone hues that carry white initials */
+  --hue-0: oklch(52% 0.17 277);
+  --hue-1: oklch(50% 0.09 192);
+  --hue-2: oklch(52% 0.13 55);
+  --hue-3: oklch(52% 0.17 15);
+  --hue-4: oklch(50% 0.17 302);
+  --hue-5: oklch(48% 0.11 155);
+
+  /* Signature: a palette's stripe along the top of the window (none by default) and the
+     art in the home page's hero (the mosaic by default). Palettes set the bands. */
+  --band-1: var(--ent-person);
+  --band-2: var(--ent-pub);
+  --band-3: var(--ent-grant);
+  --band-4: var(--ent-study);
+  --band-5: var(--ent-concept);
+  --signature: none;
+  --signature-height: 0px;
+
+  /* Type */
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --title-weight: 680;
+  --title-tracking: -0.02em;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 18px;
+  --fs-2xl: 20px;
+  --fs-3xl: 24px;
+  --fs-4xl: 30px;
+  --fs-5xl: 36px;
+
+  /* Space (4 px scale) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 48px;
+  --space-10: 64px;
+
+  /* Shape */
+  --radius-xs: 4px;
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --radius-l: 14px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+
+  /* Elevation */
+  --shadow-1: 0 1px 2px light-dark(oklch(20% 0.02 265 / 0.05), oklch(0% 0 0 / 0.3));
+  --shadow-2: 0 1px 2px light-dark(oklch(20% 0.02 265 / 0.05), oklch(0% 0 0 / 0.3)),
+    0 6px 18px light-dark(oklch(20% 0.02 265 / 0.07), oklch(0% 0 0 / 0.34));
+  --shadow-3: 0 2px 6px light-dark(oklch(20% 0.02 265 / 0.08), oklch(0% 0 0 / 0.4)),
+    0 24px 56px light-dark(oklch(20% 0.02 265 / 0.18), oklch(0% 0 0 / 0.55));
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --dur-3: 320ms;
+
+  /* Layout */
+  --sidebar-width: 244px;
+  --topbar-height: 60px;
+  --content-max: 1240px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-1: 0ms;
+    --dur-2: 0ms;
+    --dur-3: 0ms;
+  }
+}

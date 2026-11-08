@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Running Tessera · Tessera</title>
+<meta name="description" content="Tessera is one Python application and one folder of data. This guide covers what is in that folder, how to keep data fresh, backups, upgrades, PostgreSQL, and what to check when something goes wrong.">
+<meta property="og:title" content="Running Tessera">
+<meta property="og:description" content="Tessera is one Python application and one folder of data. This guide covers what is in that folder, how to keep data fresh, backups, upgrades, PostgreSQL, and what to check when something goes wrong.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://robert-mcdermott.github.io/tessera/images/social-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="assets/tessera-mark.svg">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/site.css">
+<script src="assets/theme.js"></script>
+<script src="assets/site.js" defer></script>
+</head>
+<body class="page-operations">
+<a class="skip" href="#content">Skip to content</a>
+<header class="top">
+  <button class="menu-button" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu">☰</button>
+  <a class="brand" href="index.html"><img src="assets/tessera-mark.svg" alt="" width="26" height="26"><span>Tessera</span><span class="version">v0.2.0</span></a>
+  <div class="search" role="search">
+    <input id="search" type="search" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off" spellcheck="false">
+    <kbd>/</kbd>
+    <div class="results" id="results" role="listbox" hidden></div>
+  </div>
+  <div class="theme" role="group" aria-label="Theme">
+    <button type="button" data-theme-choice="light" title="Light">☀</button><button type="button" data-theme-choice="system" title="System">◐</button><button type="button" data-theme-choice="dark" title="Dark">☾</button>
+  </div>
+  <a class="github" href="https://github.com/robert-mcdermott/tessera" rel="noopener">GitHub</a>
+</header>
+<div class="layout">
+  <nav class="menu" id="menu" aria-label="Documentation"><div class="menu-group"><div class="menu-title">Start</div><ul><li><a href="index.html">Overview</a></li><li><a href="getting-started.html">Getting started</a></li><li><a href="organization-profile.html">Describing your organization</a></li></ul></div><div class="menu-group"><div class="menu-title">Use</div><ul><li><a href="curation.html">Curating</a></li><li><a href="discovery.html">Finding experts</a></li></ul></div><div class="menu-group"><div class="menu-title">Run</div><ul><li><a href="configuration.html">Configuration</a></li><li><a href="operations.html" aria-current="page">Running Tessera</a></li></ul></div><div class="menu-group"><div class="menu-title">Reference</div><ul><li><a href="api.html">The API</a></li><li><a href="api-reference.html">API reference</a></li><li><a href="cli.html">Command reference</a></li><li><a href="changelog.html">Changelog</a></li></ul></div></nav>
+  <main id="content" class="content">
+<h1 id="running-tessera">Running Tessera</h1>
+<p>Tessera is one Python application and one folder of data. This guide covers what is in that folder, how to keep data fresh, backups, upgrades, PostgreSQL, and what to check when something goes wrong.</p>
+<h2 id="the-data-home">The data home<a class="anchor" href="#the-data-home" aria-label="Link to this section">#</a></h2>
+<p>Everything Tessera stores lives in the data home (<code>[data] home</code>, <code>./var</code> by default):</p>
+<div class="code"><pre><code class="language-text">var/
+  raw/        the public sources' responses, exactly as received, one folder per run
+  lake/       normalized records in Parquet files, one folder per table
+  ledger.db   people, links, decisions, and run history (SQLite; absent with PostgreSQL)
+  derived/    the search index and concept profiles, rebuilt from the lake and ledger
+  logs/       logs, one JSON object per line</code></pre></div>
+<p>These parts are not equally precious:</p>
+<ul><li><strong>The ledger is the only part that holds human work</strong>: people, decisions, notes. Back it up.</li><li><strong>The lake and raw downloads</strong> come from public sources and can be fetched again. Keeping <code>raw/</code> lets <code>tessera replay</code> rebuild the lake without the network.</li><li><strong><code>derived/</code></strong> is always rebuildable with <code>uv run tessera build search</code> and <code>uv run tessera build discovery</code>.</li></ul>
+<p>Only one data job (a sync, ingest, resolve, or build) runs at a time per data home; a second one stops at once and says another job is running. The web app keeps working during jobs.</p>
+<h2 id="keeping-data-fresh">Keeping data fresh<a class="anchor" href="#keeping-data-fresh" aria-label="Link to this section">#</a></h2>
+<p>Run <code>uv run tessera sync</code> on a schedule. After the first sync it fetches only what changed, so a daily run usually takes a few minutes. Each source's expected freshness appears on the <strong>Sources</strong> page, which warns when a source is overdue or its last run failed.</p>
+<p>A daily cron entry (Linux or macOS):</p>
+<div class="code"><pre><code class="language-cron">30 2 * * * cd /srv/tessera &amp;&amp; /usr/local/bin/uv run tessera --quiet sync</code></pre></div>
+<p>A systemd timer works the same way: run <code>uv run tessera --quiet sync</code> from the folder that holds <code>tessera.toml</code>, as the user who owns the data home.</p>
+<p><code>uv run tessera runs</code> lists recent runs with their status and counts. A run that ends <em>partial</em> fetched some but not all of its batches; the next sync retries from the last complete checkpoint, so nothing is skipped.</p>
+<figure><img src="images/sources-light.webp" alt="Admin, Sources: each source's last successful fetch, the evidence engine, and the search index" loading="lazy" class="only-light"><img src="images/sources-dark.webp" alt="Admin, Sources: each source's last successful fetch, the evidence engine, and the search index" loading="lazy" class="only-dark"><figcaption>Admin → Sources: data health</figcaption></figure>
+<h2 id="serving-the-app">Serving the app<a class="anchor" href="#serving-the-app" aria-label="Link to this section">#</a></h2>
+<div class="code"><pre><code class="language-bash">uv run tessera serve</code></pre></div>
+<p>Tessera listens on <code>127.0.0.1:8000</code> by default (<code>[server] host</code> and <code>port</code>).</p>
+<h2 id="accounts-and-sign-in">Accounts and sign-in<a class="anchor" href="#accounts-and-sign-in" aria-label="Link to this section">#</a></h2>
+<p>Out of the box Tessera runs in <em>single-operator mode</em>: no sign-in, answering only on this machine, with every decision recorded under <code>[server] operator</code>. That suits one curator on a laptop. For several people, or for a server others reach, turn on accounts:</p>
+<ol><li>Create the first admin (you are asked for a password of at least 12 characters):</li></ol>
+<p>   ``<code>bash
+   uv run tessera users add ada --name &quot;Ada Okafor&quot; --role admin
+   </code>``</p>
+<ol start="2"><li>Set <code>accounts = true</code> under <code>[server]</code>, and <code>host</code> to the address to listen on (for example <code>0.0.0.0</code>).</li><li>Put Tessera behind HTTPS, typically a reverse proxy such as nginx or Caddy that forwards to it, so that passwords and session cookies travel encrypted. Have the proxy pass the original host (<code>Host</code>, or <code>X-Forwarded-Host</code>) and <code>X-Forwarded-Proto: https</code>: Tessera refuses changes whose origin does not match the host, and marks its cookie <code>Secure</code> over HTTPS. With the proxy on the same machine, run Tessera on <code>127.0.0.1</code> and let the proxy face the network. <code>tessera doctor</code> reminds you when accounts are on and Tessera listens beyond this machine.</li><li>Restart <code>tessera serve</code>. Everyone now signs in; admins add the others under <strong>Admin → Accounts</strong>, or from the command line.</li></ol>
+<p>Roles add up:</p>
+<div class="table-wrap"><table><thead><tr><th>Role</th><th>May</th></tr></thead><tbody><tr><td>Viewer</td><td>Read everything: people, records, evidence, search</td></tr><tr><td>Researcher</td><td>Also review the suggestions about their own profile (the account is linked to their person)</td></tr><tr><td>Curator</td><td>Decide for everyone, or, when the role is limited to a unit or a person, only for them; curators for everyone also handle discovered people and duplicates</td></tr><tr><td>Admin</td><td>Everything, including accounts</td></tr></tbody></table></div>
+<div class="code"><pre><code class="language-bash">uv run tessera users add cora --name &quot;Cora Lindqvist&quot; --role &quot;curator=unit:Department of Medicine&quot;
+uv run tessera users add ada.okafor --role researcher --person per_01…
+uv run tessera users list
+uv run tessera users reset-password cora     # signs her out everywhere
+uv run tessera users disable cora            # also signs her out
+uv run tessera users roles cora --role curator --role viewer</code></pre></div>
+<p>Sessions end after <code>session_idle_hours</code> without use (12 by default) and after <code>session_max_days</code> in any case (7). After five failed attempts for one username or address, sign-in is refused for 15 minutes. Tessera will not start with accounts on and no active admin, nor listen beyond this machine with accounts off. See <a href="https://github.com/robert-mcdermott/tessera/blob/main/spec/decisions/0009-local-accounts-and-sessions.md" rel="noopener">ADR-0009</a> for the design.</p>
+<h2 id="backups">Backups<a class="anchor" href="#backups" aria-label="Link to this section">#</a></h2>
+<p>With SQLite, back up <code>ledger.db</code> with SQLite's own backup command, which is safe while Tessera runs:</p>
+<div class="code"><pre><code class="language-bash">sqlite3 var/ledger.db &quot;.backup 'backups/ledger-$(date +%F).db'&quot;</code></pre></div>
+<p>Copying the whole data home while no job is running also works. With PostgreSQL, use <code>pg_dump</code> as for any database.</p>
+<p>To restore, stop Tessera, put the ledger back, and run <code>uv run tessera build search</code> and <code>uv run tessera build discovery</code> to rebuild the index and discovery data from it.</p>
+<h2 id="upgrading">Upgrading<a class="anchor" href="#upgrading" aria-label="Link to this section">#</a></h2>
+<div class="code"><pre><code class="language-bash">git pull
+uv sync
+uv run tessera db upgrade      # apply ledger migrations, if any
+uv run tessera build search    # rebuild the index with the new version
+uv run tessera build discovery # and concept profiles and the graph</code></pre></div>
+<p><code>tessera doctor</code> and the web app's health check (<code>/api/v1/health</code>) report a ledger that needs <code>db upgrade</code>. Migrations keep every row: they are tested on SQLite and PostgreSQL with a populated ledger, upgrading and downgrading. Back up the ledger before upgrading anyway. The <a href="changelog.html">changelog</a> notes anything that needs more than these steps.</p>
+<h2 id="postgresql">PostgreSQL<a class="anchor" href="#postgresql" aria-label="Link to this section">#</a></h2>
+<p>SQLite suits one organization on one machine well. To keep the ledger in PostgreSQL instead:</p>
+<div class="code"><pre><code class="language-bash">uv sync --extra postgres</code></pre></div>
+<p>Then set <code>[ledger] url = &quot;postgresql+psycopg://tessera@dbhost/tessera&quot;</code> (or <code>TESSERA_LEDGER_URL</code>) and run <code>uv run tessera db upgrade</code> to create the schema. Put the password in the standard <code>PGPASSWORD</code> variable or a <code>.pgpass</code> file rather than in the URL. The lake and search index stay in the data home either way.</p>
+<h2 id="lake-maintenance">Lake maintenance<a class="anchor" href="#lake-maintenance" aria-label="Link to this section">#</a></h2>
+<p>The lake keeps earlier versions of records when sources update them. Occasionally:</p>
+<div class="code"><pre><code class="language-bash">uv run tessera lake status     # files and rows per table
+uv run tessera lake compact    # rewrite each table to current rows only
+uv run tessera lake gc         # delete superseded files older than 7 days</code></pre></div>
+<h2 id="when-something-goes-wrong">When something goes wrong<a class="anchor" href="#when-something-goes-wrong" aria-label="Link to this section">#</a></h2>
+<ul><li><strong><code>tessera doctor</code></strong> checks the configuration, the data home, the ledger schema, and the database engines Tessera relies on (SQLite full-text search and DuckDB); <code>tessera doctor --online</code> also checks that each public source can be reached.</li><li><strong><code>tessera runs</code></strong> and the <strong>Sources</strong> page show failed or partial runs with the source's error.</li><li><strong>Logs</strong> are in <code>&lt;data home&gt;/logs</code>. Add <code>-v</code> to any command for more detail.</li><li><strong>A source changed or was down:</strong> run <code>uv run tessera sync</code> again; completed work is not repeated.</li><li><strong>Search looks out of date:</strong> <code>uv run tessera build search</code> rebuilds it from the lake and ledger in seconds.</li></ul>
+    <nav class="pager" aria-label="Pages"><a class="prev" href="configuration.html"><span>Previous</span>Configuration</a><a class="next" href="api.html"><span>Next</span>The API</a></nav>
+    <footer class="foot">Describes Tessera 0.2.0. Apache License 2.0. Screenshots show an invented organization; every person and record in them is fictional.</footer>
+  </main>
+  <aside class="toc" aria-label="On this page"><div class="menu-title">On this page</div><ul><li class="l2"><a href="#the-data-home">The data home</a></li><li class="l2"><a href="#keeping-data-fresh">Keeping data fresh</a></li><li class="l2"><a href="#serving-the-app">Serving the app</a></li><li class="l2"><a href="#accounts-and-sign-in">Accounts and sign-in</a></li><li class="l2"><a href="#backups">Backups</a></li><li class="l2"><a href="#upgrading">Upgrading</a></li><li class="l2"><a href="#postgresql">PostgreSQL</a></li><li class="l2"><a href="#lake-maintenance">Lake maintenance</a></li><li class="l2"><a href="#when-something-goes-wrong">When something goes wrong</a></li></ul></aside>
+</div>
+</body>
+</html>

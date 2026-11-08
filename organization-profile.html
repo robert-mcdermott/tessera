@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Describing your organization · Tessera</title>
+<meta name="description" content="Tessera has no HR feed. It recognizes your organization in public records by how the organization's name is written there: in author affiliations on papers, on NIH grants, and in clinical trial regist">
+<meta property="og:title" content="Describing your organization">
+<meta property="og:description" content="Tessera has no HR feed. It recognizes your organization in public records by how the organization's name is written there: in author affiliations on papers, on NIH grants, and in clinical trial regist">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://robert-mcdermott.github.io/tessera/images/social-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="assets/tessera-mark.svg">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/site.css">
+<script src="assets/theme.js"></script>
+<script src="assets/site.js" defer></script>
+</head>
+<body class="page-organization-profile">
+<a class="skip" href="#content">Skip to content</a>
+<header class="top">
+  <button class="menu-button" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu">☰</button>
+  <a class="brand" href="index.html"><img src="assets/tessera-mark.svg" alt="" width="26" height="26"><span>Tessera</span><span class="version">v0.2.0</span></a>
+  <div class="search" role="search">
+    <input id="search" type="search" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off" spellcheck="false">
+    <kbd>/</kbd>
+    <div class="results" id="results" role="listbox" hidden></div>
+  </div>
+  <div class="theme" role="group" aria-label="Theme">
+    <button type="button" data-theme-choice="light" title="Light">☀</button><button type="button" data-theme-choice="system" title="System">◐</button><button type="button" data-theme-choice="dark" title="Dark">☾</button>
+  </div>
+  <a class="github" href="https://github.com/robert-mcdermott/tessera" rel="noopener">GitHub</a>
+</header>
+<div class="layout">
+  <nav class="menu" id="menu" aria-label="Documentation"><div class="menu-group"><div class="menu-title">Start</div><ul><li><a href="index.html">Overview</a></li><li><a href="getting-started.html">Getting started</a></li><li><a href="organization-profile.html" aria-current="page">Describing your organization</a></li></ul></div><div class="menu-group"><div class="menu-title">Use</div><ul><li><a href="curation.html">Curating</a></li><li><a href="discovery.html">Finding experts</a></li></ul></div><div class="menu-group"><div class="menu-title">Run</div><ul><li><a href="configuration.html">Configuration</a></li><li><a href="operations.html">Running Tessera</a></li></ul></div><div class="menu-group"><div class="menu-title">Reference</div><ul><li><a href="api.html">The API</a></li><li><a href="api-reference.html">API reference</a></li><li><a href="cli.html">Command reference</a></li><li><a href="changelog.html">Changelog</a></li></ul></div></nav>
+  <main id="content" class="content">
+<h1 id="describing-your-organization">Describing your organization</h1>
+<p>Tessera has no HR feed. It recognizes your organization in public records by how the organization's name is written there: in author affiliations on papers, on NIH grants, and in clinical trial registrations. The <code>[organization]</code> section of <code>tessera.toml</code> is that description, and it decides what Tessera finds.</p>
+<p>A good profile finds nearly everything that belongs to you and very little that does not. This guide explains each setting, how to find the right values, and how to check the result.</p>
+<h2 id="the-settings">The settings<a class="anchor" href="#the-settings" aria-label="Link to this section">#</a></h2>
+<div class="code"><pre><code class="language-toml">[organization]
+name = &quot;Example University&quot;
+short_name = &quot;EXU&quot;
+aliases = [
+  &quot;Example University&quot;,
+  &quot;Example Univ&quot;,
+  &quot;Example University School of Medicine&quot;,
+]
+affiliation_patterns = [&quot;example univ*&quot;, &quot;exu medical center&quot;]
+reporter_org_names = [&quot;EXAMPLE UNIVERSITY&quot;]
+ctgov_org_names = [&quot;Example University&quot;, &quot;Example University Medical Center&quot;]
+email_domains = [&quot;example.edu&quot;]
+exclusions = [&quot;Example University of Technology&quot;]</code></pre></div>
+<div class="table-wrap"><table><thead><tr><th>Setting</th><th>Used for</th><th>Notes</th></tr></thead><tbody><tr><td><code>name</code></td><td>Display, and as an alias</td><td>Required</td></tr><tr><td><code>short_name</code></td><td>Display in the sidebar</td><td>Optional</td></tr><tr><td><code>aliases</code></td><td>Recognizing the organization in affiliations, sponsor and site names, and grant records; the PubMed affiliation sweep</td><td>Whole words, case-, accent-, and punctuation-insensitive</td></tr><tr><td><code>affiliation_patterns</code></td><td>The same, with wildcards</td><td><code>*</code> matches any run of characters inside a word, so <code>example univ*</code> matches &quot;Example Univ&quot; and &quot;Example University&quot;</td></tr><tr><td><code>reporter_org_names</code></td><td>Finding grants in NIH RePORTER</td><td>Exactly as RePORTER writes the organization, usually in capitals</td></tr><tr><td><code>ctgov_org_names</code></td><td>Finding studies in ClinicalTrials.gov</td><td>Sponsor, collaborator, and site names; falls back to <code>aliases</code></td></tr><tr><td><code>email_domains</code></td><td>Strong evidence that an author is yours</td><td>An address at the domain or a subdomain in an author's affiliation</td></tr><tr><td><code>exclusions</code></td><td>Rejecting look-alikes</td><td>A text that matches an exclusion never counts as the organization, even if it also matches an alias</td></tr></tbody></table></div>
+<p>Matching ignores case, accents, punctuation, and hyphens, and works on whole words: <code>Example University</code> matches &quot;EXAMPLE UNIVERSITY, Dept. of Medicine&quot; but not &quot;Examples University&quot;.</p>
+<h2 id="finding-the-right-names">Finding the right names<a class="anchor" href="#finding-the-right-names" aria-label="Link to this section">#</a></h2>
+<p><strong>Affiliations (<code>aliases</code>, <code>affiliation_patterns</code>).</strong> Search <a href="https://pubmed.ncbi.nlm.nih.gov/" rel="noopener">PubMed</a> for your organization with the affiliation field, for example <code>&quot;Example University&quot;[ad]</code>, open a dozen recent papers, and note every form the name takes: abbreviations, former names, the medical school or hospital, and common misspellings. Include names of hospitals and institutes that belong to you, and leave out partners that do not.</p>
+<p><strong>Grants (<code>reporter_org_names</code>).</strong> Search <a href="https://reporter.nih.gov/" rel="noopener">NIH RePORTER</a> for a project you know is yours and copy the organization name exactly as it appears under <em>Organization</em>. Large organizations often have several (a university and its medical school, for instance); list each.</p>
+<p><strong>Studies (<code>ctgov_org_names</code>).</strong> Search <a href="https://clinicaltrials.gov/" rel="noopener">ClinicalTrials.gov</a> for a study you know and copy the sponsor and site names as written.</p>
+<p><strong>Look-alikes (<code>exclusions</code>).</strong> If another organization's name contains one of yours (&quot;Example University of Technology&quot; contains &quot;Example University&quot;), add it. You will often find these after the first sync, in papers that clearly are not yours.</p>
+<h2 id="checking-the-result">Checking the result<a class="anchor" href="#checking-the-result" aria-label="Link to this section">#</a></h2>
+<p>After <code>uv run tessera sync</code>:</p>
+<ul><li><code>uv run tessera runs</code> shows how many records each source returned. A RePORTER sweep that finds nothing usually means <code>reporter_org_names</code> does not match RePORTER's spelling.</li><li>On the <strong>Sources</strong> page, the <em>Found</em> column shows the same counts, and the run notes say if PubMed or ClinicalTrials.gov reported anything unusual.</li><li>The <strong>Grants</strong> list should show your active NIH awards; spot-check a few you know.</li><li><strong>Discovered people</strong> lists affiliated authors who are not in the directory. If many of them clearly belong to another organization, an alias or pattern is too broad: tighten it or add an exclusion.</li><li>On a paper's page, the <em>Record</em> card shows which source it came from. An affiliated paper that is not yours points to a pattern to tighten.</li></ul>
+<p>Change the profile, then run <code>uv run tessera sync --full</code> to fetch again with the new names. Decisions you have already made are kept.</p>
+<h2 id="how-people-are-found">How people are found<a class="anchor" href="#how-people-are-found" aria-label="Link to this section">#</a></h2>
+<p>The directory starts from three sources:</p>
+<ol><li><strong>NIH grant investigators.</strong> Contact principal investigators on your organization's own awards join as active members. Other investigators (on multi-PI grants and subprojects, often from other organizations) start as <em>discovered</em> people and are promoted automatically once at least <code>discover_min_papers</code> of their papers carry your affiliation with their full name.</li><li><strong>A roster</strong>, if you import one (<code>uv run tessera people import roster.csv</code>). Roster people are members: active, or former once every membership the roster lists has ended. Someone who is also in the grant records under no shared identifier is proposed under <strong>Possible duplicates</strong> for a curator to merge.</li><li><strong>Affiliated authors</strong> in PubMed who match nobody in the directory. They appear under <strong>Discovered people</strong> with their evidence, for a curator to promote or dismiss. Dismissed people are not proposed again.</li></ol>
+<p>Each person's papers are then found by searching PubMed for their name and scored with the evidence engine. See <a href="curation.html">Curating</a> for how suggestions are reviewed.</p>
+    <nav class="pager" aria-label="Pages"><a class="prev" href="getting-started.html"><span>Previous</span>Getting started</a><a class="next" href="curation.html"><span>Next</span>Curating</a></nav>
+    <footer class="foot">Describes Tessera 0.2.0. Apache License 2.0. Screenshots show an invented organization; every person and record in them is fictional.</footer>
+  </main>
+  <aside class="toc" aria-label="On this page"><div class="menu-title">On this page</div><ul><li class="l2"><a href="#the-settings">The settings</a></li><li class="l2"><a href="#finding-the-right-names">Finding the right names</a></li><li class="l2"><a href="#checking-the-result">Checking the result</a></li><li class="l2"><a href="#how-people-are-found">How people are found</a></li></ul></aside>
+</div>
+</body>
+</html>
