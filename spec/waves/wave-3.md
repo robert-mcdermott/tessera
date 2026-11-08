@@ -2,7 +2,7 @@
 
 **Goal:** give groups (labs, programs, divisions, centers, and others) a living home that their own representatives maintain, open a public window onto them, and deepen topics with the MeSH hierarchy.
 
-**Branch:** `wave-3` · **Target version:** `0.3.0` · **Status:** ◐ slices 1 to 6 done; slice 7 next
+**Branch:** `wave-3` · **Target version:** `0.3.0` · **Status:** ◐ slices 1 to 7 done; slice 8 (release prep) next
 
 ## Exit criteria
 
@@ -86,10 +86,12 @@ Requirements delivered: LAB-01 to LAB-08, PLT-07, PLT-11, PLT-13, CUR-08, and th
 
 **Acceptance (met):** the demo publishes 31 groups and the people with confirmed papers; no abstract, person's email address, or internal ID appears in any page; every page passes the checks; a palette whose links fail AA stops the build and leaves the published site untouched; with a base URL the site has a sitemap and canonical links. See [public-site.md](../../docs/public-site.md).
 
-## Slice 7: Brand kit ☐
+## Slice 7: Brand kit ☑
 
-- [ ] `[branding.palette]`: core colors by day and night (surfaces, text, accent and its text, record types, stripe), footer links, a favicon, and a social preview image (PLT-13), for the app and the public site
-- [ ] `tessera doctor` checks every configured color pair against WCAG AA and fails any below it
+- [x] `[branding.palette]`: core colors by day and night (surfaces, text, accent and its text, record types, stripe), footer links, a favicon, and a social preview image (PLT-13), for the app and the public site
+- [x] `tessera doctor` checks every configured color pair against WCAG AA and fails any below it
+
+**Acceptance (met):** a palette with a teal accent and a navy stripe recolors the app's tokens (through `/theme.css`) and the public site; the configured favicon is served at `/branding/favicon` and copied to the site with the social image (an absolute `og:image` with a base URL); footer links appear in both; a muted grey of `#aaaaaa` on the default page fails doctor and blocks publishing, naming the pair and its ratio.
 
 ## Slice 8: Release prep ☐
 
@@ -103,6 +105,7 @@ Requirements delivered: LAB-01 to LAB-08, PLT-07, PLT-11, PLT-13, CUR-08, and th
 
 | Date | Note |
 |---|---|
+| 2026-11-09 | Slice 7 done. Palette colors are hex only, so contrast can be measured exactly and the values are safe to serve as CSS. A palette refines the default theme rather than adding a fourth: viewers who choose Harbor or Cassette under Appearance keep their choice. An accent alone still works as before (lightened after dark), and its night version and the text on it are now derived for the public site and checked like the rest. Twelve pairs are checked in each mode, including each record type's color on cards. |
 | 2026-11-09 | Slice 6 done. The public site is plain generated HTML with no scripts, so there is nothing to keep patched and nothing that can run on a reader's machine; it follows light or dark by media query rather than a switch. The projection names every field it publishes (an allowlist), and the tests search every page for abstracts, people's email addresses, and internal IDs. Only confirmed papers are published, even though the app counts strong suggestions as likely: a public claim needs a person's decision behind it. A failed check leaves the old site in place (the new one is built beside it and swapped in). Openings expire on their dates, so the site must be republished daily, documented next to the sync. |
 | 2026-11-09 | Slice 5 done. The inbox is computed, not stored: what is waiting is read from the ledger each time, and the only thing kept is when each group was last reviewed. Papers and openings stay in the inbox until decided; grants and roster changes count from the last review, so marking a week reviewed is cheap and nothing is lost. Digests use the same code in the app and by email. Email is plain text through any SMTP server, sent by a command run from cron rather than a scheduler inside the app, like sync. |
 | 2026-11-09 | Slice 4 done. Access levels gained MANAGE (below REVIEW) so that a manager reaches group routes without the review queue; each handler still checks the group. Blocks are settings, not HTML: about and news are plain paragraphs, links must be http(s), and featured papers are PubMed IDs, so a page can carry no markup into the app or the public site. Restoring a version publishes it again as a new version rather than rewinding, so the history only grows. Page drafts are per group, not per editor: two managers of one group share a draft, and the last save wins (with who and when shown), which is simple and enough for groups with one or two editors. |

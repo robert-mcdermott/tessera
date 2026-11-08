@@ -63,6 +63,9 @@ def meta(request: Request) -> dict[str, Any]:
                 if config.branding.logo_light or config.branding.logo_dark
                 else None,
                 "show_powered_by": config.branding.show_powered_by,
+                "footer_links": [
+                    {"label": label, "url": url} for label, url in config.branding.footer_links
+                ],
             },
             "organization": {
                 "name": config.organization.name,

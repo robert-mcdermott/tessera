@@ -88,6 +88,7 @@ time{font:600 12px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted
 details summary{cursor:pointer;color:var(--accent);font-weight:550;padding:6px 0}
 .site-footer{border-top:1px solid var(--border);color:var(--muted);font-size:14px;padding:24px 0 40px}
 .site-footer p{margin:0 0 4px}
+.footer-links{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:4px 16px}
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 @media print{.site-header nav,.skip{display:none}.block{border:0;padding:0}}
 """

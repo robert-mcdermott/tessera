@@ -43,6 +43,16 @@ theme = "tessera"
 # logo_light = "branding/logo-light.svg"
 # logo_dark = "branding/logo-dark.svg"
 show_powered_by = true
+# favicon = "brand/favicon.svg"        # browser tab icon, for the app and the public site
+# social_image = "brand/social.png"    # link previews of the public site (1200 x 630)
+# footer_links = [{ label = "Privacy", url = "https://www.example.edu/privacy" }]
+#
+# Your own colors, as hex values; any left out keep Tessera's. tessera doctor checks that
+# every pair that carries text meets WCAG AA, by day and by night.
+# [branding.palette.day]
+# accent = "#0b6e4f"
+# [branding.palette.night]
+# accent = "#7fd6b4"
 
 [data]
 # Where Tessera keeps raw payloads, the Parquet lake, the ledger, derived data, and logs.
@@ -150,3 +160,10 @@ password_env = ""   # the environment variable that holds the password
 sender = ""         # for example "Tessera <tessera@example.edu>"
 starttls = true
 base_url = ""       # the app's address, for links in messages
+
+[publish]
+# The public site (tessera publish): pages for the groups and people who opt in.
+# out = "/srv/www/research"   # where to write it; <data home>/public by default
+base_url = ""                 # where it is served, for its sitemap and canonical links
+title = ""                    # the site's title; the organization's name when empty
+intro = ""                    # a sentence or two for the home page

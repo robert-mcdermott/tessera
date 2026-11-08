@@ -71,6 +71,11 @@ class BrandingConfig:
     logo_light: Path | None = None
     logo_dark: Path | None = None
     show_powered_by: bool = True
+    favicon: Path | None = None  # the browser tab's icon (SVG, PNG, or ICO)
+    social_image: Path | None = None  # link previews of the public site (1200 x 630)
+    # ("day" or "night", color name, "#rrggbb") from [branding.palette.day] and .night
+    palette: tuple[tuple[str, str, str], ...] = ()
+    footer_links: tuple[tuple[str, str], ...] = ()  # (label, address)
 
 
 @dataclass(frozen=True)
@@ -266,6 +271,8 @@ _PATH_FIELDS = {
     ("data", "home"),
     ("branding", "logo_light"),
     ("branding", "logo_dark"),
+    ("branding", "favicon"),
+    ("branding", "social_image"),
     ("publish", "out"),
 }
 
@@ -329,6 +336,8 @@ def parse_config(
             sections[name] = _build_sources(table, problems)
         elif cls is VocabularyConfig:
             sections[name] = _build_vocabulary(table, problems)
+        elif cls is BrandingConfig:
+            sections[name] = _build_branding(table, problems)
         else:
             sections[name] = _build(cls, name, table, problems)
 
@@ -460,6 +469,59 @@ def _build_sources(table: dict[str, Any], problems: list[str]) -> SourcesConfig:
     return SourcesConfig(**kwargs)
 
 
+PALETTE_COLORS = (
+    "bg", "surface", "text", "muted", "border", "accent", "on_accent", "stripe",
+    "person", "publication", "grant", "study",
+)  # fmt: skip
+_HEX = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
+
+
+def _build_branding(table: dict[str, Any], problems: list[str]) -> BrandingConfig:
+    """[branding], with its palette table and footer links."""
+    table = dict(table)
+    palette: list[tuple[str, str, str]] = []
+    raw = table.pop("palette", None)
+    if raw is not None:
+        if not isinstance(raw, dict):
+            problems.append("[branding.palette] must be a table with day and night tables")
+            raw = {}
+        for mode, colors in raw.items():
+            if mode not in ("day", "night") or not isinstance(colors, dict):
+                problems.append(f"branding.palette.{mode}: use [branding.palette.day] or .night")
+                continue
+            for name, value in colors.items():
+                if name not in PALETTE_COLORS:
+                    problems.append(
+                        f"branding.palette.{mode}.{name}: not a palette color "
+                        f"({', '.join(PALETTE_COLORS)})"
+                    )
+                elif not isinstance(value, str) or not _HEX.match(value):
+                    problems.append(
+                        f"branding.palette.{mode}.{name} must be a hex color like #4f46e5"
+                    )
+                else:
+                    palette.append((mode, name, value.lower()))
+    links: list[tuple[str, str]] = []
+    raw_links = table.pop("footer_links", None)
+    if raw_links is not None:
+        if not isinstance(raw_links, list):
+            problems.append("branding.footer_links must be a list of {label, url} tables")
+            raw_links = []
+        for i, item in enumerate(raw_links, 1):
+            label = item.get("label") if isinstance(item, dict) else None
+            target = item.get("url") if isinstance(item, dict) else None
+            if not (isinstance(label, str) and label.strip() and len(label) <= 60):
+                problems.append(f"branding.footer_links[{i}] needs a label of 1 to 60 characters")
+            elif not (isinstance(target, str) and re.match(r"^(https?://|mailto:)\S+$", target)):
+                problems.append(
+                    f"branding.footer_links[{i}].url must start with https:// or mailto:"
+                )
+            else:
+                links.append((label.strip(), target))
+    built = _build(BrandingConfig, "branding", table, problems)
+    return replace(built, palette=tuple(palette), footer_links=tuple(links))
+
+
 def _pairs(value: Any, label: str, problems: list[str]) -> tuple[tuple[str, str], ...] | None:
     """A ``key = "Label"`` table, in order."""
     if not isinstance(value, dict) or not value:
@@ -526,6 +588,8 @@ def _resolve_paths(config: Config, base_dir: Path) -> Config:
         config.branding,
         logo_light=resolve(config.branding.logo_light),
         logo_dark=resolve(config.branding.logo_dark),
+        favicon=resolve(config.branding.favicon),
+        social_image=resolve(config.branding.social_image),
     )
     publish = replace(config.publish, out=resolve(config.publish.out))
     return replace(config, data=data, branding=branding, publish=publish)
@@ -558,6 +622,16 @@ def validate(config: Config) -> list[str]:
             problems.append(f"branding.{label}: file not found: {logo}")
         elif logo is not None and logo.suffix.lower() not in LOGO_TYPES:
             problems.append(f"branding.{label}: use an SVG, PNG, JPEG, or WebP image")
+    if brand.favicon is not None:
+        if not brand.favicon.is_file():
+            problems.append(f"branding.favicon: file not found: {brand.favicon}")
+        elif brand.favicon.suffix.lower() not in (".svg", ".png", ".ico"):
+            problems.append("branding.favicon: use an SVG, PNG, or ICO file")
+    if brand.social_image is not None:
+        if not brand.social_image.is_file():
+            problems.append(f"branding.social_image: file not found: {brand.social_image}")
+        elif brand.social_image.suffix.lower() not in (".png", ".jpg", ".jpeg"):
+            problems.append("branding.social_image: use a PNG or JPEG image (1200 x 630)")
 
     server = config.server
     if not 1 <= server.port <= 65535:

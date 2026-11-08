@@ -53,6 +53,9 @@ How the organization appears in public records. See [Describing your organizatio
 | `logo_light` | path | (none) | Your logo, shown in the sidebar in place of the Tessera mark and name (SVG, PNG, JPEG, or WebP) |
 | `logo_dark` | path | (none) | The logo for dark mode; the light one is used if absent |
 | `show_powered_by` | true/false | `true` | The small "Powered by Tessera" line in the sidebar |
+| `favicon` | path | (none) | The icon in browser tabs, for the app and the public site (SVG, PNG, or ICO) |
+| `social_image` | path | (none) | The picture shown when someone shares a link to the public site (PNG or JPEG, 1200 by 630 pixels) |
+| `footer_links` | list | (none) | Links for the foot of the app's sidebar and of every public page, such as privacy and accessibility statements |
 
 **Palettes.** Each palette has a light and a dark version, and every viewer can switch palettes and modes for themselves under **Appearance** in the top bar; `theme` sets what everyone sees first.
 
@@ -63,6 +66,36 @@ How the organization appears in public records. See [Describing your organizatio
 | `cassette` | Cream label paper, a red-orange accent, a thin sunset stripe | Black labels, an orange accent, the same sunset stripe |
 
 A configured `accent_color` is used as given by day and lightened for dark mode. It also colors links and labels, so choose one that reads on white at a contrast of at least 4.5:1, such as a deep blue or teal rather than a yellow. Write it as a hex value so that text on accent-colored buttons can be chosen for contrast; with other forms that text is white. Tessera and Harbor suit public and leadership views best; Cassette is playful by design. Logos look best at about 190 by 30 pixels.
+
+**Your own colors.** `[branding.palette.day]` and `[branding.palette.night]` set the organization's colors, by name, as hex values. Any you leave out keep Tessera's. They apply over the default (`tessera`) theme in the app, and to the whole public site.
+
+| Color | Used for |
+|---|---|
+| `bg`, `surface` | The page, and cards and panels on it |
+| `text`, `muted` | Text, and secondary text |
+| `border` | Lines between things |
+| `accent`, `on_accent` | Links, buttons, and highlights, and text on them |
+| `stripe` | The thin band at the top of the app and under the public site's header |
+| `person`, `publication`, `grant`, `study` | Each kind of record, as text and icons |
+
+```toml
+[branding]
+favicon = "brand/favicon.svg"
+social_image = "brand/social.png"
+footer_links = [
+  { label = "Privacy", url = "https://www.example.edu/privacy" },
+  { label = "Accessibility", url = "https://www.example.edu/accessibility" },
+]
+
+[branding.palette.day]
+accent = "#0b6e4f"
+stripe = "#1d3557"
+
+[branding.palette.night]
+accent = "#7fd6b4"
+```
+
+Every pair of colors that carries text must meet WCAG 2.2 level AA: 4.5:1 for text, links, and record colors on the page and on cards, and for text on the accent; 3:1 for the stripe against the page. `tessera doctor` checks each pair by day and by night and fails any below it, and `tessera publish` will not publish a site whose colors fail.
 
 ## `[data]`
 

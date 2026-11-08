@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, fields, replace
-from typing import Any
 
 from tessera.config import Config
 
@@ -27,15 +26,21 @@ class Colors:
     accent: str  # links, buttons, highlights
     on_accent: str  # text on the accent
     stripe: str  # the thin band under the header
+    person: str  # record types, as text and icons
+    publication: str
+    grant: str
+    study: str
 
 
 DAY = Colors(
     bg="#f8f9fb", surface="#ffffff", text="#1b1f2a", muted="#525a6b", border="#e2e5ec",
     accent="#4f46e5", on_accent="#ffffff", stripe="#4f46e5",
+    person="#4c44c9", publication="#0e6a6e", grant="#735600", study="#ab2d66",
 )  # fmt: skip
 NIGHT = Colors(
     bg="#0f1115", surface="#171a21", text="#eef0f4", muted="#b2b8c4", border="#2a2f38",
     accent="#a5a3f7", on_accent="#15122e", stripe="#a5a3f7",
+    person="#b4b1ff", publication="#74d4cf", grant="#e8c55c", study="#f293c2",
 )  # fmt: skip
 
 # (foreground, background, minimum ratio, what it is)
@@ -48,6 +53,10 @@ PAIRS = (
     ("accent", "surface", 4.5, "links on cards"),
     ("on_accent", "accent", 4.5, "text on the accent"),
     ("stripe", "bg", 3.0, "the header stripe against the page"),
+    ("person", "surface", 4.5, "people's color on cards"),
+    ("publication", "surface", 4.5, "publications' color on cards"),
+    ("grant", "surface", 4.5, "grants' color on cards"),
+    ("study", "surface", 4.5, "studies' color on cards"),
 )
 
 
@@ -72,21 +81,46 @@ def contrast(a: str, b: str) -> float:
     return (la + 0.05) / (lb + 0.05)
 
 
+def mix(a: str, b: str, share_of_b: float) -> str:
+    """``a`` with ``share_of_b`` of ``b`` mixed in, as hex."""
+    ra, ga, ba = _rgb(a)
+    rb, gb, bb = _rgb(b)
+    channels = (x + (y - x) * share_of_b for x, y in ((ra, rb), (ga, gb), (ba, bb)))
+    return "#" + "".join(f"{round(c * 255):02x}" for c in channels)
+
+
+def readable_on(color: str) -> str:
+    """White or near-black, whichever reads better on ``color``."""
+    light, dark = "#ffffff", "#15122e"
+    return light if contrast(light, color) >= contrast(dark, color) else dark
+
+
 def palette(config: Config) -> tuple[Colors, Colors]:
     """(day, night): the defaults, with the organization's own colors over them."""
     day, night = DAY, NIGHT
     brand = config.branding
     if brand.accent_color and HEX.match(brand.accent_color):
-        day = replace(day, accent=brand.accent_color, stripe=brand.accent_color)
-    custom: dict[str, Any] = getattr(brand, "palette", None) or {}
-    for mode, base in (("day", day), ("night", night)):
-        overrides = {k: v for k, v in (custom.get(mode) or {}).items() if HEX.match(str(v))}
-        if overrides:
+        # By night the accent is lightened so it reads on dark surfaces, as in the app.
+        lighter = mix(brand.accent_color, "#ffffff", 0.42)
+        day = replace(day, accent=brand.accent_color, stripe=brand.accent_color,
+                      on_accent=readable_on(brand.accent_color))  # fmt: skip
+        night = replace(night, accent=lighter, stripe=lighter, on_accent=readable_on(lighter))
+    for mode, name, value in brand.palette:
+        if HEX.match(value):
             if mode == "day":
-                day = replace(base, **overrides)
+                day = replace(day, **{name: value})
             else:
-                night = replace(base, **overrides)
+                night = replace(night, **{name: value})
     return day, night
+
+
+def configured(config: Config) -> dict[str, tuple[str, str]]:
+    """The colors the organization set in either mode: {name: (day, night)}."""
+    day, night = palette(config)
+    names = {name for _, name, _ in config.branding.palette}
+    if config.branding.accent_color and HEX.match(config.branding.accent_color):
+        names |= {"accent", "stripe"}
+    return {n: (getattr(day, n), getattr(night, n)) for n in sorted(names)}
 
 
 def contrast_problems(config: Config) -> list[str]:
@@ -105,5 +139,5 @@ def contrast_problems(config: Config) -> list[str]:
 
 COLOR_NAMES = tuple(f.name for f in fields(Colors))
 
-__all__ = ["COLOR_NAMES", "DAY", "NIGHT", "PAIRS", "Colors", "contrast", "contrast_problems",
-           "luminance", "palette"]  # fmt: skip
+__all__ = ["COLOR_NAMES", "DAY", "NIGHT", "PAIRS", "Colors", "configured", "contrast",
+           "contrast_problems", "luminance", "palette"]  # fmt: skip

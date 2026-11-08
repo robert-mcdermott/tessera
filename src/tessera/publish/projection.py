@@ -64,6 +64,9 @@ class Site:
     groups: list[dict[str, Any]] = field(default_factory=list)
     people: list[dict[str, Any]] = field(default_factory=list)
     kinds: list[tuple[str, str]] = field(default_factory=list)
+    favicon: str = "assets/favicon.svg"  # paths within the site
+    social_image: str | None = None
+    footer_links: tuple[tuple[str, str], ...] = ()
 
 
 def project(config: Config, home: DataHome, engine: Engine, today: date | None = None) -> Site:
@@ -77,7 +80,13 @@ def project(config: Config, home: DataHome, engine: Engine, today: date | None =
         built=today,
         mesh_year=mesh_year(home),
         kinds=list(vocab.kinds),
+        footer_links=config.branding.footer_links,
     )
+    brand = config.branding
+    if brand.favicon and brand.favicon.is_file():
+        site.favicon = f"assets/favicon{brand.favicon.suffix.lower()}"
+    if brand.social_image and brand.social_image.is_file():
+        site.social_image = f"assets/social{brand.social_image.suffix.lower()}"
     index = SearchIndex(index_path(home)) if index_path(home).is_file() else None
 
     def summaries(refs: list[str]) -> dict[str, dict[str, Any]]:

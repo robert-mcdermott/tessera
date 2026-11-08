@@ -55,24 +55,78 @@ def theme_css(accent: str | None) -> str:
     )
 
 
+# Where each brand color goes among the app's design tokens (web/static/css/tokens.css).
+PALETTE_TOKENS = {
+    "bg": ("--bg",),
+    "surface": ("--surface-1",),
+    "text": ("--text",),
+    "muted": ("--text-muted", "--text-subtle"),
+    "border": ("--border",),
+    "accent": ("--brand-accent",),
+    "on_accent": ("--brand-on-accent",),
+    "stripe": ("--brand-stripe",),
+    "person": ("--ent-person",),
+    "publication": ("--ent-pub",),
+    "grant": ("--ent-grant",),
+    "study": ("--ent-study",),
+}
+SOFT = {"person": "--ent-person-soft", "publication": "--ent-pub-soft",
+        "grant": "--ent-grant-soft", "study": "--ent-study-soft"}  # fmt: skip
+
+
+def palette_css(colors: dict[str, tuple[str, str]]) -> str:
+    """The organization's palette ([branding.palette]) as overrides of the app's tokens.
+    Values are validated hex colors, so the text is safe to serve as CSS."""
+    if not colors:
+        return ""
+    lines = []
+    for name, (day, night) in sorted(colors.items()):
+        for token in PALETTE_TOKENS[name]:
+            lines.append(f"  {token}: light-dark({day}, {night});")
+        if name in SOFT:
+            lines.append(
+                f"  {SOFT[name]}: light-dark(color-mix(in oklch, {day} 9%, white), "
+                f"color-mix(in oklch, {night} 20%, black));"
+            )
+    return ":root {\n" + "\n".join(lines) + "\n}\n"
+
+
 def install_theme(app: FastAPI) -> None:
-    """``/theme.css``: the brand color from configuration (validated as plain CSS text)."""
+    """``/theme.css``: the brand color and palette from configuration (validated values)."""
+    from tessera.branding import palette
 
     @app.get("/theme.css", include_in_schema=False)
     async def theme(request: Request) -> Response:
-        accent = request.app.state.config.branding.accent_color
+        brand = request.app.state.config.branding
+        day, night = palette(request.app.state.config)
+        names = {name for _, name, _ in brand.palette}
+        colors = {n: (getattr(day, n), getattr(night, n)) for n in names}
         return Response(
-            theme_css(accent), media_type="text/css", headers={"Cache-Control": "no-cache"}
+            theme_css(brand.accent_color) + palette_css(colors),
+            media_type="text/css",
+            headers={"Cache-Control": "no-cache"},
         )
 
 
-def install_branding(app: FastAPI) -> None:
-    """``/branding/logo-light`` and ``/branding/logo-dark``: the configured logo files."""
+FAVICON_TYPES = {".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon"}
+
+
+def install_branding(app: FastAPI, root: Path = WEB_ROOT) -> None:
+    """``/branding/logo-light``, ``/branding/logo-dark``, and ``/branding/favicon``: the
+    configured files (the favicon falls back to Tessera's mark)."""
     from tessera.config import LOGO_TYPES
 
     @app.get("/branding/{variant}", include_in_schema=False)
     async def logo(request: Request, variant: str) -> Response:
         brand = request.app.state.config.branding
+        if variant == "favicon":
+            icon = brand.favicon if brand.favicon and brand.favicon.is_file() else None
+            path = icon or root / "img" / "tessera-mark.svg"
+            return FileResponse(
+                path,
+                media_type=FAVICON_TYPES.get(path.suffix.lower(), "image/svg+xml"),
+                headers={"Cache-Control": "no-cache"},
+            )
         path = {
             "logo-light": brand.logo_light,
             "logo-dark": brand.logo_dark or brand.logo_light,

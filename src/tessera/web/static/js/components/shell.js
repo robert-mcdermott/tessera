@@ -74,6 +74,8 @@ export function mountShell(root, meta, { onSearch }) {
     }),
     h("div", { class: "sidebar-footer" },
       h("span", {}, org.name),
+      (product.footer_links ?? []).length ? h("span", { class: "footer-links" }, product.footer_links.map((l, i) =>
+        [i ? " · " : "", h("a", { href: l.url, rel: "noopener", target: l.url.startsWith("mailto:") ? null : "_blank" }, l.label)])) : null,
       product.show_powered_by
         ? h("span", {}, "Powered by ", h("a", { href: "/api/docs" }, `Tessera ${product.version}`))
         : null));

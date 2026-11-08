@@ -84,10 +84,26 @@ class Page:
         if self.canonical:
             meta.append(f'<link rel="canonical" href="{esc(self.canonical)}">')
             meta.append(f'<meta property="og:url" content="{esc(self.canonical)}">')
+        if site.social_image:
+            image = (
+                f"{self.base_url}/{site.social_image}" if self.base_url
+                else self.href(site.social_image)
+            )  # fmt: skip
+            meta.append(f'<meta property="og:image" content="{esc(image)}">')
+            meta.append('<meta name="twitter:card" content="summary_large_image">')
         if self.data:
             data = json.dumps(self.data, ensure_ascii=False, sort_keys=True).replace("</", "<\\/")
             meta.append(f'<script type="application/ld+json">{data}</script>')
         notes = "".join(f"<p>{esc(c)}</p>" for c in credits)
+        if site.footer_links:
+            notes += (
+                '<ul class="footer-links">'
+                + "".join(
+                    f"<li>{link(href, label, rel='noopener')}</li>"
+                    for label, href in site.footer_links
+                )
+                + "</ul>"
+            )
         return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -97,7 +113,7 @@ class Page:
 <title>{esc(full_title)}</title>
 {chr(10).join(meta)}
 <link rel="stylesheet" href="{self.href("assets/site.css")}">
-<link rel="icon" href="{self.href("assets/favicon.svg")}" type="image/svg+xml">
+<link rel="icon" href="{self.href(site.favicon)}">
 </head>
 <body>
 <a class="skip" href="#main">Skip to the content</a>

@@ -124,7 +124,7 @@ def check_site(files: dict[str, Any], config: Config) -> list[str]:
     names = set(files)
     problems: list[str] = []
     for name, content in sorted(files.items()):
-        if name.endswith(".html") and name != "404.html":
+        if name.endswith(".html") and name != "404.html" and isinstance(content, str):
             problems += check_page(name, content, names)
     problems += [f"colors: {p}" for p in contrast_problems(config)]
     return problems

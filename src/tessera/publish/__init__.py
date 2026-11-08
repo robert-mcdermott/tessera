@@ -68,7 +68,13 @@ def publish(
     site = project(config, home, engine, today=today)
     files = site_pages.build(site, config)
     files["assets/site.css"] = stylesheet(config)
-    files["assets/favicon.svg"] = favicon(config)
+    brand = config.branding
+    if brand.favicon and brand.favicon.is_file():
+        files[site.favicon] = brand.favicon.read_bytes()
+    else:
+        files["assets/favicon.svg"] = favicon(config)
+    if site.social_image:
+        files[site.social_image] = brand.social_image.read_bytes()  # type: ignore[union-attr]
     result = PublishResult(out=target, groups=len(site.groups), people=len(site.people))
     result.pages = sum(1 for name in files if name.endswith(".html"))
     result.problems = check_site(files, config)
@@ -92,9 +98,6 @@ def publish(
                 path.write_bytes(content)
             else:
                 path.write_text(content, encoding="utf-8")
-        for logo in (config.branding.logo_light, config.branding.logo_dark):
-            if logo and logo.is_file():
-                shutil.copyfile(logo, staging / "assets" / logo.name)
         previous = target.with_name(f".{target.name}-previous")
         if previous.exists():
             shutil.rmtree(previous)
