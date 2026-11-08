@@ -82,6 +82,14 @@ An ORCID iD is the strongest evidence Tessera has: a researcher's own identifier
 
 Every identifier decision appears in the decision log.
 
+## Learned weights and auto-accept
+
+**Admin → Evidence** shows how suggestions are scored and how well, measured on your own decisions. Curators can look; admins can change it.
+
+- **Evaluate now** fits learned weights to your accept and reject decisions and compares them with the hand-set ones on people left out of the fit. Once there are enough decisions (200, with 20 rejections, about 5 people) and the learned model predicts better, **Release it** makes it active from the next sync; **Use hand-set weights** goes back.
+- **Auto-accept** can be switched on only at a score where the evaluation measured at least 99% precision over at least 50 decisions. Each sync then accepts open suggestions at or above it that have no conflicting evidence. They are marked **Auto-confirmed**, appear as a batch on the page, are never used for learning, and a batch can be undone in one step (which also switches auto-accept off).
+- From the command line: `tessera evidence status`, `evaluate`, `release`, `revert`, and `auto-accept --threshold 0.99 | --off | --undo BATCH`.
+
 ## The decision log
 
 **Decision log** lists every decision across the organization, newest first: what was decided, about which person and record, by whom, when, and with what note. Link decisions open their evidence, where the latest decision can be undone.

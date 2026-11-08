@@ -302,6 +302,60 @@ usage: tessera users roles [-h] --role ROLE username
 | `username` |  |
 | `--role ROLE` | admin, curator, researcher, or viewer; a curator for some people only is curator=unit:<name or code> or curator=person:<ID> (repeatable) |
 
+## `tessera evidence`
+
+The authorship model: learned weights and auto-accept.
+
+```text
+usage: tessera evidence [-h] ACTION ...
+```
+
+### `tessera evidence status`
+
+The active model, the latest evaluation, and auto-accept.
+
+```text
+usage: tessera evidence status [-h]
+```
+
+### `tessera evidence evaluate`
+
+Fit learned weights to decisions and compare on held-out people.
+
+```text
+usage: tessera evidence evaluate [-h]
+```
+
+### `tessera evidence release`
+
+Make the evaluated learned model active (if it was better).
+
+```text
+usage: tessera evidence release [-h]
+```
+
+### `tessera evidence revert`
+
+Go back to the hand-set weights.
+
+```text
+usage: tessera evidence revert [-h]
+```
+
+### `tessera evidence auto-accept`
+
+Accept strong suggestions automatically, where precision allows.
+
+```text
+usage: tessera evidence auto-accept [-h] (--threshold THRESHOLD | --off | --undo BATCH)
+```
+
+| Argument | Meaning |
+|---|---|
+| `--threshold THRESHOLD` | switch on at this score (one the evaluation measured) |
+| `--off` | switch off |
+| `--undo BATCH` | undo one automatic batch |
+
 ## `tessera eval`
 
 Evaluate matching quality.

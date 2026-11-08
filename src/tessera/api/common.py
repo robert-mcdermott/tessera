@@ -147,6 +147,7 @@ def assertion_view(row: dict[str, Any], config: Config) -> dict[str, Any]:
         "qualifiers": row["qualifiers"] or {},
         "evidence": row["evidence"] or [],
         "decided_by": row["decided_by"],
+        "auto": row["decided_by"] == "Auto-accept" and row["status"] == "accepted",
         "decided_at": row["decided_at"],
         "decision_note": row["decision_note"],
         "first_seen_at": row["first_seen_at"],

@@ -37,8 +37,10 @@ from tessera.lake import Lake
 log = logging.getLogger("tessera.evidence.authorship")
 
 # v1.1 adds ORCID works, curator-rejected iDs, deprecated iDs, and ORCID consistency across
-# a person's own papers to v1's hand-set weights.
-METHOD = "authorship/v1.1"
+# a person's own papers to v1's hand-set weights; v1.2 counts a full-name match on a very
+# short first name for less. Learned weights (authorship/v2) scale these; see model.py.
+METHOD = "authorship/v1.2"
+SHORT_GIVEN = 2  # letters: first names this short ("Ye", "Li") are widely shared
 WEIGHTS = {
     "prior": -1.5,
     "orcid_match": 8.0,
@@ -54,6 +56,7 @@ WEIGHTS = {
     "coauthor_each": 1.0,
     "coauthor_cap": 4.0,
     "given_full_match": 1.5,
+    "short_given_name": -1.0,
     "middle_conflict": -3.0,
     "given_conflict": -6.0,
     "topic_fit_max": 2.0,
@@ -430,6 +433,7 @@ def score_candidate(
     matcher: OrgMatcher,
     ambiguity: tuple[Counter, Counter],
     seeds: Seeds | None,
+    model: Any = None,
 ) -> None:
     profile, slot = cand.profile, cand.slot
     person = profile.person.display_name
@@ -541,6 +545,17 @@ def score_candidate(
             f"Full first name matches ({slot.name.given})",
             ref,
         )
+        first = slot.name.first_given
+        if first and len(first) <= SHORT_GIVEN:
+            total += _feature(
+                f,
+                "short_given_name",
+                WEIGHTS["short_given_name"],
+                first,
+                f"The first name “{slot.name.given.split()[0]}” is short and widely shared, "
+                "so a full-name match says less",
+                ref,
+            )
     elif cand.match is Match.MIDDLE_CONFLICT:
         total += _feature(
             f,
@@ -598,6 +613,8 @@ def score_candidate(
 
     f.sort(key=lambda item: (_ORDER.get(item["feature"], 2), -abs(item["weight"] or 0)))
     cand.features, cand.total = f, total
+    if model is not None and not model.is_base:  # learned weights (authorship/v2)
+        cand.total = model.apply(cand.features)
 
 
 def _seed_features(
@@ -765,6 +782,9 @@ class AuthorshipStats:
 def resolve_authorship(
     engine: Engine, lake: Lake, config: Config, matcher: OrgMatcher
 ) -> AuthorshipStats:
+    from tessera.evidence.model import active_model  # (model.py imports this module)
+
+    model = active_model(engine)
     people = store.load_people(engine, ("active", "former"))
     profiles = build_profiles(lake, people)
     attach_orcid_works(lake, profiles)
@@ -795,7 +815,7 @@ def resolve_authorship(
         best: dict[str, Candidate] = {}
         for profile, slot, match in rows:
             cand = Candidate(profile, slot, match)
-            score_candidate(cand, papers[slot.pmid], matcher, ambiguity, seeds=None)
+            score_candidate(cand, papers[slot.pmid], matcher, ambiguity, None, model)
             if slot.pmid not in best or cand.total > best[slot.pmid].total:
                 best[slot.pmid] = cand  # one author position per person per paper
         candidates[person_id] = list(best.values())
@@ -826,7 +846,7 @@ def resolve_authorship(
             seeds = _seeds(seed_pmids, rejected[person_id], papers, positions, slot_orcids)
             last_seeds[person_id] = seeds
             for cand in cands:
-                score_candidate(cand, papers[cand.slot.pmid], matcher, ambiguity, seeds)
+                score_candidate(cand, papers[cand.slot.pmid], matcher, ambiguity, seeds, model)
 
     # ORCID iDs printed at the person's position on their likely papers, to suggest as theirs.
     # "Likely" is judged without the ORCID features, so that decisions about one iD (and the
@@ -851,7 +871,9 @@ def resolve_authorship(
             candidates[person_id][0].profile.person.suggested.setdefault("orcid", set()).add(orcid)
     for person_id in sorted({p for p, _ in proposals.added} & set(candidates)):
         for cand in candidates[person_id]:
-            score_candidate(cand, papers[cand.slot.pmid], matcher, ambiguity, last_seeds[person_id])
+            score_candidate(
+                cand, papers[cand.slot.pmid], matcher, ambiguity, last_seeds[person_id], model
+            )
 
     # Author-position conflicts: one author position belongs to at most one person.
     by_slot: dict[tuple[str, int], list[Candidate]] = defaultdict(list)
@@ -872,14 +894,17 @@ def resolve_authorship(
             if cand.profile.person.id == winner:
                 continue
             stats.slot_conflicts += 1
+            weight = WEIGHTS["slot_conflict"] * model.scale("slot_conflict")
             cand.total += _feature(
                 cand.features,
                 "slot_conflict",
-                WEIGHTS["slot_conflict"],
+                weight,
                 winner,
                 f"{winner_name} is a stronger match for this author position",
                 f"pubmed:{cand.slot.pmid}#author{cand.slot.position}",
             )
+            if not model.is_base:
+                cand.features[-1]["base_weight"] = WEIGHTS["slot_conflict"]
 
     drafts = []
     for cands in candidates.values():
@@ -895,7 +920,7 @@ def resolve_authorship(
                     object_type="publication",
                     object_id=f"pub:{slot.pmid}",
                     origin="inferred",
-                    method=METHOD,
+                    method=model.method,
                     score=cand.score,
                     evidence=cand.features,
                     qualifiers={

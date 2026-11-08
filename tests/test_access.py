@@ -173,6 +173,7 @@ def concrete(w: World, path: str) -> str:
         .replace("{nct_id}", "NCT00000000")
         .replace("{merge_id}", "mrg_missing")
         .replace("{account_id}", "usr_missing")
+        .replace("{batch_id}", "bat_missing")
     )
 
 

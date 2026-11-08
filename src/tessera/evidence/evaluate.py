@@ -71,7 +71,7 @@ def gather(engine: Engine, gold_csv: Path | None = None) -> list[Example]:
     examples = []
     for pair, label in gold.items():
         row = by_pair.get(pair)
-        current = row is not None and row["reported"] and row["method"] == METHOD
+        current = row is not None and row["reported"] and row["method"].startswith("authorship/")
         features = {e["feature"] for e in (row["evidence"] if row else [])}
         ambiguity = next(
             (

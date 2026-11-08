@@ -57,13 +57,14 @@ const MARK_TEXT = { accepted: "Confirmed", suggested: "Suggested", deferred: "De
 /** The status mark shown on every linked item. Clicking opens the evidence drawer. */
 export function statusMark(assertion, onOpen) {
   const status = assertion.status;
-  const label = MARK_TEXT[status] ?? status;
+  const label = assertion.auto ? "Auto-confirmed" : MARK_TEXT[status] ?? status;
   const unreported = assertion.reported === false;
   const score = status === "suggested" && assertion.score != null ? scoreLabel(assertion.score) : null;
   const title = [
     `${label}${score ? ` (${score} likely)` : ""}`,
     assertion.origin === "source" ? "stated by the source record" : null,
     assertion.origin === "human" ? "entered by a person" : null,
+    assertion.auto ? "accepted automatically; undo from Admin → Evidence" : null,
     unreported ? "no longer reported by the source" : null,
     onOpen ? "Show the evidence" : null,
   ].filter(Boolean).join(" · ");

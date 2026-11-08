@@ -194,6 +194,35 @@ def build_parser() -> argparse.ArgumentParser:
     roles.add_argument("--role", action="append", required=True, metavar="ROLE", help=role_help)
     roles.set_defaults(handler=cmd_users_roles)
 
+    evidence_cmd = commands.add_parser(
+        "evidence", help="the authorship model: learned weights and auto-accept"
+    )
+    evidence_actions = evidence_cmd.add_subparsers(
+        dest="evidence_command", metavar="ACTION", required=True
+    )
+    evidence_actions.add_parser(
+        "status", help="the active model, the latest evaluation, and auto-accept"
+    ).set_defaults(handler=cmd_evidence_status)
+    evidence_actions.add_parser(
+        "evaluate", help="fit learned weights to decisions and compare on held-out people"
+    ).set_defaults(handler=cmd_evidence_evaluate)
+    evidence_actions.add_parser(
+        "release", help="make the evaluated learned model active (if it was better)"
+    ).set_defaults(handler=cmd_evidence_release)
+    evidence_actions.add_parser("revert", help="go back to the hand-set weights").set_defaults(
+        handler=cmd_evidence_revert
+    )
+    auto = evidence_actions.add_parser(
+        "auto-accept", help="accept strong suggestions automatically, where precision allows"
+    )
+    auto_mode = auto.add_mutually_exclusive_group(required=True)
+    auto_mode.add_argument(
+        "--threshold", type=float, help="switch on at this score (one the evaluation measured)"
+    )
+    auto_mode.add_argument("--off", action="store_true", help="switch off")
+    auto_mode.add_argument("--undo", metavar="BATCH", help="undo one automatic batch")
+    auto.set_defaults(handler=cmd_evidence_auto_accept)
+
     eval_cmd = commands.add_parser("eval", help="evaluate matching quality")
     eval_actions = eval_cmd.add_subparsers(dest="eval_command", metavar="WHAT", required=True)
     eval_authorship = eval_actions.add_parser(
@@ -518,6 +547,9 @@ def _print_resolve(result) -> None:  # type: ignore[no-untyped-def]
                 f"  ORCID iDs suggested from people's papers: {ids.get('proposed', 0):,} new, "
                 f"{ids.get('withdrawn', 0):,} withdrawn (confirm them on profiles)"
             )
+    auto = counts.get("auto_accept") or {}
+    if auto.get("accepted"):
+        print(f"  auto-accepted: {auto['accepted']:,} strong suggestions (batch {auto['batch']})")
     dup = counts.get("duplicates") or {}
     if dup.get("pairs"):
         print(
@@ -846,6 +878,153 @@ def cmd_users_roles(args: argparse.Namespace) -> int:
     finally:
         engine.dispose()
     print(f"{row['username']}: {', '.join(g.role for g in grants)}.")
+    return EXIT_OK
+
+
+# --- evidence ----------------------------------------------------------------------------------
+
+
+def _pct(value: float | None) -> str:
+    return "n/a" if value is None else f"{value:.1%}"
+
+
+def _print_measures(label: str, m: dict | None) -> None:  # type: ignore[type-arg]
+    if not m:
+        return
+    print(
+        f"  {label:<10} log loss {m['log_loss']:.4f} · strong precision "
+        f"{_pct(m['strong']['precision'])}, recall {_pct(m['strong']['recall'])} · review "
+        f"precision {_pct(m['review']['precision'])}, recall {_pct(m['review']['recall'])}"
+    )
+
+
+def cmd_evidence_status(args: argparse.Namespace) -> int:
+    from tessera.evidence import auto_accept
+    from tessera.evidence.model import EVALUATION_SETTING, active_model, read_setting
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    try:
+        model = active_model(engine)
+        report = read_setting(engine, EVALUATION_SETTING)
+        state = auto_accept.status(engine)
+        recent = auto_accept.batches(engine, limit=5)
+    finally:
+        engine.dispose()
+    print(f"Active model: {model.method}" + (" (hand-set)" if model.is_base else ""))
+    for feature, factor in sorted(model.multipliers.items()):
+        if abs(factor - 1) >= 0.05:
+            print(f"  {feature}: {factor:.2f} times the hand-set weight")
+    if report:
+        d = report["decisions"]
+        print(
+            f"Latest evaluation {report['generated_at']}: {d['examples']} decisions "
+            f"({d['negatives']} rejections) about {d['people']} people"
+        )
+        _print_measures("hand-set", report.get("base"))
+        _print_measures("learned", report.get("fitted"))
+        print(
+            "  "
+            + (
+                "The learned model is better: run `tessera evidence release`."
+                if report["better"]
+                else "Not released: " + " ".join(report["reasons"])
+            )
+        )
+    else:
+        print("No evaluation yet: run `tessera evidence evaluate`.")
+    if state["enabled"]:
+        print(
+            f"Auto-accept: on at {state['threshold']} (evaluated precision "
+            f"{_pct(state['precision'])} over {state['support']} decisions)"
+        )
+    else:
+        why = f" ({state['disabled_because']})" if state.get("disabled_because") else ""
+        print(f"Auto-accept: off{why}")
+    for b in recent:
+        undone = f", undone by {b['undone_by']}" if b["undone_at"] else ""
+        print(
+            f"  batch {b['id']}: {b['accepted']} accepted {b['created_at']:%Y-%m-%d %H:%M}{undone}"
+        )
+    return EXIT_OK
+
+
+def cmd_evidence_evaluate(args: argparse.Namespace) -> int:
+    from tessera.evidence.model import evaluate
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    try:
+        report = evaluate(engine, config)
+    finally:
+        engine.dispose()
+    d = report["decisions"]
+    print(f"{d['examples']} decisions ({d['negatives']} rejections) about {d['people']} people")
+    _print_measures("hand-set", report.get("base"))
+    _print_measures("learned", report.get("fitted"))
+    if report["better"]:
+        print(
+            "On held-out people the learned model is better. "
+            "Release it with `tessera evidence release`."
+        )
+    else:
+        print("Not offered: " + " ".join(report["reasons"]))
+    for point in (report.get("fitted") or report.get("base") or {}).get("curve", []):
+        print(
+            f"  at {point['threshold']:<6} precision {_pct(point['precision'])} over "
+            f"{point['support']} decisions"
+        )
+    return EXIT_OK
+
+
+def cmd_evidence_release(args: argparse.Namespace) -> int:
+    from tessera.evidence.model import release
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    try:
+        model = release(engine, "command line")
+    finally:
+        engine.dispose()
+    print(
+        f"Released {model.method}; scores change at the next resolve or sync. Auto-accept is off."
+    )
+    return EXIT_OK
+
+
+def cmd_evidence_revert(args: argparse.Namespace) -> int:
+    from tessera.evidence.model import revert
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    try:
+        revert(engine, "command line")
+    finally:
+        engine.dispose()
+    print("Back to the hand-set weights from the next resolve or sync. Auto-accept is off.")
+    return EXIT_OK
+
+
+def cmd_evidence_auto_accept(args: argparse.Namespace) -> int:
+    from tessera.evidence import auto_accept
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    try:
+        if args.off:
+            auto_accept.disable(engine, "command line")
+            print("Auto-accept is off.")
+        elif args.undo:
+            count = auto_accept.undo_batch(engine, args.undo, "command line")
+            print(f"Returned {count} links to suggestions.")
+        else:
+            state = auto_accept.enable(engine, args.threshold, "command line")
+            print(
+                f"Auto-accept is on at {state['threshold']} (evaluated precision "
+                f"{_pct(state['precision'])}); it runs at the next resolve or sync."
+            )
+    finally:
+        engine.dispose()
     return EXIT_OK
 
 

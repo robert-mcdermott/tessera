@@ -2,7 +2,7 @@
 
 **Goal:** turn the graph into discovery: who works on what, who should meet, and why. Make the evidence stronger with ORCID, and let more than one person use Tessera, each with the right permissions.
 
-**Branch:** `wave-2` · **Target version:** `0.2.0` · **Status:** ◐ slices 1–3 done; slice 4 next
+**Branch:** `wave-2` · **Target version:** `0.2.0` · **Status:** ◐ slices 1–4 done; slice 5 next
 
 ## Exit criteria
 
@@ -57,15 +57,15 @@ Requirements delivered: REC-02 (ORCID), REC-07, REC-08, CUR-05, CUR-06, CUR-10, 
 
 **Acceptance (met):** a test signs in as each role and checks every route against the policy table, and fails if any route lacks a policy; a curator scoped to a unit decides only for its people and sees only them in the queue; a researcher reviews only their own suggestions; every API route but health, metadata, and signing in answers 401 without a session; CSRF, other-site, DNS-rebinding, throttling, expiry, sign-out, and last-admin protections are tested. Checked in the web app on the pilot data as a researcher and an admin.
 
-## Slice 4: Evidence v2 ☐
+## Slice 4: Evidence v2 ☑
 
 **Goal:** weights learned from local decisions, and auto-accept that is safe.
 
-- [ ] Fit `authorship/v2` weights to local decisions (logistic regression in pure Python) with a held-out evaluation; short given names that many people share weigh more heavily against a match (a lesson from the v0.1.0 pilot check)
-- [ ] Evaluation report in the CLI and the admin area: precision, recall, and calibration by band
-- [ ] Auto-accept (CUR-05): off by default; an admin can enable it only at a threshold whose latest evaluated precision is at least 99%; auto-accepted links are marked as such and can be undone together
+- [x] Fit `authorship/v2` weights to local decisions (one multiplier per feature and an offset, logistic regression in pure Python, pulled toward the hand-set weights) with an evaluation on held-out people; a first name of at most two letters counts against a full-name match (`authorship/v1.2`, a lesson from the v0.1.0 pilot check)
+- [x] Evaluation in the CLI (`tessera evidence status | evaluate`) and the admin area (Admin → Evidence): precision, recall, log loss, calibration, and precision at each candidate threshold
+- [x] Auto-accept (CUR-05): off by default; an admin can enable it only at a threshold whose latest evaluated precision is at least 99% over at least 50 decisions; suggestions with conflicting evidence are never accepted; auto-accepted links are marked, never training data, and undone together (migration 0006)
 
-**Acceptance:** v2 beats v1 on held-out decisions or is not released; enabling auto-accept below the precision bar is refused.
+**Acceptance (met):** a learned model is offered only when it beats the hand-set one on held-out people (tested both ways, and fitting recovers known weights from generated decisions); enabling auto-accept below 99% or on too few decisions is refused; on the synthetic organization with simulated decisions, auto-accept at 0.99 accepted 477 suggestions, all correct, and undoing the batch restored every one. The pilot has no curator decisions yet, so neither has been used there.
 
 ## Slice 5: Concepts and expert finder ☐
 
@@ -117,3 +117,4 @@ Requirements delivered: REC-02 (ORCID), REC-07, REC-08, CUR-05, CUR-06, CUR-10, 
 | 2026-11-08 | Slice 1 done. iDs are suggested from papers but only a curator confirms one, because a confirmed iD is decisive. Support for a suggestion is judged on evidence other than ORCID, so a decision about one iD never withdraws a person's second iD and ORCID evidence never supports itself. The model version is `authorship/v1.1` (hand-set weights); learned weights remain `authorship/v2` in slice 4. Found while testing: tied topics were listed in a random order in explanations, so every resolve rewrote hundreds of unchanged suggestions. |
 | 2026-11-08 | Slice 2 done. Merges move rows rather than resolving links through a pointer at read time, so every reader stays simple; a journal makes them exactly reversible. Automation never merges: duplicates are proposed for a curator. A roster without identifiers used to split a person listed under two units into two records; rows with the same full name in one file are now one person. Memberships stay one per person and unit (a second spell in the same unit updates the dates). |
 | 2026-11-08 | Slice 3 done. Accounts, roles, and sessions live in the ledger with no new dependency (ADR-0009). Authentication runs in a middleware so that it covers the API document and files too; authorization reads one policy per route. Found while testing: on SQLite, Python's driver kept schema changes outside the migration's transaction, so a failed migration could leave a half-built table; SQLAlchemy now issues BEGIN itself and DDL rolls back whole. Personal API tokens and single sign-on are left for later (wave 6 for SSO). |
+| 2026-11-08 | Slice 4 done. Learned weights scale the hand-set features rather than replace them, so explanations stay the same and a few decisions barely move the model (an L2 pull toward 1, strength 20, chosen so that 30 decisions move a multiplier by less than 0.2). The synthetic organization is too separable to learn from (fewer than 20 rejections), so learning is tested on generated decisions with known weights. Undoing an auto-accept batch also switches auto-accept off, since the next sync would otherwise accept the same links again. |

@@ -2760,6 +2760,185 @@
           }
         }
       }
+    },
+    "/api/v1/evidence": {
+      "get": {
+        "tags": [
+          "evidence"
+        ],
+        "summary": "The active model, its latest evaluation, and auto-accept",
+        "operationId": "overview_api_v1_evidence_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Overview Api V1 Evidence Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/evidence/evaluate": {
+      "post": {
+        "tags": [
+          "evidence"
+        ],
+        "summary": "Fit learned weights and compare on held-out people (admins)",
+        "operationId": "run_evaluation_api_v1_evidence_evaluate_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Run Evaluation Api V1 Evidence Evaluate Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/evidence/release": {
+      "post": {
+        "tags": [
+          "evidence"
+        ],
+        "summary": "Make the evaluated learned model active, if it was better",
+        "operationId": "release_model_api_v1_evidence_release_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Release Model Api V1 Evidence Release Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/evidence/revert": {
+      "post": {
+        "tags": [
+          "evidence"
+        ],
+        "summary": "Go back to the hand-set weights",
+        "operationId": "revert_model_api_v1_evidence_revert_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Revert Model Api V1 Evidence Revert Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/evidence/auto-accept": {
+      "post": {
+        "tags": [
+          "evidence"
+        ],
+        "summary": "Switch auto-accept on at a measured threshold, or off",
+        "operationId": "change_auto_accept_api_v1_evidence_auto_accept_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutoAcceptChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Change Auto Accept Api V1 Evidence Auto Accept Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/evidence/auto-accept/batches/{batch_id}/undo": {
+      "post": {
+        "tags": [
+          "evidence"
+        ],
+        "summary": "Undo one automatic batch",
+        "operationId": "undo_batch_api_v1_evidence_auto_accept_batches__batch_id__undo_post",
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Batch Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Undo Batch Api V1 Evidence Auto Accept Batches  Batch Id  Undo Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2909,6 +3088,32 @@
           "roles"
         ],
         "title": "AccountIn"
+      },
+      "AutoAcceptChange": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "threshold": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled"
+        ],
+        "title": "AutoAcceptChange"
       },
       "BatchDecision": {
         "properties": {

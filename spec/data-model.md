@@ -77,7 +77,8 @@ The ledger is relational and portable across SQLite and PostgreSQL. JSON fields 
 | `person_merge` | One row per merge | `id`, `merged_id`, `survivor_id`, `actor`, `note`, `at`, `journal` (every change, in order, with the values it replaced), `summary` (links, names, and identifiers moved; conflicting decisions), `undone_at`, `undone_by`. Added by migration 0004; a ledger with merges in effect cannot be downgraded below it |
 | `ingest_run` | One row per connector or job run | `id`, `source`, `kind`, `started_at`, `finished_at`, `status`, `params`, `counts`, `error` |
 | `source_checkpoint` | Incremental watermarks | `source`, `scope`, `watermark`, `updated_at` |
-| `setting` | Runtime settings editable in the app | `key`, `value`, `updated_by`, `updated_at` |
+| `setting` | Runtime settings editable in the app | `key`, `value`, `updated_by`, `updated_at`. Keys: `authorship_model` (the released learned model: multipliers, offset, method name), `authorship_evaluation` (the latest evaluation and the candidate model), `auto_accept` (on or off, threshold, measured precision and support, the model it was measured for) |
+| `auto_accept_batch` | Links one automatic run accepted | `id`, `created_at`, `threshold`, `precision`, `method`, `assertion_ids`, `undone_at`, `undone_by`. Migration 0006. Links accepted automatically have `decided_by` `Auto-accept` |
 
 Wave 2 added `account` (username, display name, scrypt password hash, status, linked person), `role_grant` (role, optionally scoped to a unit or a person), and `auth_session` (only a hash of the session token, the CSRF token, and expiry), in migration 0005. Later waves add: `lab`, `lab_membership`, `page`, `page_revision` (wave 3); `snapshot`, `metric_definition` (wave 4); `opportunity_match`, `team` (wave 5).
 

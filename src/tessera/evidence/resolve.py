@@ -11,7 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.engine import Engine
 
 from tessera.config import Config
-from tessera.evidence import authorship, duplicates, links, people
+from tessera.evidence import authorship, auto_accept, duplicates, links, people
 from tessera.evidence.orgmatch import OrgMatcher
 from tessera.home import DataHome
 from tessera.jobs import runs
@@ -78,6 +78,7 @@ def resolve(
                     counts["duplicates"] = duplicates.resolve_duplicates(
                         engine, lake, config
                     ).to_json()
+                    counts["auto_accept"] = auto_accept.run(engine, config)
         except BaseException as exc:
             runs.finish_run(engine, run_id, "failed", counts, f"{exc.__class__.__name__}: {exc}")
             raise

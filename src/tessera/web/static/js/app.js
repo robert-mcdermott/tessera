@@ -14,6 +14,7 @@ import { accounts } from "./pages/accounts.js";
 import { browse } from "./pages/browse.js";
 import { candidates } from "./pages/candidates.js";
 import { duplicates } from "./pages/duplicates.js";
+import { evidence } from "./pages/evidence.js";
 import { decisions } from "./pages/decisions.js";
 import { home } from "./pages/home.js";
 import { setProduct, setTitle } from "./pages/page.js";
@@ -85,6 +86,7 @@ async function boot() {
   route("/review/log", (_, ctx) => decisions(main, ctx));
   route("/admin/sources", () => sources(main));
   if (can("admin")) route("/admin/accounts", (_, ctx) => accounts(main, ctx));
+  if (can("curate_any")) route("/admin/evidence", (_, ctx) => evidence(main, ctx));
   fallback(() => {
     setTitle("Not found");
     main.replaceChildren(h("div", { class: "page" }, emptyState({ iconName: "search", title: "Page not found",

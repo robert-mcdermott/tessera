@@ -264,6 +264,20 @@ auth_session = Table(
 )
 Index(None, auth_session.c.account_id)
 
+# Links one automatic run accepted (CUR-05), so that the whole run can be undone together.
+auto_accept_batch = Table(
+    "auto_accept_batch",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("created_at", UtcDateTime, nullable=False),
+    Column("threshold", Float, nullable=False),
+    Column("precision", Float),
+    Column("method", String(60), nullable=False),
+    Column("assertion_ids", JsonType, nullable=False),
+    Column("undone_at", UtcDateTime),
+    Column("undone_by", String(200)),
+)
+
 ingest_run = Table(
     "ingest_run",
     metadata,

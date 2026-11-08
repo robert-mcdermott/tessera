@@ -15,6 +15,7 @@ from tessera.api.routers import (
     access,
     candidates,
     curation,
+    evidence,
     merges,
     overview,
     people,
@@ -67,7 +68,17 @@ def create_app(config: Config) -> FastAPI:
     install_access(app)  # every request: who is asking, and may they (before the headers,
     install_security_headers(app)  # so that refusals carry them too)
     install_problem_handlers(app)
-    for module in (system, access, overview, people, candidates, merges, records, curation):
+    for module in (
+        system,
+        access,
+        overview,
+        people,
+        candidates,
+        merges,
+        records,
+        curation,
+        evidence,
+    ):
         app.include_router(module.router)
     install_api_reference(app)
     install_theme(app)
