@@ -2,7 +2,16 @@
 
 All notable changes to Tessera are recorded here. Versions follow [semantic versioning](https://semver.org/); each wave of work ships as a minor release (wave 1 → 0.1.0, wave 2 → 0.2.0).
 
-## Unreleased
+## 0.5.0 (2026-11-08)
+
+Impact. Tessera now follows what came after a grant or a paper, finds the funding opportunities that fit people and groups and says separately whether the organization may apply, and helps put a team together for one. For organizations that turn it on, an assistant answers questions from Tessera's own records with citations, within each person's access, and drafts plain-language summaries that someone approves before anyone sees them.
+
+**Highlights:** grant-to-impact threads (papers, studies, and clinical articles, with practice guidelines marked) and Insight → Impact; Grants.gov's federal opportunities and the organization's own; fit and eligibility as separate signals, each with its reasons, on the home page, profiles, group pages, and in a group's inbox; teams with the topics they cover and miss, and a brief; an optional assistant for any OpenAI-compatible or Anthropic-compatible endpoint or Amazon Bedrock, invisible until enabled; grounded answers that cite records and decline what they do not support; plain-language summaries for profiles and group pages.
+
+**Upgrading:** run `tessera db upgrade` (migrations 0014 to 0018), then `tessera sync`, which now also fetches Grants.gov's opportunities (the first time takes about 12 minutes; later syncs read only what changed) and iCite's clinical citations with the citing articles. Set `[organization] applicant_types` for the eligibility checks (see Configuration). The assistant stays off, and nothing mentions it, until an `[ai]` section turns it on; see *The assistant*.
+
+**Checks for this release:** authorship is unchanged: on the pilot, with people's ORCID works lists as they are today, 0.5.0 and the 0.4.0 ledger give the same result (196 listed papers from 2025 on, 94.9% found as candidates, 97.3% of those strong; the lists have grown by three papers since 0.4.0's check of 193). A grant's thread answers in 54 ms at most on the pilot's data; its first Grants.gov sync took 12 minutes 15 seconds and an unchanged one 1.9 seconds; 1,459 open opportunities are read for fit in 100 seconds. The assistant was evaluated on the demo with `gemma4:31b-cloud` through Ollama: of 35 questions, every answer's citations were valid before checking, every answerable question cited an expected record, all 7 unanswerable questions were declined, and nothing out of the asker's reach was ever sent to the model. Migrations 0014 to 0018 were run up and down on SQLite and PostgreSQL 16. No dependencies were added.
+
 
 ### Added
 

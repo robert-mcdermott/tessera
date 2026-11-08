@@ -9,6 +9,8 @@ A strong fit says nothing about eligibility, and an opportunity the organization
 
 ## The list
 
+![Opportunities: open and forecast ones by closing date, each with its sponsor, dates, and fit, with filters beside them](images/opportunities-light.webp "Opportunities")
+
 Open and forecast opportunities come first, the soonest deadline first. Filter by:
 
 - **Status**: open, forecast, closed, or archived.
@@ -24,6 +26,8 @@ Search finds opportunities by title, sponsor, number, and description, here and 
 The page shows what the opportunity is about, its dates and money (a forecast's are the sponsor's estimates), and its details: for NIH notices, the activity codes, the clinical-trial rule, and a link to the notice in the NIH Guide.
 
 ### Who fits
+
+![An opportunity's page: who fits it and why, the topics it was read as, and whether the organization may apply](images/opportunity-light.webp "An opportunity")
 
 Tessera reads an opportunity as topics, the way an [expert search](discovery.md) reads a question: the MeSH headings its title and description name (and their synonyms), and the headings of the organization's papers on the same subject. People whose **confirmed** work matches those topics are listed with the headings that match and how many of their papers carry each. Groups fit through their current members: as well as their best-fitting members do, who are named.
 
@@ -49,6 +53,8 @@ Some facts are shown as notes because they decide nothing: whether a clinical tr
 **Watch** puts an opportunity on your home page; **Dismiss** takes it off your own lists. Neither changes what anyone else sees.
 
 ## Building a team
+
+![A team's page: its members and roles, the topics each covers, the topics still missing with people who cover them, and pairings](images/team-light.webp "A team")
 
 **Start a team** on an opportunity's page makes a team that needs the topics the opportunity was read as; **Teams** in the menu lists yours, and **Start a team** there makes one for topics you choose. On a team's page:
 

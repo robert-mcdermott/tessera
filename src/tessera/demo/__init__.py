@@ -233,6 +233,7 @@ def build_demo(
         built = build_discovery(config, home, engine)
         build_attribution(config, home, engine, today=today)
         build_opportunities(config, home, engine, today=today)
+        _team(home, engine)
         _attribute(engine)
         _pages(engine, today)
         _public(engine)
@@ -619,6 +620,26 @@ def _insight(config: Config, home: DataHome, engine: Engine, today: date) -> Non
             engine, lake, config, home, report_id, actor="Demo curator",
             note="For the program's annual review", today=today, search=index,
         )  # fmt: skip
+
+
+def _team(home: DataHome, engine: Engine) -> None:
+    """A team for the cellular immunotherapy opportunity, so Teams has something to show: the
+    three people who fit it best, with the topics the opportunity was read as."""
+    from tessera.auth.principal import Principal
+    from tessera.opportunities import fit
+    from tessera.teams import store as teams
+
+    read = fit.fits_of(home, "opp:9900101")
+    if read is None:
+        return
+    operator = Principal(name=CURATOR, single_operator=True)
+    team_id = teams.create(engine, operator, {
+        "name": "Cellular immunotherapy R01", "opportunity": "opp:9900101",
+        "purpose": "An R01 on next-generation cellular immunotherapies for blood cancers.",
+        "concepts": read["concepts"]})  # fmt: skip
+    best = sorted(read["people"], key=lambda p: -p["score"])[:3]
+    for person_fit, role in zip(best, ("lead", "co_investigator", "collaborator"), strict=False):
+        teams.set_member(engine, team_id, person_fit["id"], operator, role)
 
 
 def _public(engine: Engine) -> None:

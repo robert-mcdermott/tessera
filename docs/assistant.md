@@ -9,6 +9,8 @@ Tessera can include an assistant that answers questions from Tessera's own recor
 - Nothing sent to a model includes contact details (email addresses, phone numbers, postal addresses) or links nobody has accepted.
 - Every exchange is logged: who asked, when, the provider and model, the prompt's version, the messages and tool calls with the records they returned, the answer, its citations, tokens, and time. Admins read the log in **Admin → Assistant**.
 
+![Admin, Assistant: the provider and model, the last 30 days in exchanges and tokens, and every exchange with who asked, the question, its outcome, tool calls, citations, tokens, and time](images/assistant-log-light.webp "Admin → Assistant")
+
 ## Asking a question
 
 With the assistant on, **Ask** appears in the top bar (and as **Ask a question…** in the command palette, ⌘K or Ctrl-K). It opens a side panel. Type a question and press Enter.
@@ -17,6 +19,8 @@ With the assistant on, **Ask** appears in the top bar (and as **Ask a question�
 - The answer streams in as it is written, with numbered citations. The records it cites are listed under it; open one to see the record.
 - Ask a follow-up in the same panel and the assistant keeps the conversation. **New conversation** starts over.
 - **Stop** ends an answer early. A stopped answer is kept in the log, and its citations are not shown, since they were never checked.
+
+![The Ask panel beside the home page: a question, the steps taken, an answer with numbered citations, and the records it cites](images/ask-light.webp "Ask")
 
 It answers questions such as:
 
@@ -65,6 +69,8 @@ With the assistant on, a profile or a group can have a short summary of its work
 - **Where it shows:** an approved summary appears on the profile for everyone who can see it; for a group, where its editors add a **Summary** block to the page. It is labeled "Drafted with AI assistance; approved by …", and appears on the [public site](public-site.md) too for people and groups that are public.
 - **Keeping it current:** when someone's or a group's confirmed records have changed a good deal since its summary was approved (five confirmed papers more or fewer, or a fifth of them where that is more; any grant or study; for a group, two members or a quarter of them, where that is more), the group's inbox, or the person's own inbox, suggests drafting a new one.
 - **History:** every draft, edit, approval, rejection, and replacement is recorded, with who did it and when, and each draft keeps the model, the instructions' version (`summary/v1`), and a digest of the facts it was given. Each draft is also an exchange in the log.
+
+![A profile with its approved summary: two short paragraphs in plain language, labeled as drafted with AI assistance and approved by whom](images/summary-light.webp "A plain-language summary")
 
 Turning the assistant off keeps approved summaries but shows them nowhere, the public site included; turning it back on shows them again.
 

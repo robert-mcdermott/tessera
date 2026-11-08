@@ -112,6 +112,8 @@ A trend compares a topic's share of the cohort's papers in the later half of the
 
 **Insight → Impact** shows what followed the cohort's papers. It is association, not causation: a figure says what cites or lists the papers, never that they caused it.
 
+![Insight, Impact: the organization's papers by year that clinical articles cite, practice guidelines marked, and those that registered studies list](images/insight-impact-light.webp "Insight → Impact")
+
 | Figure | Metric | Shows |
 |---|---|---|
 | Clinical citations | `impact.clinical_citations/v1` | The cohort's papers in each year cited by at least one clinical article, and by a practice guideline |
@@ -124,6 +126,8 @@ A trend compares a topic's share of the cohort's papers in the later half of the
 ### A grant's thread
 
 Every grant's page ends with **What followed this grant**: the papers that acknowledge it (from NIH RePORTER's link table or the paper's own PubMed grant list), the registered studies that reference those papers or name the grant, and the clinical articles that cite the papers. Choose a paper, a study, or a clinical article to see only what it is linked to; **Paths to practice guidelines** shows the papers and studies that lead to a guideline. Only links that are accepted and still reported by their source are followed, so a link a curator rejected never appears. A paper's page lists the clinical articles citing it, and a person's **Impact** tab lists what followed each of their grants and their confirmed papers.
+
+![A grant's thread: the papers that acknowledge it, the studies that reference them, and the clinical articles citing them, in three columns, with how each is linked](images/thread-light.webp "What followed this grant")
 
 ## Funding
 
