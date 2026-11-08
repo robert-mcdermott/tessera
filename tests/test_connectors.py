@@ -12,6 +12,7 @@ from tessera.connectors.base import FetchReport, IngestOptions, Payload
 from tessera.connectors.ctgov import CtgovConnector, org_expression, parse_study, scrub_contacts
 from tessera.connectors.grants import normalize_grant
 from tessera.connectors.icite import ICiteConnector
+from tessera.connectors.orcid import OrcidConnector, orcid_checksum_ok, valid_orcids
 from tessera.connectors.pubmed import PubMedConnector, org_term, parse_date
 from tessera.connectors.reporter import (
     LINK_LIMIT,
@@ -29,6 +30,8 @@ from .fakes import (
     esearch_xml,
     form,
     no_sleep,
+    orcid_api,
+    orcid_record,
     pubmed_api,
     reporter_api,
     reporter_project,
@@ -484,6 +487,69 @@ def test_icite_parse() -> None:
     assert record["pmid"] == "5" and record["year"] == 2024
     assert record["relative_citation_ratio"] is None
     assert (record["is_clinical"], record["is_research_article"]) == (True, False)
+
+
+# --- ORCID -----------------------------------------------------------------------------------
+
+AVERY = "0000-0003-9000-0014"
+BLAKE = "0000-0003-9000-0022"
+
+
+def test_orcid_checksum() -> None:
+    assert orcid_checksum_ok(AVERY) and orcid_checksum_ok("0000-0002-1694-233X")
+    assert not orcid_checksum_ok("0000-0003-9000-0015")
+    assert valid_orcids(["https://orcid.org/0000-0003-9000-0022", AVERY, "nonsense", AVERY]) == [
+        AVERY,
+        BLAKE,
+    ]
+
+
+def test_orcid_parse_record() -> None:
+    record = orcid_record(
+        AVERY,
+        works=(
+            {"pmid": "31000001", "doi": "10.1000/ABC.1", "title": "First"},
+            {"doi": "https://doi.org/10.1000/xyz", "pmc": "PMC123", "year": 2021},
+        ),
+        employments=({"department": "Medicine", "role": "Professor", "start": 2012},),
+    )
+    payload = Payload("record", json.dumps(record).encode(), "json", datetime.now(UTC))
+    [row] = OrcidConnector.parse(payload)["orcid"]
+    assert (row["orcid"], row["status"], row["family_name"]) == (AVERY, "public", "Example")
+    assert row["other_names"] == ["A. Example"]
+    first, second = row["works"]
+    assert (first["pmid"], first["doi"], first["title"]) == ("31000001", "10.1000/abc.1", "First")
+    assert (second["pmid"], second["doi"], second["pmcid"]) == (None, "10.1000/xyz", "PMC123")
+    [job] = row["employments"]
+    assert (job["organization"], job["department"], job["start_year"]) == (
+        "Example University",
+        "Medicine",
+        2012,
+    )
+    assert (job["org_id_source"], job["end_year"]) == ("ROR", None)
+
+
+def test_orcid_fetch_keeps_unavailable_records_as_data(config: Config) -> None:
+    api = orcid_api({AVERY: orcid_record(AVERY)}, deprecated={BLAKE: AVERY})
+    missing = "0000-0003-9000-0030"
+    connector = make(OrcidConnector, config, api)
+    plan = connector.plan(IngestOptions(mode="ids", ids=[AVERY, BLAKE, missing]), None, TODAY)
+    payloads, report = collect(connector, plan)
+    assert report.complete and report.payloads == 3
+    rows = {r["orcid"]: r for p in payloads for r in OrcidConnector.parse(p)["orcid"]}
+    assert rows[AVERY]["status"] == "public"
+    assert (rows[BLAKE]["status"], rows[BLAKE]["primary_orcid"]) == ("deprecated", AVERY)
+    assert rows[missing]["status"] == "not_found"
+    assert all(r.headers["Accept"] == "application/json" for r in api.requests)
+
+
+def test_orcid_server_errors_fail_the_batch(config: Config) -> None:
+    api = orcid_api({})
+    api.route("/record", lambda request: httpx.Response(503, text="maintenance"))
+    connector = make(OrcidConnector, config, api)
+    plan = connector.plan(IngestOptions(mode="ids", ids=[AVERY]), None, TODAY)
+    payloads, report = collect(connector, plan)
+    assert payloads == [] and not report.complete
 
 
 # --- PubMed people mode ----------------------------------------------------------------------

@@ -52,7 +52,7 @@ def setup(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Setup]:
     resolve(config, home, engine, today=TODAY)
     build_search(config, home, engine)
     engine.dispose()
-    with TestClient(create_app(config)) as client:
+    with TestClient(create_app(config), base_url="http://localhost") as client:
         yield Setup(client, world, config, home)
 
 
@@ -295,3 +295,87 @@ def test_update_without_an_index_is_a_no_op(tmp_path: Path) -> None:
         assert update.apply(config, home, engine, people=["per_x"], records=["pub:1"]) is None
     finally:
         engine.dispose()
+
+
+# --- identifiers ---------------------------------------------------------------------------------
+
+
+def test_identifier_decisions(setup: Setup) -> None:
+    client = setup.client
+    holder = next(
+        r for r in setup.world.insiders if r.profile_id is not None and r.orcid and r.papers
+    )
+    items = ok(client.get("/api/v1/people", params={"q": holder.family}))["data"]
+    pid = next(i["id"] for i in items if i["name"].endswith(holder.family))
+    path = f"/api/v1/people/{pid}/identifiers"
+
+    profile = ok(client.get(f"/api/v1/people/{pid}"))["data"]
+    [suggested] = [i for i in profile["identifiers"] if i["scheme"] == "orcid"]
+    assert (suggested["value"], suggested["status"], suggested["source"]) == (
+        holder.orcid,
+        "suggested",
+        "papers",
+    )
+    assert suggested["papers"] >= 2 and suggested["url"].endswith(holder.orcid)
+    assert suggested["record"]["status"] == "public"  # the synthetic lake has the record
+
+    body = {"scheme": "orcid", "value": holder.orcid, "action": "accept", "note": "Checked"}
+    result = ok(client.post(path, json=body))["data"]
+    assert (result["previous"], result["status"]) == ("suggested", "accepted")
+    assert any(i["status"] == "accepted" for i in result["identifiers"])
+
+    # Mistakes are refused with a reason; a malformed iD is a 400, a wrong state a 409.
+    bad = client.post(
+        path, json={"scheme": "orcid", "value": "0000-0003-9000-0015", "action": "add"}
+    )
+    assert bad.status_code == 400 and "not a valid ORCID iD" in bad.json()["detail"]
+    again = client.post(path, json={"scheme": "orcid", "value": holder.orcid, "action": "accept"})
+    assert again.status_code == 409
+    assert (
+        client.post(
+            "/api/v1/people/per_missing/identifiers", json={**body, "action": "add"}
+        ).status_code
+        == 404
+    )
+
+    # Reject, then remove: both logged, newest first, with what changed.
+    ok(client.post(path, json={**body, "action": "reject", "note": None}))
+    ok(client.post(path, json={**body, "action": "remove", "note": None}))
+    log = ok(client.get("/api/v1/decisions", params={"limit": 3}))["data"]
+    assert [(e["action"], e["identifier"]["action"]) for e in log] == [
+        ("identifier", "remove"),
+        ("identifier", "reject"),
+        ("identifier", "accept"),
+    ]
+    assert log[2]["note"] == "Checked" and log[0]["to_status"] is None
+
+    # Identifier decisions never disturb undo of promote and dismiss.
+    profile = ok(client.get(f"/api/v1/people/{pid}"))["data"]
+    assert not [i for i in profile["identifiers"] if i["scheme"] == "orcid"]
+
+
+def test_an_id_held_by_two_people_is_flagged(setup: Setup) -> None:
+    client = setup.client
+    first, second = [r for r in setup.world.insiders if r.profile_id is not None][-2:]
+    ids = []
+    for r in (first, second):
+        items = ok(client.get("/api/v1/people", params={"q": r.family}))["data"]
+        ids.append(next(i["id"] for i in items if i["name"].endswith(r.family)))
+    shared = "0000-0003-9000-0049"
+    for pid in ids:
+        ok(
+            client.post(
+                f"/api/v1/people/{pid}/identifiers",
+                json={"scheme": "orcid", "value": shared, "action": "add"},
+            )
+        )
+    profile = ok(client.get(f"/api/v1/people/{ids[0]}"))["data"]
+    [held] = [i for i in profile["identifiers"] if i["value"] == shared]
+    assert held["also"] == [{"id": ids[1], "name": held["also"][0]["name"], "status": "accepted"}]
+    for pid in ids:  # leave the shared world as it was
+        ok(
+            client.post(
+                f"/api/v1/people/{pid}/identifiers",
+                json={"scheme": "orcid", "value": shared, "action": "remove"},
+            )
+        )

@@ -17,6 +17,7 @@ from tessera import PRODUCT_NAME, TAGLINE, __version__
 from tessera.config import (
     DEFAULT_CONFIG_NAME,
     ENV_CONFIG_PATH,
+    LOOPBACK_HOSTS,
     config_warnings,
     example_config_text,
     find_config_path,
@@ -91,14 +92,16 @@ def build_parser() -> argparse.ArgumentParser:
         "ingest",
         help="fetch public data into the lake",
         description="Fetch from a public source. SOURCE is pubmed, icite, reporter, ctgov, "
-        "or 'all' (every enabled source in a sensible order). Without --mode, an "
-        "organization sweep is run (or an ID fetch if --ids is given).",
+        "orcid, or 'all' (every enabled source in a sensible order). Without --mode, an "
+        "organization sweep is run (or an ID fetch if --ids is given); iCite and ORCID "
+        "read what the lake and the directory need.",
     )
-    ingest.add_argument("source", help="pubmed | icite | reporter | ctgov | all")
+    ingest.add_argument("source", help="pubmed | icite | reporter | ctgov | orcid | all")
     ingest.add_argument(
         "--mode",
         default="auto",
-        help="org | query | ids | linked or people (pubmed) | pi (reporter) | refresh (icite)",
+        help="org | query | ids | linked or people (pubmed) | pi (reporter) | "
+        "refresh (icite, orcid)",
     )
     ingest.add_argument("--ids", nargs="+", default=[], metavar="ID", help="IDs to fetch")
     ingest.add_argument("--ids-file", metavar="PATH", help="file with one ID per line")
@@ -118,7 +121,7 @@ def build_parser() -> argparse.ArgumentParser:
     replay_cmd = commands.add_parser(
         "replay", help="rebuild lake records from a run's raw payloads"
     )
-    replay_cmd.add_argument("source", help="pubmed | icite | reporter | ctgov")
+    replay_cmd.add_argument("source", help="pubmed | icite | reporter | ctgov | orcid")
     replay_cmd.add_argument("run_id", help="the run to replay (see `tessera runs`)")
     replay_cmd.set_defaults(handler=cmd_replay)
 
@@ -133,6 +136,9 @@ def build_parser() -> argparse.ArgumentParser:
     build_actions.add_parser("search", help="the search and serving index").set_defaults(
         handler=cmd_build_search
     )
+    build_actions.add_parser(
+        "discovery", help="concept profiles, similar people, and the collaboration graph"
+    ).set_defaults(handler=cmd_build_discovery)
 
     sync_cmd = commands.add_parser(
         "sync", help="fetch every source and resolve, in the right order (the usual command)"
@@ -152,6 +158,73 @@ def build_parser() -> argparse.ArgumentParser:
     lister.add_argument("--status", default="active", help="active | former | candidate | all")
     lister.add_argument("--limit", type=int, default=50, help="at most this many (default: 50)")
     lister.set_defaults(handler=cmd_people_list)
+
+    users_cmd = commands.add_parser("users", help="local accounts and their roles")
+    users_actions = users_cmd.add_subparsers(dest="users_command", metavar="ACTION", required=True)
+    role_help = (
+        "admin, curator, researcher, or viewer; a curator for some people only is "
+        "curator=unit:<name or code> or curator=person:<ID> (repeatable)"
+    )
+    adder = users_actions.add_parser("add", help="create an account (prompts for a password)")
+    adder.add_argument("username", help="lowercase letters, digits, dots, dashes, underscores")
+    adder.add_argument("--name", help="the name shown and recorded on decisions")
+    adder.add_argument("--role", action="append", required=True, metavar="ROLE", help=role_help)
+    adder.add_argument("--email", help="contact address")
+    adder.add_argument("--person", metavar="ID", help="the person a researcher account belongs to")
+    adder.add_argument(
+        "--password-stdin", action="store_true", help="read the password from standard input"
+    )
+    adder.set_defaults(handler=cmd_users_add)
+    users_actions.add_parser("list", help="list accounts and roles").set_defaults(
+        handler=cmd_users_list
+    )
+    for action, text in (("disable", "sign an account out and block it"), ("enable", "unblock")):
+        sub = users_actions.add_parser(action, help=text)
+        sub.add_argument("username")
+        sub.set_defaults(
+            handler=cmd_users_status, status="disabled" if action == "disable" else "active"
+        )
+    resetter = users_actions.add_parser(
+        "reset-password", help="set a new password (signs the account out everywhere)"
+    )
+    resetter.add_argument("username")
+    resetter.add_argument(
+        "--password-stdin", action="store_true", help="read the password from standard input"
+    )
+    resetter.set_defaults(handler=cmd_users_password)
+    roles = users_actions.add_parser("roles", help="replace an account's roles")
+    roles.add_argument("username")
+    roles.add_argument("--role", action="append", required=True, metavar="ROLE", help=role_help)
+    roles.set_defaults(handler=cmd_users_roles)
+
+    evidence_cmd = commands.add_parser(
+        "evidence", help="the authorship model: learned weights and auto-accept"
+    )
+    evidence_actions = evidence_cmd.add_subparsers(
+        dest="evidence_command", metavar="ACTION", required=True
+    )
+    evidence_actions.add_parser(
+        "status", help="the active model, the latest evaluation, and auto-accept"
+    ).set_defaults(handler=cmd_evidence_status)
+    evidence_actions.add_parser(
+        "evaluate", help="fit learned weights to decisions and compare on held-out people"
+    ).set_defaults(handler=cmd_evidence_evaluate)
+    evidence_actions.add_parser(
+        "release", help="make the evaluated learned model active (if it was better)"
+    ).set_defaults(handler=cmd_evidence_release)
+    evidence_actions.add_parser("revert", help="go back to the hand-set weights").set_defaults(
+        handler=cmd_evidence_revert
+    )
+    auto = evidence_actions.add_parser(
+        "auto-accept", help="accept strong suggestions automatically, where precision allows"
+    )
+    auto_mode = auto.add_mutually_exclusive_group(required=True)
+    auto_mode.add_argument(
+        "--threshold", type=float, help="switch on at this score (one the evaluation measured)"
+    )
+    auto_mode.add_argument("--off", action="store_true", help="switch off")
+    auto_mode.add_argument("--undo", metavar="BATCH", help="undo one automatic batch")
+    auto.set_defaults(handler=cmd_evidence_auto_accept)
 
     eval_cmd = commands.add_parser("eval", help="evaluate matching quality")
     eval_actions = eval_cmd.add_subparsers(dest="eval_command", metavar="WHAT", required=True)
@@ -471,6 +544,21 @@ def _print_resolve(result) -> None:  # type: ignore[no-untyped-def]
             f"{a['strong']:,} strong, {a['possible']:,} possible, {a['unlikely']:,} unlikely "
             f"({stored.get('inserted', 0):,} new, {stored.get('updated', 0):,} updated)"
         )
+        ids = a.get("identifiers") or {}
+        if ids.get("proposed") or ids.get("withdrawn"):
+            print(
+                f"  ORCID iDs suggested from people's papers: {ids.get('proposed', 0):,} new, "
+                f"{ids.get('withdrawn', 0):,} withdrawn (confirm them on profiles)"
+            )
+    auto = counts.get("auto_accept") or {}
+    if auto.get("accepted"):
+        print(f"  auto-accepted: {auto['accepted']:,} strong suggestions (batch {auto['batch']})")
+    dup = counts.get("duplicates") or {}
+    if dup.get("pairs"):
+        print(
+            f"  possible duplicates: {dup['pairs']:,} pairs ({dup.get('strong', 0):,} strong); "
+            "review them under Curate"
+        )
     for predicate, stats in counts.get("links", {}).items():
         if stats:
             total = stats.get("inserted", 0) + stats.get("updated", 0) + stats.get("unchanged", 0)
@@ -497,6 +585,28 @@ def _print_build(result: dict) -> None:  # type: ignore[type-arg]
         f"publications, {docs.get('grant', 0):,} grants, {docs.get('study', 0):,} studies, "
         f"{docs.get('candidate', 0):,} discovered people in {result.get('seconds', 0)}s"
     )
+
+
+def cmd_build_discovery(args: argparse.Namespace) -> int:
+    from tessera.jobs.build import build_discovery
+
+    config, home = _load(args)
+    engine = _engine(config)
+    try:
+        result = build_discovery(config, home, engine)
+    finally:
+        engine.dispose()
+    print(
+        f"concept profiles: {result['people']:,} people, {result['concepts']:,} concepts, "
+        f"{result['pairs']:,} similar pairs (from {result['papers']:,} papers, "
+        f"{result['confirmed_papers']:,} confirmed)"
+    )
+    print(
+        f"collaboration graph: {result['collaborations']:,} collaborating pairs in "
+        f"{result['groups']:,} groups, {result['bridges']:,} people bridging them; "
+        f"concept landscape: {result['concept_pairs']:,} linked concepts"
+    )
+    return EXIT_OK
 
 
 def cmd_build_search(args: argparse.Namespace) -> int:
@@ -618,10 +728,24 @@ def cmd_serve(args: argparse.Namespace) -> int:
     port = args.port or config.server.port
     for warning in config_warnings(config):
         log.warning("%s", warning)
-    if args.host and args.host not in {"127.0.0.1", "localhost", "::1"}:
-        log.warning(
-            "Listening on %s: Tessera has no sign-in yet; anyone who can reach it can curate.", host
+    if not config.server.accounts and host not in LOOPBACK_HOSTS:
+        raise TesseraError(
+            f"Without accounts, Tessera listens on this machine only, not on {host}. Set "
+            "server.accounts = true and create an admin with `tessera users add`."
         )
+    if config.server.accounts:
+        from tessera.auth.accounts import active_admins
+
+        engine = _engine(config)
+        try:
+            admins = active_admins(engine)
+        finally:
+            engine.dispose()
+        if not admins:
+            raise TesseraError(
+                "Accounts are on, but no admin can sign in. Create one first: "
+                "tessera users add <username> --role admin"
+            )
     assert config.path is not None
     os.environ[ENV_CONFIG_PATH] = str(Path(config.path).resolve())
     print(f"{config.branding.product_name} running at http://{host}:{port}/  (Ctrl-C to stop)")
@@ -635,6 +759,297 @@ def cmd_serve(args: argparse.Namespace) -> int:
         log_level="warning" if args.quiet else "info",
         server_header=False,
     )
+    return EXIT_OK
+
+
+# --- users ---------------------------------------------------------------------------------------
+
+
+def _read_password(from_stdin: bool) -> str:
+    import getpass
+
+    if from_stdin:
+        return sys.stdin.readline().rstrip("\n")
+    first = getpass.getpass("Password (at least 12 characters): ")
+    if getpass.getpass("Again: ") != first:
+        raise TesseraError("The two passwords differ.")
+    return first
+
+
+def _parse_roles(conn, specs: list[str]):  # type: ignore[no-untyped-def]
+    from tessera.auth.accounts import Grant, resolve_scope
+
+    grants = []
+    for spec in specs:
+        role, _, scope = spec.partition("=")
+        grants.append(Grant(role.strip().lower(), *resolve_scope(conn, scope.strip() or None)))
+    return grants
+
+
+def _describe_roles(grants, units: dict[str, str]) -> str:  # type: ignore[no-untyped-def]
+    out = []
+    for g in grants:
+        if g.scope_type == "unit":
+            out.append(f"{g.role} ({units.get(g.scope_id, g.scope_id)})")
+        elif g.scope_type == "person":
+            out.append(f"{g.role} ({g.scope_id})")
+        else:
+            out.append(g.role)
+    return ", ".join(out)
+
+
+def cmd_users_add(args: argparse.Namespace) -> int:
+    from tessera.auth import accounts
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    try:
+        with engine.connect() as conn:
+            grants = _parse_roles(conn, args.role)
+        password = _read_password(args.password_stdin)
+        account_id = accounts.create_account(
+            engine,
+            args.username,
+            args.name or args.username,
+            password,
+            grants,
+            actor="command line",
+            email=args.email,
+            person_id=args.person,
+        )
+    finally:
+        engine.dispose()
+    print(f"Created {args.username.lower()} ({account_id}).")
+    if not config.server.accounts:
+        print(
+            "Accounts are off: set server.accounts = true in the configuration to require sign-in."
+        )
+    return EXIT_OK
+
+
+def cmd_users_list(args: argparse.Namespace) -> int:
+    from sqlalchemy import select
+
+    from tessera.auth import accounts
+    from tessera.ledger.tables import unit
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    try:
+        rows = accounts.list_accounts(engine)
+        with engine.connect() as conn:
+            units = dict(conn.execute(select(unit.c.id, unit.c.name)).all())
+    finally:
+        engine.dispose()
+    if not rows:
+        print("No accounts yet. Create an admin: tessera users add <username> --role admin")
+        return EXIT_OK
+    for r in rows:
+        seen = r["last_sign_in_at"].date().isoformat() if r["last_sign_in_at"] else "never"
+        print(
+            f"{r['username']:<20} {r['status']:<9} {_describe_roles(r['grants'], units):<40} "
+            f"{r['display_name']} · last sign-in {seen}"
+        )
+    return EXIT_OK
+
+
+def _account_or_fail(engine, username: str):  # type: ignore[no-untyped-def]
+    from tessera.auth import accounts
+
+    row = accounts.find_account(engine, username)
+    if row is None:
+        raise TesseraError(f"No account {username!r}.")
+    return row
+
+
+def cmd_users_status(args: argparse.Namespace) -> int:
+    from tessera.auth import accounts
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    try:
+        row = _account_or_fail(engine, args.username)
+        accounts.set_status(engine, row["id"], args.status)
+    finally:
+        engine.dispose()
+    print(f"{row['username']} is now {args.status}.")
+    return EXIT_OK
+
+
+def cmd_users_password(args: argparse.Namespace) -> int:
+    from tessera.auth import accounts
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    try:
+        row = _account_or_fail(engine, args.username)
+        accounts.set_password(engine, row["id"], _read_password(args.password_stdin))
+    finally:
+        engine.dispose()
+    print(f"Set a new password for {row['username']}; their sessions were signed out.")
+    return EXIT_OK
+
+
+def cmd_users_roles(args: argparse.Namespace) -> int:
+    from tessera.auth import accounts
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    try:
+        row = _account_or_fail(engine, args.username)
+        with engine.connect() as conn:
+            grants = _parse_roles(conn, args.role)
+        accounts.update_account(engine, row["id"], actor="command line", grants=grants)
+    finally:
+        engine.dispose()
+    print(f"{row['username']}: {', '.join(g.role for g in grants)}.")
+    return EXIT_OK
+
+
+# --- evidence ----------------------------------------------------------------------------------
+
+
+def _pct(value: float | None) -> str:
+    return "n/a" if value is None else f"{value:.1%}"
+
+
+def _print_measures(label: str, m: dict | None) -> None:  # type: ignore[type-arg]
+    if not m:
+        return
+    print(
+        f"  {label:<10} log loss {m['log_loss']:.4f} · strong precision "
+        f"{_pct(m['strong']['precision'])}, recall {_pct(m['strong']['recall'])} · review "
+        f"precision {_pct(m['review']['precision'])}, recall {_pct(m['review']['recall'])}"
+    )
+
+
+def cmd_evidence_status(args: argparse.Namespace) -> int:
+    from tessera.evidence import auto_accept
+    from tessera.evidence.model import EVALUATION_SETTING, active_model, read_setting
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    try:
+        model = active_model(engine)
+        report = read_setting(engine, EVALUATION_SETTING)
+        state = auto_accept.status(engine)
+        recent = auto_accept.batches(engine, limit=5)
+    finally:
+        engine.dispose()
+    print(f"Active model: {model.method}" + (" (hand-set)" if model.is_base else ""))
+    for feature, factor in sorted(model.multipliers.items()):
+        if abs(factor - 1) >= 0.05:
+            print(f"  {feature}: {factor:.2f} times the hand-set weight")
+    if report:
+        d = report["decisions"]
+        print(
+            f"Latest evaluation {report['generated_at']}: {d['examples']} decisions "
+            f"({d['negatives']} rejections) about {d['people']} people"
+        )
+        _print_measures("hand-set", report.get("base"))
+        _print_measures("learned", report.get("fitted"))
+        print(
+            "  "
+            + (
+                "The learned model is better: run `tessera evidence release`."
+                if report["better"]
+                else "Not released: " + " ".join(report["reasons"])
+            )
+        )
+    else:
+        print("No evaluation yet: run `tessera evidence evaluate`.")
+    if state["enabled"]:
+        print(
+            f"Auto-accept: on at {state['threshold']} (evaluated precision "
+            f"{_pct(state['precision'])} over {state['support']} decisions)"
+        )
+    else:
+        why = f" ({state['disabled_because']})" if state.get("disabled_because") else ""
+        print(f"Auto-accept: off{why}")
+    for b in recent:
+        undone = f", undone by {b['undone_by']}" if b["undone_at"] else ""
+        print(
+            f"  batch {b['id']}: {b['accepted']} accepted {b['created_at']:%Y-%m-%d %H:%M}{undone}"
+        )
+    return EXIT_OK
+
+
+def cmd_evidence_evaluate(args: argparse.Namespace) -> int:
+    from tessera.evidence.model import evaluate
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    try:
+        report = evaluate(engine, config)
+    finally:
+        engine.dispose()
+    d = report["decisions"]
+    print(f"{d['examples']} decisions ({d['negatives']} rejections) about {d['people']} people")
+    _print_measures("hand-set", report.get("base"))
+    _print_measures("learned", report.get("fitted"))
+    if report["better"]:
+        print(
+            "On held-out people the learned model is better. "
+            "Release it with `tessera evidence release`."
+        )
+    else:
+        print("Not offered: " + " ".join(report["reasons"]))
+    for point in (report.get("fitted") or report.get("base") or {}).get("curve", []):
+        print(
+            f"  at {point['threshold']:<6} precision {_pct(point['precision'])} over "
+            f"{point['support']} decisions"
+        )
+    return EXIT_OK
+
+
+def cmd_evidence_release(args: argparse.Namespace) -> int:
+    from tessera.evidence.model import release
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    try:
+        model = release(engine, "command line")
+    finally:
+        engine.dispose()
+    print(
+        f"Released {model.method}; scores change at the next resolve or sync. Auto-accept is off."
+    )
+    return EXIT_OK
+
+
+def cmd_evidence_revert(args: argparse.Namespace) -> int:
+    from tessera.evidence.model import revert
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    try:
+        revert(engine, "command line")
+    finally:
+        engine.dispose()
+    print("Back to the hand-set weights from the next resolve or sync. Auto-accept is off.")
+    return EXIT_OK
+
+
+def cmd_evidence_auto_accept(args: argparse.Namespace) -> int:
+    from tessera.evidence import auto_accept
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    try:
+        if args.off:
+            auto_accept.disable(engine, "command line")
+            print("Auto-accept is off.")
+        elif args.undo:
+            count = auto_accept.undo_batch(engine, args.undo, "command line")
+            print(f"Returned {count} links to suggestions.")
+        else:
+            state = auto_accept.enable(engine, args.threshold, "command line")
+            print(
+                f"Auto-accept is on at {state['threshold']} (evaluated precision "
+                f"{_pct(state['precision'])}); it runs at the next resolve or sync."
+            )
+    finally:
+        engine.dispose()
     return EXIT_OK
 
 

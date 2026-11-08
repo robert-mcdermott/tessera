@@ -60,9 +60,9 @@ How the organization appears in public records. See [Describing your organizatio
 |---|---|---|
 | `tessera` | Calm cool neutrals with an indigo accent | Neutral graphite with a soft indigo accent |
 | `harbor` | White and light grey, dark navy text, teal actions, a navy-to-gold rule | Deep navy, bright blue actions, gold and purple accents |
-| `cassette` | Cream label paper, a red-orange accent, rainbow stripes | Black labels, an orange accent, sunset stripes |
+| `cassette` | Cream label paper, a red-orange accent, a thin sunset stripe | Black labels, an orange accent, the same sunset stripe |
 
-A configured `accent_color` is used as given by day and lightened for dark mode; text on it is chosen for contrast. Logos look best at about 190 by 30 pixels.
+A configured `accent_color` is used as given by day and lightened for dark mode. It also colors links and labels, so choose one that reads on white at a contrast of at least 4.5:1, such as a deep blue or teal rather than a yellow. Write it as a hex value so that text on accent-colored buttons can be chosen for contrast; with other forms that text is white. Tessera and Harbor suit public and leadership views best; Cassette is playful by design. Logos look best at about 190 by 30 pixels.
 
 ## `[data]`
 
@@ -74,9 +74,12 @@ A configured `accent_color` is used as given by day and lightened for dark mode;
 
 | Setting | Type | Default | Meaning |
 |---|---|---|---|
-| `host` | text | `"127.0.0.1"` | Address to listen on. Tessera has no sign-in yet, so keep it on this machine; `tessera doctor` warns about anything else |
+| `host` | text | `"127.0.0.1"` | Address to listen on. Anything other than this machine needs `accounts = true` |
 | `port` | number | `8000` | Port to listen on |
-| `operator` | text | `"Operator"` | The name recorded on every curation decision |
+| `operator` | text | `"Operator"` | Without accounts, the name recorded on every curation decision |
+| `accounts` | true/false | `false` | Require sign-in with local accounts and roles; see [Accounts and sign-in](operations.md#accounts-and-sign-in) |
+| `session_idle_hours` | number | `12` | A session ends this long after it was last used (1 to 720) |
+| `session_max_days` | number | `7` | A session never lasts longer than this from sign-in (1 to 90) |
 
 ## `[ledger]`
 
@@ -94,7 +97,7 @@ PostgreSQL support needs the `postgres` extra: `uv sync --extra postgres`. See [
 |---|---|---|---|
 | `contact_email` | text | `""` | Sent with requests to the public APIs, as their usage policies ask. Set it to an address that can be reached |
 
-Each source has its own table, `[sources.pubmed]`, `[sources.icite]`, `[sources.reporter]`, and `[sources.ctgov]`:
+Each source has its own table, `[sources.pubmed]`, `[sources.icite]`, `[sources.reporter]`, `[sources.ctgov]`, and `[sources.orcid]`:
 
 | Setting | Type | Default | Meaning |
 |---|---|---|---|
@@ -121,3 +124,16 @@ Thresholds for authorship suggestions. See [Curating](curation.md#how-suggestion
 | `discover_min_papers` | number | `2` | Affiliated papers needed before a person is proposed under Discovered people, or a grant co-investigator is promoted |
 
 Changing a threshold takes effect at the next `tessera resolve` or `sync`; decisions already made are not affected.
+
+## `[discovery]`
+
+Concept profiles and similar people. See [Finding experts](discovery.md).
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `half_life_years` | 0.5 to 50 | `5.0` | A paper's weight in a profile halves every this many years |
+| `likely_weight` | 0 to 1 | `0.5` | How much a strong suggestion not yet confirmed counts, relative to a confirmed paper. `0` builds profiles from confirmed papers only |
+| `similarity_floor` | 0 to below 1 | `0.10` | Pairs of people less similar than this are not listed as similar |
+| `similar_per_person` | 1 to 200 | `25` | At most this many similar people are kept for each person |
+
+Changes take effect at the next `tessera sync` or `tessera build discovery`.

@@ -4,7 +4,7 @@ This guide takes you from a fresh checkout to a running Tessera with your organi
 
 ## What you need
 
-- A Mac, Linux, or Windows machine (a laptop is fine) with internet access to the public sources: NCBI (PubMed and iCite), NIH RePORTER, and ClinicalTrials.gov.
+- A Mac, Linux, or Windows machine (a laptop is fine) with internet access to the public sources: NCBI (PubMed and iCite), NIH RePORTER, ClinicalTrials.gov, and ORCID.
 - [uv](https://docs.astral.sh/uv/), which installs the right Python (3.12 or newer) and Tessera's dependencies for you.
 - Disk space: about 100 MB for a mid-sized research institute (a few thousand papers over five years), and a few gigabytes for a large academic medical center. Everything lives in one folder, the *data home*.
 
@@ -50,9 +50,9 @@ uv run tessera sync
 
 1. Fetches the organization's grants from NIH RePORTER, its studies from ClinicalTrials.gov, affiliated papers from PubMed, and papers linked to those grants.
 2. Builds the people directory: grant investigators, plus anyone on a roster you imported.
-3. Searches PubMed for each person by name, then fetches citation metrics from iCite.
+3. Searches PubMed for each person by name, then fetches citation metrics from iCite and the public ORCID records of people whose ORCID iD it knows.
 4. Scores every candidate paper for every person and records suggestions with their evidence, along with links between papers, grants, and studies.
-5. Builds the search index the web app reads.
+5. Builds the search index the web app reads, and the concept profiles behind **Find experts** and similar people.
 
 Each step is recorded as a run. `uv run tessera runs` shows what was fetched and whether each run completed. Later syncs are incremental and much faster: run `sync` daily or weekly (see [Running Tessera](operations.md#keeping-data-fresh)).
 
@@ -68,12 +68,14 @@ Open <http://127.0.0.1:8000>. You will find:
 
 - **Home:** counts, recent publications, publications by year, the largest active grants, and how fresh each source is.
 - **People, Publications, Grants, Studies:** browse with search and filters. Every link between a person and a record carries a status mark (*Confirmed* or *Suggested*, with how likely it is); select it to see the evidence.
+- **Find experts:** who works on a topic, described in your own words, with the concepts behind every answer. See [Finding experts](discovery.md).
+- **Connections:** who works with whom, a person's topics and who shares them, how research areas connect, missed connections, and units compared.
 - **Review queue:** suggested authorships in priority order, ready to accept or reject from the keyboard. See [Curating](curation.md).
-- **Discovered people:** affiliated authors who are not in the directory yet, for you to promote or dismiss.
+- **Discovered people** and **Possible duplicates:** affiliated authors who are not in the directory yet, and records that look like one person, for you to decide.
 - **Sources:** data health, recent runs, and the search index.
 - **API reference** at `/api/docs`, for building on Tessera. See [The API](api.md).
 
-Tessera listens on this machine only (`127.0.0.1`), because it has no sign-in yet. Decisions are recorded under the `[server] operator` name.
+Out of the box Tessera has no sign-in and answers on this machine only (`127.0.0.1`); decisions are recorded under the `[server] operator` name. To let several people sign in with their own roles, see [Accounts and sign-in](operations.md#accounts-and-sign-in).
 
 ## Optional: import a roster
 
@@ -83,11 +85,18 @@ If you have a list of people (from a department page, a grant office, or a sprea
 uv run tessera people import roster.csv
 ```
 
-The CSV needs a header row. Recognized columns are `name` (or `family` and `given`), `email`, `orcid`, `local_id`, `unit`, `unit_code`, and `title`, with common spellings such as `last_name`, `first_name`, or `department` also understood; other columns are ignored. People are matched to existing records by ORCID, email, or local ID before new ones are created. Run `sync` again afterward so the new people's papers are found.
+The CSV needs a header row. Recognized columns are `name` (or `family` and `given`), `email`, `orcid`, `local_id`, `unit`, `unit_code`, `title`, `start`, and `end`, with common spellings such as `last_name`, `first_name`, `department`, or `start_date` also understood; other columns are ignored. Dates may be a year (`2015`), a month (`2015-07`), or a day (`2015-07-01`).
+
+- List a person once per unit for concurrent memberships; give their rows the same email, ORCID iD, or local ID (without any identifier, rows with the same full name count as one person).
+- Someone whose memberships have all ended becomes a former member; everyone else on the roster is active. Importing an updated roster updates titles and dates.
+- People are matched to existing records by ORCID, email, or local ID before new ones are created. A roster person who is also in the grant records under no shared identifier gets a second record; Tessera proposes the pair under **Possible duplicates**, where you merge them.
+
+Run `sync` again afterward so the new people's papers are found.
 
 ## Next steps
 
 - [Describing your organization](organization-profile.md): tune what counts as "us".
 - [Curating](curation.md): clear the review queue and promote discovered people.
+- [Finding experts](discovery.md): expert search, similar people, and the graphs.
 - [Configuration](configuration.md): every setting, including palettes and your logo.
 - [Running Tessera](operations.md): scheduling syncs, backups, upgrades, and PostgreSQL.

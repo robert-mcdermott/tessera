@@ -10,3 +10,4 @@
 | [0006](0006-assertion-evidence-model.md) | All relationships are evidenced assertions | Accepted |
 | [0007](0007-search-sqlite-fts5.md) | Search with a derived SQLite FTS5 index | Accepted |
 | [0008](0008-optional-ai.md) | AI features are optional, off by default, and arrive after the evidence model | Accepted |
+| [0009](0009-local-accounts-and-sessions.md) | Local accounts, server-side sessions, and one access policy per route | Accepted |

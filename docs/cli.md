@@ -110,7 +110,7 @@ usage: tessera lake gc [-h] [--retention-days DAYS]
 
 Fetch public data into the lake.
 
-Fetch from a public source. SOURCE is pubmed, icite, reporter, ctgov, or 'all' (every enabled source in a sensible order). Without --mode, an organization sweep is run (or an ID fetch if --ids is given).
+Fetch from a public source. SOURCE is pubmed, icite, reporter, ctgov, orcid, or 'all' (every enabled source in a sensible order). Without --mode, an organization sweep is run (or an ID fetch if --ids is given); iCite and ORCID read what the lake and the directory need.
 
 ```text
 usage: tessera ingest [-h] [--mode MODE] [--ids ID [ID ...]] [--ids-file PATH] [--query QUERY]
@@ -120,8 +120,8 @@ usage: tessera ingest [-h] [--mode MODE] [--ids ID [ID ...]] [--ids-file PATH] [
 
 | Argument | Meaning |
 |---|---|
-| `source` | pubmed \| icite \| reporter \| ctgov \| all |
-| `--mode MODE` | org \| query \| ids \| linked or people (pubmed) \| pi (reporter) \| refresh (icite) |
+| `source` | pubmed \| icite \| reporter \| ctgov \| orcid \| all |
+| `--mode MODE` | org \| query \| ids \| linked or people (pubmed) \| pi (reporter) \| refresh (icite, orcid) |
 | `--ids ID` | IDs to fetch |
 | `--ids-file PATH` | file with one ID per line |
 | `--query QUERY` | source query (PubMed syntax, Essie, or RePORTER JSON) |
@@ -140,7 +140,7 @@ usage: tessera replay [-h] source run_id
 
 | Argument | Meaning |
 |---|---|
-| `source` | pubmed \| icite \| reporter \| ctgov |
+| `source` | pubmed \| icite \| reporter \| ctgov \| orcid |
 | `run_id` | the run to replay (see `tessera runs`) |
 
 ## `tessera resolve`
@@ -169,6 +169,14 @@ The search and serving index.
 
 ```text
 usage: tessera build search [-h]
+```
+
+### `tessera build discovery`
+
+Concept profiles, similar people, and the collaboration graph.
+
+```text
+usage: tessera build discovery [-h]
 ```
 
 ## `tessera sync`
@@ -216,6 +224,145 @@ usage: tessera people list [-h] [--status STATUS] [--limit LIMIT]
 |---|---|
 | `--status STATUS` | active \| former \| candidate \| all |
 | `--limit LIMIT` | at most this many (default: 50) |
+
+## `tessera users`
+
+Local accounts and their roles.
+
+```text
+usage: tessera users [-h] ACTION ...
+```
+
+### `tessera users add`
+
+Create an account (prompts for a password).
+
+```text
+usage: tessera users add [-h] [--name NAME] --role ROLE [--email EMAIL] [--person ID]
+                         [--password-stdin]
+                         username
+```
+
+| Argument | Meaning |
+|---|---|
+| `username` | lowercase letters, digits, dots, dashes, underscores |
+| `--name NAME` | the name shown and recorded on decisions |
+| `--role ROLE` | admin, curator, researcher, or viewer; a curator for some people only is curator=unit:<name or code> or curator=person:<ID> (repeatable) |
+| `--email EMAIL` | contact address |
+| `--person ID` | the person a researcher account belongs to |
+| `--password-stdin` | read the password from standard input |
+
+### `tessera users list`
+
+List accounts and roles.
+
+```text
+usage: tessera users list [-h]
+```
+
+### `tessera users disable`
+
+Sign an account out and block it.
+
+```text
+usage: tessera users disable [-h] username
+```
+
+| Argument | Meaning |
+|---|---|
+| `username` |  |
+
+### `tessera users enable`
+
+Unblock.
+
+```text
+usage: tessera users enable [-h] username
+```
+
+| Argument | Meaning |
+|---|---|
+| `username` |  |
+
+### `tessera users reset-password`
+
+Set a new password (signs the account out everywhere).
+
+```text
+usage: tessera users reset-password [-h] [--password-stdin] username
+```
+
+| Argument | Meaning |
+|---|---|
+| `username` |  |
+| `--password-stdin` | read the password from standard input |
+
+### `tessera users roles`
+
+Replace an account's roles.
+
+```text
+usage: tessera users roles [-h] --role ROLE username
+```
+
+| Argument | Meaning |
+|---|---|
+| `username` |  |
+| `--role ROLE` | admin, curator, researcher, or viewer; a curator for some people only is curator=unit:<name or code> or curator=person:<ID> (repeatable) |
+
+## `tessera evidence`
+
+The authorship model: learned weights and auto-accept.
+
+```text
+usage: tessera evidence [-h] ACTION ...
+```
+
+### `tessera evidence status`
+
+The active model, the latest evaluation, and auto-accept.
+
+```text
+usage: tessera evidence status [-h]
+```
+
+### `tessera evidence evaluate`
+
+Fit learned weights to decisions and compare on held-out people.
+
+```text
+usage: tessera evidence evaluate [-h]
+```
+
+### `tessera evidence release`
+
+Make the evaluated learned model active (if it was better).
+
+```text
+usage: tessera evidence release [-h]
+```
+
+### `tessera evidence revert`
+
+Go back to the hand-set weights.
+
+```text
+usage: tessera evidence revert [-h]
+```
+
+### `tessera evidence auto-accept`
+
+Accept strong suggestions automatically, where precision allows.
+
+```text
+usage: tessera evidence auto-accept [-h] (--threshold THRESHOLD | --off | --undo BATCH)
+```
+
+| Argument | Meaning |
+|---|---|
+| `--threshold THRESHOLD` | switch on at this score (one the evaluation measured) |
+| `--off` | switch off |
+| `--undo BATCH` | undo one automatic batch |
 
 ## `tessera eval`
 

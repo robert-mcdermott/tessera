@@ -98,7 +98,7 @@ The capability catalog. IDs are stable: code, tests, and changelog entries can c
 | PLT-02 | M | Source health and freshness | Every source shows last run, status, counts, and staleness | 1 |
 | PLT-03 | M | Idempotent, resumable ingestion | Re-running a sync never duplicates data; interrupted runs resume | 1 |
 | PLT-04 | M | Configurable organization profile | Org names, aliases, patterns, and domains are configuration, not code | 1 |
-| PLT-05 | M | Re-brandable | Name, logo, colors, and footer are configuration | 1 |
+| PLT-05 | M | Re-brandable | Product name, organization name, logo, default palette, and accent color are configuration | 1 |
 | PLT-06 | M | Local accounts and roles | Admin, curator, researcher, and viewer roles enforced in API, search, and exports | 2 |
 | PLT-07 | M | Public / internal separation | Public views use an allowlisted projection, never raw records | 3 |
 | PLT-08 | M | Backup, restore, and exit export | Documented, tested backup and restore; a full export of the ledger and lake | 4 |
@@ -106,6 +106,7 @@ The capability catalog. IDs are stable: code, tests, and changelog entries can c
 | PLT-10 | S | Standards-based single sign-on | Optional OIDC sign-in | 6 |
 | PLT-11 | S | Configurable vocabulary | Unit kinds, role names, and labels are configurable | 3 |
 | PLT-12 | S | Operational visibility | Job metrics, run history, and failure alerts in the admin area | 4 |
+| PLT-13 | S | Brand kit | An organization's own palette (core colors by day and night), footer links, favicon, and social preview image are configuration; `tessera doctor` fails any configured color pair below WCAG AA | 3 |
 
 ## User experience (UX)
 

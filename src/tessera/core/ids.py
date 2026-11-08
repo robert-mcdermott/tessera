@@ -23,6 +23,8 @@ PREFIXES = {
     "run": "run",
     "lab": "lab",
     "usr": "user",
+    "mrg": "merge",
+    "bat": "batch",
 }
 
 _CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"

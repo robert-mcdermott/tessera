@@ -12,12 +12,13 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import and_, bindparam, insert, select, update
+from sqlalchemy import and_, bindparam, delete, insert, select, update
 from sqlalchemy.engine import Connection, Engine
 
 from tessera.core.clock import utc_now
@@ -44,17 +45,51 @@ class PersonRecord:
     status: str
     names: list[Name] = field(default_factory=list)
     identifiers: dict[str, set[str]] = field(default_factory=dict)  # scheme -> values
+    rejected: dict[str, set[str]] = field(default_factory=dict)  # marked as not this person's
+    suggested: dict[str, set[str]] = field(default_factory=dict)  # proposed, not yet decided
 
     def ids(self, scheme: str) -> set[str]:
         return self.identifiers.get(scheme, set())
 
+    def rejected_ids(self, scheme: str) -> set[str]:
+        return self.rejected.get(scheme, set())
+
+    def suggested_ids(self, scheme: str) -> set[str]:
+        return self.suggested.get(scheme, set())
+
 
 def find_by_identifier(conn: Connection, scheme: str, value: str) -> str | None:
-    return conn.execute(
-        select(person_identifier.c.person_id).where(
-            and_(person_identifier.c.scheme == scheme, person_identifier.c.value == value)
+    """The person holding this identifier (accepted or suggested; never a rejected one).
+
+    A record merged into another answers with the record that holds the person now.
+    """
+    found = conn.execute(
+        select(person_identifier.c.person_id)
+        .where(
+            and_(
+                person_identifier.c.scheme == scheme,
+                person_identifier.c.value == value,
+                person_identifier.c.status != "rejected",
+            )
         )
+        .order_by(person_identifier.c.status)  # "accepted" sorts before "suggested"
     ).scalar()
+    return survivor_of(conn, found) if found else None
+
+
+def survivor_of(conn: Connection, person_id: str) -> str:
+    """Follow merges to the record that holds this person now."""
+    seen = {person_id}
+    while True:
+        target = conn.execute(
+            select(person.c.merged_into).where(
+                person.c.id == person_id, person.c.status == "merged"
+            )
+        ).scalar()
+        if not target or target in seen:
+            return person_id
+        seen.add(target)
+        person_id = target
 
 
 def create_person(
@@ -164,7 +199,10 @@ def decide_person(
         if action == "undo":
             events = conn.execute(
                 select(person_event)
-                .where(person_event.c.person_id == person_id)
+                .where(
+                    person_event.c.person_id == person_id,
+                    person_event.c.action != "identifier",
+                )
                 .order_by(person_event.c.id)
             ).mappings()
             stack: list[Any] = []
@@ -201,6 +239,109 @@ def decide_person(
     return {"id": person_id, "status": new_status, "previous": current}
 
 
+# A curator's decisions about a person's identifiers. Each maps the identifier's current
+# status (None when the person does not have it) to the new one (None removes it).
+IDENTIFIER_ACTIONS = {
+    "add": ({None, "suggested", "rejected"}, "accepted"),
+    "accept": ({"suggested", "rejected"}, "accepted"),
+    "reject": ({None, "suggested", "accepted"}, "rejected"),
+    "remove": ({"suggested", "accepted", "rejected"}, None),
+}
+_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+class InvalidIdentifier(TesseraError):
+    """An identifier that is malformed, or a request that names an unknown type or action."""
+
+
+def normalize_identifier(scheme: str, value: str, *, strict: bool = True) -> str:
+    """The canonical form of an identifier, or an InvalidIdentifier explaining what is wrong.
+
+    ``strict`` also checks an ORCID iD's check digit (for new identifiers; decisions about
+    ones already recorded only need the canonical form).
+    """
+    value = (value or "").strip()
+    if scheme == "orcid":
+        from tessera.connectors.orcid import orcid_checksum_ok
+        from tessera.connectors.pubmed import normalize_orcid
+
+        orcid = normalize_orcid(value)
+        if not orcid or (strict and not orcid_checksum_ok(orcid)):
+            raise InvalidIdentifier(
+                f"{value!r} is not a valid ORCID iD (like 0000-0002-1825-0097)."
+            )
+        return orcid
+    if scheme == "email":
+        if not _EMAIL.match(value):
+            raise InvalidIdentifier(f"{value!r} is not an email address.")
+        return value.lower()
+    if scheme == "nih_profile":
+        if not value.isdigit():
+            raise InvalidIdentifier("An NIH profile ID is a number.")
+        return value
+    if scheme == "local":
+        if not value or len(value) > 100:
+            raise InvalidIdentifier("A local ID needs 1 to 100 characters.")
+        return value
+    raise InvalidIdentifier(
+        f"Unknown identifier type {scheme!r}; use orcid, email, nih_profile, or local"
+    )
+
+
+def decide_identifier(
+    engine: Engine,
+    person_id: str,
+    scheme: str,
+    value: str,
+    action: str,
+    actor: str,
+    note: str | None = None,
+) -> dict[str, Any]:
+    """Add, confirm, reject, or remove one of a person's identifiers. Logged in person_event.
+
+    A rejected identifier is kept, so that it is never proposed again and counts as evidence
+    that papers carrying it belong to someone else.
+    """
+    if action not in IDENTIFIER_ACTIONS:
+        raise InvalidIdentifier(f"Unknown action {action!r}; use add, accept, reject, or remove")
+    value = normalize_identifier(scheme, value, strict=action == "add")
+    allowed, new_status = IDENTIFIER_ACTIONS[action]
+    with engine.begin() as conn:
+        if conn.execute(select(person.c.id).where(person.c.id == person_id)).scalar() is None:
+            raise TesseraError(f"No person {person_id}")
+        where = and_(
+            person_identifier.c.person_id == person_id,
+            person_identifier.c.scheme == scheme,
+            person_identifier.c.value == value,
+        )
+        current = conn.execute(select(person_identifier.c.status).where(where)).scalar()
+        if current not in allowed:
+            have = f"is {current}" if current else "is not recorded for this person"
+            raise TesseraError(f"Cannot {action} {value}: it {have}.")
+        now = utc_now()
+        if new_status is None:
+            conn.execute(delete(person_identifier).where(where))
+        elif current is None:
+            add_identifier(conn, person_id, scheme, value, source="curator", status=new_status)
+        else:
+            conn.execute(
+                update(person_identifier).where(where).values(status=new_status, updated_at=now)
+            )
+        conn.execute(
+            insert(person_event).values(
+                person_id=person_id,
+                actor=actor,
+                action="identifier",
+                from_status=current,
+                to_status=new_status,
+                note=note,
+                at=now,
+                detail={"scheme": scheme, "value": value, "action": action},
+            )
+        )
+    return {"scheme": scheme, "value": value, "status": new_status, "previous": current}
+
+
 def load_people(
     engine: Engine, statuses: Iterable[str] = ("active", "former")
 ) -> list[PersonRecord]:
@@ -213,12 +354,32 @@ def load_people(
             name = make_name(r["family"], r["given"], r["initials"]) if record else None
             if record and name:
                 record.names.append(name)
-        for r in conn.execute(
-            select(person_identifier).where(person_identifier.c.status == "accepted")
-        ).mappings():
+        for r in conn.execute(select(person_identifier)).mappings():
             if record := people.get(r["person_id"]):
-                record.identifiers.setdefault(r["scheme"], set()).add(r["value"])
+                held = {
+                    "accepted": record.identifiers,
+                    "rejected": record.rejected,
+                    "suggested": record.suggested,
+                }.get(r["status"])
+                if held is not None:
+                    held.setdefault(r["scheme"], set()).add(r["value"])
     return list(people.values())
+
+
+def directory_orcids(engine: Engine, statuses: Iterable[str] = ("active", "former")) -> list[str]:
+    """Accepted ORCID iDs of people in the directory, sorted and de-duplicated."""
+    query = (
+        select(person_identifier.c.value)
+        .join(person, person.c.id == person_identifier.c.person_id)
+        .where(
+            person_identifier.c.scheme == "orcid",
+            person_identifier.c.status == "accepted",
+            person.c.status.in_(tuple(statuses)),
+        )
+        .distinct()
+    )
+    with engine.connect() as conn:
+        return sorted(conn.execute(query).scalars())
 
 
 def get_or_create_unit(
@@ -306,13 +467,15 @@ def sync_assertions(
     min_score_for_new: float | None = None,
     now: datetime | None = None,
     chunk: int = 2000,
+    stale_decided: bool = True,
 ) -> SyncStats:
     """Make the ledger reflect automation's current view of one predicate and origin.
 
     New assertions are inserted with their draft status. Existing ones get fresh evidence
     and scores; their status changes only if they were never decided by a person (and even
     then automation keeps the current status). Assertions automation no longer produces are
-    marked ``reported = false``; none are deleted.
+    marked ``reported = false``; none are deleted. With ``stale_decided`` false, decided ones
+    keep their flag (a merged pair is decided, not unreported, once its records are one).
     """
     now = now or utc_now()
     stats = SyncStats()
@@ -395,7 +558,9 @@ def sync_assertions(
                     }
                 )
         stale = [
-            row["id"] for key_, row in existing.items() if key_ not in by_key and row["reported"]
+            row["id"]
+            for key_, row in existing.items()
+            if key_ not in by_key and row["reported"] and (stale_decided or not row["locked"])
         ]
 
         for start in range(0, len(inserts), chunk):
@@ -439,6 +604,8 @@ def decide(
         )
         if row is None:
             raise TesseraError(f"No assertion {assertion_id}")
+        if row["predicate"] == "same_as" and action == "accept":
+            raise TesseraError("To accept a possible duplicate, merge the two records.")
         if action == "undo":
             events = (
                 conn.execute(
@@ -534,20 +701,24 @@ def display_names(engine: Engine, person_ids: Iterable[str]) -> dict[str, str]:
 
 
 def people_by_identifier(engine: Engine, scheme: str, values: Iterable[str]) -> dict[str, str]:
-    """Map identifier values (e.g. NIH profile IDs) to person IDs."""
+    """Map identifier values (e.g. NIH profile IDs) to person IDs, following merges."""
     wanted = sorted({str(v) for v in values})
     out: dict[str, str] = {}
     with engine.connect() as conn:
         for start in range(0, len(wanted), 500):
             chunk = wanted[start : start + 500]
-            out.update(
-                conn.execute(
-                    select(person_identifier.c.value, person_identifier.c.person_id).where(
-                        and_(
-                            person_identifier.c.scheme == scheme,
-                            person_identifier.c.value.in_(chunk),
-                        )
+            rows = conn.execute(
+                select(person_identifier.c.value, person_identifier.c.person_id, person.c.status)
+                .join(person, person.c.id == person_identifier.c.person_id)
+                .where(
+                    and_(
+                        person_identifier.c.scheme == scheme,
+                        person_identifier.c.value.in_(chunk),
+                        person_identifier.c.status != "rejected",
                     )
-                ).all()
-            )
+                )
+                .order_by(person_identifier.c.status.desc())  # accepted last, so it wins
+            ).all()
+            for value, person_id, status in rows:
+                out[value] = survivor_of(conn, person_id) if status == "merged" else person_id
     return out

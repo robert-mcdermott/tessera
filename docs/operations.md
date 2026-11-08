@@ -11,7 +11,7 @@ var/
   raw/        the public sources' responses, exactly as received, one folder per run
   lake/       normalized records in Parquet files, one folder per table
   ledger.db   people, links, decisions, and run history (SQLite; absent with PostgreSQL)
-  derived/    the search index, rebuilt from the lake and ledger
+  derived/    the search index and concept profiles, rebuilt from the lake and ledger
   logs/       logs, one JSON object per line
 ```
 
@@ -19,7 +19,7 @@ These parts are not equally precious:
 
 - **The ledger is the only part that holds human work**: people, decisions, notes. Back it up.
 - **The lake and raw downloads** come from public sources and can be fetched again. Keeping `raw/` lets `tessera replay` rebuild the lake without the network.
-- **`derived/`** is always rebuildable with `uv run tessera build search`.
+- **`derived/`** is always rebuildable with `uv run tessera build search` and `uv run tessera build discovery`.
 
 Only one data job (a sync, ingest, resolve, or build) runs at a time per data home; a second one stops at once and says another job is running. The web app keeps working during jobs.
 
@@ -43,7 +43,41 @@ A systemd timer works the same way: run `uv run tessera --quiet sync` from the f
 uv run tessera serve
 ```
 
-Tessera listens on `127.0.0.1:8000` by default (`[server] host` and `port`). It has no sign-in yet, so it is meant to run on the curator's own machine, or on a server reached through an SSH tunnel or an authenticating reverse proxy. `uv run tessera doctor` warns if the server is set to listen more widely.
+Tessera listens on `127.0.0.1:8000` by default (`[server] host` and `port`).
+
+## Accounts and sign-in
+
+Out of the box Tessera runs in *single-operator mode*: no sign-in, answering only on this machine, with every decision recorded under `[server] operator`. That suits one curator on a laptop. For several people, or for a server others reach, turn on accounts:
+
+1. Create the first admin (you are asked for a password of at least 12 characters):
+
+   ```bash
+   uv run tessera users add ada --name "Ada Okafor" --role admin
+   ```
+
+2. Set `accounts = true` under `[server]`, and `host` to the address to listen on (for example `0.0.0.0`).
+3. Put Tessera behind HTTPS, typically a reverse proxy such as nginx or Caddy that forwards to it, so that passwords and session cookies travel encrypted. Have the proxy pass the original host (`Host`, or `X-Forwarded-Host`) and `X-Forwarded-Proto: https`: Tessera refuses changes whose origin does not match the host, and marks its cookie `Secure` over HTTPS. With the proxy on the same machine, run Tessera on `127.0.0.1` and let the proxy face the network. `tessera doctor` reminds you when accounts are on and Tessera listens beyond this machine.
+4. Restart `tessera serve`. Everyone now signs in; admins add the others under **Admin → Accounts**, or from the command line.
+
+Roles add up:
+
+| Role | May |
+|---|---|
+| Viewer | Read everything: people, records, evidence, search |
+| Researcher | Also review the suggestions about their own profile (the account is linked to their person) |
+| Curator | Decide for everyone, or, when the role is limited to a unit or a person, only for them; curators for everyone also handle discovered people and duplicates |
+| Admin | Everything, including accounts |
+
+```bash
+uv run tessera users add cora --name "Cora Lindqvist" --role "curator=unit:Department of Medicine"
+uv run tessera users add ada.okafor --role researcher --person per_01…
+uv run tessera users list
+uv run tessera users reset-password cora     # signs her out everywhere
+uv run tessera users disable cora            # also signs her out
+uv run tessera users roles cora --role curator --role viewer
+```
+
+Sessions end after `session_idle_hours` without use (12 by default) and after `session_max_days` in any case (7). After five failed attempts for one username or address, sign-in is refused for 15 minutes. Tessera will not start with accounts on and no active admin, nor listen beyond this machine with accounts off. See [ADR-0009](../spec/decisions/0009-local-accounts-and-sessions.md) for the design.
 
 ## Backups
 
@@ -55,7 +89,7 @@ sqlite3 var/ledger.db ".backup 'backups/ledger-$(date +%F).db'"
 
 Copying the whole data home while no job is running also works. With PostgreSQL, use `pg_dump` as for any database.
 
-To restore, stop Tessera, put the ledger back, and run `uv run tessera build search` to rebuild the index from it.
+To restore, stop Tessera, put the ledger back, and run `uv run tessera build search` and `uv run tessera build discovery` to rebuild the index and discovery data from it.
 
 ## Upgrading
 
@@ -64,6 +98,7 @@ git pull
 uv sync
 uv run tessera db upgrade      # apply ledger migrations, if any
 uv run tessera build search    # rebuild the index with the new version
+uv run tessera build discovery # and concept profiles and the graph
 ```
 
 `tessera doctor` and the web app's health check (`/api/v1/health`) report a ledger that needs `db upgrade`. Migrations keep every row: they are tested on SQLite and PostgreSQL with a populated ledger, upgrading and downgrading. Back up the ledger before upgrading anyway. The [changelog](../CHANGELOG.md) notes anything that needs more than these steps.

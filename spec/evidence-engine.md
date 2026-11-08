@@ -23,7 +23,20 @@ Candidates become `active` when an admin promotes them, one at a time or in bulk
 
 **Expect most people to arrive through discovery or a roster.** In a live check on a mid-sized research institute (two-year window), grants yielded 70 active investigators while the affiliation sweep proposed about 965 more affiliated authors (postdocs, staff scientists, faculty without NIH funding). The *Discovered people* queue and its bulk promotion are therefore central, not an edge case.
 
-**Merging.** When two records look like the same person (same ORCID, same NIH profile ID, or a strong name, coauthor, and topic match), the engine proposes a `same_as` assertion. Merges are reviewed and reversible.
+**Merging.** One person can reach Tessera by two routes, most often a roster row and a grant record that share no identifier. The engine proposes such pairs as `same_as` suggestions, scored by `same_as/v1`, and a curator merges them or marks them as different people; automation never merges. Pairs are found only through what can tie two records together, never a name alone:
+
+| Feature | Fires when | Weight (log-odds) |
+|---|---|---|
+| Prior | Every pair | −3.0 |
+| Shared identifier | Both records hold the same NIH profile, ORCID iD, email, or local ID (confirmed or suggested) | +8.0 |
+| Replaced ORCID iD | One record's ORCID iD was deprecated in favor of an iD the other holds | +8.0 |
+| Names | Full names agree / agree by initials / middle initials differ / names differ | +2.0 / +0.5 / −2.0 / −5.0 |
+| Shared author positions | Both records claim the same author position on the same paper (accepted, or likely once the penalty for competing for it is set aside) | +1.0 each, up to +6.0 |
+| Shared grants | Both are investigators on the same grant | +1.0 each, up to +2.0 |
+| Different NIH profiles | No shared identifier, and each record has its own NIH profile | −3.0 |
+| Different ORCID iDs | No shared identifier, and each record has its own confirmed iD | −4.0 |
+
+Pairs below 0.5 are not kept. The suggested direction keeps a directory member over a discovered person, then the record claiming more papers, then the older record; the curator may keep either. Merges are reversible (see [data-model.md](data-model.md)). On the synthetic organization with four roster-and-grant duplicates, all four pairs are proposed at 95% or higher and no pair of different people is proposed.
 
 ## 2. Name handling
 
@@ -44,7 +57,7 @@ For each active person, gather candidate publications from:
 1. The **affiliation sweep** results whose author name is compatible with the person.
 2. A **person search** in PubMed by name, over the sync window. PubMed author search is literal (`"Okafor, Ada"[fau]` does not find `"Okafor, Ada B"`), so each person's query ORs their full-name forms and two-letter initials (`"Okafor AB"[au]`). A lone initial (`"Okafor A"[au]`) is used only for people known by initials alone; in the live check it multiplied the fetched papers almost fivefold with nothing but noise. Batches of ten people are split when they match too much, and a name that still matches over 2,000 papers is skipped with a note (its papers come from the sweep and grant links). Adding people changes the query, so their full history is searched on the next sync.
 3. **Grant links:** publications linked to any grant the person is an investigator on.
-4. **ORCID works** *(wave 2)*.
+4. **ORCID works:** papers listed on the public ORCID records of a person's confirmed iDs. Those missing from the lake are fetched from PubMed by ID during sync.
 
 Retrieval recall is measured separately from scoring accuracy (see Evaluation). A paper that is never retrieved can never be suggested.
 
@@ -52,18 +65,25 @@ Retrieval recall is measured separately from scoring accuracy (see Evaluation). 
 
 Each (person, publication, author position) candidate gets a score from an **additive evidence model**: a sum of feature weights in log-odds, passed through a logistic function to give a 0–1 score. It is deliberately simple so that every point can be explained.
 
-### Features in `authorship/v1`
+### Features in `authorship/v1.2`
+
+Version 1.1 (wave 2) adds the ORCID features marked *v1.1* to v1's hand-set weights, and version 1.2 the short-first-name feature.
 
 | Feature | Fires when | Weight (log-odds) |
 |---|---|---|
 | Prior | Starting point for every candidate: a compatible name alone is weak evidence | −1.5 |
 | ORCID match | The author's ORCID equals the person's confirmed ORCID | +8.0 (decisive) |
-| ORCID conflict | The author has a *different* ORCID | −8.0 (decisive) |
+| ORCID conflict | The author has a *different* ORCID, and it is not one suggested for this person | −8.0 (decisive) |
+| ORCID rejected *(v1.1)* | The author's ORCID iD is one a curator marked as not this person's | −8.0 (decisive) |
+| ORCID works *(v1.1)* | The paper's PubMed ID or DOI is on the public ORCID record of one of the person's confirmed iDs | +6.0 |
+| ORCID consistency *(v1.1)* | For a person with no confirmed iD, or for an iD suggested for them: the same iD is printed at their position on their other likely papers (leave-one-out) | +2.0 for one paper, +3.0 for two or more |
+| ORCID inconsistency *(v1.1)* | Same conditions, but the person's other likely papers show one iD clearly (on at least 3 of them and 80% of those with any iD) and never this one. Weak, because some people have two iDs | −2.0 |
 | Email match | An email in the affiliation text matches a known email for the person | +6.0 |
 | Organization affiliation | The author's affiliation on this paper matches the organization profile | +2.5 |
 | Grant link | The paper acknowledges, or is linked to, a grant the person is an investigator on | +3.0 |
 | Coauthor overlap | Coauthors appear on the person's accepted papers | +1.0 each, capped at +4.0 |
 | Given-name agreement | Full given name matches | +1.5 |
+| Short first name *(v1.2)* | The full first name matched has at most two letters ("Ye", "Li"), which many people share | −1.0 |
 | Middle-initial conflict | Both have middle initials and they differ | −3.0 |
 | Given-name conflict | Full given names are incompatible | −6.0 |
 | Topic fit | Similarity between the paper's MeSH terms and the person's accepted papers | 0 to +2.0 |
@@ -73,7 +93,18 @@ Each (person, publication, author position) candidate gets a score from an **add
 | Rejected-cluster signal | Coauthors mostly come from papers the person rejected | −1.0 to −2.0 |
 | Author-slot conflict | Another person is a stronger match for the same author slot | −4.0 |
 
-Weights in v1 are hand-set starting values. They are versioned with the method (`authorship/v1`), so every assertion records which weights produced it. Once enough local decisions exist, weights are fitted to them (a small logistic regression in pure Python, with no new dependencies) and released as `authorship/v2` with an evaluation report.
+A printed iD that ORCID has deprecated counts as the iD that replaced it.
+
+Weights in v1 to v1.2 are hand-set starting values, versioned with the method (`authorship/v1.2`), so every assertion records which weights produced it.
+
+### Learned weights (`authorship/v2`)
+
+Once curators have made enough decisions, Tessera learns how much each kind of evidence counts in this organization. It keeps every feature, its shape (caps, logarithms), and its explanation, and learns one **multiplier** per feature and an **offset**: `score = sigmoid(offset + prior + Σ multiplier × hand-set weight)`. With every multiplier at 1 and no offset it is the hand-set model.
+
+- **Fitting** is logistic regression by Newton's method in plain Python, with an L2 penalty on each multiplier's distance from 1 (strength 20): thirty decisions move a multiplier by less than 0.2, thousands recover what the decisions show. Multipliers stay between 0 and 4, so learning may weaken or strengthen evidence but never reverse it.
+- **Data:** people's accept and reject decisions on current suggestions. Automatic acceptances are never used.
+- **Evaluation** holds out *people*, not papers: five folds by person, each fitted on the others and scored on the one left out, compared with the hand-set model on the same decisions (log loss, precision and recall at the strong and review thresholds, calibration, and precision at each candidate auto-accept threshold).
+- **Release rule:** at least 200 decisions, 20 rejections, and 5 people; on held-out people the learned model's log loss must be at least 1% lower and its strong-band precision no worse. Otherwise it is not offered. An admin releases it (Admin → Evidence or `tessera evidence release`); it is named `authorship/v2-<date>`, scores change at the next resolve, and evidence items keep their hand-set weight beside the learned one. Reverting goes back to the hand-set weights.
 
 ### Evidence feeds itself
 
@@ -81,15 +112,23 @@ Scoring runs in passes. Pass 1 uses only direct evidence (ORCID, email, affiliat
 
 Accepting a paper therefore strengthens later scores, and rejections teach the engine which coauthor clusters belong to *someone else*. Every resolve re-scores open suggestions; it never touches decided ones.
 
+### ORCID iDs: suggested, confirmed, rejected
+
+People rarely arrive with an ORCID iD on record (grant records carry none), so Tessera finds them on the papers. An iD printed at a person's author position on at least two of their likely papers (accepted, or strong on evidence *other than* ORCID, so that ORCID evidence never supports itself) becomes a **suggested** identifier. A curator confirms it on the profile; the engine never does. Confirmed iDs make the decisive features apply and have their public records read at the next sync. A **rejected** iD is kept, never suggested again, and counts against papers that carry it. A suggestion whose support disappears is withdrawn. An iD a curator gave to someone else is not suggested; an iD recorded for two people is flagged on both profiles (a likely duplicate, for the merge tools in wave 2).
+
 ### Bands and policy
 
 | Band | Score | Default handling |
 |---|---|---|
-| **Strong** | ≥ 0.95 | Suggested at the top of the queue. From wave 2, can be auto-accepted only if the admin enables auto-accept *and* the latest evaluation shows ≥ 99% precision at that threshold |
+| **Strong** | ≥ 0.95 | Suggested at the top of the queue; may be accepted automatically where auto-accept is on (below) |
 | **Possible** | 0.60–0.95 | Suggested; needs review |
 | **Unlikely** | < 0.60 | Hidden by default; available behind a "show unlikely" toggle |
 
-Thresholds are settings. Auto-accept is **off by default**.
+Thresholds are settings.
+
+### Auto-accept (CUR-05)
+
+Auto-accept is **off by default**. An admin may switch it on only at a threshold the latest evaluation of the *active* model measured: at least 99% precision over at least 50 decisions at or above it. Each resolve then accepts open suggestions at or above the threshold that carry no conflicting evidence (a different or rejected ORCID iD, an inconsistent iD, a conflicting name, someone else fitting better, a paper outside the career window, coauthors of rejected papers), as one **batch** recorded under the actor `Auto-accept`. Such links are marked *Auto-confirmed*, are never training data, and a whole batch can be undone, which also switches auto-accept off. Releasing or reverting a model switches it off too, because its precision was measured for another model. Decisions are a biased sample (curators decided what they reviewed), so an independently adjudicated sample is still the better check before switching it on.
 
 ## 5. Other link inference
 
@@ -132,6 +171,30 @@ Before any curator decisions existed, the pilot (a mid-sized research institute:
 | Precision at the review threshold | 97.9% (recall 95.8%) | ≥ 90% |
 
 Seven of the nine strong-band disagreements carry the person's grant acknowledgment and the organization's affiliation on that paper, with shared coauthors, and appear to be the same person under a second ORCID iD, a known weakness of this check. The other two sit just above the strong threshold on coauthor evidence alone for a short, common given name, and are genuine near misses. Two lessons for wave 2: ORCID consistency across a person's own papers is useful evidence the model does not use yet, provided it allows for people with more than one iD; and a short given name that many people share should weigh more heavily against a match.
+
+### ORCID evidence on the pilot (wave 2)
+
+Re-scoring the pilot with `authorship/v1.1`, before any iD was confirmed, suggested 49 ORCID iDs for 48 of the 70 members; one member has two. The strong band grew from 1,652 to 1,666 suggestions: 18 papers moved up into it, mostly where the iD on the paper matches the one on the person's other papers, and 4 moved down. All four are papers by a person with a short, common given name, matched on coauthors alone, the near misses the v0.1.0 check found; they now wait in the *possible* band for a curator. Because the new features read the same printed iDs that the v0.1.0 check used as labels, that check cannot judge them; the synthetic organization can. On it, strong-band precision stayed at 100% across eight worlds, recall in the strong band rose slightly, and false matches above the review threshold fell in the hardest world (namesakes in the same field) from 8 to 3. Confirming one iD on the pilot and reading its public record made 25 papers decisive matches and added 2 matches from the works list.
+
+### Short first names on the pilot (`authorship/v1.2`)
+
+On the pilot the new feature fires only for one person, whose two-letter first name is shared by many authors: 6 suggestions resting on coauthors and the name alone leave the strong band for review, and 14 move from possible to unlikely. The strong band holds 1,660 suggestions. The pilot has no curator decisions yet, so the learned model and auto-accept wait for them; on the synthetic organization with simulated decisions, auto-accept at 0.99 accepted 477 suggestions, all correct.
+
+### Pilot check against ORCID works lists (v0.2.0)
+
+The pilot still has no curator decisions, so the learned weights and auto-accept could not be evaluated there; they were evaluated on the synthetic organization (above). The check printed iDs allowed in v0.1.0 no longer applies, because `authorship/v1.1` reads those iDs. Instead, the suggestions were checked against people's own public ORCID records. Tessera reads a person's ORCID record only once their iD is confirmed, and none was, so the records behind the 49 *suggested* iDs are independent of every score. A paper a person lists on their own record (by PubMed ID, or by a DOI that PubMed resolves) was taken as theirs.
+
+The pilot was synced with a two-year window, so only papers from 2025 on were counted: 193 papers listed by 39 people.
+
+| Measure | Result | Target |
+|---|---|---|
+| Candidate retrieval recall | 95.3% (184 of 193 listed papers found as candidates) | ≥ 95% |
+| Of those found: in the *Strong* band | 97.3% (179 of 184) | |
+| Of those found: at or above the review threshold | 100% | |
+
+People list only some of their papers, so an unlisted paper is not a wrong one: these lists measure recall, not precision. Of the nine listed papers not found, eight were never fetched (the name search did not reach them) and one was fetched but under a name form that does not match.
+
+Discovery answers quickly on the pilot (57 people with profiles): the expert finder in 31 ms at the 95th percentile for a query in words and 13 ms for a chosen concept; similar people, a profile's concepts, and every graph view in under 10 ms.
 
 ### Targets (to validate during the pilot)
 

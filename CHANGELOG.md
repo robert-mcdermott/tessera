@@ -1,10 +1,65 @@
 # Changelog
 
-All notable changes to Tessera are recorded here. Versions follow [semantic versioning](https://semver.org/); each wave of work ships as a minor release (wave 1 → 0.1.0).
+All notable changes to Tessera are recorded here. Versions follow [semantic versioning](https://semver.org/); each wave of work ships as a minor release (wave 1 → 0.1.0, wave 2 → 0.2.0).
 
-## Unreleased
+## 0.2.0 (2026-11-08)
 
-Nothing yet.
+Connections. Tessera now helps people find who works on what and who should meet, with the reasons on screen, and lets several people curate with their own accounts and roles. ORCID strengthens the evidence, duplicate records merge reversibly, and the evidence model can learn from local decisions.
+
+**Highlights:** ORCID records and iDs as evidence; possible duplicates and reversible merges; dated unit memberships; local accounts with admin, curator (for everyone, a unit, or a person), researcher, and viewer roles; learned weights evaluated on held-out people, and auto-accept only where the measured precision is at least 99%; the expert finder; concept profiles that show what drives them; similar people; collaboration, person focus, and concept landscape graphs with list views; missed connections; groups and the people who bridge them; and the unit matrix.
+
+### Evaluation
+
+- **Pilot check against people's own ORCID works lists:** Tessera reads an ORCID record only once the iD is confirmed, and none was, so the records behind the 49 suggested iDs are independent of every score. Of 193 papers that 39 people list themselves (within the pilot's two-year window), 95.3% were found as candidates (target 95%); of those, 97.3% are in the strong band and all are at or above the review threshold. Works lists measure recall, not precision: people list only some of their papers. Details are in [spec/evidence-engine.md](spec/evidence-engine.md#pilot-check-against-orcid-works-lists-v020).
+- **Learned weights and auto-accept** need curator decisions, which the pilot does not have yet. On generated decisions, fitting recovers the weights that produced them, and a learned model is offered only when it predicts better on people left out of the fit. On the synthetic organization with simulated decisions, auto-accept at 0.99 accepted 477 suggestions, all correct, and undoing the batch restored every one.
+- **Discovery on the synthetic organization:** every person's top three concepts come from their own field, searching a field's heading returns that field's people first, at least 90% of similar pairs and of collaborating pairs share a field, and collaboration counts match an independent recount exactly.
+- **Speed on the pilot:** the expert finder answers in 31 ms at the 95th percentile for a query in words (13 ms for a chosen concept); similar people, a profile's concepts, and every graph view in under 10 ms. Graphs of about 150 nodes, and a test graph of 300 nodes and 600 links, lay out with no main-thread task over 50 ms.
+
+### Dependencies and licenses
+
+No dependency was added or changed: the runtime dependencies and their licenses are as in 0.1.0 (MIT, BSD, Apache-2.0, and PSF, with certifi under MPL-2.0 used unmodified, and the optional psycopg under LGPL-3.0, not bundled). The web app still ships no third-party code, fonts, or images. The force layout, community detection, and betweenness are original implementations of published methods.
+
+### Upgrading
+
+- Run `uv run tessera db upgrade` to apply ledger migrations 0003 to 0006, then `uv run tessera sync` (or `tessera build search` and `tessera build discovery`) to build the new discovery data.
+- **Breaking:** listening on any address other than this machine now requires `server.accounts = true`. See [Accounts and sign-in](docs/operations.md#accounts-and-sign-in).
+
+### Added
+
+- Missed connections (DIS-08): pairs of current members whose interests are alike but who have never published, held a grant, or run a study together, with the topics they share and anyone who has worked with both. Filters for unit, pairs across units, and how alike. Profiles' **Similar people** now say whether each pair has worked together. `GET /api/v1/graph/missed`.
+- Groups and bridges: the collaboration network is divided into groups by modularity, each named by its members' most distinctive topics and given its own colour; people who connect groups are ringed and listed by name with the groups they work with. `derived/person_group.parquet`.
+- The unit matrix (DIS-09): every pair of units compared by interest (shade) and collaboration (inner square), each per possible pair of members; each cell opens the people behind it, the matrix works from the keyboard, and a sortable list has the same information. `GET /api/v1/graph/units`, `/graph/units/pairs`.
+- Categorical colours (`--series-0..5`) in every palette, tested to stay distinct from one another and visible against cards in light and dark.
+- Connections (DIS-07): three graph views under Explore, beside **Missed connections** and **Units**. **Collaboration** shows people linked by shared papers, grants, and studies (weighted so that one large consortium paper does not outweigh a long partnership) and, dashed, by similar interests where they have no shared work; **Person focus** shows someone's top topics and the people who share them, with a trail to step back; **Concept landscape** shows research areas as topics linked by the people who hold them together. Hover to see someone's connections, select for details, double-click to focus, drag to pin, search to fly to a name; every view has a sortable **List** view with the same information, and its state is in the URL. The layout runs in a Web Worker and the views load on first use. `GET /api/v1/graph/network`, `/graph/focus/{id}`, `/graph/landscape`; `derived/collaboration_edge.parquet` and `derived/concept_edge.parquet`.
+- Find experts (DIS-05): describe a topic in your own words and Tessera ranks people by the topics of their papers, with the concepts that match on every result. Words are read through the organization's papers that they find, so "cancer" reaches the people whose papers are indexed under "Neoplasms"; the concepts a search became are shown as **Understood as**, where you can drop one or add a heading by name. `GET /api/v1/experts`, `GET /api/v1/concepts`.
+- Concept profiles (DIS-04): every directory member's topics as weighted MeSH headings from their papers, counting major topics, first and last authorship, and recent work more, and headings many people share less. Strong suggestions count half until confirmed (`[discovery] likely_weight`); author keywords stand in, marked, for papers not yet indexed; studies add their conditions and interventions. **How this is built** on a profile's Topics card shows each concept's weight, papers, and confirmed papers. Built by `tessera sync` or `tessera build discovery` (which also builds the graphs) into `derived/concept_profile.parquet`; `GET /api/v1/people/{id}/concepts`.
+- Similar people (DIS-06): each profile lists the people whose topics overlap most, with the shared concepts, precomputed into `derived/similarity_pair.parquet`. `GET /api/v1/people/{id}/similar`.
+- A `[discovery]` section for the recency half-life, the weight of unconfirmed suggestions, and the similarity floor; a [Finding experts](docs/discovery.md) guide.
+- Learned weights (`authorship/v2`, CUR-10): Tessera fits one multiplier per kind of evidence, and an offset, to curators' accept and reject decisions, pulled toward the hand-set weights so a few decisions barely move it. It is evaluated on people left out of the fit and offered only if it predicts better there (at least 200 decisions, 20 rejections, 5 people). Admins release or revert it under **Admin → Evidence** or with `tessera evidence`; explanations keep both weights.
+- Safe auto-accept (CUR-05): off by default, and only at a threshold where the latest evaluation measured at least 99% precision over 50 or more decisions. Each sync accepts qualifying suggestions without conflicting evidence as one batch, marked **Auto-confirmed**, never used for learning, and undone in one step. A new model, or undoing a batch, switches it off. Ledger migration 0006.
+- Local accounts and roles (PLT-06, CUR-06): set `[server] accounts = true` to require sign-in. Roles add up: viewers read, researchers also review the suggestions about their own profile (**My suggestions**), curators decide for everyone or only for one unit or person, and admins also manage accounts (**Admin → Accounts**, or `tessera users add | list | disable | enable | reset-password | roles`). Decisions record the signed-in person's name. Passwords are hashed with the standard library's scrypt; sessions are server-side, in `HttpOnly`, `SameSite=Strict` cookies, with a CSRF token on every change and throttled sign-in. Every API route has an access policy, and a test fails for any route without one. Ledger migration 0005; ADR-0009.
+- Possible duplicates: two records of one person (typically a roster row and a grant record with no shared identifier) are proposed as a pair, scored by `same_as/v1` on shared identifiers, a replaced ORCID iD, author positions both claim, shared grants, and names; never on a name alone. A new **Possible duplicates** page under Curate shows both records side by side with the evidence. `GET /api/v1/duplicates`.
+- Reversible merges: merging moves a record's links, names, and identifiers to the record kept and journals every change, so **Undo merge** restores both exactly. Where both records decided the same link differently, the more recent decision holds and the merge says so. Merge from the duplicates page or with **Merge…** on a profile; merges appear in the decision log. `POST /api/v1/merges`, `POST /api/v1/merges/{id}/undo`; ledger migration 0004 (a `merged` status, `person.merged_into`, and `person_merge`).
+- Dated unit memberships: roster `start` and `end` columns (a year, month, or day), several units at once, titles and dates on profiles, and only current units in the directory and its filters. People whose memberships have all ended become former members; importing an updated roster updates dates.
+- ORCID iDs suggested from people's own papers: an iD printed at a person's author position on at least two of their likely papers is suggested on their profile, with how many papers carry it and what the public ORCID record says. Curators confirm it, mark it as not theirs, or add identifiers by hand; every decision is logged. An iD recorded for two people is flagged on both profiles. `POST /api/v1/people/{id}/identifiers`; ledger migration 0003.
+- ORCID evidence in authorship scoring (`authorship/v1.1`): papers listed on a person's public ORCID record (+6.0), iDs a curator rejected (−8.0, like a conflict), and the same iD on the person's other papers (+2.0 or +3.0) or a clearly different one (−2.0, weak, since some people have two iDs). Deprecated iDs count as the iD that replaced them; an iD suggested for the person is never a conflict. On the pilot, the strong band grew from 1,652 to 1,666 suggestions, and the near misses on a short, common name left it.
+- Papers listed on members' ORCID records are fetched from PubMed when the lake lacks them.
+- ORCID connector: the public records of directory members who have an ORCID iD (works with their PubMed IDs and DOIs, and employment), read without credentials, refreshed every 30 days, and part of `tessera sync`. Deprecated, locked, and missing records are kept as data. New lake tables `orcid_record`, `orcid_work`, and `orcid_employment`; a `[sources.orcid]` setting.
+
+### Changed
+
+- `authorship/v1.2`: a full-name match on a first name of at most two letters, which many people share, counts for less (the near misses of the v0.1.0 pilot check).
+- **Breaking:** listening on any address other than this machine now requires `server.accounts = true` (it used to be a warning). Without accounts, Tessera also answers only to requests addressed to `localhost` or `127.0.0.1`, and in both modes refuses changes that a browser sends from another site.
+- Cassette's stripe is now a thin sunset gradient in both modes, and the hero's diagonal bands are faint pinstripes in the same sunset colors.
+- Record-type colors no longer resemble status colors: grants are gold, studies raspberry, and Cassette's publications teal, each kept well apart from the green, amber, and red of accepted, suggested, and rejected (a test checks every palette and mode). Warnings and "suggested" are a warmer amber.
+- Charts of grant amounts use a brighter gold fill.
+
+### Fixed
+
+- On SQLite, a migration that failed part way could leave some of its schema changes behind, because Python's driver did not put them in the transaction. Schema changes are now transactional and roll back whole (a test checks it).
+- A person listed on several roster rows without any identifier became several people; within one file, such rows with the same full name are now one person.
+- Keyboard hints on buttons were faded below WCAG AA contrast; they are now full strength.
+- Resolving again rewrote hundreds of unchanged suggestions because tied topics were listed in a random order in their explanations; ties are now broken by name, and a second resolve changes nothing.
 
 ## 0.1.0 (2026-11-07)
 

@@ -18,13 +18,14 @@ from __future__ import annotations
 
 import random
 import zlib
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 from typing import Any
 
 from tessera.lake import LakeWriter
-from tessera.lake.schemas import CTGOV, PUBMED, REPORTER, REPORTER_LINKS
+from tessera.lake.schemas import CTGOV, ORCID, PUBMED, REPORTER, REPORTER_LINKS
 
 ORG_AFFILIATION = "Department of {dept}, Example University, Example City, EX, USA."
 OTHER_AFFILIATIONS = [
@@ -230,7 +231,13 @@ class World:
 
 
 def _orcid(rng: random.Random) -> str:
+    """A random iD with a valid check digit (the last of the 12 drawn digits is replaced)."""
     digits = "0000" + "".join(str(rng.randrange(10)) for _ in range(12))
+    total = 0
+    for d in digits[:15]:
+        total = (total + int(d)) * 2
+    check = (12 - total % 11) % 11
+    digits = digits[:15] + ("X" if check == 10 else str(check))
     return "-".join(digits[i : i + 4] for i in range(0, 16, 4))
 
 
@@ -598,3 +605,54 @@ def load(world: World, lake_root: Path) -> None:
         writer.add(world.links)
     with LakeWriter(lake_root, CTGOV, "run_synthetic_ctgov") as writer:
         writer.add(world.studies)
+    load_orcid(world, lake_root)
+
+
+def load_orcid(world: World, lake_root: Path, share: float = 0.8) -> None:
+    """Public ORCID records for insiders with an iD: most of their papers, as people keep them.
+
+    Uses its own random stream, so the rest of the world is unchanged.
+    """
+    rng = random.Random(4242)
+    by_person: dict[str, list[str]] = defaultdict(list)
+    for key, pmid in sorted(world.truth):
+        by_person[key].append(pmid)
+    records = []
+    for r in world.insiders:
+        if not r.orcid:
+            continue
+        works = [p for p in by_person[r.key] if rng.random() < share]
+        records.append(
+            {
+                "orcid": r.orcid,
+                "status": "public",
+                "primary_orcid": None,
+                "given_names": f"{r.given} {r.middle}",
+                "family_name": r.family,
+                "credit_name": None,
+                "other_names": [],
+                "last_modified": "2026-10-01T00:00:00+00:00",
+                "works": [
+                    {"orcid": r.orcid, "put_code": n, "pmid": pmid, "source_name": "Europe PMC"}
+                    for n, pmid in enumerate(works, start=1)
+                ],
+                "employments": [],
+            }
+        )
+    with LakeWriter(lake_root, ORCID, "run_synthetic_orcid") as writer:
+        writer.add(records)
+
+
+def duplicate_roster(world: World, tmp: Path, count: int = 4) -> tuple[Path, list[Researcher]]:
+    """A second roster that lists some grant holders with only an email address.
+
+    Grant records carry no email, so importing it creates a second record for each of them:
+    the duplicates that merges exist to fix.
+    """
+    listed = [r for r in world.insiders if r.profile_id is not None and r.email][:count]
+    path = tmp / "roster-duplicates.csv"
+    lines = ["family,given,email,unit,start"]
+    for r in listed:
+        lines.append(f"{r.family},{r.given} {r.middle},{r.email},Department of {r.dept},2015")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path, listed

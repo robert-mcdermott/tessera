@@ -43,7 +43,7 @@ def world_client(
     resolve(config, home, engine, today=date(2026, 11, 7))
     build_search(config, home, engine)
     engine.dispose()
-    with TestClient(create_app(config)) as client:
+    with TestClient(create_app(config), base_url="http://localhost") as client:
         yield client, world
 
 
@@ -124,12 +124,13 @@ def test_person_profile(client: TestClient, world: synthetic_org.World) -> None:
     pid = person_id(client, researcher.family)
     data = ok(client.get(f"/api/v1/people/{pid}"))["data"]
     assert data["status"] == "active"
-    assert {
-        "scheme": "nih_profile",
-        "value": str(researcher.profile_id),
-        "status": "accepted",
-        "source": "reporter",
-    } in data["identifiers"]
+    [nih] = [i for i in data["identifiers"] if i["scheme"] == "nih_profile"]
+    assert (nih["value"], nih["status"], nih["source"], nih["also"]) == (
+        str(researcher.profile_id),
+        "accepted",
+        "reporter",
+        [],
+    )
     assert data["counts"]["grants"] == 1
     assert data["counts"]["publications"]["suggested"] >= len(researcher.papers)
     assert data["timeline"] and all(t["publications"] for t in data["timeline"])
@@ -363,7 +364,8 @@ def test_stats_sources_runs(client: TestClient) -> None:
     assert stats["people"]["active"] >= 40 and stats["grants"]["active"] == 30
     assert stats["publications"] > 0 and stats["publications_by_year"]
     sources = ok(client.get("/api/v1/sources"))["data"]
-    assert [s["name"] for s in sources["sources"]] == ["pubmed", "icite", "reporter", "ctgov"]
+    names = [s["name"] for s in sources["sources"]]
+    assert names == ["pubmed", "icite", "reporter", "ctgov", "orcid"]
     assert sources["evidence"]["status"] == "succeeded"
     assert sources["search_index"]["documents"]["person"] == 40
     assert any(t["table"] == "pubmed_article" for t in sources["lake"])
@@ -389,7 +391,7 @@ def test_api_reference_page(client: TestClient) -> None:
 
 
 def test_endpoints_explain_a_missing_index(instance: Instance) -> None:
-    with TestClient(create_app(instance.config)) as client:
+    with TestClient(create_app(instance.config), base_url="http://localhost") as client:
         response = client.get("/api/v1/people")
         assert response.status_code == 503
         assert "tessera build search" in response.json()["detail"]

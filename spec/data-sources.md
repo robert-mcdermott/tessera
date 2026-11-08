@@ -8,7 +8,7 @@ Tessera uses **free, public data sources only**. No source needs a paid subscrip
 | **iCite** (NIH) | Citation counts, Relative Citation Ratio, clinical-citation indicators | 1 | No |
 | **NIH RePORTER** (API v2) | NIH-funded projects, investigators with stable profile IDs, organizations, amounts, dates, and the project-to-publication link table | 1 | No |
 | **ClinicalTrials.gov** (API v2) | Study registry records: status, phase, conditions, interventions, sponsors, officials, sites, references | 1 | No |
-| **ORCID** (Public API) | Researcher-confirmed identifiers, employment, and works lists | 2 | Free public credentials may be required; to be confirmed when the connector is built |
+| **ORCID** (Public API v3.0) | Researcher-confirmed identifiers, employment, and works lists | 2 | No: the public API answers without credentials (checked 2026-11-07) |
 | **Grants.gov** (Search API) | Open federal funding opportunities | 5 | No (to be confirmed when the connector is built) |
 | **MeSH** (NLM descriptor data) | Hierarchy for rolling concepts up into broader topics | 2 | No. *Candidate: needs approval as an additional source* |
 
@@ -70,7 +70,10 @@ Tessera uses **free, public data sources only**. No source needs a paid subscrip
 
 - **Use:** when a person's ORCID iD is known, from PubMed author records or entered by the person, read their public works and employment as strong authorship evidence.
 - **Principle:** ORCID records are the researcher's own assertions, so they carry high weight but still show as evidence, not silent truth.
-- **To confirm before building:** current terms and rate limits for anonymous versus credentialed public-API access.
+- **Scope:** only the accepted ORCID iDs of people in the directory (active or former), one request each for the public record (`/v3.0/{iD}/record`), never the iDs of everyone who appears in PubMed. Records are read again after 30 days.
+- **Access:** the public API answers without credentials. Tessera sends at most four requests a second with its contact address in the `User-Agent`, retries politely, and needs no key. If heavier use ever needs one, it will be read from the environment like `NCBI_API_KEY`.
+- **Records that cannot be read** are kept as data rather than failures: an iD that does not exist, a deprecated iD (with the iD that replaced it, which is evidence that two iDs belong to one person), and locked or deactivated records.
+- **Works** are kept once per ORCID work group, using the researcher's preferred version, with its own DOI, PubMed ID, and PMC ID. Employment keeps the organization with its ROR, Ringgold, or GRID identifier, department, role, and years.
 
 ## Grants.gov (wave 5)
 

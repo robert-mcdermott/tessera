@@ -127,6 +127,22 @@ def _exercise(engine) -> None:  # type: ignore[no-untyped-def]
         conn.execute(
             insert(person_event).values(person_id=pid, actor="x", action="delete", at=_now())
         )
+    # 0003: identifier decisions, with their detail.
+    with engine.begin() as conn:
+        conn.execute(
+            insert(person_event).values(
+                person_id=pid,
+                actor="Operator",
+                action="identifier",
+                to_status="accepted",
+                detail={"scheme": "orcid", "value": "0000-0002-1825-0097", "action": "add"},
+                at=_now(),
+            )
+        )
+        detail = conn.execute(
+            select(person_event.c.detail).where(person_event.c.action == "identifier")
+        ).scalar()
+    assert detail["value"] == "0000-0002-1825-0097"
     migrate.downgrade(engine, "0001")
     with engine.connect() as conn:
         assert (
@@ -269,5 +285,27 @@ def test_postgres_ledger() -> None:
                 )
             ).scalar()
         assert kind == "jsonb"
+    finally:
+        engine.dispose()
+
+
+def test_a_failed_sqlite_migration_leaves_nothing_behind(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """Schema changes are transactional: a step that fails after creating a table rolls back."""
+    engine = make_engine(f"sqlite:///{tmp_path / 'ledger.db'}")
+    migrate.upgrade(engine)
+
+    def failing_step(cfg, revision) -> None:  # type: ignore[no-untyped-def]
+        conn = cfg.attributes["connection"]
+        conn.exec_driver_sql("CREATE TABLE should_vanish (id INTEGER)")
+        conn.exec_driver_sql("ALTER TABLE person ADD COLUMN should_vanish TEXT")
+        raise RuntimeError("the migration failed half way")
+
+    try:
+        with pytest.raises(RuntimeError, match="half way"):
+            migrate._run(engine, failing_step, "head")
+        assert "should_vanish" not in inspect(engine).get_table_names()
+        assert "should_vanish" not in {c["name"] for c in inspect(engine).get_columns("person")}
+        with engine.connect() as conn:
+            assert conn.execute(text("PRAGMA foreign_keys")).scalar() == 1
     finally:
         engine.dispose()

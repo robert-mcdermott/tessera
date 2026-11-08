@@ -25,8 +25,9 @@
   --ent-person-soft: light-dark(#e6ecf4, color-mix(in oklch, #a9c1e4 18%, #112345));
   --ent-pub: light-dark(#08677f, #5fc6db);
   --ent-pub-soft: light-dark(#e1f1f5, color-mix(in oklch, #5fc6db 18%, #112345));
-  --ent-grant: light-dark(#8a5a00, #ffb500);
-  --ent-grant-soft: light-dark(#fff2cc, color-mix(in oklch, #ffb500 15%, #112345));
+  --ent-grant: light-dark(#806600, #ebd070);
+  --ent-grant-soft: light-dark(#f6f1d3, color-mix(in oklch, #ebd070 15%, #112345));
+  --ent-grant-fill: light-dark(#d29b00, #ffb500);
   --ent-study: light-dark(#9437ae, #d9a2e8);
   --ent-study-soft: light-dark(#f6eafa, color-mix(in oklch, #d9a2e8 18%, #112345));
   --ent-concept: light-dark(#5b3f93, #b9acf2);
@@ -36,10 +37,16 @@
 
   --hue-0: #18365d;
   --hue-1: #08708f;
-  --hue-2: #7a5200;
+  --hue-2: #7d6300;
   --hue-3: #8c3aa6;
   --hue-4: #5b3f93;
   --hue-5: #00687d;
+  --series-0: light-dark(#18365d, #a9c1e4);
+  --series-1: light-dark(#0a799a, #2fb5d6);
+  --series-2: light-dark(#aa4ac4, #d39ae4);
+  --series-3: light-dark(#a87400, #ffb500);
+  --series-4: light-dark(#8a7fb0, #5f7ea8);
+  --series-5: light-dark(#7a5c2e, #e0c9a6);
 
   /* the sunset rule: navy (teal after dark), bright blue, purple, gold */
   --band-1: light-dark(#18365d, #0a799a);
@@ -55,7 +62,7 @@
     0 6px 18px light-dark(oklch(25% 0.06 260 / 0.08), oklch(0% 0 0 / 0.4));
 }
 
-/* ---------- Cassette: label paper and rainbow stripes; black labels at dusk ---------- */
+/* ---------- Cassette: label paper by day, black labels at night, a sunset stripe ---------- */
 :root[data-palette="cassette"] {
   --bg: light-dark(#eee5d1, #110f10);
   --surface-1: light-dark(#f8f2e4, #1a1718);
@@ -75,12 +82,13 @@
 
   --ent-person: light-dark(#1f5fa8, #82acea);
   --ent-person-soft: light-dark(color-mix(in oklch, #1f5fa8 13%, #f8f2e4), color-mix(in oklch, #82acea 17%, #1a1718));
-  --ent-pub: light-dark(#18693a, #6cc891);
-  --ent-pub-soft: light-dark(color-mix(in oklch, #18693a 13%, #f8f2e4), color-mix(in oklch, #6cc891 16%, #1a1718));
-  --ent-grant: light-dark(#96490a, #f2c14e);
-  --ent-grant-soft: light-dark(color-mix(in oklch, #e7a33a 22%, #f8f2e4), color-mix(in oklch, #f2c14e 15%, #1a1718));
-  --ent-study: light-dark(#b3264f, #f27c97);
-  --ent-study-soft: light-dark(color-mix(in oklch, #b3264f 12%, #f8f2e4), color-mix(in oklch, #f27c97 16%, #1a1718));
+  --ent-pub: light-dark(#00696f, #71d0d5);
+  --ent-pub-soft: light-dark(color-mix(in oklch, #00696f 13%, #f8f2e4), color-mix(in oklch, #71d0d5 16%, #1a1718));
+  --ent-grant: light-dark(#806600, #ebd070);
+  --ent-grant-soft: light-dark(color-mix(in oklch, #d9c34a 24%, #f8f2e4), color-mix(in oklch, #ebd070 15%, #1a1718));
+  --ent-grant-fill: light-dark(#c69214, #f2c14e);
+  --ent-study: light-dark(#a62b6d, #f38abe);
+  --ent-study-soft: light-dark(color-mix(in oklch, #a62b6d 12%, #f8f2e4), color-mix(in oklch, #f38abe 16%, #1a1718));
   --ent-concept: light-dark(#6b3fa0, #bba2f2);
   --ent-concept-soft: light-dark(color-mix(in oklch, #6b3fa0 12%, #f8f2e4), color-mix(in oklch, #bba2f2 16%, #1a1718));
   --ent-unit: light-dark(#5e5245, #cdbfa9);
@@ -88,8 +96,8 @@
 
   --ok: light-dark(#1d6b3c, #74cf98);
   --ok-soft: light-dark(color-mix(in oklch, #1d6b3c 13%, #f8f2e4), color-mix(in oklch, #74cf98 15%, #1a1718));
-  --warn: light-dark(#8f4a00, #f2c14e);
-  --warn-soft: light-dark(color-mix(in oklch, #e7a33a 24%, #f8f2e4), color-mix(in oklch, #f2c14e 15%, #1a1718));
+  --warn: light-dark(#8f4a00, #f9a45a);
+  --warn-soft: light-dark(color-mix(in oklch, #e7a33a 24%, #f8f2e4), color-mix(in oklch, #f9a45a 15%, #1a1718));
   --danger: light-dark(#a8281c, #f58a7c);
   --danger-soft: light-dark(color-mix(in oklch, #a8281c 12%, #f8f2e4), color-mix(in oklch, #f58a7c 15%, #1a1718));
   --info: light-dark(#235f9e, #82acea);
@@ -101,16 +109,22 @@
   --hue-3: oklch(48% 0.11 150);
   --hue-4: oklch(48% 0.13 252);
   --hue-5: oklch(50% 0.17 0);
+  --series-0: light-dark(oklch(54% 0.17 30), oklch(74% 0.14 32));
+  --series-1: light-dark(oklch(50% 0.12 250), oklch(76% 0.11 250));
+  --series-2: light-dark(oklch(64% 0.14 75), oklch(84% 0.13 85));
+  --series-3: light-dark(oklch(50% 0.12 150), oklch(76% 0.13 150));
+  --series-4: light-dark(oklch(50% 0.16 330), oklch(74% 0.14 330));
+  --series-5: light-dark(oklch(45% 0.06 200), oklch(88% 0.05 200));
 
-  /* rainbow label stripes by day; a sunset after dark */
-  --band-1: light-dark(#d9402f, #6e4bb8);
-  --band-2: light-dark(#ec8a26, #b8479d);
-  --band-3: light-dark(#f0c02e, #ec5f7c);
-  --band-4: light-dark(#2e9b58, #f38a3d);
-  --band-5: light-dark(#2a6db5, #f5c64a);
-  --signature: linear-gradient(to bottom, var(--band-1) 0 20%, var(--band-2) 20% 40%,
-    var(--band-3) 40% 60%, var(--band-4) 60% 80%, var(--band-5) 80% 100%);
-  --signature-height: 10px;
+  /* a sunset stripe, day and night: violet, magenta, rose, orange, gold */
+  --band-1: #6e4bb8;
+  --band-2: #b8479d;
+  --band-3: #ec5f7c;
+  --band-4: #f38a3d;
+  --band-5: #f5c64a;
+  --signature: linear-gradient(90deg, var(--band-1), var(--band-2) 26%, var(--band-3) 50%,
+    var(--band-4) 74%, var(--band-5));
+  --signature-height: 4px;
 
   --title-weight: 820;
   --title-tracking: -0.03em;
@@ -123,7 +137,7 @@
 }
 
 /* Printed-label details: heavy wordmark, small spaced capitals on card titles, and
-   diagonal bands across the home page's corner instead of the mosaic. */
+   thin diagonal pinstripes in the home page's corner instead of the mosaic. */
 :root[data-palette="cassette"] .brand-text > span:first-child {
   text-transform: uppercase; font-weight: 850; font-style: italic; letter-spacing: 0.02em;
 }
@@ -131,10 +145,12 @@
   font-size: 12px; font-weight: 760; text-transform: uppercase; letter-spacing: 0.09em;
 }
 :root[data-palette="cassette"] .hero::after {
-  right: -60px; top: -30px; width: 360px; height: 220px;
-  background: linear-gradient(152deg, transparent 0 34%, var(--band-1) 34% 41%, var(--band-2) 41% 48%,
-    var(--band-3) 48% 55%, var(--band-4) 55% 62%, var(--band-5) 62% 69%, transparent 69%);
-  mask-image: linear-gradient(to left, black 55%, transparent);
-  -webkit-mask-image: linear-gradient(to left, black 55%, transparent);
-  opacity: 0.92;
+  right: -40px; top: -24px; width: 300px; height: 180px;
+  background: linear-gradient(152deg, transparent 0 46%,
+    var(--band-1) 46% 49%, transparent 49% 50%, var(--band-2) 50% 53%, transparent 53% 54%,
+    var(--band-3) 54% 57%, transparent 57% 58%, var(--band-4) 58% 61%, transparent 61% 62%,
+    var(--band-5) 62% 65%, transparent 65%);
+  mask-image: linear-gradient(to left, black 35%, transparent 90%);
+  -webkit-mask-image: linear-gradient(to left, black 35%, transparent 90%);
+  opacity: 0.6;
 }

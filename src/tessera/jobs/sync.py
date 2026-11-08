@@ -2,9 +2,11 @@
 
 1. Fetch organization sweeps and linked records (grants, studies, PubMed sweep, linked papers).
 2. Resolve people (so they can be searched for by name).
-3. Search PubMed by person name, then fetch citation metrics.
+3. Read members' ORCID records, search PubMed by person name, fetch papers the ORCID
+   records list, then fetch citation metrics.
 4. Resolve everything: links, authorship suggestions, study officials.
-5. Rebuild the search and serving index.
+5. Rebuild the search and serving index, then concept profiles, similar people, and the
+   collaboration graph.
 """
 
 from __future__ import annotations
@@ -19,11 +21,11 @@ from tessera.config import Config
 from tessera.connectors.base import IngestOptions
 from tessera.evidence.resolve import ResolveResult, resolve
 from tessera.home import DataHome
-from tessera.jobs.build import build_search
+from tessera.jobs.build import build_discovery, build_search
 from tessera.jobs.ingest import RunResult, ingest_many
 
 FIRST = ("reporter", "ctgov", "pubmed", "pubmed:linked")
-SECOND = ("pubmed:people", "icite")
+SECOND = ("orcid", "pubmed:people", "pubmed:linked", "icite")
 
 
 @dataclass
@@ -62,4 +64,5 @@ def sync(
         )
     result.resolves.append(resolve(config, home, engine, today=today))
     result.build = build_search(config, home, engine)
+    result.build["discovery"] = build_discovery(config, home, engine)
     return result

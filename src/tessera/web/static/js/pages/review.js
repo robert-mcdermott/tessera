@@ -8,6 +8,7 @@ import { get, post, prefetch } from "../core/api.js";
 import { h, icon } from "../core/dom.js";
 import { number, plural, scoreLabel } from "../core/format.js";
 import { navigate, query, setQuery } from "../core/router.js";
+import { can } from "../core/session.js";
 import { assertionDetail, confirmAction, showShortcuts } from "../components/drawer.js";
 import { toast } from "../components/toast.js";
 import { callout, card, chip, emptyState, pageHeader, segmented } from "../components/ui.js";
@@ -60,7 +61,7 @@ export function review(main) {
   }
 
   return show(main, {
-    title: "Review queue",
+    title: can("curate_any") ? "Review queue" : "My suggestions",
     load: async () => {
       await fetchMore();
       const person = personFilter
@@ -80,7 +81,7 @@ export function review(main) {
       const root = h("div", { class: "stack-lg review-page" },
         pageHeader({
           eyebrow: "Curate",
-          title: "Review queue",
+          title: can("curate_any") ? "Review queue" : "My suggestions",
           meta: [metaEl, sessionEl],
           actions: [h("button", { type: "button", class: "btn btn-ghost", onclick: () => showShortcuts("Keyboard shortcuts", KEYS) },
             icon("keyboard", "icon icon-sm"), "Shortcuts")],

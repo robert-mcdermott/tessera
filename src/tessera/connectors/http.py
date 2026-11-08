@@ -121,6 +121,7 @@ class HttpClient:
         backoff: float = 1.0,
         transport: httpx.BaseTransport | None = None,
         sleep: Callable[[float], None] = time.sleep,
+        headers: dict[str, str] | None = None,
     ) -> None:
         self.source = source
         self.retries = retries
@@ -132,7 +133,11 @@ class HttpClient:
         self.client = httpx.Client(
             base_url=base_url,
             timeout=httpx.Timeout(timeout, connect=min(timeout, 15.0)),
-            headers={"User-Agent": user_agent(contact_email), "Accept-Encoding": "gzip"},
+            headers={
+                "User-Agent": user_agent(contact_email),
+                "Accept-Encoding": "gzip",
+                **(headers or {}),
+            },
             transport=transport,
             follow_redirects=True,
         )

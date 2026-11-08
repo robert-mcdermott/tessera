@@ -34,11 +34,12 @@ All visual values are CSS custom properties defined once in `tokens.css`. Colors
 - **Surfaces:** `--bg`, `--surface-1..3`, `--border`, `--border-strong`
 - **Text:** `--text`, `--text-muted`, `--text-subtle`, `--text-inverse`
 - **Accent:** `--accent`, `--accent-hover`, `--accent-strong` (accent text on accent tints), `--accent-soft`, `--on-accent`; the palette's accent unless configuration sets one
-- **Entities:** `--ent-person`, `--ent-pub`, `--ent-grant`, `--ent-study`, `--ent-concept`, `--ent-unit`, each with a `-soft` tint for backgrounds
-- **Status:** `--ok`, `--warn`, `--danger`, `--info`; and evidence states `--accepted`, `--suggested`, `--rejected`
+- **Entities:** `--ent-person`, `--ent-pub`, `--ent-grant`, `--ent-study`, `--ent-concept`, `--ent-unit`, each with a `-soft` tint for backgrounds; `--ent-grant-fill` is a brighter gold for charts, since dark gold reads as olive in large areas. Each record type keeps its color family in every palette (person blue, publication teal, grant gold, study raspberry or purple, concept violet)
+- **Status:** `--ok`, `--warn`, `--danger`, `--info`; and evidence states `--accepted`, `--suggested`, `--rejected`. Record colors keep their hue at least 28° (in OKLCH) from green, amber, and red in every palette and mode, so a record's color never reads as a status; a test enforces it
 - **Spacing:** 4 px base scale (`--space-1` = 4 px … `--space-10` = 64 px)
 - **Radius:** `--radius-s` 6 px, `--radius-m` 10 px, `--radius-l` 16 px
 - **Elevation:** three shadow levels, deeper in dark mode
+- **Series:** `--series-0..5`, categorical colors for groups in graphs and charts, distinct from one another (at least 0.1 apart in OKLab) and at least 3:1 against cards in every palette and mode; a test enforces both
 - **Signature:** `--band-1..5`, `--signature`, and `--signature-height`: a palette's stripe along the top of the window and the art in the home page's hero; `--hue-0..5` color avatar tiles
 - **Motion:** `--ease-out`, durations 120/200/320 ms, all disabled under `prefers-reduced-motion`
 
@@ -59,13 +60,14 @@ Appearance has two independent choices, both under **Appearance** in the top bar
 |---|---|---|
 | **Tessera** (default) | Calm cool neutrals, indigo accent, mosaic motif | Neutral graphite, soft indigo accent |
 | **Harbor** | White and light grey, dark navy text, teal actions; a navy, bright blue, purple, and gold rule | Deep navy surfaces, bright blue actions, gold and purple accents |
-| **Cassette** | Cream label paper, red-orange accent, rainbow stripes along the top and across the hero, heavy italic wordmark, small spaced capitals on card titles | Black labels, orange accent, sunset stripes |
+| **Cassette** | Cream label paper, red-orange accent, a thin sunset stripe along the top and faint diagonal pinstripes in the hero, heavy italic wordmark, small spaced capitals on card titles | Black labels, orange accent, the same sunset stripe |
 
 - Every palette and mode is checked for WCAG AA by sampling the rendered text of the main pages against its actual background, including chips, marks, badges, and tinted rows. Accent text on accent tints uses `--accent-strong`.
+- Tessera and Harbor suit leadership views and public pages. Cassette is playful by design and is best left as a personal choice.
 
 ### Branding (white-label)
 
-An adopting organization sets its product name, organization name, logo (light and dark variants, shown in place of the Tessera mark and name), default palette, and optionally its own accent color in `tessera.toml`. The server generates `theme.css` from these settings: a configured accent replaces the palette's accent by day and is lightened for dark mode, with text on it chosen for contrast. A custom favicon comes with the white-label kit (wave 6). No code changes are needed, and "Tessera" appears only in a small "Powered by Tessera" footer link, which can be turned off.
+An adopting organization sets its product name, organization name, logo (light and dark variants, shown in place of the Tessera mark and name), default palette, and optionally its own accent color in `tessera.toml`. The server generates `theme.css` from these settings: a configured accent replaces the palette's accent by day and is lightened for dark mode, with text on it chosen for contrast. Text on a configured accent is chosen for contrast only when the accent is a hex value, and the accent also colors links and labels, so it should read on white at 4.5:1. The brand kit (wave 3, PLT-13) adds an organization's own palette, footer links, a favicon, and a social preview image, with `tessera doctor` checking every configured color pair for AA. No code changes are needed, and "Tessera" appears only in a small "Powered by Tessera" footer link, which can be turned off.
 
 ## Information architecture
 
@@ -127,7 +129,9 @@ Each is a small ES module that returns DOM. There is no virtual DOM and no templ
 
 | Budget | Target |
 |---|---|
-| App shell JS + CSS (gzipped) | ≤ 100 KB |
+| App shell JS + CSS (gzipped): the scripts imported at start, and every style | ≤ 100 KB |
+| Each part loaded on first use, such as the graph views (gzipped) | ≤ 40 KB |
+| Laying out a graph of about 150 nodes | No main-thread task over 50 ms (the layout runs in a worker) |
 | First meaningful render on a laptop | < 1 s |
 | Profile API response (p95), 5k people, 300k publications | < 300 ms |
 | Search API response (p95) | < 200 ms |

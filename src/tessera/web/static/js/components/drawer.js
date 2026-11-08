@@ -155,7 +155,10 @@ export function canUndo(a) {
 function draw(body, footer, a, onChange) {
   body.replaceChildren(...assertionDetail(a));
 
-  if (a.predicate === "authored" || a.predicate === "official_of") {
+  if ((a.predicate === "authored" || a.predicate === "official_of") && a.can_decide === false) {
+    footer.replaceChildren(h("p", { class: "subtle" }, "Only a curator for this person, or the person themselves, can decide this link."));
+    footer.hidden = false;
+  } else if (a.predicate === "authored" || a.predicate === "official_of") {
     const note = h("textarea", { class: "input", rows: 2, placeholder: "Optional note", "aria-label": "Note" });
     const act = async (action) => {
       try {

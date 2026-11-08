@@ -120,11 +120,17 @@ def test_ledger_url_must_be_supported(tmp_path: Path) -> None:
         load_config(write(tmp_path, text), env={})
 
 
-def test_warnings_for_public_bind_and_missing_contact(tmp_path: Path) -> None:
+def test_other_machines_need_accounts(tmp_path: Path) -> None:
     text = MINIMAL + '\n[server]\nhost = "0.0.0.0"\n'
+    with pytest.raises(ConfigError, match="accounts are off"):
+        load_config(write(tmp_path, text), env={})
+
+
+def test_warnings_for_public_bind_and_missing_contact(tmp_path: Path) -> None:
+    text = MINIMAL + '\n[server]\nhost = "0.0.0.0"\naccounts = true\n'
     warnings = config_warnings(load_config(write(tmp_path, text), env={}))
     assert any("contact_email" in w for w in warnings)
-    assert any("no sign-in" in w for w in warnings)
+    assert any("HTTPS" in w for w in warnings)
 
 
 @pytest.mark.parametrize(

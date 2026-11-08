@@ -1,4 +1,7 @@
-// API client: envelopes, problem details, and a small time-limited GET cache.
+// API client: envelopes, problem details, and a small time-limited GET cache. Changes carry
+// the session's CSRF token; a 401 means the session ended, so the app returns to sign-in.
+
+import { csrfToken } from "./session.js";
 
 export class ApiError extends Error {
   constructor(status, title, detail, body) {
@@ -26,14 +29,18 @@ export function buildUrl(path, params = {}) {
   return url.pathname + url.search;
 }
 
-async function request(method, path, { params, body, signal } = {}) {
+export async function request(method, path, { params, body, signal } = {}) {
   const url = buildUrl(path, params);
+  const headers = { Accept: "application/json", ...(body ? { "Content-Type": "application/json" } : {}) };
+  const token = method === "GET" ? null : csrfToken();
+  if (token) headers["X-CSRF-Token"] = token;
   let response;
   try {
     response = await fetch(url, {
       method,
       signal,
-      headers: { Accept: "application/json", ...(body ? { "Content-Type": "application/json" } : {}) },
+      credentials: "same-origin",
+      headers,
       body: body ? JSON.stringify(body) : undefined,
     });
   } catch (error) {
@@ -47,6 +54,9 @@ async function request(method, path, { params, body, signal } = {}) {
     payload = null;
   }
   if (!response.ok) {
+    if (response.status === 401 && !path.startsWith("/api/v1/session")) {
+      window.dispatchEvent(new CustomEvent("tessera:signed-out"));
+    }
     throw new ApiError(response.status, payload?.title, payload?.detail, payload);
   }
   return payload;

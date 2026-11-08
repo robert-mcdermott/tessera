@@ -40,9 +40,10 @@ ID = String(40)  # typed IDs such as per_0J8ZQ3W5T4K2M9B7XHRC1DGFNE
 ENTITY_REF = String(120)  # typed IDs or natural keys such as pub:12345678
 
 # "dismissed": a discovered candidate a curator decided is not a member. Kept (not deleted)
-# so that discovery does not propose the same person again.
-PERSON_STATUSES = ("active", "candidate", "former", "dismissed")
-PERSON_ACTIONS = ("promote", "dismiss", "undo")
+# so that discovery does not propose the same person again. "merged": a duplicate record whose
+# links, names, and identifiers moved to the record in ``merged_into`` (see person_merge).
+PERSON_STATUSES = ("active", "candidate", "former", "dismissed", "merged")
+PERSON_ACTIONS = ("promote", "dismiss", "undo", "identifier", "merge", "unmerge")
 ASSERTION_STATUSES = ("suggested", "accepted", "rejected", "deferred")
 ASSERTION_ORIGINS = ("source", "inferred", "human")
 RUN_STATUSES = ("running", "succeeded", "partial", "failed")
@@ -63,6 +64,7 @@ person = Table(
     Column("status", String(16), nullable=False, server_default="active"),
     Column("created_at", UtcDateTime, nullable=False),
     Column("updated_at", UtcDateTime, nullable=False),
+    Column("merged_into", ID, ForeignKey("person.id", ondelete="SET NULL")),
     CheckConstraint(_in("status", PERSON_STATUSES), name="status"),
 )
 Index(None, person.c.family_name)
@@ -164,8 +166,10 @@ curation_event = Table(
 Index(None, curation_event.c.assertion_id)
 Index(None, curation_event.c.at)
 
-# Decisions about people (promote a discovered candidate, dismiss one), append-only like
-# curation_event so that every change can be traced and undone.
+# Decisions about people (promote a discovered candidate, dismiss one) and about their
+# identifiers (add, confirm, reject, or remove an ORCID iD; ``detail`` holds the scheme and
+# value, the statuses the identifier's), append-only like curation_event so that every change
+# can be traced and undone.
 person_event = Table(
     "person_event",
     metadata,
@@ -177,10 +181,102 @@ person_event = Table(
     Column("to_status", String(16)),
     Column("note", Text),
     Column("at", UtcDateTime, nullable=False),
+    Column("detail", JsonType),
     CheckConstraint(_in("action", PERSON_ACTIONS), name="action"),
 )
 Index(None, person_event.c.person_id)
 Index(None, person_event.c.at)
+
+# One row per merge of two person records. ``journal`` lists every change the merge made, in
+# order, with the values before it, so that undoing the merge restores the ledger exactly.
+person_merge = Table(
+    "person_merge",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("merged_id", ID, ForeignKey("person.id", ondelete="CASCADE"), nullable=False),
+    Column("survivor_id", ID, ForeignKey("person.id", ondelete="CASCADE"), nullable=False),
+    Column("actor", String(200), nullable=False),
+    Column("note", Text),
+    Column("at", UtcDateTime, nullable=False),
+    Column("journal", JsonType, nullable=False),
+    Column("summary", JsonType, nullable=False),
+    Column("undone_at", UtcDateTime),
+    Column("undone_by", String(200)),
+)
+Index(None, person_merge.c.merged_id)
+Index(None, person_merge.c.survivor_id)
+
+# --- Accounts (PLT-06) ---------------------------------------------------------------------
+
+ROLES = ("admin", "curator", "researcher", "viewer")
+ACCOUNT_STATUSES = ("active", "disabled")
+
+account = Table(
+    "account",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("username", String(64), nullable=False, unique=True),
+    Column("display_name", String(200), nullable=False),
+    Column("email", String(320)),
+    Column("password_hash", String(255), nullable=False),  # scrypt; see tessera.auth.passwords
+    Column("status", String(16), nullable=False, server_default="active"),
+    # The researcher this account belongs to, so that they can review their own suggestions.
+    Column("person_id", ID, ForeignKey("person.id", ondelete="SET NULL")),
+    Column("created_at", UtcDateTime, nullable=False),
+    Column("updated_at", UtcDateTime, nullable=False),
+    Column("password_changed_at", UtcDateTime, nullable=False),
+    Column("last_sign_in_at", UtcDateTime),
+    CheckConstraint(_in("status", ACCOUNT_STATUSES), name="status"),
+)
+
+# A role, optionally limited to the people of one unit or to one person (CUR-06).
+role_grant = Table(
+    "role_grant",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("account_id", ID, ForeignKey("account.id", ondelete="CASCADE"), nullable=False),
+    Column("role", String(16), nullable=False),
+    Column("scope_type", String(16)),
+    Column("scope_id", ID),
+    Column("granted_by", String(200), nullable=False),
+    Column("granted_at", UtcDateTime, nullable=False),
+    CheckConstraint(_in("role", ROLES), name="role"),
+    CheckConstraint(
+        "(scope_type IS NULL AND scope_id IS NULL) OR "
+        "(scope_type IN ('unit', 'person') AND scope_id IS NOT NULL)",
+        name="scope",
+    ),
+)
+Index(None, role_grant.c.account_id)
+
+# Signed-in browsers. Only a hash of the session token is stored.
+auth_session = Table(
+    "auth_session",
+    metadata,
+    Column("token_hash", String(64), primary_key=True),
+    Column("account_id", ID, ForeignKey("account.id", ondelete="CASCADE"), nullable=False),
+    Column("csrf_token", String(64), nullable=False),
+    Column("created_at", UtcDateTime, nullable=False),
+    Column("last_seen_at", UtcDateTime, nullable=False),
+    Column("expires_at", UtcDateTime, nullable=False),
+    Column("revoked_at", UtcDateTime),
+    Column("user_agent", String(300)),
+)
+Index(None, auth_session.c.account_id)
+
+# Links one automatic run accepted (CUR-05), so that the whole run can be undone together.
+auto_accept_batch = Table(
+    "auto_accept_batch",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("created_at", UtcDateTime, nullable=False),
+    Column("threshold", Float, nullable=False),
+    Column("precision", Float),
+    Column("method", String(60), nullable=False),
+    Column("assertion_ids", JsonType, nullable=False),
+    Column("undone_at", UtcDateTime),
+    Column("undone_by", String(200)),
+)
 
 ingest_run = Table(
     "ingest_run",

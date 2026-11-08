@@ -49,11 +49,17 @@ show_powered_by = true
 home = "var"
 
 [server]
-# Tessera has no sign-in until accounts arrive, so it listens on this machine only.
+# Without accounts, Tessera answers only on this machine (single-operator mode).
 host = "127.0.0.1"
 port = 8000
 # Name recorded on curation actions while running without accounts.
 operator = "Operator"
+# Require sign-in with local accounts (needed to listen on any other address). Create the
+# first admin with: tessera users add <username> --role admin
+accounts = false
+# A session ends after this many hours without use, and after this many days in any case.
+session_idle_hours = 12
+session_max_days = 7
 
 [ledger]
 # Leave empty to use SQLite at <data home>/ledger.db.
@@ -78,6 +84,10 @@ enabled = true
 [sources.ctgov]
 enabled = true
 
+# Public ORCID records of directory members who have an ORCID iD (no credentials needed).
+[sources.orcid]
+enabled = true
+
 [sync]
 # How many years of history the first sync collects.
 window_years = 5
@@ -87,3 +97,12 @@ window_years = 5
 strong_threshold = 0.95   # "strong" suggestions, listed first for quick confirmation
 review_threshold = 0.60   # below this, suggestions are "unlikely" and hidden by default
 discover_min_papers = 2   # affiliated papers needed before proposing a newly discovered person
+
+[discovery]
+# Concept profiles: a paper's weight halves every this many years.
+half_life_years = 5.0
+# Strong suggestions not yet confirmed count this much in profiles (0 counts confirmed only).
+likely_weight = 0.5
+# Similar people: pairs less similar than this are not kept, and at most this many per person.
+similarity_floor = 0.10
+similar_per_person = 25

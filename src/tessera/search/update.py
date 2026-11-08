@@ -257,6 +257,10 @@ def _update_person(
     changed = 0
     status = row["status"] if row else None
     candidate = existing.get(("candidate", candidate_ref(person_id)))
+    if candidate is not None and status == "merged":  # as in a full build: merged records
+        _delete_doc(con, candidate["id"])  # leave the discovered-people list
+        changed += 1
+        candidate = None
     if candidate is not None and status:
         summary = json.loads(candidate["summary"])
         if summary.get("status") != status:

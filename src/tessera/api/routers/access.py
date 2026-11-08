@@ -1,0 +1,251 @@
+"""Signing in and out, changing one's password, and managing accounts (admins)."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from fastapi import APIRouter, HTTPException, Request, Response
+from pydantic import BaseModel, Field
+
+from tessera.api.access import principal_of
+from tessera.api.common import engine_of, envelope
+from tessera.auth import accounts
+from tessera.auth.passwords import PasswordError, burn_time, verify_password
+from tessera.auth.principal import Principal
+from tessera.auth.sessions import COOKIE, create_session, revoke_session
+from tessera.core.errors import TesseraError
+
+LOOPBACK_ADDRESSES = frozenset({"127.0.0.1", "::1", "localhost"})
+
+router = APIRouter(prefix="/api/v1", tags=["access"])
+
+
+def _throttle_keys(request: Request, *keys: str) -> tuple[str, ...]:
+    """Throttle by account, and by address unless the client is this machine: behind a
+    reverse proxy every request comes from the proxy, and one bad actor must not lock out
+    everyone."""
+    address = request.client.host if request.client else ""
+    if address and address not in LOOPBACK_ADDRESSES:
+        return (*keys, f"addr:{address}")
+    return keys
+
+
+def _session_body(principal: Principal, csrf_token: str | None) -> dict[str, Any]:
+    return {**principal.to_json(), "csrf_token": csrf_token}
+
+
+def _set_cookie(request: Request, response: Response, token: str, max_age: int) -> None:
+    forwarded = request.headers.get("x-forwarded-proto", "")
+    response.set_cookie(
+        COOKIE,
+        token,
+        max_age=max_age,
+        httponly=True,
+        samesite="strict",
+        secure=request.url.scheme == "https" or forwarded == "https",
+        path="/",
+    )
+
+
+@router.get("/session", summary="Who is signed in (401 when accounts are on and nobody is)")
+def current_session(request: Request) -> dict[str, Any]:
+    principal = getattr(request.state, "principal", None)
+    config = request.app.state.config
+    if principal is None:
+        raise HTTPException(status_code=401, detail="Sign in to continue.")
+    return envelope(
+        _session_body(principal, principal.csrf_token),
+        accounts=config.server.accounts,
+    )
+
+
+class SignIn(BaseModel):
+    username: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=1, max_length=1024)
+
+
+@router.post("/session", summary="Sign in with a username and password")
+def sign_in(request: Request, response: Response, body: SignIn) -> dict[str, Any]:
+    config = request.app.state.config
+    if not config.server.accounts:
+        raise HTTPException(
+            status_code=409, detail="Accounts are off; there is nothing to sign in to."
+        )
+    throttle = request.app.state.throttle
+    username = body.username.strip().lower()
+    keys = _throttle_keys(request, f"user:{username}")
+    if throttle.blocked(*keys):
+        raise HTTPException(
+            status_code=429,
+            detail="Too many failed attempts. Wait a few minutes and try again.",
+            headers={"Retry-After": "900"},
+        )
+    engine = engine_of(request)
+    row = accounts.find_account(engine, username)
+    valid = row is not None and row["username"] == username and row["status"] == "active"
+    if valid:
+        valid = verify_password(body.password, row["password_hash"])
+    else:
+        burn_time(body.password)  # as slow as a real check, so usernames do not leak
+    if not valid:
+        throttle.failed(*keys)
+        raise HTTPException(status_code=401, detail="That username and password do not match.")
+    throttle.succeeded(*keys)
+    assert row is not None
+    token, csrf, expires = create_session(
+        engine,
+        row["id"],
+        idle_hours=config.server.session_idle_hours,
+        max_days=config.server.session_max_days,
+        user_agent=request.headers.get("user-agent"),
+    )
+    _set_cookie(request, response, token, config.server.session_max_days * 86400)
+    principal = Principal(
+        name=row["display_name"],
+        account_id=row["id"],
+        username=row["username"],
+        person_id=row["person_id"],
+        grants=tuple(row["grants"]),
+        csrf_token=csrf,
+    )
+    return envelope(_session_body(principal, csrf), accounts=True, expires_at=expires)
+
+
+@router.delete("/session", summary="Sign out")
+def sign_out(request: Request, response: Response) -> dict[str, Any]:
+    revoke_session(engine_of(request), request.cookies.get(COOKIE))
+    response.delete_cookie(COOKIE, path="/", httponly=True, samesite="strict")
+    return envelope({"signed_out": True})
+
+
+class PasswordChange(BaseModel):
+    current_password: str = Field(min_length=1, max_length=1024)
+    new_password: str = Field(min_length=1, max_length=1024)
+
+
+@router.post("/session/password", summary="Change your own password (signs out other sessions)")
+def change_password(request: Request, response: Response, body: PasswordChange) -> dict[str, Any]:
+    principal = principal_of(request)
+    if principal.single_operator or not principal.account_id:
+        raise HTTPException(status_code=409, detail="Accounts are off.")
+    engine, config = engine_of(request), request.app.state.config
+    throttle = request.app.state.throttle
+    keys = _throttle_keys(request, f"password:{principal.account_id}")
+    if throttle.blocked(*keys):
+        raise HTTPException(status_code=429, detail="Too many attempts. Wait a few minutes.")
+    row = accounts.find_account(engine, principal.account_id)
+    assert row is not None
+    if not verify_password(body.current_password, row["password_hash"]):
+        throttle.failed(*keys)
+        raise HTTPException(status_code=400, detail="The current password is not right.")
+    throttle.succeeded(*keys)
+    try:
+        accounts.set_password(engine, principal.account_id, body.new_password)
+    except PasswordError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    token, csrf, _ = create_session(
+        engine,
+        principal.account_id,
+        idle_hours=config.server.session_idle_hours,
+        max_days=config.server.session_max_days,
+        user_agent=request.headers.get("user-agent"),
+    )
+    _set_cookie(request, response, token, config.server.session_max_days * 86400)
+    return envelope({"changed": True, "csrf_token": csrf})
+
+
+# --- accounts (admins) --------------------------------------------------------------------------
+
+
+class RoleIn(BaseModel):
+    role: str = Field(description="admin, curator, researcher, or viewer")
+    scope: str | None = Field(
+        None, description="For curators: unit:<name, code, or ID> or person:<ID>; none for all"
+    )
+
+
+class AccountIn(BaseModel):
+    username: str = Field(min_length=2, max_length=64)
+    name: str = Field(min_length=1, max_length=200)
+    password: str = Field(min_length=1, max_length=1024)
+    email: str | None = Field(None, max_length=320)
+    person_id: str | None = Field(None, max_length=40)
+    roles: list[RoleIn] = Field(min_length=1, max_length=20)
+
+
+class AccountChange(BaseModel):
+    name: str | None = Field(None, max_length=200)
+    email: str | None = Field(None, max_length=320)
+    person_id: str | None = Field(None, max_length=40, description="'' to unlink")
+    roles: list[RoleIn] | None = Field(None, max_length=20)
+    status: str | None = Field(None, description="active or disabled")
+    password: str | None = Field(None, max_length=1024, description="a new password")
+
+
+def _grants(request: Request, roles: list[RoleIn]) -> list[accounts.Grant]:
+    with engine_of(request).connect() as conn:
+        return [accounts.Grant(r.role, *accounts.resolve_scope(conn, r.scope)) for r in roles]
+
+
+def _fail(exc: TesseraError) -> HTTPException:
+    message = str(exc)
+    return HTTPException(
+        status_code=404 if message.startswith("No account") else 400, detail=message
+    )
+
+
+@router.get("/accounts", summary="Every account and its roles (admins)")
+def list_all(request: Request) -> dict[str, Any]:
+    return envelope([accounts.describe(r) for r in accounts.list_accounts(engine_of(request))])
+
+
+@router.post("/accounts", status_code=201, summary="Create an account (admins)")
+def create(request: Request, body: AccountIn) -> dict[str, Any]:
+    principal = principal_of(request)
+    try:
+        account_id = accounts.create_account(
+            engine_of(request),
+            body.username,
+            body.name,
+            body.password,
+            _grants(request, body.roles),
+            actor=principal.name,
+            email=body.email,
+            person_id=body.person_id or None,
+        )
+    except TesseraError as exc:
+        status = 409 if "is taken" in str(exc) else 400
+        raise HTTPException(status_code=status, detail=str(exc)) from exc
+    row = accounts.find_account(engine_of(request), account_id)
+    assert row is not None
+    return envelope(accounts.describe(row))
+
+
+@router.post(
+    "/accounts/{account_id}", summary="Change an account: roles, status, password (admins)"
+)
+def change(request: Request, account_id: str, body: AccountChange) -> dict[str, Any]:
+    principal = principal_of(request)
+    engine = engine_of(request)
+    if accounts.find_account(engine, account_id) is None:
+        raise HTTPException(status_code=404, detail="No such account.")
+    try:
+        if any(v is not None for v in (body.name, body.email, body.person_id, body.roles)):
+            accounts.update_account(
+                engine,
+                account_id,
+                actor=principal.name,
+                grants=_grants(request, body.roles) if body.roles is not None else None,
+                display_name=body.name,
+                email=body.email,
+                person_id="" if body.person_id is None else body.person_id,
+            )
+        if body.status is not None:
+            accounts.set_status(engine, account_id, body.status)
+        if body.password is not None:
+            accounts.set_password(engine, account_id, body.password)
+    except TesseraError as exc:
+        raise _fail(exc) from exc
+    row = accounts.find_account(engine, account_id)
+    assert row is not None
+    return envelope(accounts.describe(row))

@@ -7,6 +7,7 @@ module and run the JavaScript unit tests in tests/js.
 from __future__ import annotations
 
 import gzip
+import math
 import re
 import shutil
 import subprocess
@@ -26,11 +27,14 @@ CSS_FILES = sorted(CSS_ROOT.rglob("*.css"))
 HTML_FILES = sorted(WEB_ROOT.glob("*.html"))
 NODE = shutil.which("node")
 
-# The first-load budget for the app shell (all scripts and styles, gzipped).
+# The first-load budget for the app shell (the scripts the app imports at start, and every
+# style, gzipped), and a budget for each part loaded on first use (such as the graph views).
 SHELL_BUDGET_BYTES = 100 * 1024
+LAZY_BUDGET_BYTES = 40 * 1024
 
 IMPORT = re.compile(r"""^\s*import\s+(?:\{([^}]*)\}\s+from\s+)?["']([^"']+)["']""", re.M)
 DYNAMIC_IMPORT = re.compile(r"""import\(\s*["']([^"']+)["']\s*\)""")
+WORKER_URL = re.compile(r"""new\s+URL\(\s*["']([^"']+)["']\s*,\s*import\.meta\.url\s*\)""")
 EXPORT_NAME = re.compile(
     r"^export\s+(?:async\s+)?(?:function\*?|const|let|class)\s+([A-Za-z_$][\w$]*)", re.M
 )
@@ -112,6 +116,7 @@ def test_module_imports_resolve(path: Path) -> None:
     text = path.read_text("utf-8")
     specifiers = [(names, spec) for names, spec in IMPORT.findall(text)]
     specifiers += [("", spec) for spec in DYNAMIC_IMPORT.findall(text)]
+    specifiers += [("", spec) for spec in WORKER_URL.findall(text)]
     for names, spec in specifiers:
         assert spec.startswith((".", "/")), f"{_rel(path)} imports a bare module {spec!r}"
         target = (WEB_ROOT / spec.lstrip("/")) if spec.startswith("/") else path.parent / spec
@@ -132,9 +137,51 @@ def test_index_references_resolve(client: TestClient) -> None:
         assert response.status_code == 200, ref
 
 
+def _static_closure(roots: list[Path]) -> set[Path]:
+    """Every module reached from the roots by static imports (dynamic ones load later)."""
+    seen: set[Path] = set()
+    todo = [p.resolve() for p in roots]
+    while todo:
+        path = todo.pop()
+        if path in seen:
+            continue
+        seen.add(path)
+        for _, spec in IMPORT.findall(path.read_text("utf-8")):
+            target = (WEB_ROOT / spec.lstrip("/")) if spec.startswith("/") else path.parent / spec
+            todo.append(target.resolve())
+    return seen
+
+
+def _gzipped(paths: set[Path] | list[Path]) -> int:
+    return sum(len(gzip.compress(p.read_bytes(), 9)) for p in paths)
+
+
 def test_app_shell_fits_the_budget() -> None:
-    total = sum(len(gzip.compress(p.read_bytes(), 9)) for p in JS_FILES + CSS_FILES)
+    shell = _static_closure([JS_ROOT / "app.js"])
+    total = _gzipped(shell) + _gzipped(CSS_FILES)
     assert total <= SHELL_BUDGET_BYTES, f"app shell is {total:,} bytes gzipped"
+
+
+def test_parts_loaded_on_first_use_fit_their_budget() -> None:
+    shell = _static_closure([JS_ROOT / "app.js"])
+    lazy = []
+    for path in JS_FILES:
+        text = path.read_text("utf-8")
+        lazy += [path.parent / spec for spec in DYNAMIC_IMPORT.findall(text)]
+        lazy += [path.parent / spec for spec in WORKER_URL.findall(text)]
+    assert lazy, "nothing is loaded on first use"
+    for root in lazy:
+        part = _static_closure([root]) - shell
+        size = _gzipped(part)
+        assert size <= LAZY_BUDGET_BYTES, f"{_rel(root.resolve())} adds {size:,} bytes gzipped"
+    pages = [
+        WEB_ROOT / src.lstrip("/")
+        for html in HTML_FILES
+        for src in re.findall(r"""<script[^>]+src=["'](/js/[^"']+)["']""", html.read_text("utf-8"))
+    ]
+    every = _static_closure([*pages, *lazy])
+    unused = {p.resolve() for p in JS_FILES} - every
+    assert not unused, f"modules nothing loads: {sorted(_rel(p) for p in unused)}"
 
 
 def _client_with(config_file: Path, branding: str) -> TestClient:
@@ -142,7 +189,7 @@ def _client_with(config_file: Path, branding: str) -> TestClient:
 
     text = config_file.read_text("utf-8").replace('theme = "tessera"\n', branding, 1)
     config_file.write_text(text, "utf-8")
-    return TestClient(create_app(load_config(config_file, env={})))
+    return TestClient(create_app(load_config(config_file, env={})), base_url="http://localhost")
 
 
 def test_theme_css_without_an_accent(client: TestClient) -> None:
@@ -181,6 +228,103 @@ def test_every_configurable_palette_is_styled() -> None:
         assert f'id: "{name}"' in prefs, name
         if name != "tessera":  # the default lives in tokens.css
             assert f':root[data-palette="{name}"]' in css, name
+
+
+_COLOR = r"#[0-9a-fA-F]{6}|oklch\([^)]*\)"
+_PAIR = re.compile(
+    rf"--(?P<name>[\w-]+):\s*light-dark\((?P<light>{_COLOR}),\s*(?P<dark>{_COLOR})\)"
+)
+
+
+def _oklab(color: str) -> tuple[float, float, float]:
+    """OKLab coordinates of a hex or oklch() color."""
+    if color.startswith("oklch"):
+        lightness, chroma, hue = (float(x) for x in re.findall(r"[\d.]+", color)[:3])
+        lightness = lightness / 100 if lightness > 1 else lightness
+        return (
+            lightness,
+            chroma * math.cos(math.radians(hue)),
+            chroma * math.sin(math.radians(hue)),
+        )
+    rgb = [int(color[i : i + 2], 16) / 255 for i in (1, 3, 5)]
+    r, g, b = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in rgb]
+    l_, m_, s_ = (
+        (0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b) ** (1 / 3),
+        (0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b) ** (1 / 3),
+        (0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b) ** (1 / 3),
+    )
+    return (
+        0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
+        1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
+        0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_,
+    )
+
+
+def _hue(color: str) -> float:
+    """The OKLCH hue of a hex or oklch() color, in degrees."""
+    _, a, b = _oklab(color)
+    return math.degrees(math.atan2(b, a)) % 360
+
+
+def _contrast(one: str, two: str) -> float:
+    """WCAG contrast ratio between two colors."""
+
+    def luminance(color: str) -> float:
+        lightness, a, b = _oklab(color)
+        l_ = (lightness + 0.3963377774 * a + 0.2158037573 * b) ** 3
+        m_ = (lightness - 0.1055613458 * a - 0.0638541728 * b) ** 3
+        s_ = (lightness - 0.0894841775 * a - 1.2914855480 * b) ** 3
+        rgb = (
+            4.0767416621 * l_ - 3.3077115913 * m_ + 0.2309699292 * s_,
+            -1.2684380046 * l_ + 2.6097574011 * m_ - 0.3413193965 * s_,
+            -0.0041960863 * l_ - 0.7034186147 * m_ + 1.7076147010 * s_,
+        )
+        r, g, b_ = (min(1.0, max(0.0, c)) for c in rgb)
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b_
+
+    high, low = sorted((luminance(one), luminance(two)), reverse=True)
+    return (high + 0.05) / (low + 0.05)
+
+
+def _palette_colors(name: str) -> dict[str, tuple[str, str]]:
+    """Light and dark values of a palette's color tokens, over the defaults it inherits."""
+    tokens = (CSS_ROOT / "tokens.css").read_text("utf-8")
+    start = tokens.index(":root {\n")
+    block = tokens[start : tokens.index("\n}", start)]
+    colors = {m["name"]: (m["light"], m["dark"]) for m in _PAIR.finditer(block)}
+    if name != "tessera":
+        css = (CSS_ROOT / "palettes.css").read_text("utf-8")
+        start = css.index(f':root[data-palette="{name}"] {{')
+        block = css[start : css.index("\n}", start)]
+        colors.update({m["name"]: (m["light"], m["dark"]) for m in _PAIR.finditer(block)})
+    return colors
+
+
+@pytest.mark.parametrize("palette", ["tessera", "harbor", "cassette"])
+def test_record_colors_stay_clear_of_status_colors(palette: str) -> None:
+    """A record type's color must not read as a status: hues at least 28 degrees apart."""
+    colors = _palette_colors(palette)
+    for mode, label in enumerate(("light", "dark")):
+        for record in ("ent-person", "ent-pub", "ent-grant", "ent-study", "ent-concept"):
+            for status in ("ok", "warn", "danger"):
+                gap = abs(_hue(colors[record][mode]) - _hue(colors[status][mode])) % 360
+                gap = min(gap, 360 - gap)
+                assert gap >= 28, f"{palette} ({label}): --{record} is {gap:.0f}° from --{status}"
+
+
+@pytest.mark.parametrize("palette", ["tessera", "harbor", "cassette"])
+def test_series_colors_are_distinct_and_visible(palette: str) -> None:
+    """Groups in a graph must be told apart, and seen: OKLab distance at least 0.1 between
+    every two series colors, and 3:1 contrast against cards, in light and dark."""
+    colors = _palette_colors(palette)
+    series = [f"series-{i}" for i in range(6)]
+    for mode, label in enumerate(("light", "dark")):
+        for i, one in enumerate(series):
+            ratio = _contrast(colors[one][mode], colors["surface-1"][mode])
+            assert ratio >= 3.0, f"{palette} ({label}): --{one} is {ratio:.1f}:1 on cards"
+            for two in series[i + 1 :]:
+                gap = math.dist(_oklab(colors[one][mode]), _oklab(colors[two][mode]))
+                assert gap >= 0.1, f"{palette} ({label}): --{one} and --{two} are {gap:.3f} apart"
 
 
 def test_api_reference_page(client: TestClient) -> None:

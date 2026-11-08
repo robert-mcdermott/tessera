@@ -7,9 +7,9 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
+from tessera.api.access import principal_of
 from tessera.api.common import (
     Page,
-    config_of,
     engine_of,
     envelope,
     index_of,
@@ -58,16 +58,13 @@ class PersonDecisions(BaseModel):
     summary="Promote, dismiss, or undo for one or more people (each logged)",
 )
 def decide_people(request: Request, body: PersonDecisions) -> dict[str, Any]:
-    engine, config = engine_of(request), config_of(request)
+    engine = engine_of(request)
+    actor = principal_of(request).name
     done: list[dict[str, Any]] = []
     failed: list[dict[str, str]] = []
     for person_id in dict.fromkeys(body.ids):
         try:
-            done.append(
-                store.decide_person(
-                    engine, person_id, body.action, config.server.operator, body.note
-                )
-            )
+            done.append(store.decide_person(engine, person_id, body.action, actor, body.note))
         except TesseraError as exc:
             failed.append({"id": person_id, "detail": str(exc)})
     if len(body.ids) == 1 and failed:

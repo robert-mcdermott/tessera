@@ -30,7 +30,7 @@ An **assertion** is a typed, evidenced, reviewable link between two entities. Ev
 | `object_type`, `object_id` | e.g. `publication`, `pub:12345678` |
 | `qualifiers` | Predicate-specific detail: author position, role, date range |
 | `origin` | `source` (stated by a public record), `inferred` (computed by Tessera), or `human` (entered by a person) |
-| `method` | Rule or model that produced it, with a version, e.g. `authorship/v1` |
+| `method` | Rule or model that produced it, with a version, e.g. `authorship/v1.1` |
 | `score` | 0–1 confidence for inferred assertions; null otherwise |
 | `evidence` | List of evidence items (below) |
 | `status` | `suggested`, `accepted`, `rejected`, or `deferred` |
@@ -50,16 +50,16 @@ Each **evidence item** is a small record: `{feature, value, weight, explanation,
 | `acknowledges` | publication → grant | source (grant link table, publication grant list) | `accepted` |
 | `references` | study → publication | source (registry reference list) | `accepted` |
 | `funded_by` | study → grant | source (registry secondary IDs) | `accepted` |
-| `member_of` | person → unit | source (roster file) or human | `accepted` |
+| `member_of` | person → unit | source (roster file) or human | `accepted`. Qualifiers: `title`, and `start` and `end` as precise as the roster gives them (`2015`, `2015-07`, or `2015-07-01`). Current until its end has passed; one membership per person and unit, and a person may belong to several units at once (REC-08) |
 | `has_identifier` | person → identifier | source or human | depends on the source |
-| `same_as` | person → person | inferred or human | `suggested`; merges are reversible |
+| `same_as` | person → person | inferred (`same_as/v1`) or human | `suggested`, from the record to fold in to the record to keep. Accepted only by merging; rejected means "different people" and is kept |
 
 The rules every assertion must follow:
 
 1. **Assertions are never deleted by automation.** If a source stops reporting a link, the assertion is marked as no longer reported and the UI shows that. It is not removed.
 2. **Human decisions win.** Re-ingesting, re-scoring, or changing a source never overturns `accepted` or `rejected` on a locked assertion.
 3. **Every status change is a curation event.** Events are append-only and record actor, time, old and new status, and note. Undo is a new event, not an erased one.
-4. **Merges are reversible.** Merging two people records a `same_as` assertion and re-points links through it. Unmerging restores the originals.
+4. **Merges are reversible.** Merging two people accepts their `same_as` assertion (or records one), moves the merged record's links, names, and identifiers to the record kept, and marks the merged record `merged`, pointing at the survivor. Every change goes into the merge's journal with the values it replaced, so unmerging replays the journal backwards and restores the ledger exactly. Where both records hold the same link, a human decision beats a suggestion and, between two decisions, the more recent wins; the other copy stays with the merged record, out of sight.
 
 ## Ledger schema (wave 1)
 
@@ -67,18 +67,20 @@ The ledger is relational and portable across SQLite and PostgreSQL. JSON fields 
 
 | Table | Purpose | Key columns |
 |---|---|---|
-| `person` | One row per real person | `id`, `display_name`, `family_name`, `given_name`, `status` (`active`, `former`, `candidate` for people discovered in the data, `dismissed` for candidates a curator judged not to be members), `created_at`, `updated_at` |
+| `person` | One row per real person | `id`, `display_name`, `family_name`, `given_name`, `status` (`active`, `former`, `candidate` for people discovered in the data, `dismissed` for candidates a curator judged not to be members, `merged` for a duplicate folded into another record), `merged_into`, `created_at`, `updated_at` |
 | `person_name` | Name variants used for matching | `person_id`, `family`, `given`, `initials`, `kind` (`primary`, `variant`, `former`), `source` |
-| `person_identifier` | External IDs | `person_id`, `scheme` (`orcid`, `nih_profile`, `email`, `local`), `value`, `status`, `source` |
+| `person_identifier` | External IDs | `person_id`, `scheme` (`orcid`, `nih_profile`, `email`, `local`), `value`, `status` (`accepted`; `suggested`, when the evidence engine proposes an ORCID iD found on the person's papers; `rejected`, kept so it is never proposed again and counts as evidence against), `source` (`roster`, `reporter`, `pubmed`, `papers`, `curator`) |
 | `unit` | Organizational units | `id`, `name`, `kind`, `parent_id`, `code` |
 | `assertion` | All typed links (see above) | as above; unique on (`subject_id`, `predicate`, `object_id`, qualifier key) |
 | `curation_event` | Append-only decision log | `id`, `assertion_id`, `actor`, `action`, `from_status`, `to_status`, `note`, `at` |
-| `person_event` | Append-only log of decisions about people | `id`, `person_id`, `actor`, `action` (`promote`, `dismiss`, `undo`), `from_status`, `to_status`, `note`, `at`. Automation only ever promotes candidates, and discovery treats dismissed people as known, so a curator's decision is never reversed by a sync |
+| `person_event` | Append-only log of decisions about people | `id`, `person_id`, `actor`, `action` (`promote`, `dismiss`, `undo`, `identifier`, `merge`, `unmerge`), `from_status`, `to_status`, `note`, `at`, `detail` (for identifier decisions: scheme, value, and the action: add, accept, reject, or remove, with the identifier's statuses; for merges: the merge and the record kept). Migration 0003 added `identifier` and `detail`; 0004 added `merge` and `unmerge`. Automation only ever promotes candidates, and discovery treats dismissed people as known, so a curator's decision is never reversed by a sync |
+| `person_merge` | One row per merge | `id`, `merged_id`, `survivor_id`, `actor`, `note`, `at`, `journal` (every change, in order, with the values it replaced), `summary` (links, names, and identifiers moved; conflicting decisions), `undone_at`, `undone_by`. Added by migration 0004; a ledger with merges in effect cannot be downgraded below it |
 | `ingest_run` | One row per connector or job run | `id`, `source`, `kind`, `started_at`, `finished_at`, `status`, `params`, `counts`, `error` |
 | `source_checkpoint` | Incremental watermarks | `source`, `scope`, `watermark`, `updated_at` |
-| `setting` | Runtime settings editable in the app | `key`, `value`, `updated_by`, `updated_at` |
+| `setting` | Runtime settings editable in the app | `key`, `value`, `updated_by`, `updated_at`. Keys: `authorship_model` (the released learned model: multipliers, offset, method name), `authorship_evaluation` (the latest evaluation and the candidate model), `auto_accept` (on or off, threshold, measured precision and support, the model it was measured for) |
+| `auto_accept_batch` | Links one automatic run accepted | `id`, `created_at`, `threshold`, `precision`, `method`, `assertion_ids`, `undone_at`, `undone_by`. Migration 0006. Links accepted automatically have `decided_by` `Auto-accept` |
 
-Later waves add: `user`, `role_grant`, `session` (wave 2); `lab`, `lab_membership`, `page`, `page_revision` (wave 3); `snapshot`, `metric_definition` (wave 4); `opportunity_match`, `team` (wave 5).
+Wave 2 added `account` (username, display name, scrypt password hash, status, linked person), `role_grant` (role, optionally scoped to a unit or a person), and `auth_session` (only a hash of the session token, the CSRF token, and expiry), in migration 0005. Later waves add: `lab`, `lab_membership`, `page`, `page_revision` (wave 3); `snapshot`, `metric_definition` (wave 4); `opportunity_match`, `team` (wave 5).
 
 ## Lake tables (wave 1)
 
@@ -99,6 +101,9 @@ Every lake table has these bookkeeping columns: `_run_id`, `_retrieved_at`, `_co
 | `ctgov_site` | (`nct_id`, `seq`) | `facility`, `status`, `city`, `state`, `country`, `latitude`, `longitude` |
 | `ctgov_reference` | (`nct_id`, `pmid`) | `type` (`result`, `background`, `derived`), `citation` |
 | `ctgov_secondary_id` | (`nct_id`, `seq`) | `id`, `type`, `core_project_num` and `ic_serial` (normalized when NIH) |
+| `orcid_record` | `orcid` | `status` (`public`, or why there is none: `not_found`, `deprecated`, `locked`, `deactivated`), `primary_orcid` (the iD that replaced a deprecated one), `given_names`, `family_name`, `credit_name`, `other_names[]`, `last_modified` |
+| `orcid_work` | (`orcid`, `put_code`) | `title`, `type`, `pub_year`, `journal`, `doi` (lowercase, no resolver prefix), `pmid`, `pmcid`, `source_name` (who added it), `versions` |
+| `orcid_employment` | (`orcid`, `put_code`) | `organization`, `city`, `region`, `country`, `org_id_source` and `org_id` (ROR, Ringgold, GRID), `department`, `role`, `start_year`, `end_year` |
 
 Contact details from registry records (emails, phone numbers) are **not** stored.
 
@@ -120,7 +125,21 @@ Contact details from registry records (emails, phone numbers) are **not** stored
 |---|---|---|
 | `derived/search.db` | Lake content + ledger people and links | The **search and serving index**. `doc` holds one row per organization-relevant person, publication, grant, and study with a JSON display summary; `doc_fts` is an FTS5 index (porter + unicode61, diacritics removed) over title, people, terms, and body; `facet` holds (doc, name, value) rows for filters and counts. Publications are included only if a member authored them (accepted, or suggested at or above the review threshold), an author lists the organization, or a grant or study cites them; papers that name searches fetched for other people stay out. Person topics are ranked by TF-IDF across the directory. `candidate` documents describe discovered people (affiliated papers, years, recent titles, grants, affiliations) for the curation queue; they never appear in the directory or in "everything" search. Decisions rewrite only the documents they touch (member lists, person facets, counts, directory membership) in place, using the same rules as a full build, so lists are current on the next request; topics refresh at the next build |
 
-Later: `concept_profile`, `similarity_pair`, `coauthor_edge` (wave 2); `metric_*` tables and frozen `snapshot/<id>/` folders (wave 4).
+## Derived artifacts (wave 2)
+
+| Artifact | Built from | Purpose |
+|---|---|---|
+| `derived/concept_profile.parquet` | `pubmed_mesh`, `pubmed_article` keywords, `ctgov_study` MeSH, ledger links | One row per (person, descriptor): `person_id`, `descriptor_ui`, `descriptor`, `weight` (unit length per person), `raw` (before IDF), `papers` (papers and studies behind it), `confirmed` (of those, confirmed), `provisional` (known only from author keywords). Top 200 per person. See [discovery.md](discovery.md#concept-profiles) |
+| `derived/similarity_pair.parquet` | `concept_profile` | One row per direction of each similar pair at or above the floor: `person_id`, `other_id`, `score`, and `shared`, the five shared concepts contributing most (`descriptor_ui`, `descriptor`, `contribution`). At most 25 per person |
+
+| `derived/collaboration_edge.parquet` | Ledger links (papers counted as for profiles, grant investigators, study officials), `pubmed_article` years | One row per pair of directory members who share work (`person_id` < `other_id`): `papers`, `confirmed_papers`, `grants`, `studies`, `strength` (each shared record adds 1/(k − 1), where k is the number of members on it), `first_year`, `last_year`, and `recent`, the five most recent shared PubMed IDs. See [discovery.md](discovery.md#collaboration-signals) |
+| `derived/concept_edge.parquet` | `concept_profile` | Pairs of concepts held together among people's top 15 (`concept_id` < `other_id`): `people` (at least 2) and `strength` (the sum, over those people, of the smaller of the two weights) |
+
+| `derived/person_group.parquet` | `collaboration_edge`, `concept_profile` | One row per collaborating person: `group_id`, `group_label` (two distinctive concepts), `group_size`, `betweenness` (0 to 1), `bridge`, and `links`, the groups their collaborators belong to with how many in each. See [discovery.md](discovery.md#collaboration-signals) |
+
+All five are rewritten whole and atomically by `tessera sync` and `tessera build discovery`.
+
+Later: `metric_*` tables and frozen `snapshot/<id>/` folders (wave 4).
 
 ## Counting rules (to be enforced from the first chart)
 
