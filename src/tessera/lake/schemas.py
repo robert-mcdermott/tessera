@@ -360,8 +360,67 @@ CTGOV = DatasetSpec(
     ),
 )
 
+# --- ORCID ----------------------------------------------------------------------------
+
+ORCID = DatasetSpec(
+    name="orcid",
+    root=TableSpec(
+        name="orcid_record",
+        key=("orcid",),
+        columns=(
+            f("orcid", STR, False),
+            f("status", STR),  # "public", or why there is no public record
+            f("primary_orcid", STR),  # for a deprecated iD, the iD that replaced it
+            f("given_names", STR),
+            f("family_name", STR),
+            f("credit_name", STR),
+            f("other_names", STR_LIST),
+            f("last_modified", STR),  # ISO 8601, UTC
+        ),
+    ),
+    children=(
+        TableSpec(
+            name="orcid_work",
+            key=("orcid", "put_code"),
+            field="works",
+            columns=(
+                f("orcid", STR, False),
+                f("put_code", I64, False),
+                f("title", STR),
+                f("type", STR),
+                f("pub_year", I16),
+                f("journal", STR),
+                f("doi", STR),  # lowercase, without a resolver prefix
+                f("pmid", STR),
+                f("pmcid", STR),
+                f("source_name", STR),  # who added it: the researcher or a trusted service
+                f("versions", I16),  # how many sources list this work
+            ),
+        ),
+        TableSpec(
+            name="orcid_employment",
+            key=("orcid", "put_code"),
+            field="employments",
+            columns=(
+                f("orcid", STR, False),
+                f("put_code", I64, False),
+                f("organization", STR),
+                f("city", STR),
+                f("region", STR),
+                f("country", STR),
+                f("org_id_source", STR),  # ROR, RINGGOLD, GRID, ...
+                f("org_id", STR),
+                f("department", STR),
+                f("role", STR),
+                f("start_year", I16),
+                f("end_year", I16),
+            ),
+        ),
+    ),
+)
+
 DATASETS: dict[str, DatasetSpec] = {
-    d.name: d for d in (PUBMED, ICITE, REPORTER, REPORTER_LINKS, CTGOV)
+    d.name: d for d in (PUBMED, ICITE, REPORTER, REPORTER_LINKS, CTGOV, ORCID)
 }
 TABLES: dict[str, TableSpec] = {t.name: t for d in DATASETS.values() for t in d.tables}
 DATASET_OF: dict[str, DatasetSpec] = {t.name: d for d in DATASETS.values() for t in d.tables}

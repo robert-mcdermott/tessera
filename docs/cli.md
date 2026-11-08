@@ -110,7 +110,7 @@ usage: tessera lake gc [-h] [--retention-days DAYS]
 
 Fetch public data into the lake.
 
-Fetch from a public source. SOURCE is pubmed, icite, reporter, ctgov, or 'all' (every enabled source in a sensible order). Without --mode, an organization sweep is run (or an ID fetch if --ids is given).
+Fetch from a public source. SOURCE is pubmed, icite, reporter, ctgov, orcid, or 'all' (every enabled source in a sensible order). Without --mode, an organization sweep is run (or an ID fetch if --ids is given); iCite and ORCID read what the lake and the directory need.
 
 ```text
 usage: tessera ingest [-h] [--mode MODE] [--ids ID [ID ...]] [--ids-file PATH] [--query QUERY]
@@ -120,8 +120,8 @@ usage: tessera ingest [-h] [--mode MODE] [--ids ID [ID ...]] [--ids-file PATH] [
 
 | Argument | Meaning |
 |---|---|
-| `source` | pubmed \| icite \| reporter \| ctgov \| all |
-| `--mode MODE` | org \| query \| ids \| linked or people (pubmed) \| pi (reporter) \| refresh (icite) |
+| `source` | pubmed \| icite \| reporter \| ctgov \| orcid \| all |
+| `--mode MODE` | org \| query \| ids \| linked or people (pubmed) \| pi (reporter) \| refresh (icite, orcid) |
 | `--ids ID` | IDs to fetch |
 | `--ids-file PATH` | file with one ID per line |
 | `--query QUERY` | source query (PubMed syntax, Essie, or RePORTER JSON) |
@@ -140,7 +140,7 @@ usage: tessera replay [-h] source run_id
 
 | Argument | Meaning |
 |---|---|
-| `source` | pubmed \| icite \| reporter \| ctgov |
+| `source` | pubmed \| icite \| reporter \| ctgov \| orcid |
 | `run_id` | the run to replay (see `tessera runs`) |
 
 ## `tessera resolve`

@@ -103,6 +103,7 @@ class SourcesConfig:
     icite: SourceConfig = field(default_factory=SourceConfig)
     reporter: SourceConfig = field(default_factory=SourceConfig)
     ctgov: SourceConfig = field(default_factory=SourceConfig)
+    orcid: SourceConfig = field(default_factory=SourceConfig)
 
 
 @dataclass(frozen=True)
@@ -149,7 +150,7 @@ _SECTIONS: dict[str, type] = {
     "sync": SyncConfig,
     "evidence": EvidenceConfig,
 }
-_SOURCE_NAMES = ("pubmed", "icite", "reporter", "ctgov")
+_SOURCE_NAMES = ("pubmed", "icite", "reporter", "ctgov", "orcid")
 _PATH_FIELDS = {("data", "home"), ("branding", "logo_light"), ("branding", "logo_dark")}
 
 

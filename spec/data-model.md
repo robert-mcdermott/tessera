@@ -99,6 +99,9 @@ Every lake table has these bookkeeping columns: `_run_id`, `_retrieved_at`, `_co
 | `ctgov_site` | (`nct_id`, `seq`) | `facility`, `status`, `city`, `state`, `country`, `latitude`, `longitude` |
 | `ctgov_reference` | (`nct_id`, `pmid`) | `type` (`result`, `background`, `derived`), `citation` |
 | `ctgov_secondary_id` | (`nct_id`, `seq`) | `id`, `type`, `core_project_num` and `ic_serial` (normalized when NIH) |
+| `orcid_record` | `orcid` | `status` (`public`, or why there is none: `not_found`, `deprecated`, `locked`, `deactivated`), `primary_orcid` (the iD that replaced a deprecated one), `given_names`, `family_name`, `credit_name`, `other_names[]`, `last_modified` |
+| `orcid_work` | (`orcid`, `put_code`) | `title`, `type`, `pub_year`, `journal`, `doi` (lowercase, no resolver prefix), `pmid`, `pmcid`, `source_name` (who added it), `versions` |
+| `orcid_employment` | (`orcid`, `put_code`) | `organization`, `city`, `region`, `country`, `org_id_source` and `org_id` (ROR, Ringgold, GRID), `department`, `role`, `start_year`, `end_year` |
 
 Contact details from registry records (emails, phone numbers) are **not** stored.
 

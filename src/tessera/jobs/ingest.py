@@ -39,7 +39,8 @@ log = logging.getLogger("tessera.ingest")
 
 PUBLISH_EVERY = 25  # payloads between lake publishes, so interruptions lose little
 ICITE_REFRESH_DAYS = 30
-INGEST_ORDER = ("reporter", "ctgov", "pubmed", "pubmed:linked", "icite")
+ORCID_REFRESH_DAYS = 30
+INGEST_ORDER = ("reporter", "ctgov", "pubmed", "pubmed:linked", "icite", "orcid")
 
 
 @dataclass
@@ -115,6 +116,8 @@ def _resolve_ids(
         ids = pmids_needing_metrics(home)
     elif source == "pubmed" and options.mode == "linked":
         ids = linked_pmids_missing(home)
+    elif source == "orcid" and options.mode in {"auto", "refresh"}:
+        ids = orcids_to_read(home, engine)
     else:
         return options
     return IngestOptions(**{**options.__dict__, "ids": ids})
@@ -129,6 +132,27 @@ def pmids_needing_metrics(home: DataHome, refresh_days: int = ICITE_REFRESH_DAYS
             [refresh_days],
         )
     return [r["pmid"] for r in rows]
+
+
+def orcids_to_read(
+    home: DataHome, engine: Engine, refresh_days: int = ORCID_REFRESH_DAYS
+) -> list[str]:
+    """Directory members' ORCID iDs whose public record is missing or older than the window."""
+    from tessera.evidence.store import directory_orcids
+
+    wanted = directory_orcids(engine)
+    if not wanted:
+        return []
+    with Lake(home.lake) as lake:
+        fresh = {
+            r["orcid"]
+            for r in lake.rows(
+                "SELECT orcid FROM orcid_record "
+                "WHERE _retrieved_at >= now() - to_days(CAST(? AS INTEGER))",
+                [refresh_days],
+            )
+        }
+    return [o for o in wanted if o not in fresh]
 
 
 def people_terms(engine: Engine) -> list[tuple[str, str]]:
@@ -312,7 +336,7 @@ def replay(config: Config, home: DataHome, engine: Engine, source: str, of_run: 
 
 def expected_days(source: str) -> int:
     """How stale a source may get before the UI warns (days)."""
-    return {"pubmed": 7, "reporter": 7, "ctgov": 7, "icite": 45}.get(source, 7)
+    return {"pubmed": 7, "reporter": 7, "ctgov": 7, "icite": 45, "orcid": 45}.get(source, 7)
 
 
 __all__ = ["RunResult", "expected_days", "ingest", "ingest_many", "replay"]

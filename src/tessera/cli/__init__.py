@@ -91,14 +91,16 @@ def build_parser() -> argparse.ArgumentParser:
         "ingest",
         help="fetch public data into the lake",
         description="Fetch from a public source. SOURCE is pubmed, icite, reporter, ctgov, "
-        "or 'all' (every enabled source in a sensible order). Without --mode, an "
-        "organization sweep is run (or an ID fetch if --ids is given).",
+        "orcid, or 'all' (every enabled source in a sensible order). Without --mode, an "
+        "organization sweep is run (or an ID fetch if --ids is given); iCite and ORCID "
+        "read what the lake and the directory need.",
     )
-    ingest.add_argument("source", help="pubmed | icite | reporter | ctgov | all")
+    ingest.add_argument("source", help="pubmed | icite | reporter | ctgov | orcid | all")
     ingest.add_argument(
         "--mode",
         default="auto",
-        help="org | query | ids | linked or people (pubmed) | pi (reporter) | refresh (icite)",
+        help="org | query | ids | linked or people (pubmed) | pi (reporter) | "
+        "refresh (icite, orcid)",
     )
     ingest.add_argument("--ids", nargs="+", default=[], metavar="ID", help="IDs to fetch")
     ingest.add_argument("--ids-file", metavar="PATH", help="file with one ID per line")
@@ -118,7 +120,7 @@ def build_parser() -> argparse.ArgumentParser:
     replay_cmd = commands.add_parser(
         "replay", help="rebuild lake records from a run's raw payloads"
     )
-    replay_cmd.add_argument("source", help="pubmed | icite | reporter | ctgov")
+    replay_cmd.add_argument("source", help="pubmed | icite | reporter | ctgov | orcid")
     replay_cmd.add_argument("run_id", help="the run to replay (see `tessera runs`)")
     replay_cmd.set_defaults(handler=cmd_replay)
 

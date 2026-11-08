@@ -363,7 +363,8 @@ def test_stats_sources_runs(client: TestClient) -> None:
     assert stats["people"]["active"] >= 40 and stats["grants"]["active"] == 30
     assert stats["publications"] > 0 and stats["publications_by_year"]
     sources = ok(client.get("/api/v1/sources"))["data"]
-    assert [s["name"] for s in sources["sources"]] == ["pubmed", "icite", "reporter", "ctgov"]
+    names = [s["name"] for s in sources["sources"]]
+    assert names == ["pubmed", "icite", "reporter", "ctgov", "orcid"]
     assert sources["evidence"]["status"] == "succeeded"
     assert sources["search_index"]["documents"]["person"] == 40
     assert any(t["table"] == "pubmed_article" for t in sources["lake"])

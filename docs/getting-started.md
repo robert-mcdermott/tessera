@@ -4,7 +4,7 @@ This guide takes you from a fresh checkout to a running Tessera with your organi
 
 ## What you need
 
-- A Mac, Linux, or Windows machine (a laptop is fine) with internet access to the public sources: NCBI (PubMed and iCite), NIH RePORTER, and ClinicalTrials.gov.
+- A Mac, Linux, or Windows machine (a laptop is fine) with internet access to the public sources: NCBI (PubMed and iCite), NIH RePORTER, ClinicalTrials.gov, and ORCID.
 - [uv](https://docs.astral.sh/uv/), which installs the right Python (3.12 or newer) and Tessera's dependencies for you.
 - Disk space: about 100 MB for a mid-sized research institute (a few thousand papers over five years), and a few gigabytes for a large academic medical center. Everything lives in one folder, the *data home*.
 
@@ -50,7 +50,7 @@ uv run tessera sync
 
 1. Fetches the organization's grants from NIH RePORTER, its studies from ClinicalTrials.gov, affiliated papers from PubMed, and papers linked to those grants.
 2. Builds the people directory: grant investigators, plus anyone on a roster you imported.
-3. Searches PubMed for each person by name, then fetches citation metrics from iCite.
+3. Searches PubMed for each person by name, then fetches citation metrics from iCite and the public ORCID records of people whose ORCID iD it knows.
 4. Scores every candidate paper for every person and records suggestions with their evidence, along with links between papers, grants, and studies.
 5. Builds the search index the web app reads.
 

@@ -221,6 +221,22 @@ def load_people(
     return list(people.values())
 
 
+def directory_orcids(engine: Engine, statuses: Iterable[str] = ("active", "former")) -> list[str]:
+    """Accepted ORCID iDs of people in the directory, sorted and de-duplicated."""
+    query = (
+        select(person_identifier.c.value)
+        .join(person, person.c.id == person_identifier.c.person_id)
+        .where(
+            person_identifier.c.scheme == "orcid",
+            person_identifier.c.status == "accepted",
+            person.c.status.in_(tuple(statuses)),
+        )
+        .distinct()
+    )
+    with engine.connect() as conn:
+        return sorted(conn.execute(query).scalars())
+
+
 def get_or_create_unit(
     conn: Connection, name: str, *, code: str | None = None, kind: str = "department"
 ) -> str:

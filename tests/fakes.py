@@ -320,3 +320,107 @@ def icite_api() -> FakeApi:
 
     api.route("pubs", pubs)
     return api
+
+
+# --- ORCID ---------------------------------------------------------------------------------
+
+
+def orcid_record(
+    orcid: str,
+    family: str = "Example",
+    given: str = "Avery",
+    works: tuple[dict[str, Any], ...] = (),
+    employments: tuple[dict[str, Any], ...] = (),
+) -> dict[str, Any]:
+    """A public ORCID record in the v3.0 JSON shape (synthetic)."""
+
+    def ext(kind: str, value: str, relationship: str = "self") -> dict[str, Any]:
+        return {
+            "external-id-type": kind,
+            "external-id-value": value,
+            "external-id-normalized": {"value": value.lower(), "transient": True},
+            "external-id-relationship": relationship,
+        }
+
+    groups = []
+    for i, work in enumerate(works, start=1):
+        ids = [ext(k, work[k]) for k in ("doi", "pmid", "pmc") if work.get(k)]
+        ids.append(ext("issn", "1234-5678", "part-of"))
+        summary = {
+            "put-code": work.get("put_code", 1000 + i),
+            "source": {"source-name": {"value": work.get("source", f"{given} {family}")}},
+            "title": {"title": {"value": work.get("title", f"Work {i}")}},
+            "external-ids": {"external-id": ids},
+            "type": "journal-article",
+            "publication-date": {"year": {"value": str(work.get("year", 2024))}},
+            "journal-title": {"value": work.get("journal", "Journal of Examples")},
+        }
+        groups.append({"external-ids": {"external-id": ids}, "work-summary": [summary]})
+
+    def years(job: dict[str, Any]) -> dict[str, Any]:
+        end = {"year": {"value": str(job["end"])}} if job.get("end") else None
+        return {"start-date": {"year": {"value": str(job.get("start", 2015))}}, "end-date": end}
+
+    jobs = [
+        {
+            "summaries": [
+                {
+                    "employment-summary": {
+                        "put-code": job.get("put_code", 2000 + i),
+                        "department-name": job.get("department"),
+                        "role-title": job.get("role"),
+                        **years(job),
+                        "organization": {
+                            "name": job.get("organization", "Example University"),
+                            "address": {"city": "Springfield", "region": "ST", "country": "US"},
+                            "disambiguated-organization": {
+                                "disambiguated-organization-identifier": "https://ror.org/000example",
+                                "disambiguation-source": "ROR",
+                            },
+                        },
+                    }
+                }
+            ]
+        }
+        for i, job in enumerate(employments, start=1)
+    ]
+    return {
+        "orcid-identifier": {"path": orcid},
+        "history": {"last-modified-date": {"value": 1767225600000}},
+        "person": {
+            "name": {
+                "given-names": {"value": given},
+                "family-name": {"value": family},
+                "credit-name": None,
+            },
+            "other-names": {"other-name": [{"content": f"{given[0]}. {family}"}]},
+        },
+        "activities-summary": {
+            "works": {"group": groups},
+            "employments": {"affiliation-group": jobs},
+        },
+    }
+
+
+def orcid_api(
+    records: dict[str, dict[str, Any]], deprecated: dict[str, str] | None = None
+) -> FakeApi:
+    """ORCID's public API: known records, deprecated iDs (409), and 404 for the rest."""
+    api = FakeApi()
+    deprecated = deprecated or {}
+
+    def record(request: httpx.Request) -> httpx.Response:
+        orcid = request.url.path.rstrip("/").split("/")[-2]
+        if orcid in deprecated:
+            message = (
+                "409 Conflict: The ORCID record is deprecated and the primary ORCID record is: "
+                f"{deprecated[orcid]}."
+            )
+            return httpx.Response(409, json={"response-code": 409, "developer-message": message})
+        if orcid not in records:
+            missing = {"response-code": 404, "developer-message": "Not found"}
+            return httpx.Response(404, json=missing)
+        return httpx.Response(200, json=records[orcid])
+
+    api.route("/record", record)
+    return api

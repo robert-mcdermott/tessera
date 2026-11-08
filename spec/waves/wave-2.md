@@ -20,7 +20,6 @@ Requirements delivered: REC-02 (ORCID), REC-07, REC-08, CUR-05, CUR-06, CUR-10, 
 
 ## Decisions needed from the maintainer
 
-- **ORCID credentials.** The ORCID Public API may need free client credentials (registered by a person, not by Tessera). Slice 1 confirms what anonymous access allows; if credentials are needed, they are read from the environment, like `NCBI_API_KEY`.
 - **MeSH descriptor data.** The MeSH hierarchy lets specific concepts roll up into broader areas. It is a candidate source that needs approval ([data-sources.md](../data-sources.md)). Without it, concept profiles are flat and slice 5 still works.
 
 ---
@@ -29,8 +28,8 @@ Requirements delivered: REC-02 (ORCID), REC-07, REC-08, CUR-05, CUR-06, CUR-10, 
 
 **Goal:** researcher-confirmed evidence. See [data-sources.md](../data-sources.md#orcid-wave-2) and [evidence-engine.md](../evidence-engine.md).
 
-- [ ] ORCID connector: public records by iD (works with their PubMed IDs and DOIs, and employment), through the shared HTTP client with a rate limit, raw capture, replay, and checkpoints; parser to lake tables
-- [ ] Which iDs are read: those in the directory (roster, curator-entered, or carried by the person's accepted papers), never the iDs of everyone who appears in PubMed
+- [x] ORCID connector: public records by iD (works with their PubMed IDs and DOIs, and employment), through the shared HTTP client with a rate limit, raw capture, and replay; parser to lake tables `orcid_record`, `orcid_work`, `orcid_employment`; deprecated, locked, and missing records kept as data. The public API needs no credentials
+- [ ] Which iDs are read: the accepted iDs of directory members, refreshed every 30 days (done); iDs carried by a person's accepted papers become identifier claims (to do), never the iDs of everyone who appears in PubMed
 - [ ] Evidence: the paper is in the person's ORCID works (strong); the paper's author carries an iD the person is known to have (strong); the author carries a different iD (against, unless the person is known to have more than one)
 - [ ] Identifier claims on profiles: add or remove an ORCID iD with a note; conflicting mappings (one iD on two people) are flagged (REC-02)
 - [ ] Evaluation without circularity: the ORCID-based check from v0.1.0 cannot judge ORCID features, so this slice is evaluated on the synthetic organization and on decisions made before the change
@@ -114,3 +113,4 @@ Requirements delivered: REC-02 (ORCID), REC-07, REC-08, CUR-05, CUR-06, CUR-10, 
 | Date | Note |
 |---|---|
 | 2026-11-07 | Wave planned. Before slice 1, a design review of the palettes led to three changes: record-type colors were moved clear of the status colors (a test now enforces at least 28° of hue between them in every palette and mode), Cassette's stripe became a thin sunset gradient with faint pinstripes in the hero, and grant charts gained a brighter gold fill. An organization's own palette, footer links, favicon, and social preview image were planned as the brand kit (PLT-13) for wave 3, with the public site. |
+| 2026-11-07 | ORCID's public API answers without credentials, so no credentials decision is needed. Tessera reads only directory members' iDs, at most four requests a second. |

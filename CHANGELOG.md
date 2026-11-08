@@ -4,6 +4,10 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 
 ## Unreleased
 
+### Added
+
+- ORCID connector: the public records of directory members who have an ORCID iD (works with their PubMed IDs and DOIs, and employment), read without credentials, refreshed every 30 days, and part of `tessera sync`. Deprecated, locked, and missing records are kept as data. New lake tables `orcid_record`, `orcid_work`, and `orcid_employment`; a `[sources.orcid]` setting.
+
 ### Changed
 
 - Cassette's stripe is now a thin sunset gradient in both modes, and the hero's diagonal bands are faint pinstripes in the same sunset colors.
