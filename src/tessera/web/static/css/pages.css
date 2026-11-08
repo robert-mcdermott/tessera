@@ -300,3 +300,4 @@ fieldset.field legend { font-size: var(--fs-sm); font-weight: 600; margin-bottom
 .inbox-group.is-current { border-left-color: var(--accent); background: var(--accent-softer); }
 .public-toggle { font-size: var(--fs-sm); color: var(--text-muted); padding: 0 var(--space-2); }
 
+ol.history, ul.history { margin: 0; padding: 0; list-style: none; }

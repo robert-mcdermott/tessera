@@ -39,7 +39,7 @@ a:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-of
 .site-header nav a{display:block;padding:8px 12px;border-radius:8px;color:var(--text);text-decoration:none;font-weight:550}
 .site-header nav a:hover{background:color-mix(in srgb,var(--accent) 10%,transparent)}
 .site-header nav a[aria-current="page"]{color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent)}
-main{padding-top:40px;padding-bottom:64px}
+main.wrap{padding-top:40px;padding-bottom:64px}
 .page-head{margin-bottom:32px;max-width:780px}
 .page-head h1{font-size:clamp(28px,4vw,40px);line-height:1.15;margin:4px 0 12px;letter-spacing:-.01em}
 .eyebrow{margin:0;font:600 12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}

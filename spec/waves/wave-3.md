@@ -2,7 +2,7 @@
 
 **Goal:** give groups (labs, programs, divisions, centers, and others) a living home that their own representatives maintain, open a public window onto them, and deepen topics with the MeSH hierarchy.
 
-**Branch:** `wave-3` · **Target version:** `0.3.0` · **Status:** ◐ slices 1 to 7 done; slice 8 (release prep) next
+**Branch:** `wave-3` · **Target version:** `0.3.0` · **Status:** ☑ released as 0.3.0 on 2026-11-09
 
 ## Exit criteria
 
@@ -93,11 +93,13 @@ Requirements delivered: LAB-01 to LAB-08, PLT-07, PLT-11, PLT-13, CUR-08, and th
 
 **Acceptance (met):** a palette with a teal accent and a navy stripe recolors the app's tokens (through `/theme.css`) and the public site; the configured favicon is served at `/branding/favicon` and copied to the site with the social image (an absolute `og:image` with a base URL); footer links appear in both; a muted grey of `#aaaaaa` on the default page fails doctor and blocks publishing, naming the pair and its ratio.
 
-## Slice 8: Release prep ☐
+## Slice 8: Release prep ☑
 
-- [ ] Guides for groups, managers, and the public site; screenshots retaken and the documentation site published
-- [ ] Evaluation, dependency and license review, private-terms check over the whole repository
-- [ ] `CHANGELOG.md` for 0.3.0; version bump; PR, merge, tag `v0.3.0`, and release on the maintainer's go-ahead
+- [x] Guides for groups, managers, and the public site; screenshots retaken and the documentation site published
+- [x] Evaluation, dependency and license review, private-terms check over the whole repository
+- [x] `CHANGELOG.md` for 0.3.0; version bump; PR, merge, tag `v0.3.0`, and release on the maintainer's go-ahead
+
+**Acceptance (met):** the guides cover groups, managers, the inbox, and the public site, with new screenshots of the group directory and pages, the page editor, the inbox, Admin → Groups, and the public site, all from the demo; the ORCID works-list check on the pilot reproduces 0.2.0's result exactly; no dependencies were added; the private-terms check and a scan of every change since 0.2.0 for pilot names are clean.
 
 ---
 
@@ -105,6 +107,7 @@ Requirements delivered: LAB-01 to LAB-08, PLT-07, PLT-11, PLT-13, CUR-08, and th
 
 | Date | Note |
 |---|---|
+| 2026-11-09 | Slice 8 done; released as 0.3.0 with the maintainer's standing go-ahead to finish the wave. Release checks: the pilot's ORCID works-list check (2025 onward, one listed work) gives 193 listed papers, 95.3% found, 97.3% of them strong, as in 0.2.0; group endpoints answer at p95 in 15 ms or less on the demo, the digest across 31 groups in 29 ms; the demo's public site builds and checks in about a second; migrations 0007 to 0011 were taken up and down on SQLite and PostgreSQL 16 with data in place; `uv.lock` is unchanged since 0.2.0. |
 | 2026-11-09 | Slice 7 done. Palette colors are hex only, so contrast can be measured exactly and the values are safe to serve as CSS. A palette refines the default theme rather than adding a fourth: viewers who choose Harbor or Cassette under Appearance keep their choice. An accent alone still works as before (lightened after dark), and its night version and the text on it are now derived for the public site and checked like the rest. Twelve pairs are checked in each mode, including each record type's color on cards. |
 | 2026-11-09 | Slice 6 done. The public site is plain generated HTML with no scripts, so there is nothing to keep patched and nothing that can run on a reader's machine; it follows light or dark by media query rather than a switch. The projection names every field it publishes (an allowlist), and the tests search every page for abstracts, people's email addresses, and internal IDs. Only confirmed papers are published, even though the app counts strong suggestions as likely: a public claim needs a person's decision behind it. A failed check leaves the old site in place (the new one is built beside it and swapped in). Openings expire on their dates, so the site must be republished daily, documented next to the sync. |
 | 2026-11-09 | Slice 5 done. The inbox is computed, not stored: what is waiting is read from the ledger each time, and the only thing kept is when each group was last reviewed. Papers and openings stay in the inbox until decided; grants and roster changes count from the last review, so marking a week reviewed is cheap and nothing is lost. Digests use the same code in the app and by email. Email is plain text through any SMTP server, sent by a command run from cron rather than a scheduler inside the app, like sync. |

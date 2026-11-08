@@ -11,7 +11,7 @@
 </section>
 
 <section class="pillars">
-  <div><h3>Starts from public data</h3><p>PubMed, NIH RePORTER, ClinicalTrials.gov, iCite, and ORCID. No HR feeds or integrations to begin.</p></div>
+  <div><h3>Starts from public data</h3><p>PubMed, NIH RePORTER, ClinicalTrials.gov, iCite, ORCID, and MeSH. No HR feeds or integrations to begin.</p></div>
   <div><h3>Evidence on every link</h3><p>Each connection records its source, the evidence for and against it, and who decided.</p></div>
   <div><h3>Humans decide</h3><p>Automation suggests and curators confirm; decisions survive every refresh and can be undone.</p></div>
   <div><h3>Open and yours</h3><p>Apache 2.0, runs on a laptop or one server, keeps data in open formats, and takes your brand.</p></div>
@@ -67,6 +67,26 @@
   {{shot:missed|Missed connections: pairs of researchers with the topics they share and a colleague who has worked with both}}
 </section>
 
+<section class="feature">
+  <div class="feature-text">
+    <p class="eyebrow">Groups</p>
+    <h2 id="groups">A home for every lab and program</h2>
+    <p>Divisions, programs, labs, and shared resources each get a page: their leaders and people, alumni, the papers that are theirs, their grants, studies, themes, and openings. Their own managers arrange it from approved blocks and publish it, with drafts, history, and rollback, and a weekly inbox brings them what changed.</p>
+    <p><a href="groups.html">Groups →</a></p>
+  </div>
+  {{shot:group|A program's page: the divisions it spans, what it does, its leaders, and the topics its members work on}}
+</section>
+
+<section class="feature">
+  <div class="feature-text">
+    <p class="eyebrow">Public</p>
+    <h2 id="public">A public site, checked</h2>
+    <p>Groups and people who opt in get plain, fast public pages in your colors: citations and links, never abstracts, and nothing that is not on an allowlist. Every build is checked for accessibility, broken links, and color contrast before it replaces the last.</p>
+    <p><a href="public-site.html">The public site →</a></p>
+  </div>
+  {{shot:public-group|A program on the public site: what it does, its people, and its topics}}
+</section>
+
 <section class="how">
   <h2 id="how-it-works">How it works</h2>
   <p>Connectors fetch public records into a Parquet lake. The evidence engine builds the directory and suggests links, each with its evidence; curators decide in the ledger; and the search index and discovery data feed a JSON API and a fast, accessible web app.</p>
@@ -91,6 +111,8 @@ uv run tessera --config demo/tessera.toml serve</code></pre></div>
     <a href="organization-profile.html"><strong>Describing your organization</strong><span>Choose the names Tessera uses to find your people and records.</span></a>
     <a href="curation.html"><strong>Curating</strong><span>Work through suggestions, discovered people, duplicates, and ORCID iDs.</span></a>
     <a href="discovery.html"><strong>Finding experts</strong><span>Expert search, similar people, the graphs, and the unit matrix.</span></a>
+    <a href="groups.html"><strong>Groups</strong><span>Labs, programs, and divisions: members, pages, managers, and the inbox.</span></a>
+    <a href="public-site.html"><strong>The public site</strong><span>Publish pages for the groups and people who opt in.</span></a>
     <a href="configuration.html"><strong>Configuration</strong><span>Every setting, including palettes, your logo, and thresholds.</span></a>
     <a href="operations.html"><strong>Running Tessera</strong><span>Syncs, accounts, backups, upgrades, and PostgreSQL.</span></a>
     <a href="api.html"><strong>The API</strong><span>Build on the JSON API; every endpoint is in the API reference.</span></a>

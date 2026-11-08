@@ -43,6 +43,8 @@ Every group has a page of its own at `/groups/<address>`, and **Groups** in the 
 
 Anyone who can sign in can read group pages. Admins see **Manage**, which opens the group in Admin → Groups.
 
+![A program's page: its divisions, what it does, its leaders, and the topics its members work on](images/group-light.webp "A group's page")
+
 ## Which papers are the group's
 
 A lab's members write papers that are not the lab's: a principal investigator collaborates with other labs, and a postdoc publishes work from a previous position. So Tessera does not count every member's paper as the group's. Instead, each sync suggests papers for each lab, program, center, shared resource, and team (the kinds in `attributable_kinds`), with the evidence:
@@ -94,6 +96,8 @@ A group's page is made of **blocks**, chosen and arranged by its managers (or a 
 
 About and News can appear more than once; the others once each. Topics, Writes most with, and Contact sit beside the others on wide screens. A group whose page has never been published shows the standard arrangement of all of them.
 
+![The page editor: numbered blocks, each with its settings and buttons to move or remove it, and the published versions beside them](images/group-editor-light.webp "Edit page")
+
 Changes go into a **draft**. **Preview** shows the draft as the page will look. **Publish** makes it the page everyone sees, as a new numbered version with an optional note. **Published versions** lists every version with who published it and when; **View** opens any of them, and **Restore** publishes an old one again as a new version, so nothing is ever lost. **Discard draft** throws away unpublished changes. The group's history records every save, publication, and restore.
 
 ## Themes and projects
@@ -113,6 +117,8 @@ A group can post **openings**: jobs, training, and other opportunities, each wit
 - **Roster changes:** people who joined, left, or changed role since then, by import or by hand.
 - **Openings closing soon:** open openings that close within two weeks, with **Extend 30 days** and **Close now**.
 
+![The inbox: each group with how many items wait, and for one program its papers to attribute with their evidence and buttons to decide](images/inbox-light.webp "The inbox")
+
 **Mark as reviewed** starts a new week: new grants and roster changes count from then on. Papers and openings stay until they are decided. A group never reviewed counts the last week. The menu shows how many items are waiting.
 
 Once a week, `tessera digest send` emails everyone with pending work a summary of it, when a mail server is configured; see [Running Tessera](operations.md#keeping-data-fresh).
@@ -131,6 +137,8 @@ Open a group to see its members. **Current** lists the people who belong now, le
 - **Merge** a group into another: its members, the groups within it, its place under other groups, and curator roles limited to it all move to the group you choose. Where the same person holds the same role in both, the dates widen to cover both. The merged group's address leads to the group that remains. A merge cannot be undone from the app.
 
 Every change, by hand or by import, is listed in the group's **History** with who made it and when.
+
+![Admin, Groups: one program's current members with their roles and dates, the groups within it, its details, and its history](images/admin-groups-light.webp "Admin → Groups")
 
 A group's **address** (`/groups/okafor-lab`) is made from its name when it is created and does not change when the group is renamed, so links to it keep working. You can change it on purpose in the edit form.
 

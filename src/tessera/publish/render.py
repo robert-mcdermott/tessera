@@ -144,7 +144,10 @@ def citation(c: dict[str, Any]) -> str:
     """Authors. Title. Journal. Year. With links to the DOI and PubMed, never the abstract."""
     parts = []
     if c.get("authors"):
-        parts.append(f'<span class="authors">{esc(c["authors"])}.</span>')
+        authors = c["authors"].rstrip()
+        parts.append(
+            f'<span class="authors">{esc(authors)}{"" if authors.endswith(".") else "."}</span>'
+        )
     title = esc(c.get("title") or f"PubMed {c.get('pmid')}")
     parts.append(f'<span class="title">{title}</span>')
     venue = " ".join(

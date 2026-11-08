@@ -13,6 +13,8 @@ The site is written to `public/` in the data home, or wherever `[publish] out` s
 - a page for every **person** who opted in: their groups and roles, ORCID iD, research areas and topics, publications, grants, and studies;
 - indexes of groups and people, a `404.html`, `robots.txt`, and, when `base_url` is set, a `sitemap.xml`.
 
+![A program's public page: what it does, its people, and its topics, in the organization's colors](images/public-group-light.webp "A group on the public site")
+
 ## Who appears
 
 Nobody appears unless they opt in.

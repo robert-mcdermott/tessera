@@ -2,7 +2,15 @@
 
 All notable changes to Tessera are recorded here. Versions follow [semantic versioning](https://semver.org/); each wave of work ships as a minor release (wave 1 → 0.1.0, wave 2 → 0.2.0).
 
-## Unreleased
+## 0.3.0 (2026-11-09)
+
+Showcase. Every lab, program, and division now has a home that its own people keep: members with roles and dates, the papers that are truly the group's, its grants, studies, themes, openings, and news, on a page its managers arrange and publish. A weekly inbox brings them what changed, a public site shows the groups and people who opt in, and MeSH teaches expert search synonyms and the hierarchy of topics.
+
+**Highlights:** groups of any configured kind, nested under as many parents as they span, curated by hand or imported from your own records with their identifiers; lab attribution as its own decision; group pages built from approved blocks with drafts, previews, versions, and rollback; a manager role limited to a group; the inbox and email digests; openings that close themselves; themes and projects; a static, checked, allowlisted public site; the brand kit with WCAG AA checks; and MeSH synonyms, narrower headings, and research areas.
+
+**Upgrading:** run `tessera db upgrade` (migrations 0007 to 0011). Existing units become groups that came from the roster, each with an address; existing memberships become plain members. Nobody appears on the public site until they opt in. The collaboration graph's "groups" are now called clusters.
+
+**Checks for this release:** authorship is unchanged; on the pilot, the check against people's own ORCID works lists gives the same result as 0.2.0 (95.3% of 193 listed papers found as candidates, 97.3% of those in the strong band). The new group endpoints answer in 15 ms or less at the 95th percentile on the demo (the digest across 31 groups in 29 ms), and the demo's 103-page public site builds and passes its checks in about a second. Migrations 0007 to 0011 were run up and down on SQLite and PostgreSQL with data in place. No dependencies were added.
 
 ### Added
 

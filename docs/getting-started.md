@@ -98,7 +98,7 @@ If you have a list of people (from a department page, a grant office, or a sprea
 uv run tessera people import roster.csv
 ```
 
-The CSV needs a header row. Recognized columns are `name` (or `family` and `given`), `email`, `orcid`, `local_id`, `unit`, `unit_code`, `title`, `start`, and `end`, with common spellings such as `last_name`, `first_name`, `department`, or `start_date` also understood; other columns are ignored. Dates may be a year (`2015`), a month (`2015-07`), or a day (`2015-07-01`).
+The CSV needs a header row. Recognized columns are `name` (or `family` and `given`), `email`, `orcid`, `local_id`, `unit` (or `group`), `unit_code`, `kind` (a group kind such as `division` or `lab`), `role` (such as `lead` or `trainee`), `title`, `start`, and `end`, with common spellings such as `last_name`, `first_name`, `department`, or `start_date` also understood; other columns are ignored. Dates may be a year (`2015`), a month (`2015-07`), or a day (`2015-07-01`).
 
 - List a person once per unit for concurrent memberships; give their rows the same email, ORCID iD, or local ID (without any identifier, rows with the same full name count as one person).
 - Someone whose memberships have all ended becomes a former member; everyone else on the roster is active. Importing an updated roster updates titles and dates.
@@ -111,5 +111,7 @@ Run `sync` again afterward so the new people's papers are found.
 - [Describing your organization](organization-profile.md): tune what counts as "us".
 - [Curating](curation.md): clear the review queue and promote discovered people.
 - [Finding experts](discovery.md): expert search, similar people, and the graphs.
+- [Groups](groups.md): set up divisions, programs, and labs, their pages and managers.
+- [The public site](public-site.md): publish pages for the groups and people who opt in.
 - [Configuration](configuration.md): every setting, including palettes and your logo.
 - [Running Tessera](operations.md): scheduling syncs, backups, upgrades, and PostgreSQL.
