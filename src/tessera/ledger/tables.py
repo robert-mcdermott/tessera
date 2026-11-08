@@ -389,6 +389,74 @@ group_inbox = Table(
     Column("reviewed_by", String(200), nullable=False),
 )
 
+# Saved cohorts for Insight (INT-01): whose work a figure counts. ``definition`` is a cohort
+# specification (see tessera.insight.cohorts): the organization, a group, picked people, or a
+# people search. Shared with everyone who can read Insight.
+cohort = Table(
+    "cohort",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("name", String(200), nullable=False),
+    Column("description", Text),
+    Column("definition", JsonType, nullable=False),
+    Column("created_by", String(200), nullable=False),
+    Column("created_at", UtcDateTime, nullable=False),
+    Column("updated_by", String(200), nullable=False),
+    Column("updated_at", UtcDateTime, nullable=False),
+)
+
+# A person's saved searches (DIS-10): what they searched for, and the matches they have already
+# seen, so the list can show what is new. ``owner`` is the account's ID, or "operator" in
+# single-operator mode.
+saved_search = Table(
+    "saved_search",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("owner", String(200), nullable=False),
+    Column("name", String(200), nullable=False),
+    Column("kind", String(20), nullable=False),
+    Column("q", Text, nullable=False, server_default=""),
+    Column("filters", JsonType, nullable=False),
+    Column("seen", JsonType, nullable=False),
+    Column("seen_at", UtcDateTime, nullable=False),
+    Column("created_at", UtcDateTime, nullable=False),
+    Column("updated_at", UtcDateTime, nullable=False),
+)
+Index(None, saved_search.c.owner)
+
+# Reports (INT-03): named sets of figures over a cohort and a period, and their snapshots, each
+# frozen in ``snapshots/<id>/`` in the data home with the inputs it was computed from.
+report = Table(
+    "report",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("name", String(200), nullable=False, unique=True),
+    Column("description", Text),
+    Column("cohort", String(4000), nullable=False),
+    Column("start_year", Integer),
+    Column("end_year", Integer),
+    Column("figures", JsonType, nullable=False),
+    Column("created_by", String(200), nullable=False),
+    Column("created_at", UtcDateTime, nullable=False),
+    Column("updated_by", String(200), nullable=False),
+    Column("updated_at", UtcDateTime, nullable=False),
+)
+
+report_snapshot = Table(
+    "report_snapshot",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("report_id", ID, ForeignKey("report.id", ondelete="SET NULL")),
+    Column("name", String(200), nullable=False),
+    Column("note", Text),
+    Column("taken_by", String(200), nullable=False),
+    Column("taken_at", UtcDateTime, nullable=False),
+    Column("digest", String(64), nullable=False),
+    Column("path", String(500), nullable=False),
+    Column("summary", JsonType, nullable=False),
+)
+Index(None, report_snapshot.c.report_id)
+
 # Signed-in browsers. Only a hash of the session token is stored.
 auth_session = Table(
     "auth_session",

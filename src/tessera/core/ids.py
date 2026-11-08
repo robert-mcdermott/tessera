@@ -27,6 +27,10 @@ PREFIXES = {
     "bat": "batch",
     "opn": "opening",
     "thm": "theme",
+    "coh": "cohort",
+    "srh": "saved search",
+    "rpt": "report",
+    "snp": "snapshot",
 }
 
 _CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"

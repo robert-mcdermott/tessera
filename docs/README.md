@@ -11,6 +11,7 @@ Tessera assembles a research organization's footprint from public sources, conne
 | [Curating](curation.md) | Work through suggestions, promote discovered people, and understand what decisions do |
 | [Finding experts](discovery.md) | Find who works on a topic, see similar people and connections, and understand what drives a profile |
 | [Groups](groups.md) | Set up divisions, programs, labs, and other groups by hand or from a file, with members, roles, and dates |
+| [Insight](insight.md) | Read portfolio figures for the organization or any group, with what each counts, for whom, and from which sources |
 | [The public site](public-site.md) | Publish pages for the groups and people who opt in, as a static site any web server can serve |
 | [Configuration](configuration.md) | Look up any setting, including palettes, your logo, and evidence thresholds |
 | [Running Tessera](operations.md) | Schedule syncs, back up, upgrade, use PostgreSQL, and diagnose problems |

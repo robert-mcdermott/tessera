@@ -28,6 +28,11 @@ def head_revision(url: str = "sqlite://") -> str | None:
     return ScriptDirectory.from_config(alembic_config(url)).get_current_head()
 
 
+def script_revisions(url: str = "sqlite://") -> set[str]:
+    """Every migration this version of Tessera ships."""
+    return {s.revision for s in ScriptDirectory.from_config(alembic_config(url)).walk_revisions()}
+
+
 def current_revision(engine: Engine) -> str | None:
     """The migration the database is at, or None for an empty database."""
     with engine.connect() as conn:

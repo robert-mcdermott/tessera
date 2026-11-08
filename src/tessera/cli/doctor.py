@@ -55,6 +55,7 @@ def run_checks(config_path: str | None, *, online: bool = False) -> list[Check]:
     checks.append(_check_home(config))
     checks.append(_check_ledger(config))
     checks.append(_check_access(config))
+    checks.append(_check_backup(config))
     checks += _check_brand(config)
     checks.append(_check_fts5())
     checks.append(_check_duckdb())
@@ -69,6 +70,32 @@ def run_checks(config_path: str | None, *, online: bool = False) -> list[Check]:
     if online:
         checks += _check_sources(config)
     return checks
+
+
+def _check_backup(config: Config) -> Check:
+    """Warn when there is no recent backup (``[alerts] backup_days``)."""
+    from datetime import datetime, timedelta
+
+    from tessera.core.clock import utc_now
+    from tessera.ops.backup import last_backup
+
+    if not config.alerts.backup_days:
+        return Check("Backups", OK, "not watched ([alerts] backup_days = 0)")
+    try:
+        engine = make_engine(config.ledger_url)
+        try:
+            backup = last_backup(engine) if migrate.is_current(engine) else None
+        finally:
+            engine.dispose()
+    except Exception:
+        return Check("Backups", WARN, "cannot read the ledger to find the last backup")
+    if backup is None:
+        return Check("Backups", WARN, "no backup yet; run `tessera backup` (docs/operations.md)")
+    age = utc_now() - datetime.fromisoformat(backup["at"])
+    detail = f"last {backup['at'][:16].replace('T', ' ')} UTC, {backup['path']}"
+    if age > timedelta(days=config.alerts.backup_days):
+        return Check("Backups", WARN, f"{detail}: older than {config.alerts.backup_days} days")
+    return Check("Backups", OK, detail)
 
 
 def _check_home(config: Config) -> Check:

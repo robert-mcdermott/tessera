@@ -5,6 +5,7 @@ import { h, icon } from "../core/dom.js";
 import { number } from "../core/format.js";
 import { query, setQuery } from "../core/router.js";
 import { itemFor, personRow } from "../components/items.js";
+import { saveSearchButton, savedSearchPanel } from "../components/saved-search.js";
 import { card, emptyState, pageHeader, tabs } from "../components/ui.js";
 import { browse, KINDS } from "./browse.js";
 import { show } from "./page.js";
@@ -30,7 +31,10 @@ export function searchPage(main, { samePage = false } = {}) {
         return h("div", {}, header, card({ body: emptyState({ iconName: "search", title: `Nothing found for “${q}”`,
           text: "Check the spelling, or try a broader term." }) }));
       }
-      return h("div", { class: "stack-lg" }, header, ORDER.filter((kind) => data[kind]?.total).map((kind) =>
+      const savedId = query().get("saved");
+      return h("div", { class: "stack-lg" }, header,
+        savedId ? savedSearchPanel(savedId) : h("div", { class: "row-sm" }, saveSearchButton({ kind: "everything", q, filters: {}, suggested: q })),
+        ORDER.filter((kind) => data[kind]?.total).map((kind) =>
         card({
           title: `${KINDS[kind].title} (${number(data[kind].total)})`,
           action: data[kind].total > data[kind].items.length

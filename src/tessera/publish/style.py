@@ -15,9 +15,12 @@ def _vars(c: Colors) -> str:
 
 def stylesheet(config: Config) -> str:
     day, night = palette(config)
+    # Pages follow the reader's preference; an embed can be held to one mode (data-theme).
     return (
         f":root{{color-scheme:light dark;{_vars(day)}}}\n"
-        f"@media (prefers-color-scheme: dark){{:root{{{_vars(night)}}}}}\n" + BASE
+        f"@media (prefers-color-scheme: dark){{:root:not([data-theme=light]){{{_vars(night)}}}}}\n"
+        f":root[data-theme=light]{{color-scheme:light}}\n"
+        f":root[data-theme=dark]{{color-scheme:dark;{_vars(night)}}}\n" + BASE
     )
 
 
@@ -89,6 +92,13 @@ details summary{cursor:pointer;color:var(--accent);font-weight:550;padding:6px 0
 .site-footer{border-top:1px solid var(--border);color:var(--muted);font-size:14px;padding:24px 0 40px}
 .site-footer p{margin:0 0 4px}
 .footer-links{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:4px 16px}
+body.embed{background:var(--bg)}
+body.embed main{padding:12px 16px}
+.embed-title{font-size:15px;font-weight:600;margin:0 0 8px;color:var(--muted)}
+.embed-title a{color:inherit}
+body.embed .block{border:0;padding:0;margin:0 0 16px;background:transparent}
+.embed-footer{padding:0 16px 12px;font-size:13px;color:var(--muted)}
+.embed-footer p{margin:0}
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 @media print{.site-header nav,.skip{display:none}.block{border:0;padding:0}}
 """

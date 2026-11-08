@@ -214,3 +214,7 @@ Admins can do all of this through the API: `POST /api/v1/groups` creates a group
 ## Curator scopes
 
 A curator can be limited to the people of one group (Admin → Accounts). The scope includes every group beneath it, through any of its parents, and only people whose memberships are current.
+
+## Showing a group on its own website
+
+A public group's publications, people, openings, and news can be embedded in its own website, and kept current by every publication of the public site: see [Embedding group content](public-site.md#embedding-group-content-in-another-website). Managers find the code in **Edit page → Embed on another website**.

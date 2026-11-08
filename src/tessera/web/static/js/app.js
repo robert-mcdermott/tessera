@@ -88,6 +88,15 @@ async function boot() {
   route("/grants/:core", (params) => grant(main, params));
   route("/studies", (_, ctx) => browse(main, "study", ctx));
   route("/studies/:nct", (params) => study(main, params));
+  const insightPages = () => import("./pages/insight.js");
+  route("/insight", async (_, ctx) => (await insightPages()).insightOverview(main, ctx));
+  route("/insight/funding", async () => (await insightPages()).funding(main));
+  route("/insight/topics", async () => (await insightPages()).topics(main));
+  route("/insight/studies", async () => (await insightPages()).studies(main));
+  route("/insight/reports", async () => (await insightPages()).reports(main));
+  route("/insight/reports/:id", async (params) => (await insightPages()).reportPage(main, params));
+  route("/insight/snapshots/:id", async (params) => (await insightPages()).snapshotPage(main, params));
+  route("/insight/definitions", async () => (await insightPages()).definitions(main));
   route("/inbox", async (_, ctx) => (await import("./pages/inbox.js")).inboxPage(main, ctx));
   route("/review", () => review(main));
   route("/review/people", (_, ctx) => candidates(main, ctx));
@@ -96,6 +105,7 @@ async function boot() {
   route("/admin/sources", () => sources(main));
   if (can("admin")) {
     route("/admin/accounts", (_, ctx) => accounts(main, ctx));
+    route("/admin/operations", async () => (await import("./pages/operations.js")).operations(main));
     // Loaded on first use, like the graph views.
     const groupsPage = () => import("./pages/groups-admin.js");
     route("/admin/groups", async (_, ctx) => (await groupsPage()).groupsAdmin(main, ctx));

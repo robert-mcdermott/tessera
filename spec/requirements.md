@@ -103,7 +103,7 @@ The capability catalog. IDs are stable: code, tests, and changelog entries can c
 | PLT-07 | M | Public / internal separation | Public views use an allowlisted projection, never raw records | 3 |
 | PLT-08 | M | Backup, restore, and exit export | Documented, tested backup and restore; a full export of the ledger and lake | 4 |
 | PLT-09 | M | PostgreSQL ledger option | Full test suite passes against PostgreSQL | 6 |
-| PLT-10 | S | Standards-based single sign-on | Optional OIDC sign-in | 6 |
+| PLT-10 | S | Standards-based single sign-on | Optional OpenID Connect sign-in with any standards-based provider (such as Microsoft Entra ID) beside local accounts, which remain the default; the provider's groups or app roles optionally map to Tessera roles and group scopes at each sign-in | 6 |
 | PLT-11 | S | Configurable vocabulary | Unit kinds, role names, and labels are configurable | 3 |
 | PLT-12 | S | Operational visibility | Job metrics, run history, and failure alerts in the admin area | 4 |
 | PLT-13 | S | Brand kit | An organization's own palette (core colors by day and night), footer links, favicon, and social preview image are configuration; `tessera doctor` fails any configured color pair below WCAG AA | 3 |
@@ -124,8 +124,10 @@ The capability catalog. IDs are stable: code, tests, and changelog entries can c
 | ID | Pri | Requirement | Acceptance | Wave |
 |---|---|---|---|---|
 | AI-01 | M | Off by default; core never depends on it | All features work with AI disabled | 5 |
-| AI-02 | M | Pluggable provider | Any OpenAI-compatible or local endpoint, configured by the adopter | 5 |
+| AI-02 | M | Pluggable provider | Any OpenAI-compatible or Anthropic-compatible endpoint (official, self-hosted, or local) and Amazon Bedrock, configured by the adopter; credentials come from the environment | 5 |
 | AI-03 | M | Grounded answers with citations | Answers cite Tessera records; unsupported questions are declined | 5 |
 | AI-04 | M | AI outputs are suggestions | Summaries and classifications are assertions with method and model recorded, reviewable like any other | 5 |
 | AI-05 | M | Data minimization | No contact details or unreviewed suggestions are sent to a model | 5 |
 | AI-06 | S | Plain-language summaries | Optional lay summaries for profiles and lab pages, with approval before display | 5 |
+| AI-07 | M | Invisible when off | With AI disabled, the app, the API document, and the public site show no menu item, setting, route, or mention of it | 5 |
+| AI-08 | M | Same access as the person asking | The assistant reads only what the signed-in person may read, through the same access policy | 5 |

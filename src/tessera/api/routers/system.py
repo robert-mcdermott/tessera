@@ -78,6 +78,8 @@ def meta(request: Request) -> dict[str, Any]:
             # Before sign-in, only what the sign-in page shows (name, branding).
             "sources": _freshness(request, config) if signed_in else [],
             "vocabulary": config.vocabulary.to_json() if signed_in else None,
+            # Where the public site is served ([publish] base_url), for embed codes.
+            "public_site": (config.publish.base_url.rstrip("/") or None) if signed_in else None,
         }
     }
 

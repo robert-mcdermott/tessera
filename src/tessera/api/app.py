@@ -19,10 +19,13 @@ from tessera.api.routers import (
     evidence,
     graph,
     groups,
+    insight,
     merges,
+    operations,
     overview,
     people,
     records,
+    saved,
     system,
 )
 from tessera.api.security import install_security_headers
@@ -84,6 +87,9 @@ def create_app(config: Config) -> FastAPI:
         curation,
         evidence,
         groups,
+        insight,
+        saved,
+        operations,
     ):
         app.include_router(module.router)
     install_api_reference(app)

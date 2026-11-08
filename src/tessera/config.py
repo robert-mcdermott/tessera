@@ -156,6 +156,21 @@ class PublishConfig:
 
 
 @dataclass(frozen=True)
+class InsightConfig:
+    """Portfolio figures (wave 4). See docs/insight.md."""
+
+    small_number: int = 5  # counts above zero and below this are marked as small numbers
+
+
+@dataclass(frozen=True)
+class AlertsConfig:
+    """Who hears when something goes wrong (PLT-12), by email through [mail]."""
+
+    email: tuple[str, ...] = ()  # addresses to alert; none: alerts show in the app only
+    backup_days: int = 7  # warn when the last backup is older than this (0: never warn)
+
+
+@dataclass(frozen=True)
 class MailConfig:
     """An SMTP server for digests (CUR-08). Without a host, digests stay in the app."""
 
@@ -243,6 +258,8 @@ class Config:
     vocabulary: VocabularyConfig = field(default_factory=VocabularyConfig)
     mail: MailConfig = field(default_factory=MailConfig)
     publish: PublishConfig = field(default_factory=PublishConfig)
+    insight: InsightConfig = field(default_factory=InsightConfig)
+    alerts: AlertsConfig = field(default_factory=AlertsConfig)
     path: Path | None = None  # the file this configuration was loaded from
 
     @property
@@ -265,6 +282,8 @@ _SECTIONS: dict[str, type] = {
     "vocabulary": VocabularyConfig,
     "mail": MailConfig,
     "publish": PublishConfig,
+    "insight": InsightConfig,
+    "alerts": AlertsConfig,
 }
 _SOURCE_NAMES = ("pubmed", "icite", "reporter", "ctgov", "orcid", "mesh")
 _PATH_FIELDS = {
@@ -598,6 +617,13 @@ def _resolve_paths(config: Config, base_dir: Path) -> Config:
 def validate(config: Config) -> list[str]:
     """Semantic checks beyond types. Returns human-readable problems (empty if valid)."""
     problems: list[str] = []
+    if not 1 <= config.insight.small_number <= 100:
+        problems.append("insight.small_number must be between 1 and 100")
+    if not 0 <= config.alerts.backup_days <= 365:
+        problems.append("alerts.backup_days must be between 0 and 365")
+    for address in config.alerts.email:
+        if "@" not in address or " " in address:
+            problems.append(f"alerts.email: {address!r} is not an email address")
     org = config.organization
     if not org.name:
         problems.append("organization.name is required")

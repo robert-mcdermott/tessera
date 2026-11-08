@@ -3,7 +3,7 @@
   "info": {
     "title": "Tessera API",
     "summary": "People, publications, grants, and clinical studies, connected with evidence.",
-    "version": "0.3.0"
+    "version": "0.4.0"
   },
   "paths": {
     "/api/v1/health": {
@@ -5399,6 +5399,1197 @@
           }
         }
       }
+    },
+    "/api/v1/insight/metrics": {
+      "get": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "Every metric Insight shows, with its definition and version",
+        "operationId": "list_metrics_api_v1_insight_metrics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response List Metrics Api V1 Insight Metrics Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insight/figures/{metric_id}": {
+      "get": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "A figure: a metric over a cohort and a period, with what it counted",
+        "operationId": "get_figure_api_v1_insight_figures__metric_id__get",
+        "parameters": [
+          {
+            "name": "metric_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Metric Id"
+            }
+          },
+          {
+            "name": "cohort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 4000
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "organization (default), group:<address>[+below][;current], people:<ID>,<ID>, search:<words>, or a saved cohort's ID",
+              "title": "Cohort"
+            },
+            "description": "organization (default), group:<address>[+below][;current], people:<ID>,<ID>, search:<words>, or a saved cohort's ID"
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "First year (calendar or fiscal, by metric)",
+              "title": "Start"
+            },
+            "description": "First year (calendar or fiscal, by metric)"
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Last year",
+              "title": "End"
+            },
+            "description": "Last year"
+          },
+          {
+            "name": "records",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include the records counted",
+              "default": false,
+              "title": "Records"
+            },
+            "description": "Include the records counted"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Figure Api V1 Insight Figures  Metric Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insight/cohort": {
+      "get": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "Who a cohort is: its label, size, and members",
+        "operationId": "preview_cohort_api_v1_insight_cohort_get",
+        "parameters": [
+          {
+            "name": "cohort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 4000
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cohort"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 2000,
+              "minimum": 0,
+              "default": 200,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Preview Cohort Api V1 Insight Cohort Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insight/cohorts": {
+      "get": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "Saved cohorts",
+        "operationId": "list_saved_api_v1_insight_cohorts_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response List Saved Api V1 Insight Cohorts Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "Save a cohort under a name, for everyone to use",
+        "operationId": "save_cohort_api_v1_insight_cohorts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CohortIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Save Cohort Api V1 Insight Cohorts Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insight/cohorts/{cohort_id}": {
+      "post": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "Rename or redefine a saved cohort",
+        "operationId": "change_cohort_api_v1_insight_cohorts__cohort_id__post",
+        "parameters": [
+          {
+            "name": "cohort_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cohort Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CohortChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Change Cohort Api V1 Insight Cohorts  Cohort Id  Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "Delete a saved cohort",
+        "operationId": "delete_cohort_api_v1_insight_cohorts__cohort_id__delete",
+        "parameters": [
+          {
+            "name": "cohort_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cohort Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Delete Cohort Api V1 Insight Cohorts  Cohort Id  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insight/figures/{metric_id}/export": {
+      "get": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "A figure with its records and definitions, as CSV, Parquet, or JSON",
+        "operationId": "export_figure_api_v1_insight_figures__metric_id__export_get",
+        "parameters": [
+          {
+            "name": "metric_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Metric Id"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "csv (a zip), parquet (a zip), or json",
+              "default": "csv",
+              "title": "Format"
+            },
+            "description": "csv (a zip), parquet (a zip), or json"
+          },
+          {
+            "name": "cohort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 4000
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cohort"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insight/reports": {
+      "get": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "Reports: named sets of figures over a cohort and a period",
+        "operationId": "list_reports_api_v1_insight_reports_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response List Reports Api V1 Insight Reports Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "Save a report for everyone who reads Insight",
+        "operationId": "create_report_api_v1_insight_reports_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Create Report Api V1 Insight Reports Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insight/reports/{report_id}": {
+      "get": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "A report's definition and its snapshots",
+        "operationId": "get_report_api_v1_insight_reports__report_id__get",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Report Api V1 Insight Reports  Report Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "Change a report",
+        "operationId": "change_report_api_v1_insight_reports__report_id__post",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Change Report Api V1 Insight Reports  Report Id  Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "Delete a report (its snapshots stay)",
+        "operationId": "delete_report_api_v1_insight_reports__report_id__delete",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Delete Report Api V1 Insight Reports  Report Id  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insight/reports/{report_id}/snapshots": {
+      "post": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "Freeze a report: its figures and the exact inputs they were computed from",
+        "operationId": "take_snapshot_api_v1_insight_reports__report_id__snapshots_post",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SnapshotIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Take Snapshot Api V1 Insight Reports  Report Id  Snapshots Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insight/snapshots": {
+      "get": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "Every snapshot, newest first",
+        "operationId": "list_snapshots_api_v1_insight_snapshots_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response List Snapshots Api V1 Insight Snapshots Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insight/snapshots/{snapshot_id}": {
+      "get": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "A snapshot: its manifest and frozen figures",
+        "operationId": "get_snapshot_api_v1_insight_snapshots__snapshot_id__get",
+        "parameters": [
+          {
+            "name": "snapshot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Snapshot Id"
+            }
+          },
+          {
+            "name": "records",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include each figure's records",
+              "default": false,
+              "title": "Records"
+            },
+            "description": "Include each figure's records"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Snapshot Api V1 Insight Snapshots  Snapshot Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insight/snapshots/{snapshot_id}/verify": {
+      "get": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "Compute a snapshot's figures again from its frozen inputs and compare",
+        "operationId": "verify_snapshot_api_v1_insight_snapshots__snapshot_id__verify_get",
+        "parameters": [
+          {
+            "name": "snapshot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Snapshot Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Verify Snapshot Api V1 Insight Snapshots  Snapshot Id  Verify Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insight/snapshots/{snapshot_id}/export": {
+      "get": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "A snapshot's figures with their records, definitions, and manifest (a zip)",
+        "operationId": "export_snapshot_api_v1_insight_snapshots__snapshot_id__export_get",
+        "parameters": [
+          {
+            "name": "snapshot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Snapshot Id"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "csv, parquet, or json",
+              "default": "csv",
+              "title": "Format"
+            },
+            "description": "csv, parquet, or json"
+          },
+          {
+            "name": "figure",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only this figure (1, 2, …)",
+              "title": "Figure"
+            },
+            "description": "Only this figure (1, 2, …)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insight/years": {
+      "get": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "The years Insight can show, and the period it starts with",
+        "operationId": "data_years_api_v1_insight_years_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Data Years Api V1 Insight Years Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/saved-searches": {
+      "get": {
+        "tags": [
+          "saved searches"
+        ],
+        "summary": "Your saved searches, with how many matches are new",
+        "operationId": "list_saved_api_v1_saved_searches_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response List Saved Api V1 Saved Searches Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "saved searches"
+        ],
+        "summary": "Save a search; what it finds now counts as seen",
+        "operationId": "create_saved_api_v1_saved_searches_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavedIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Create Saved Api V1 Saved Searches Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/saved-searches/{search_id}": {
+      "get": {
+        "tags": [
+          "saved searches"
+        ],
+        "summary": "A saved search with its new matches",
+        "operationId": "get_saved_api_v1_saved_searches__search_id__get",
+        "parameters": [
+          {
+            "name": "search_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Search Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Saved Api V1 Saved Searches  Search Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "saved searches"
+        ],
+        "summary": "Rename a saved search",
+        "operationId": "rename_saved_api_v1_saved_searches__search_id__post",
+        "parameters": [
+          {
+            "name": "search_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Search Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavedChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Rename Saved Api V1 Saved Searches  Search Id  Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "saved searches"
+        ],
+        "summary": "Delete a saved search",
+        "operationId": "delete_saved_api_v1_saved_searches__search_id__delete",
+        "parameters": [
+          {
+            "name": "search_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Search Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Delete Saved Api V1 Saved Searches  Search Id  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/saved-searches/{search_id}/seen": {
+      "post": {
+        "tags": [
+          "saved searches"
+        ],
+        "summary": "Count every current match as seen",
+        "operationId": "mark_seen_api_v1_saved_searches__search_id__seen_post",
+        "parameters": [
+          {
+            "name": "search_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Search Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Mark Seen Api V1 Saved Searches  Search Id  Seen Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/operations": {
+      "get": {
+        "tags": [
+          "operations"
+        ],
+        "summary": "Runs over the last 30 days, sizes, the last backup, and issues (admins)",
+        "operationId": "operations_api_v1_operations_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Operations Api V1 Operations Get"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5702,6 +6893,85 @@
         ],
         "title": "BulkDecision"
       },
+      "CohortChange": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "cohort": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cohort"
+          }
+        },
+        "type": "object",
+        "title": "CohortChange"
+      },
+      "CohortIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "cohort": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Cohort",
+            "description": "A cohort as written in an address"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "cohort"
+        ],
+        "title": "CohortIn"
+      },
       "Decision": {
         "properties": {
           "action": {
@@ -5732,6 +7002,28 @@
           "action"
         ],
         "title": "Decision"
+      },
+      "FigureIn": {
+        "properties": {
+          "metric": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Metric"
+          },
+          "options": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Options"
+          }
+        },
+        "type": "object",
+        "required": [
+          "metric"
+        ],
+        "title": "FigureIn"
       },
       "GroupChange": {
         "properties": {
@@ -6502,6 +7794,154 @@
         "type": "object",
         "title": "RemovalIn"
       },
+      "ReportChange": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "cohort": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cohort"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End"
+          },
+          "figures": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/FigureIn"
+                },
+                "type": "array",
+                "maxItems": 24,
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Figures"
+          }
+        },
+        "type": "object",
+        "title": "ReportChange"
+      },
+      "ReportIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "cohort": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Cohort",
+            "default": "organization"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End"
+          },
+          "figures": {
+            "items": {
+              "$ref": "#/components/schemas/FigureIn"
+            },
+            "type": "array",
+            "maxItems": 24,
+            "minItems": 1,
+            "title": "Figures"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "figures"
+        ],
+        "title": "ReportIn"
+      },
       "RoleIn": {
         "properties": {
           "role": {
@@ -6534,6 +7974,58 @@
         ],
         "title": "RoleIn"
       },
+      "SavedChange": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "SavedChange"
+      },
+      "SavedIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "person, publication, grant, study, or everything",
+            "default": "everything"
+          },
+          "q": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Q",
+            "default": ""
+          },
+          "filters": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Filters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "SavedIn"
+      },
       "SignIn": {
         "properties": {
           "username": {
@@ -6555,6 +8047,24 @@
           "password"
         ],
         "title": "SignIn"
+      },
+      "SnapshotIn": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "title": "SnapshotIn"
       },
       "ThemeIn": {
         "properties": {

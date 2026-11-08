@@ -7,6 +7,7 @@ import { enumLabel, number } from "../core/format.js";
 import { query, queryList, setQuery } from "../core/router.js";
 import { read, write } from "../core/prefs.js";
 import { itemFor, personCard, personTable } from "../components/items.js";
+import { saveSearchButton, savedSearchPanel } from "../components/saved-search.js";
 import { card, debounce, emptyState, facetPanel, FACET_LABELS, pageHeader, pager, segmented } from "../components/ui.js";
 import { show } from "./page.js";
 
@@ -39,6 +40,7 @@ export function browse(main, kind, { samePage = false } = {}) {
   const pageNo = Math.max(1, Number(query().get("page") ?? 1) || 1);
   const selected = Object.fromEntries(spec.facets.map((f) => [f, queryList(f)]));
   const view = kind === "person" ? (query().get("view") ?? read("peopleView", "cards")) : "list";
+  const savedId = query().get("saved");
 
   return show(main, {
     title: spec.title,
@@ -91,7 +93,10 @@ export function browse(main, kind, { samePage = false } = {}) {
               h("div", { class: "search-field" }, icon("search"), searchInput),
               sortSelect,
               kind === "person" ? segmented([{ id: "cards", icon: "grid", title: "Cards" }, { id: "table", icon: "list", title: "Table" }],
-                view, (id) => { write("peopleView", id); setQuery({ view: id }); }, "View") : null),
+                view, (id) => { write("peopleView", id); setQuery({ view: id }); }, "View") : null,
+              savedId ? null : saveSearchButton({ kind, q, filters: Object.fromEntries(Object.entries(selected).filter(([, v]) => v.length)),
+                suggested: q || (active.length ? `${spec.title}: ${Object.values(selected).flat().join(", ")}` : spec.title) })),
+            savedId ? savedSearchPanel(savedId) : null,
             active.length ? h("div", { class: "active-filters" }, active) : null,
             results,
             pages ? card({ body: pages }) : null)));

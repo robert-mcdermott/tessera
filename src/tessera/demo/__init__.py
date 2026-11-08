@@ -55,7 +55,12 @@ def demo_config_text() -> str:
     text = example_config_text()
     start = text.index("[organization]")
     end = text.index("# Re-branding")
-    return text[:start] + ORGANIZATION + text[end:]
+    text = text[:start] + ORGANIZATION + text[end:]
+    # Where its public site would be served (a reserved name that cannot exist), so that the
+    # sitemap, canonical links, and the codes to embed group content are shown.
+    marker = 'base_url = ""                 # where it is served'
+    address = 'base_url = "https://research.corvane.example"  # where it is served'
+    return text.replace(marker, address)
 
 
 def _record(
@@ -142,9 +147,14 @@ def build_demo(
         _attribute(engine)
         _pages(engine, today)
         _public(engine)
+        build_search(config, home, engine)  # include what the steps above changed directly
+        _insight(config, home, engine, today)
         from tessera.publish import publish
 
         site = publish(config, home, engine, today=today)
+        from tessera.ops.backup import create_backup
+
+        create_backup(config, home, engine)  # so that Operations shows a recent backup
         people = len(store.load_people(engine))
     finally:
         engine.dispose()
@@ -474,6 +484,51 @@ def _late_arrival(conn: Any, lab: str, today: date) -> None:
             conn, person_id=newcomer, group_id=lab, vocabulary=VocabularyConfig(),
             actor="Registry import", role="affiliate", start=today.isoformat()[:7],
             source="registry",
+        )  # fmt: skip
+
+
+def _insight(config: Config, home: DataHome, engine: Engine, today: date) -> None:
+    """A saved cohort, a program's annual review frozen as a snapshot, and a saved search with
+    two matches that arrived since it was last looked at."""
+    from sqlalchemy import select, update
+
+    from tessera.insight import cohorts, reports
+    from tessera.lake import Lake
+    from tessera.ledger.tables import saved_search
+    from tessera.search import saved
+    from tessera.search.index import index_path
+    from tessera.search.query import SearchIndex
+
+    index = SearchIndex(index_path(home))
+    with engine.begin() as conn:
+        cohorts.save_cohort(
+            conn, "Immunology and infection, with its labs",
+            cohorts.parse("group:division-of-immunology-and-infection+below"),  # type: ignore[arg-type]
+            actor="Demo curator", description="The division and every group beneath it.",
+        )  # fmt: skip
+        report_id = reports.create_report(
+            conn, name="Cancer Immunotherapy Program: annual review",
+            description="What the program published, was awarded, and ran as studies.",
+            cohort="group:cancer-immunotherapy-program", start=today.year - 4, end=None,
+            actor="Demo curator",
+            figures=[
+                {"metric": "publications.count"}, {"metric": "funding.awarded"},
+                {"metric": "topics.landscape", "options": {"level": "area"}},
+                {"metric": "studies.by_phase"},
+                {"metric": "funding.ending", "options": {"months": "24"}},
+            ],
+        )  # fmt: skip
+        search_id = saved.create(
+            conn, index, owner="operator", name="Lymphoma papers", kind="publication",
+            q="lymphoma", filters={},
+        )  # fmt: skip
+        seen = conn.execute(select(saved_search.c.seen).where(saved_search.c.id == search_id))
+        conn.execute(update(saved_search).where(saved_search.c.id == search_id)
+                     .values(seen=sorted(seen.scalar())[2:]))  # fmt: skip
+    with Lake(home.lake) as lake:
+        reports.take_snapshot(
+            engine, lake, config, home, report_id, actor="Demo curator",
+            note="For the program's annual review", today=today, search=index,
         )  # fmt: skip
 
 

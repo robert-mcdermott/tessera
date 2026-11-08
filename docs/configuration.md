@@ -223,3 +223,20 @@ The static public site (`tessera publish`); see [The public site](public-site.md
 | `title` | text | the organization's name | The site's title |
 | `intro` | text | empty | A sentence or two for the home page (at most 1,000 characters) |
 
+## `[alerts]`
+
+Who hears when something goes wrong; see [Running Tessera](operations.md#alerts). Alerts are emailed through `[mail]`.
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `email` | list of addresses | empty | Who is emailed when a sync has failures, a source goes stale, or backups lapse. Empty: problems show in Admin → Operations only |
+| `backup_days` | number | `7` | Warn when the last `tessera backup` is older than this many days (0 to 365; 0 never warns) |
+
+## `[insight]`
+
+Portfolio figures; see [Insight](insight.md).
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `small_number` | number | `5` | Counts above zero and below this are marked as small numbers, and trends are not claimed from them (1 to 100) |
+
