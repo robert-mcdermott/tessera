@@ -29,7 +29,7 @@ test("match rejects unknown and deeper paths", () => {
 });
 
 test("buildUrl skips empty values and repeats arrays", () => {
-  assert.equal(buildUrl("/api/v1/people", { q: "panda", empty: "", none: null }), "/api/v1/people?q=panda");
+  assert.equal(buildUrl("/api/v1/people", { q: "okafor", empty: "", none: null }), "/api/v1/people?q=okafor");
   assert.equal(buildUrl("/api/v1/grants", { status: ["active", "", "ended"] }), "/api/v1/grants?status=active&status=ended");
   assert.equal(buildUrl("/api/v1/meta", null), "/api/v1/meta");
   assert.equal(buildUrl("/api/v1/search", { q: "a&b" }), "/api/v1/search?q=a%26b");

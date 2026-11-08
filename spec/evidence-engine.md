@@ -180,6 +180,22 @@ Re-scoring the pilot with `authorship/v1.1`, before any iD was confirmed, sugges
 
 On the pilot the new feature fires only for one person, whose two-letter first name is shared by many authors: 6 suggestions resting on coauthors and the name alone leave the strong band for review, and 14 move from possible to unlikely. The strong band holds 1,660 suggestions. The pilot has no curator decisions yet, so the learned model and auto-accept wait for them; on the synthetic organization with simulated decisions, auto-accept at 0.99 accepted 477 suggestions, all correct.
 
+### Pilot check against ORCID works lists (v0.2.0)
+
+The pilot still has no curator decisions, so the learned weights and auto-accept could not be evaluated there; they were evaluated on the synthetic organization (above). The check printed iDs allowed in v0.1.0 no longer applies, because `authorship/v1.1` reads those iDs. Instead, the suggestions were checked against people's own public ORCID records. Tessera reads a person's ORCID record only once their iD is confirmed, and none was, so the records behind the 49 *suggested* iDs are independent of every score. A paper a person lists on their own record (by PubMed ID, or by a DOI that PubMed resolves) was taken as theirs.
+
+The pilot was synced with a two-year window, so only papers from 2025 on were counted: 193 papers listed by 39 people.
+
+| Measure | Result | Target |
+|---|---|---|
+| Candidate retrieval recall | 95.3% (184 of 193 listed papers found as candidates) | ≥ 95% |
+| Of those found: in the *Strong* band | 97.3% (179 of 184) | |
+| Of those found: at or above the review threshold | 100% | |
+
+People list only some of their papers, so an unlisted paper is not a wrong one: these lists measure recall, not precision. Of the nine listed papers not found, eight were never fetched (the name search did not reach them) and one was fetched but under a name form that does not match.
+
+Discovery answers quickly on the pilot (57 people with profiles): the expert finder in 31 ms at the 95th percentile for a query in words and 13 ms for a chosen concept; similar people, a profile's concepts, and every graph view in under 10 ms.
+
 ### Targets (to validate during the pilot)
 
 | Measure | Target |

@@ -68,8 +68,10 @@ Open <http://127.0.0.1:8000>. You will find:
 
 - **Home:** counts, recent publications, publications by year, the largest active grants, and how fresh each source is.
 - **People, Publications, Grants, Studies:** browse with search and filters. Every link between a person and a record carries a status mark (*Confirmed* or *Suggested*, with how likely it is); select it to see the evidence.
+- **Find experts:** who works on a topic, described in your own words, with the concepts behind every answer. See [Finding experts](discovery.md).
+- **Connections:** who works with whom, a person's topics and who shares them, how research areas connect, missed connections, and units compared.
 - **Review queue:** suggested authorships in priority order, ready to accept or reject from the keyboard. See [Curating](curation.md).
-- **Discovered people:** affiliated authors who are not in the directory yet, for you to promote or dismiss.
+- **Discovered people** and **Possible duplicates:** affiliated authors who are not in the directory yet, and records that look like one person, for you to decide.
 - **Sources:** data health, recent runs, and the search index.
 - **API reference** at `/api/docs`, for building on Tessera. See [The API](api.md).
 
@@ -95,5 +97,6 @@ Run `sync` again afterward so the new people's papers are found.
 
 - [Describing your organization](organization-profile.md): tune what counts as "us".
 - [Curating](curation.md): clear the review queue and promote discovered people.
+- [Finding experts](discovery.md): expert search, similar people, and the graphs.
 - [Configuration](configuration.md): every setting, including palettes and your logo.
 - [Running Tessera](operations.md): scheduling syncs, backups, upgrades, and PostgreSQL.

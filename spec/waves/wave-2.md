@@ -2,7 +2,7 @@
 
 **Goal:** turn the graph into discovery: who works on what, who should meet, and why. Make the evidence stronger with ORCID, and let more than one person use Tessera, each with the right permissions.
 
-**Branch:** `wave-2` · **Target version:** `0.2.0` · **Status:** ◐ slices 1–7 done; slice 8 (release prep) next
+**Branch:** `wave-2` · **Target version:** `0.2.0` · **Status:** ☑ all slices done; released as v0.2.0
 
 ## Exit criteria
 
@@ -99,13 +99,15 @@ Requirements delivered: REC-02 (ORCID), REC-07, REC-08, CUR-05, CUR-06, CUR-10, 
 
 **Acceptance (met):** every pair names the concepts behind it, every bridge the groups it connects, and every cell its counts and the people behind them; bridges are listed by name, and the copy speaks of roles and pairs, never of ranks. On the pilot: 9 missed connections at 0.25, most with a collaborator of both named; 7 groups, each recognizably one research area by its name; and 3 people bridging them. The pilot has no units yet; the matrix was checked on a synthetic organization with units for everyone.
 
-## Slice 8: Release prep ☐
+## Slice 8: Release prep ☑
 
-- [ ] Guides updated for discovery, accounts, ORCID, merges, and auto-accept; command reference and OpenAPI regenerated
-- [ ] Evaluation on pilot decisions, summarized without identifying data
-- [ ] Dependency and license review; private-terms check over the whole repository
-- [ ] `CHANGELOG.md` for 0.2.0; version bump
-- [ ] PR, merge, tag `v0.2.0`, and release on the maintainer's go-ahead
+- [x] Guides updated for discovery, accounts, ORCID, merges, and auto-accept (the README, getting started, curating, finding experts, configuration, running Tessera, and the API); command reference and OpenAPI regenerated
+- [x] Evaluation summarized without identifying data: the pilot has no curator decisions yet, so suggestions were checked against people's own public ORCID works lists, which the model never reads for unconfirmed iDs (see [evidence-engine.md](../evidence-engine.md#pilot-check-against-orcid-works-lists-v020)); learned weights and auto-accept are evaluated on generated and synthetic decisions
+- [x] Dependency and license review (no changes since 0.1.0; in the changelog); private-terms check and a scan for pilot names over every tracked file
+- [x] `CHANGELOG.md` for 0.2.0; version bump to `0.2.0`; the roadmap's wave 2 status
+- [x] PR `wave-2` → `main`, merge, tag `v0.2.0`, and release on the maintainer's go-ahead
+
+**Acceptance (met):** a fresh clone installs from the lock file and passes the test suite, lint, and the private-terms check; every exit criterion above is covered by tests and was checked in the browser on the pilot (accounts and roles on a separate instance, the unit matrix on a synthetic organization with units).
 
 ---
 
@@ -119,3 +121,7 @@ Requirements delivered: REC-02 (ORCID), REC-07, REC-08, CUR-05, CUR-06, CUR-10, 
 | 2026-11-08 | Slice 2 done. Merges move rows rather than resolving links through a pointer at read time, so every reader stays simple; a journal makes them exactly reversible. Automation never merges: duplicates are proposed for a curator. A roster without identifiers used to split a person listed under two units into two records; rows with the same full name in one file are now one person. Memberships stay one per person and unit (a second spell in the same unit updates the dates). |
 | 2026-11-08 | Slice 3 done. Accounts, roles, and sessions live in the ledger with no new dependency (ADR-0009). Authentication runs in a middleware so that it covers the API document and files too; authorization reads one policy per route. Found while testing: on SQLite, Python's driver kept schema changes outside the migration's transaction, so a failed migration could leave a half-built table; SQLAlchemy now issues BEGIN itself and DDL rolls back whole. Personal API tokens and single sign-on are left for later (wave 6 for SSO). |
 | 2026-11-08 | Slice 4 done. Learned weights scale the hand-set features rather than replace them, so explanations stay the same and a few decisions barely move the model (an L2 pull toward 1, strength 20, chosen so that 30 decisions move a multiplier by less than 0.2). The synthetic organization is too separable to learn from (fewer than 20 rejections), so learning is tested on generated decisions with known weights. Undoing an auto-accept batch also switches auto-accept off, since the next sync would otherwise accept the same links again. |
+| 2026-11-08 | Slice 5 done. Strong suggestions count in concept profiles at half weight, because a profile that waited for confirmation would be empty for months; `discovery.likely_weight = 0` restores confirmed-only. Words are read through the papers they find, because without MeSH entry terms a word rarely names a descriptor. Title terms for unindexed papers were measured and left out (they matched generic headings), and grant terms are not used. The similarity floor is 0.10 rather than the planned 0.15, which left too many people with no one similar. |
+| 2026-11-08 | Slice 6 done. A shared record adds 1/(k − 1) to each pair of its k members, so consortium papers do not dominate. The graph views load on first use; the size budget now separates what the app loads at start from parts loaded later, and fails on any module nothing loads. `tessera build profiles` became `tessera build discovery`, which also builds the graph data. |
+| 2026-11-08 | Slice 7 done. Bridges are listed by name, not ranked by betweenness: connecting groups is a role. Groups use new categorical colours (`--series-0..5`), tested for distinctness and contrast in every palette and mode, because the avatar hues were not distinct enough to tell groups apart. Missed connections exclude former members and name anyone who has worked with both. |
+| 2026-11-08 | Slice 8 done. The pilot was synced with a two-year window, so the ORCID check counts only papers from 2025 on; 30 of 185 DOIs on those records are not in PubMed (preprints and other works) and were left out. |

@@ -1,8 +1,28 @@
 # Changelog
 
-All notable changes to Tessera are recorded here. Versions follow [semantic versioning](https://semver.org/); each wave of work ships as a minor release (wave 1 → 0.1.0).
+All notable changes to Tessera are recorded here. Versions follow [semantic versioning](https://semver.org/); each wave of work ships as a minor release (wave 1 → 0.1.0, wave 2 → 0.2.0).
 
-## Unreleased
+## 0.2.0 (2026-11-08)
+
+Connections. Tessera now helps people find who works on what and who should meet, with the reasons on screen, and lets several people curate with their own accounts and roles. ORCID strengthens the evidence, duplicate records merge reversibly, and the evidence model can learn from local decisions.
+
+**Highlights:** ORCID records and iDs as evidence; possible duplicates and reversible merges; dated unit memberships; local accounts with admin, curator (for everyone, a unit, or a person), researcher, and viewer roles; learned weights evaluated on held-out people, and auto-accept only where the measured precision is at least 99%; the expert finder; concept profiles that show what drives them; similar people; collaboration, person focus, and concept landscape graphs with list views; missed connections; groups and the people who bridge them; and the unit matrix.
+
+### Evaluation
+
+- **Pilot check against people's own ORCID works lists:** Tessera reads an ORCID record only once the iD is confirmed, and none was, so the records behind the 49 suggested iDs are independent of every score. Of 193 papers that 39 people list themselves (within the pilot's two-year window), 95.3% were found as candidates (target 95%); of those, 97.3% are in the strong band and all are at or above the review threshold. Works lists measure recall, not precision: people list only some of their papers. Details are in [spec/evidence-engine.md](spec/evidence-engine.md#pilot-check-against-orcid-works-lists-v020).
+- **Learned weights and auto-accept** need curator decisions, which the pilot does not have yet. On generated decisions, fitting recovers the weights that produced them, and a learned model is offered only when it predicts better on people left out of the fit. On the synthetic organization with simulated decisions, auto-accept at 0.99 accepted 477 suggestions, all correct, and undoing the batch restored every one.
+- **Discovery on the synthetic organization:** every person's top three concepts come from their own field, searching a field's heading returns that field's people first, at least 90% of similar pairs and of collaborating pairs share a field, and collaboration counts match an independent recount exactly.
+- **Speed on the pilot:** the expert finder answers in 31 ms at the 95th percentile for a query in words (13 ms for a chosen concept); similar people, a profile's concepts, and every graph view in under 10 ms. Graphs of about 150 nodes, and a test graph of 300 nodes and 600 links, lay out with no main-thread task over 50 ms.
+
+### Dependencies and licenses
+
+No dependency was added or changed: the runtime dependencies and their licenses are as in 0.1.0 (MIT, BSD, Apache-2.0, and PSF, with certifi under MPL-2.0 used unmodified, and the optional psycopg under LGPL-3.0, not bundled). The web app still ships no third-party code, fonts, or images. The force layout, community detection, and betweenness are original implementations of published methods.
+
+### Upgrading
+
+- Run `uv run tessera db upgrade` to apply ledger migrations 0003 to 0006, then `uv run tessera sync` (or `tessera build search` and `tessera build discovery`) to build the new discovery data.
+- **Breaking:** listening on any address other than this machine now requires `server.accounts = true`. See [Accounts and sign-in](docs/operations.md#accounts-and-sign-in).
 
 ### Added
 

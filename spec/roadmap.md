@@ -35,9 +35,24 @@ Status key: ☐ planned · ◐ in progress · ☑ done
 
 Released as [v0.1.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0.1.0) on 2026-11-07. Detail: [waves/wave-1.md](waves/wave-1.md)
 
-## Wave 2: Connections (v0.2.0) ◐
+## Wave 2: Connections (v0.2.0) ☑
 
 **Goal:** turn the graph into discovery: who works on what, who should meet, and why.
+
+| Slice | Name | Delivers | Status |
+|---|---|---|---|
+| 1 | ORCID | ORCID connector, iDs suggested from people's own papers, ORCID evidence (`authorship/v1.1`) | ☑ |
+| 2 | People model | Possible duplicates, reversible merges, dated unit memberships | ☑ |
+| 3 | Accounts and roles | Local accounts, sessions, roles, scoped curators, access policy on every route | ☑ |
+| 4 | Evidence v2 | Learned weights (`authorship/v2`) with held-out evaluation; safe auto-accept | ☑ |
+| 5 | Concepts and expert finder | Concept profiles, expert finder, similar people, what drives a profile | ☑ |
+| 6 | Collaboration graph | Collaboration network, person focus, concept landscape, with list views | ☑ |
+| 7 | Missed connections and units | Missed connections, groups and bridges, the unit matrix | ☑ |
+| 8 | Release prep | Guides, evaluation, dependency review, changelog, release | ☑ |
+
+The MeSH hierarchy waits for the source decision; until then concept profiles are flat.
+
+Released as [v0.2.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0.2.0) on 2026-11-08. Detail: [waves/wave-2.md](waves/wave-2.md)
 
 - Concept profiles from MeSH with IDF and recency weighting; MeSH hierarchy (if the source is approved)
 - Expert finder and "similar people" with shared-concept explanations
@@ -47,8 +62,6 @@ Released as [v0.1.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0
 - Local accounts, sessions, and roles (admin, curator, researcher, viewer); researchers review their own suggestions; scoped curators
 - Reversible person merges; dated unit memberships
 - Safe auto-accept gated by evaluation; first learned weights (`authorship/v2`)
-
-Detail: [waves/wave-2.md](waves/wave-2.md)
 
 ## Documentation site (between v0.2.0 and v0.3.0) ☐
 
