@@ -1,10 +1,14 @@
-// The app shell: sidebar navigation, top bar, theme toggle, and mobile menu.
+// The app shell: sidebar navigation (what the signed-in person may use), top bar, theme
+// toggle, user menu, and mobile menu.
 
-import { get } from "../core/api.js";
+import { get, request } from "../core/api.js";
 import { h, icon, iconButton } from "../core/dom.js";
 import { compact } from "../core/format.js";
 import { onNavigate } from "../core/router.js";
+import { can, session, setCsrfToken } from "../core/session.js";
 import { openAppearance } from "./appearance.js";
+import { openDrawer } from "./drawer.js";
+import { toast } from "./toast.js";
 import { avatar } from "./ui.js";
 
 const NAV = [
@@ -19,13 +23,14 @@ const NAV = [
     { href: "/studies", label: "Studies", iconName: "study", match: (p) => p.startsWith("/studies") },
   ] },
   { section: "Curate", items: [
-    { href: "/review", label: "Review queue", iconName: "review", badge: "review", match: (p) => p === "/review" },
-    { href: "/review/people", label: "Discovered people", iconName: "userPlus", badge: "candidates", match: (p) => p.startsWith("/review/people") },
-    { href: "/review/duplicates", label: "Possible duplicates", iconName: "layers", badge: "duplicates", match: (p) => p.startsWith("/review/duplicates") },
-    { href: "/review/log", label: "Decision log", iconName: "history", match: (p) => p.startsWith("/review/log") },
+    { href: "/review", label: () => (can("curate_any") ? "Review queue" : "My suggestions"), iconName: "review", badge: "review", when: "review", match: (p) => p === "/review" },
+    { href: "/review/people", label: "Discovered people", iconName: "userPlus", badge: "candidates", when: "curate_all", match: (p) => p.startsWith("/review/people") },
+    { href: "/review/duplicates", label: "Possible duplicates", iconName: "layers", badge: "duplicates", when: "curate_all", match: (p) => p.startsWith("/review/duplicates") },
+    { href: "/review/log", label: "Decision log", iconName: "history", when: "curate_any", match: (p) => p.startsWith("/review/log") },
   ] },
   { section: "Admin", items: [
     { href: "/admin/sources", label: "Sources", iconName: "sources", match: (p) => p.startsWith("/admin/sources") },
+    { href: "/admin/accounts", label: "Accounts", iconName: "people", when: "admin", match: (p) => p.startsWith("/admin/accounts") },
     { href: "/api/docs", label: "API reference", iconName: "api", match: () => false, external: true },
   ] },
 ];
@@ -44,15 +49,20 @@ export function mountShell(root, meta, { onSearch }) {
         h("img", { class: "brand-mark", src: "/img/tessera-mark.svg", alt: "", width: 26, height: 26 }),
         h("span", { class: "brand-text" }, h("span", {}, product.name),
           h("span", { class: "brand-org" }, org.short_name || org.name))),
-    NAV.map((group) => h("div", { class: "nav" },
-      group.section ? h("div", { class: "nav-section" }, group.section) : null,
-      group.items.map((item) => {
-        const badge = item.badge ? h("span", { class: "badge", hidden: true }) : null;
-        const node = h("a", { class: "nav-item", href: item.href, title: item.label },
-          icon(item.iconName), h("span", { class: "nav-label" }, item.label), badge);
-        navItems.push({ node, item, badge });
-        return node;
-      }))),
+    NAV.map((group) => {
+      const items = group.items.filter((item) => !item.when || can(item.when));
+      if (!items.length) return null;
+      return h("div", { class: "nav" },
+        group.section ? h("div", { class: "nav-section" }, group.section) : null,
+        items.map((item) => {
+          const label = typeof item.label === "function" ? item.label() : item.label;
+          const badge = item.badge ? h("span", { class: "badge", hidden: true }) : null;
+          const node = h("a", { class: "nav-item", href: item.href, title: label },
+            icon(item.iconName), h("span", { class: "nav-label" }, label), badge);
+          navItems.push({ node, item, badge });
+          return node;
+        }));
+    }),
     h("div", { class: "sidebar-footer" },
       h("span", {}, org.name),
       product.show_powered_by
@@ -98,7 +108,7 @@ export function mountShell(root, meta, { onSearch }) {
       h("kbd", {}, isMac ? "⌘K" : "Ctrl K")),
     h("div", { class: "topbar-actions" },
       appearanceButton,
-      h("span", { class: "operator", title: "Single-operator mode: decisions are recorded under this name" },
+      meta.mode.accounts ? userMenu() : h("span", { class: "operator", title: "Single-operator mode: decisions are recorded under this name" },
         avatar(meta.mode.operator, "sm"), h("span", { class: "operator-name" }, meta.mode.operator))));
 
   const main = h("main", { class: "shell-main", id: "main" });
@@ -111,10 +121,11 @@ export function mountShell(root, meta, { onSearch }) {
   const refreshCounts = () => {
     clearTimeout(pending);
     pending = setTimeout(async () => {
+      const ask = (allowed, path) => (allowed ? get(path, { limit: 1 }, { fresh: true }).catch(() => null) : null);
       const [queue, found, pairs] = await Promise.all([
-        get("/api/v1/review", { limit: 1 }, { fresh: true }).catch(() => null),
-        get("/api/v1/candidates", { limit: 1 }, { fresh: true }).catch(() => null),
-        get("/api/v1/duplicates", { limit: 1 }, { fresh: true }).catch(() => null),
+        ask(can("review"), "/api/v1/review"),
+        ask(can("curate_all"), "/api/v1/candidates"),
+        ask(can("curate_all"), "/api/v1/duplicates"),
       ]);
       const counts = {
         review: queue ? (queue.meta.bands?.strong ?? 0) + (queue.meta.bands?.possible ?? 0) : null,
@@ -141,4 +152,87 @@ export function mountShell(root, meta, { onSearch }) {
     closeMenu();
   });
   return { main };
+}
+
+const ROLE_NAMES = { admin: "Admin", curator: "Curator", researcher: "Researcher", viewer: "Viewer" };
+
+/** The signed-in person's name, roles, and actions (change password, sign out). */
+function userMenu() {
+  const me = session();
+  const roles = [...new Set(me.roles.map((r) => (r.scope_type ? `${ROLE_NAMES[r.role]} (limited)` : ROLE_NAMES[r.role])))].join(", ");
+  const menu = h("div", { class: "user-menu", role: "menu", hidden: true },
+    h("div", { class: "user-menu-who" }, h("strong", {}, me.name), h("span", { class: "subtle" }, `${me.username} · ${roles}`)),
+    h("button", { type: "button", role: "menuitem", class: "user-menu-item", onclick: () => { close(); changePassword(); } }, icon("keyboard", "icon icon-sm"), "Change password…"),
+    h("button", { type: "button", role: "menuitem", class: "user-menu-item", onclick: () => signOut() }, icon("arrowRight", "icon icon-sm"), "Sign out"));
+  const button = h("button", { type: "button", class: "operator user-button", "aria-haspopup": "menu", "aria-expanded": "false",
+    onclick: () => (menu.hidden ? open() : close()) },
+    avatar(me.name, "sm"), h("span", { class: "operator-name" }, me.name));
+  const onKey = (event) => { if (event.key === "Escape") { close(); button.focus(); } };
+  const onClick = (event) => { if (!wrap.contains(event.target)) close(); };
+  function open() {
+    menu.hidden = false;
+    button.setAttribute("aria-expanded", "true");
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("click", onClick, true);
+    menu.querySelector("[role=menuitem]")?.focus();
+  }
+  function close() {
+    menu.hidden = true;
+    button.setAttribute("aria-expanded", "false");
+    document.removeEventListener("keydown", onKey);
+    document.removeEventListener("click", onClick, true);
+  }
+  const wrap = h("div", { class: "user-wrap" }, button, menu);
+  return wrap;
+}
+
+async function signOut() {
+  try {
+    await request("DELETE", "/api/v1/session");
+  } catch {
+    /* signed out either way */
+  }
+  window.location.assign("/sign-in");
+}
+
+function changePassword() {
+  openDrawer({
+    title: "Change password",
+    label: "Change password",
+    render: (body, footer, close) => {
+      const field = (id, label, autocomplete) => {
+        const input = h("input", { class: "input", id, type: "password", autocomplete, required: true });
+        return [input, h("div", { class: "field" }, h("label", { for: id }, label), input)];
+      };
+      const [current, currentField] = field("pw-current", "Current password", "current-password");
+      const [next, nextField] = field("pw-new", "New password (at least 12 characters)", "new-password");
+      const [again, againField] = field("pw-again", "New password again", "new-password");
+      const error = h("p", { class: "field-error", role: "alert", hidden: true });
+      const submit = h("button", { type: "submit", class: "btn btn-primary" }, "Change password");
+      const fail = (message, focus) => {
+        error.textContent = message;
+        error.hidden = false;
+        focus.focus();
+      };
+      body.append(h("form", { class: "stack", novalidate: true, onsubmit: async (event) => {
+        event.preventDefault();
+        if (next.value !== again.value) return fail("The new passwords differ.", again);
+        submit.disabled = true;
+        try {
+          const result = (await request("POST", "/api/v1/session/password",
+            { body: { current_password: current.value, new_password: next.value } })).data;
+          setCsrfToken(result.csrf_token);
+        } catch (failure) {
+          submit.disabled = false;
+          return fail(failure.detail || "The password could not be changed.", next);
+        }
+        close();
+        toast("Password changed. Other sessions were signed out.");
+      } },
+      h("p", { class: "muted" }, "Use a long passphrase you do not use anywhere else. Your other sessions will be signed out."),
+      currentField, nextField, againField, error,
+      h("div", { class: "row-sm" }, submit, h("button", { type: "button", class: "btn btn-ghost", onclick: close }, "Cancel"))));
+      current.focus();
+    },
+  });
 }

@@ -4,6 +4,7 @@ import { get, post } from "../core/api.js";
 import { h, icon } from "../core/dom.js";
 import { enumLabel, number, relative } from "../core/format.js";
 import { navigate, query, setQuery } from "../core/router.js";
+import { can } from "../core/session.js";
 import { openDrawer, openEvidence } from "../components/drawer.js";
 import { toast } from "../components/toast.js";
 import { identifiersCard } from "../components/identifiers.js";
@@ -59,10 +60,10 @@ export function person(main, params, { samePage = false } = {}) {
             icon("orcid", "icon icon-sm"), orcid.value) : null,
           profile.concepts.length ? h("span", { class: "muted" }, profile.concepts.slice(0, 3).join(" · ")) : null,
         ],
-        actions: member ? [
+        actions: member && profile.can_curate ? [
           suggested ? h("a", { class: "btn", href: `/review?person=${encodeURIComponent(profile.id)}` }, icon("review", "icon icon-sm"), "Review suggestions") : null,
           h("button", { type: "button", class: "btn", onclick: () => addPublication(profile, refresh) }, icon("publication", "icon icon-sm"), "Add a publication"),
-          h("button", { type: "button", class: "btn btn-ghost", onclick: () => mergeWith(profile, refresh) }, icon("layers", "icon icon-sm"), "Merge…"),
+          can("curate_any") ? h("button", { type: "button", class: "btn btn-ghost", onclick: () => mergeWith(profile, refresh) }, icon("layers", "icon icon-sm"), "Merge…") : null,
         ] : null,
       });
       const mergedNote = profile.merged_into ? h("div", { class: "callout callout-warn", role: "note" },
@@ -70,15 +71,15 @@ export function person(main, params, { samePage = false } = {}) {
         h("div", { class: "grow" }, "This record was merged into ",
           h("a", { href: `/people/${profile.merged_into.id}` }, profile.merged_into.name ?? profile.merged_into.id),
           ` ${relative(profile.merged_into.at)} by ${profile.merged_into.actor}. Its links, names, and identifiers are there now.`),
-        h("div", { class: "row-sm" },
+        profile.can_curate ? h("div", { class: "row-sm" },
           h("button", { type: "button", class: "btn btn-sm", onclick: (e) => undoMerge(profile.merged_into.merge_id, e.currentTarget, refresh) },
-            icon("undo", "icon icon-sm"), "Undo merge"))) : null;
+            icon("undo", "icon icon-sm"), "Undo merge")) : null) : null;
       const candidateNote = member || profile.merged_into ? null : h("div", { class: "callout", role: "note" },
         icon("info", "icon icon-sm"),
         h("div", { class: "grow" }, profile.status === "dismissed"
           ? "A curator dismissed this person as not a member of the organization."
           : "Tessera found this person in the data. They are not in the directory until a curator promotes them."),
-        h("div", { class: "row-sm" },
+        !can("curate_all") ? null : h("div", { class: "row-sm" },
           h("button", { type: "button", class: "btn btn-sm btn-accept", onclick: () => decidePerson(profile, "promote", refresh) }, "Promote"),
           profile.status === "candidate" ? h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => decidePerson(profile, "dismiss", refresh) }, "Dismiss") : null));
 
@@ -118,7 +119,7 @@ export function person(main, params, { samePage = false } = {}) {
           h("li", { class: "row-sm" },
             h("div", { class: "grow stack-xs" }, h("a", { href: `/people/${m.merged_id}` }, m.merged_name),
               h("span", { class: "subtle" }, `merged ${relative(m.at)} by ${m.actor}`)),
-            h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: (e) => undoMerge(m.merge_id, e.currentTarget, refresh) }, "Undo")))) }) : null,
+            profile.can_curate ? h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: (e) => undoMerge(m.merge_id, e.currentTarget, refresh) }, "Undo") : null))) }) : null,
         profile.names.length > 1 ? card({ title: "Names in the data", pad: true,
           body: h("div", { class: "chips" }, profile.names.map((n) => h("span", { class: "chip chip-plain" }, `${n.given ? `${n.given} ` : ""}${n.family}`))) }) : null);
 

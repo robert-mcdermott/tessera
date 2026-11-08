@@ -79,7 +79,7 @@ The ledger is relational and portable across SQLite and PostgreSQL. JSON fields 
 | `source_checkpoint` | Incremental watermarks | `source`, `scope`, `watermark`, `updated_at` |
 | `setting` | Runtime settings editable in the app | `key`, `value`, `updated_by`, `updated_at` |
 
-Later waves add: `user`, `role_grant`, `session` (wave 2); `lab`, `lab_membership`, `page`, `page_revision` (wave 3); `snapshot`, `metric_definition` (wave 4); `opportunity_match`, `team` (wave 5).
+Wave 2 added `account` (username, display name, scrypt password hash, status, linked person), `role_grant` (role, optionally scoped to a unit or a person), and `auth_session` (only a hash of the session token, the CSRF token, and expiry), in migration 0005. Later waves add: `lab`, `lab_membership`, `page`, `page_revision` (wave 3); `snapshot`, `metric_definition` (wave 4); `opportunity_match`, `team` (wave 5).
 
 ## Lake tables (wave 1)
 

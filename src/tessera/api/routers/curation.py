@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
+from tessera.api.access import principal_of, require_curate
 from tessera.api.common import (
     Page,
     assertion_view,
@@ -72,6 +73,9 @@ def get_assertion(request: Request, assertion_id: str) -> dict[str, Any]:
     view["subject"]["label"] = _label(engine, row["subject_id"], index)
     view["object"]["label"] = _label(engine, row["object_id"], index)
     view["history"] = history
+    view["can_decide"] = _may_decide(
+        request, {"subject_id": row["subject_id"], "object_id": row["object_id"]}
+    )
     return envelope(view)
 
 
@@ -80,14 +84,46 @@ class Decision(BaseModel):
     note: str | None = Field(None, max_length=2000)
 
 
+def _may_decide(request: Request, row: dict[str, Any]) -> bool:
+    """Whether the principal may decide this link: one about a person needs that person (both,
+    for a pair of records) in their scope; a link between records needs a curator for all."""
+    principal = principal_of(request)
+    people = [ref for ref in (row["subject_id"], row["object_id"]) if ref.startswith("per_")]
+    if not people:
+        return principal.curates_all
+    engine = engine_of(request)
+    return all(principal.can_curate(engine, ref) for ref in people)
+
+
+def _assertion_row(request: Request, assertion_id: str) -> dict[str, Any] | None:
+    with engine_of(request).connect() as conn:
+        row = (
+            conn.execute(
+                select(assertion.c.subject_id, assertion.c.object_id).where(
+                    assertion.c.id == assertion_id
+                )
+            )
+            .mappings()
+            .first()
+        )
+    return dict(row) if row else None
+
+
 @router.post(
     "/assertions/{assertion_id}/decision",
     summary="Accept, reject, defer, or undo; recorded as a curation event",
 )
 def decide(request: Request, assertion_id: str, body: Decision) -> dict[str, Any]:
-    engine, config = engine_of(request), config_of(request)
+    engine = engine_of(request)
+    row = _assertion_row(request, assertion_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="No such assertion.")
+    if not _may_decide(request, row):
+        raise HTTPException(
+            status_code=403, detail="You may decide only for the people in your scope."
+        )
     try:
-        store.decide(engine, assertion_id, body.action, config.server.operator, body.note)
+        store.decide(engine, assertion_id, body.action, principal_of(request).name, body.note)
     except TesseraError as exc:
         message = str(exc)
         if message.startswith("No assertion"):
@@ -125,14 +161,17 @@ class BatchDecision(BaseModel):
     summary="Apply one decision to several assertions (each logged; used for bulk undo)",
 )
 def decide_many(request: Request, body: BatchDecision) -> dict[str, Any]:
-    engine, config = engine_of(request), config_of(request)
+    engine = engine_of(request)
+    actor = principal_of(request).name
     done: list[dict[str, Any]] = []
     failed: list[dict[str, str]] = []
     for assertion_id in dict.fromkeys(body.ids):
+        row = _assertion_row(request, assertion_id)
+        if row is not None and not _may_decide(request, row):
+            failed.append({"id": assertion_id, "detail": "Not in your scope."})
+            continue
         try:
-            done.append(
-                store.decide(engine, assertion_id, body.action, config.server.operator, body.note)
-            )
+            done.append(store.decide(engine, assertion_id, body.action, actor, body.note))
         except TesseraError as exc:
             failed.append({"id": assertion_id, "detail": str(exc)})
     _refresh_for(request, [d["id"] for d in done])
@@ -150,7 +189,7 @@ def _directory(engine) -> dict[str, str]:  # type: ignore[no-untyped-def]
         )
 
 
-def _count_below(engine, floor: float, person_id: str | None) -> int:  # type: ignore[no-untyped-def]
+def _count_below(engine, floor: float, person_id: str | None, scope: set[str] | None = None) -> int:  # type: ignore[no-untyped-def]
     query = (
         select(func.count())
         .select_from(assertion.join(person, person.c.id == assertion.c.subject_id))
@@ -164,6 +203,8 @@ def _count_below(engine, floor: float, person_id: str | None) -> int:  # type: i
     )
     if person_id:
         query = query.where(assertion.c.subject_id == person_id)
+    elif scope is not None:
+        query = query.where(assertion.c.subject_id.in_(scope))
     with engine.connect() as conn:
         return conn.execute(query).scalar() or 0
 
@@ -194,6 +235,12 @@ def review_queue(
     engine, config = engine_of(request), config_of(request)
     bands = split_values(band_) or ["strong", "possible"]
     names = _directory(engine)
+    # Each reviewer sees the people they may decide for (a researcher: themselves).
+    scope = principal_of(request).curated_people(engine)
+    if scope is not None:
+        names = {pid: name for pid, name in names.items() if pid in scope}
+        if person_id is None and len(scope) == 1:
+            person_id = next(iter(scope))
     floor = None if "unlikely" in bands else config.evidence.review_threshold
     rows = [
         r
@@ -208,7 +255,7 @@ def review_queue(
     ]
     counts = Counter(band(r["score"], config) for r in rows)
     if floor is not None:  # count the unlikely band without loading it
-        counts["unlikely"] = _count_below(engine, floor, person_id)
+        counts["unlikely"] = _count_below(engine, floor, person_id, scope)
     chosen = [r for r in rows if band(r["score"], config) in bands]
     chosen.sort(key=lambda r: _priority(r, band(r["score"], config), names))
     window = chosen[p.offset : p.offset + p.limit]
@@ -250,6 +297,7 @@ def bulk_decide(request: Request, body: BulkDecision) -> dict[str, Any]:
     engine, config = engine_of(request), config_of(request)
     if body.person_id not in _directory(engine):
         raise HTTPException(status_code=404, detail="No such person.")
+    actor = require_curate(request, body.person_id).name
     rows = [
         r
         for r in store.assertions_for(
@@ -258,7 +306,7 @@ def bulk_decide(request: Request, body: BulkDecision) -> dict[str, Any]:
         if band(r["score"], config) == body.band
     ]
     for row in rows:
-        store.decide(engine, row["id"], body.action, config.server.operator, body.note)
+        store.decide(engine, row["id"], body.action, actor, body.note)
     refresh_index(
         request, people=[body.person_id] if rows else [], records={r["object_id"] for r in rows}
     )

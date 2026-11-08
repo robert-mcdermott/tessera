@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
+from tessera.api.access import require_curate
 from tessera.api.common import (
     Page,
     band,
@@ -23,7 +24,7 @@ from tessera.api.common import (
 from tessera.core.errors import TesseraError
 from tessera.evidence.memberships import is_current
 from tessera.evidence.merge import MergeError, merge_people, unmerge
-from tessera.ledger.tables import assertion, person, person_identifier, unit
+from tessera.ledger.tables import assertion, person, person_identifier, person_merge, unit
 from tessera.search.update import records_of_people
 
 router = APIRouter(prefix="/api/v1", tags=["people"])
@@ -173,9 +174,10 @@ class MergeRequest(BaseModel):
 def create_merge(request: Request, body: MergeRequest) -> dict[str, Any]:
     """Links, names, and identifiers move to the record kept. Where both records decided the
     same link differently, the more recent decision holds and the result lists the conflict."""
-    engine, config = engine_of(request), config_of(request)
+    engine = engine_of(request)
+    actor = require_curate(request, body.merge, body.into).name
     try:
-        result = merge_people(engine, body.merge, body.into, config.server.operator, body.note)
+        result = merge_people(engine, body.merge, body.into, actor, body.note)
     except MergeError as exc:
         status = 404 if str(exc).startswith("No person") else 409
         raise HTTPException(status_code=status, detail=str(exc)) from exc
@@ -193,9 +195,18 @@ class UndoRequest(BaseModel):
 
 @router.post("/merges/{merge_id}/undo", summary="Undo a merge exactly")
 def undo_merge(request: Request, merge_id: str, body: UndoRequest | None = None) -> dict[str, Any]:
-    engine, config = engine_of(request), config_of(request)
+    engine = engine_of(request)
+    with engine.connect() as conn:
+        pair = conn.execute(
+            select(person_merge.c.merged_id, person_merge.c.survivor_id).where(
+                person_merge.c.id == merge_id
+            )
+        ).first()
+    if pair is None:
+        raise HTTPException(status_code=404, detail="No such merge.")
+    actor = require_curate(request, *pair).name
     try:
-        result = unmerge(engine, merge_id, config.server.operator, body.note if body else None)
+        result = unmerge(engine, merge_id, actor, body.note if body else None)
     except MergeError as exc:
         status = 404 if str(exc).startswith("No merge") else 409
         raise HTTPException(status_code=status, detail=str(exc)) from exc

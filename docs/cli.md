@@ -217,6 +217,91 @@ usage: tessera people list [-h] [--status STATUS] [--limit LIMIT]
 | `--status STATUS` | active \| former \| candidate \| all |
 | `--limit LIMIT` | at most this many (default: 50) |
 
+## `tessera users`
+
+Local accounts and their roles.
+
+```text
+usage: tessera users [-h] ACTION ...
+```
+
+### `tessera users add`
+
+Create an account (prompts for a password).
+
+```text
+usage: tessera users add [-h] [--name NAME] --role ROLE [--email EMAIL] [--person ID]
+                         [--password-stdin]
+                         username
+```
+
+| Argument | Meaning |
+|---|---|
+| `username` | lowercase letters, digits, dots, dashes, underscores |
+| `--name NAME` | the name shown and recorded on decisions |
+| `--role ROLE` | admin, curator, researcher, or viewer; a curator for some people only is curator=unit:<name or code> or curator=person:<ID> (repeatable) |
+| `--email EMAIL` | contact address |
+| `--person ID` | the person a researcher account belongs to |
+| `--password-stdin` | read the password from standard input |
+
+### `tessera users list`
+
+List accounts and roles.
+
+```text
+usage: tessera users list [-h]
+```
+
+### `tessera users disable`
+
+Sign an account out and block it.
+
+```text
+usage: tessera users disable [-h] username
+```
+
+| Argument | Meaning |
+|---|---|
+| `username` |  |
+
+### `tessera users enable`
+
+Unblock.
+
+```text
+usage: tessera users enable [-h] username
+```
+
+| Argument | Meaning |
+|---|---|
+| `username` |  |
+
+### `tessera users reset-password`
+
+Set a new password (signs the account out everywhere).
+
+```text
+usage: tessera users reset-password [-h] [--password-stdin] username
+```
+
+| Argument | Meaning |
+|---|---|
+| `username` |  |
+| `--password-stdin` | read the password from standard input |
+
+### `tessera users roles`
+
+Replace an account's roles.
+
+```text
+usage: tessera users roles [-h] --role ROLE username
+```
+
+| Argument | Meaning |
+|---|---|
+| `username` |  |
+| `--role ROLE` | admin, curator, researcher, or viewer; a curator for some people only is curator=unit:<name or code> or curator=person:<ID> (repeatable) |
+
 ## `tessera eval`
 
 Evaluate matching quality.

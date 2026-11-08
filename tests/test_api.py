@@ -26,7 +26,7 @@ def test_health_ok(client: TestClient) -> None:
 def test_health_degraded_when_ledger_not_migrated(config_file: Path) -> None:
     config = load_config(config_file, env={})
     DataHome(config.data.home).create()  # no migrations applied
-    with TestClient(create_app(config)) as client:
+    with TestClient(create_app(config), base_url="http://localhost") as client:
         response = client.get("/api/v1/health")
     assert response.status_code == 503
     assert response.json()["checks"]["ledger"] == "outdated"
@@ -34,7 +34,10 @@ def test_health_degraded_when_ledger_not_migrated(config_file: Path) -> None:
 
 def test_app_refuses_to_start_without_data_home(config_file: Path) -> None:
     config = load_config(config_file, env={})
-    with pytest.raises(Exception, match="tessera init"), TestClient(create_app(config)):
+    with (
+        pytest.raises(Exception, match="tessera init"),
+        TestClient(create_app(config), base_url="http://localhost"),
+    ):
         pass
 
 

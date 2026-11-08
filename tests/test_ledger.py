@@ -287,3 +287,25 @@ def test_postgres_ledger() -> None:
         assert kind == "jsonb"
     finally:
         engine.dispose()
+
+
+def test_a_failed_sqlite_migration_leaves_nothing_behind(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """Schema changes are transactional: a step that fails after creating a table rolls back."""
+    engine = make_engine(f"sqlite:///{tmp_path / 'ledger.db'}")
+    migrate.upgrade(engine)
+
+    def failing_step(cfg, revision) -> None:  # type: ignore[no-untyped-def]
+        conn = cfg.attributes["connection"]
+        conn.exec_driver_sql("CREATE TABLE should_vanish (id INTEGER)")
+        conn.exec_driver_sql("ALTER TABLE person ADD COLUMN should_vanish TEXT")
+        raise RuntimeError("the migration failed half way")
+
+    try:
+        with pytest.raises(RuntimeError, match="half way"):
+            migrate._run(engine, failing_step, "head")
+        assert "should_vanish" not in inspect(engine).get_table_names()
+        assert "should_vanish" not in {c["name"] for c in inspect(engine).get_columns("person")}
+        with engine.connect() as conn:
+            assert conn.execute(text("PRAGMA foreign_keys")).scalar() == 1
+    finally:
+        engine.dispose()

@@ -11,6 +11,7 @@ from alembic.script import ScriptDirectory
 from sqlalchemy.engine import Engine
 
 from tessera.core.errors import LedgerError
+from tessera.ledger.db import set_sqlite_pragma
 
 SCRIPT_LOCATION = "tessera.ledger:migrations"
 
@@ -46,8 +47,7 @@ def _run(engine: Engine, step: Callable[[AlembicConfig, str], None], revision: s
     with engine.connect() as conn:
         sqlite = conn.dialect.name == "sqlite"
         if sqlite:  # a no-op inside a transaction, so it must come first
-            conn.exec_driver_sql("PRAGMA foreign_keys=OFF")
-            conn.commit()
+            set_sqlite_pragma(conn, "foreign_keys=OFF")
         try:
             with conn.begin():
                 cfg.attributes["connection"] = conn
@@ -61,8 +61,7 @@ def _run(engine: Engine, step: Callable[[AlembicConfig, str], None], revision: s
                         )
         finally:
             if sqlite:
-                conn.exec_driver_sql("PRAGMA foreign_keys=ON")
-                conn.commit()
+                set_sqlite_pragma(conn, "foreign_keys=ON")
 
 
 def upgrade(engine: Engine, revision: str = "head") -> None:

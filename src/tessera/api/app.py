@@ -6,11 +6,21 @@ import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 
 from tessera import PRODUCT_NAME, __version__
+from tessera.api.access import authorize, install_access
 from tessera.api.problems import install_problem_handlers
-from tessera.api.routers import candidates, curation, merges, overview, people, records, system
+from tessera.api.routers import (
+    access,
+    candidates,
+    curation,
+    merges,
+    overview,
+    people,
+    records,
+    system,
+)
 from tessera.api.security import install_security_headers
 from tessera.api.static import (
     install_api_reference,
@@ -18,6 +28,7 @@ from tessera.api.static import (
     install_static,
     install_theme,
 )
+from tessera.auth.sessions import SignInThrottle
 from tessera.config import ENV_CONFIG_PATH, Config, load_config
 from tessera.home import DataHome
 from tessera.lake import Lake
@@ -48,12 +59,15 @@ def create_app(config: Config) -> FastAPI:
         docs_url=None,
         redoc_url=None,
         openapi_url="/api/openapi.json",
+        dependencies=[Depends(authorize)],  # every route's role, from access.POLICIES
     )
     app.state.config = config
     app.state.home = home
-    install_security_headers(app)
+    app.state.throttle = SignInThrottle()
+    install_access(app)  # every request: who is asking, and may they (before the headers,
+    install_security_headers(app)  # so that refusals carry them too)
     install_problem_handlers(app)
-    for module in (system, overview, people, candidates, merges, records, curation):
+    for module in (system, access, overview, people, candidates, merges, records, curation):
         app.include_router(module.router)
     install_api_reference(app)
     install_theme(app)

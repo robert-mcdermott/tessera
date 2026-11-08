@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
+from tessera.api.access import principal_of, require_curate
 from tessera.api.common import (
     Page,
     assertion_view,
@@ -194,7 +195,7 @@ def decide_identifier(request: Request, person_id: str, body: IdentifierDecision
     its public record is read at the next sync. A rejected iD is kept so that it is never
     proposed again and counts against papers that carry it."""
     _person_row(request, person_id)
-    config = config_of(request)
+    actor = require_curate(request, person_id).name
     try:
         result = store.decide_identifier(
             engine_of(request),
@@ -202,7 +203,7 @@ def decide_identifier(request: Request, person_id: str, body: IdentifierDecision
             body.scheme,
             body.value,
             body.action,
-            config.server.operator,
+            actor,
             body.note,
         )
     except store.InvalidIdentifier as exc:
@@ -301,6 +302,7 @@ def get_person(request: Request, person_id: str) -> dict[str, Any]:
             "units": memberships,
             "merged_into": merged_into,
             "merged": [m for m in merges if m["survivor_id"] == person_id],
+            "can_curate": principal_of(request).can_curate(engine, person_id),
             "counts": counts,
             "concepts": concepts,
             "timeline": [
@@ -395,6 +397,7 @@ def add_publication(request: Request, person_id: str, body: ManualPublication) -
     config = config_of(request)
     engine = engine_of(request)
     _person_row(request, person_id)
+    actor = require_curate(request, person_id).name
     lake = lake_of(request)
     lake.refresh(force=True)
     if not lake.scalar("SELECT count(*) FROM pubmed_article WHERE pmid = ?", [body.pmid]):
@@ -410,7 +413,6 @@ def add_publication(request: Request, person_id: str, body: ManualPublication) -
             "SELECT count(*) FROM pubmed_article WHERE pmid = ?", [body.pmid]
         ):
             raise HTTPException(status_code=404, detail=f"PubMed has no record {body.pmid}.")
-    actor = config.server.operator
     now = utc_now()
     object_id = f"pub:{body.pmid}"
     with engine.begin() as conn:

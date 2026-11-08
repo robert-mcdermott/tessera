@@ -21,7 +21,7 @@
 | **Raw zone** | API response bodies as received (registry contact details removed), kept so the lake can be rebuilt without re-fetching |
 | **Registry status** | The overall status of a study in the public registry. It is not the organization's local recruitment status |
 | **Roster file** | An optional CSV of people that an administrator imports. A file, not a live integration |
-| **Single-operator mode** | Wave 1 operating mode with no sign-in. The server binds to localhost and curation is attributed to a configured operator name |
+| **Single-operator mode** | The operating mode without accounts: no sign-in, the server answers only on this machine, and curation is attributed to a configured operator name |
 | **Slice** | A coherent chunk of work within a wave |
 | **Tessera** | A single tile in a mosaic, and this product |
 | **Wave** | A release cycle. Wave *n* ships as version `0.n.0` |

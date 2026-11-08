@@ -143,7 +143,7 @@ def _client_with(config_file: Path, branding: str) -> TestClient:
 
     text = config_file.read_text("utf-8").replace('theme = "tessera"\n', branding, 1)
     config_file.write_text(text, "utf-8")
-    return TestClient(create_app(load_config(config_file, env={})))
+    return TestClient(create_app(load_config(config_file, env={})), base_url="http://localhost")
 
 
 def test_theme_css_without_an_accent(client: TestClient) -> None:

@@ -97,4 +97,4 @@ Decisions are never deleted. Undo is itself a recorded decision that restores th
 
 ## Who decides
 
-Until sign-in arrives in a later release, Tessera runs in single-operator mode: it listens on this machine only, and every decision is recorded under the `[server] operator` name from the configuration. Set it to the curator's name, or to a shared role such as "Research office".
+With accounts on, every decision is recorded under the name of the person who signed in, and each person decides only what their role allows: curators for everyone or for one unit or person, researchers for the suggestions about themselves (their queue is **My suggestions**). Without accounts (single-operator mode, on this machine only), every decision is recorded under the `[server] operator` name. See [Accounts and sign-in](operations.md#accounts-and-sign-in).

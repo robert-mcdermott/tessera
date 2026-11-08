@@ -6,6 +6,7 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 
 ### Added
 
+- Local accounts and roles (PLT-06, CUR-06): set `[server] accounts = true` to require sign-in. Roles add up: viewers read, researchers also review the suggestions about their own profile (**My suggestions**), curators decide for everyone or only for one unit or person, and admins also manage accounts (**Admin → Accounts**, or `tessera users add | list | disable | enable | reset-password | roles`). Decisions record the signed-in person's name. Passwords are hashed with the standard library's scrypt; sessions are server-side, in `HttpOnly`, `SameSite=Strict` cookies, with a CSRF token on every change and throttled sign-in. Every API route has an access policy, and a test fails for any route without one. Ledger migration 0005; ADR-0009.
 - Possible duplicates: two records of one person (typically a roster row and a grant record with no shared identifier) are proposed as a pair, scored by `same_as/v1` on shared identifiers, a replaced ORCID iD, author positions both claim, shared grants, and names; never on a name alone. A new **Possible duplicates** page under Curate shows both records side by side with the evidence. `GET /api/v1/duplicates`.
 - Reversible merges: merging moves a record's links, names, and identifiers to the record kept and journals every change, so **Undo merge** restores both exactly. Where both records decided the same link differently, the more recent decision holds and the merge says so. Merge from the duplicates page or with **Merge…** on a profile; merges appear in the decision log. `POST /api/v1/merges`, `POST /api/v1/merges/{id}/undo`; ledger migration 0004 (a `merged` status, `person.merged_into`, and `person_merge`).
 - Dated unit memberships: roster `start` and `end` columns (a year, month, or day), several units at once, titles and dates on profiles, and only current units in the directory and its filters. People whose memberships have all ended become former members; importing an updated roster updates dates.
@@ -16,12 +17,14 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 
 ### Changed
 
+- **Breaking:** listening on any address other than this machine now requires `server.accounts = true` (it used to be a warning). Without accounts, Tessera also answers only to requests addressed to `localhost` or `127.0.0.1`, and in both modes refuses changes that a browser sends from another site.
 - Cassette's stripe is now a thin sunset gradient in both modes, and the hero's diagonal bands are faint pinstripes in the same sunset colors.
 - Record-type colors no longer resemble status colors: grants are gold, studies raspberry, and Cassette's publications teal, each kept well apart from the green, amber, and red of accepted, suggested, and rejected (a test checks every palette and mode). Warnings and "suggested" are a warmer amber.
 - Charts of grant amounts use a brighter gold fill.
 
 ### Fixed
 
+- On SQLite, a migration that failed part way could leave some of its schema changes behind, because Python's driver did not put them in the transaction. Schema changes are now transactional and roll back whole (a test checks it).
 - A person listed on several roster rows without any identifier became several people; within one file, such rows with the same full name are now one person.
 - Keyboard hints on buttons were faded below WCAG AA contrast; they are now full strength.
 - Resolving again rewrote hundreds of unchanged suggestions because tied topics were listed in a random order in their explanations; ties are now broken by name, and a second resolve changes nothing.

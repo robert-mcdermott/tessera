@@ -54,6 +54,7 @@ def run_checks(config_path: str | None, *, online: bool = False) -> list[Check]:
 
     checks.append(_check_home(config))
     checks.append(_check_ledger(config))
+    checks.append(_check_access(config))
     checks.append(_check_fts5())
     checks.append(_check_duckdb())
     index = WEB_ROOT / "index.html"
@@ -98,6 +99,30 @@ def _check_ledger(config: Config) -> Check:
             "Ledger", FAIL, f"at revision {current}, expected {head}; run `tessera db upgrade`"
         )
     return Check("Ledger", OK, f"{where} (revision {current})")
+
+
+def _check_access(config: Config) -> Check:
+    if not config.server.accounts:
+        return Check("Access", OK, "single-operator mode: no sign-in, this machine only")
+    try:
+        from tessera.auth.accounts import active_admins
+
+        engine = make_engine(config.ledger_url)
+        try:
+            admins = active_admins(engine)
+        finally:
+            engine.dispose()
+    except Exception as exc:  # the ledger check reports the cause
+        return Check(
+            "Access", WARN, f"accounts on; could not count admins ({exc.__class__.__name__})"
+        )
+    if not admins:
+        return Check(
+            "Access",
+            FAIL,
+            "accounts on but no active admin; run `tessera users add NAME --role admin`",
+        )
+    return Check("Access", OK, f"accounts on, {admins} active admin{'s' if admins != 1 else ''}")
 
 
 def _check_fts5() -> Check:

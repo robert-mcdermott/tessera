@@ -2,7 +2,17 @@
 
 Everything the web app shows comes from a JSON API under `/api/v1`, and the same API is open to scripts and other tools. A running Tessera documents it at `/api/docs`; the OpenAPI document is at `/api/openapi.json`, and a copy for this version is in [openapi.json](openapi.json).
 
-Like the web app, the API listens on this machine only until sign-in arrives.
+Without accounts (single-operator mode), the API answers only on this machine and needs no sign-in. With accounts on, a script signs in like the web app:
+
+```bash
+curl -s -c jar -H "Content-Type: application/json" -X POST http://127.0.0.1:8000/api/v1/session \
+  -d '{"username": "ada", "password": "…"}'           # returns data.csrf_token
+curl -s -b jar "http://127.0.0.1:8000/api/v1/people?q=circadian"
+curl -s -b jar -H "X-CSRF-Token: <csrf_token>" -H "Content-Type: application/json" \
+  -X POST "http://127.0.0.1:8000/api/v1/assertions/asr_…/decision" -d '{"action": "accept"}'
+```
+
+Every change needs the session's CSRF token in `X-CSRF-Token`, and each route needs a role: reading needs any account, deciding needs a curator for that person (or the person themselves, as a researcher), and managing accounts needs an admin. A missing session is a `401`, a missing role or scope a `403`.
 
 ## Conventions
 
@@ -23,6 +33,7 @@ Like the web app, the API listens on this machine only until sign-in arrives.
 | Records | `GET /publications`, `/grants`, `/studies`, each with search and facets, and one record by its identifier with its connections and provenance |
 | Curation | `GET /assertions/{id}` (a link with its evidence and history), `POST /assertions/{id}/decision`, `POST /assertions/decisions` (one decision for many), `GET /review` (the queue), `POST /review/bulk`, `GET /decisions` (the log) |
 | Discovered people | `GET /candidates`, `POST /candidates/decisions` (promote, dismiss, or undo) |
+| Sessions and accounts | `GET /session` (who is signed in), `POST /session` (sign in), `DELETE /session` (sign out), `POST /session/password`; admins: `GET /accounts`, `POST /accounts`, `POST /accounts/{id}` |
 | Duplicates and merges | `GET /duplicates` (possible duplicate pairs with evidence), `POST /merges` (merge two records), `POST /merges/{id}/undo` |
 
 All paths are under `/api/v1`.
@@ -49,4 +60,4 @@ curl -s -X POST "http://127.0.0.1:8000/api/v1/assertions/asr_…/decision" \
   -H "Content-Type: application/json" -d '{"action": "accept", "note": "Checked the author list"}'
 ```
 
-Decisions made through the API are recorded under the `[server] operator` name, exactly like decisions in the web app.
+Decisions made through the API are recorded under the signed-in person's name (or, without accounts, the `[server] operator` name), exactly like decisions in the web app.

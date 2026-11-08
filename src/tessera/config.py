@@ -82,7 +82,13 @@ class DataConfig:
 class ServerConfig:
     host: str = "127.0.0.1"
     port: int = 8000
-    operator: str = "Operator"
+    operator: str = "Operator"  # the actor recorded in single-operator mode (no accounts)
+    accounts: bool = False  # require sign-in with local accounts
+    session_idle_hours: int = 12  # a session ends this long after it was last used
+    session_max_days: int = 7  # and never lasts longer than this from sign-in
+
+
+LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 
 
 @dataclass(frozen=True)
@@ -392,6 +398,16 @@ def validate(config: Config) -> list[str]:
         problems.append("server.host is required")
     if not server.operator:
         problems.append("server.operator is required (it is recorded on curation actions)")
+    if not server.accounts and server.host not in LOOPBACK_HOSTS:
+        problems.append(
+            f"server.host is {server.host!r}, which other machines can reach, but accounts "
+            "are off. Set server.accounts = true (and create an admin with `tessera users "
+            "add`), or listen on 127.0.0.1"
+        )
+    if not 1 <= server.session_idle_hours <= 24 * 30:
+        problems.append("server.session_idle_hours must be between 1 and 720")
+    if not 1 <= server.session_max_days <= 90:
+        problems.append("server.session_max_days must be between 1 and 90")
 
     url = config.ledger.url
     if url and not (url.startswith("sqlite") or url.startswith("postgresql")):
@@ -423,9 +439,9 @@ def config_warnings(config: Config) -> list[str]:
             "sources.contact_email is empty. Public APIs ask for a contact address; "
             "NCBI requires one for sustained use of E-utilities."
         )
-    if config.server.host not in {"127.0.0.1", "localhost", "::1"}:
+    if config.server.accounts and config.server.host not in LOOPBACK_HOSTS:
         warnings.append(
-            f"server.host is {config.server.host!r}. Until accounts arrive, Tessera has no "
-            "sign-in; anyone who can reach this address can curate."
+            f"server.host is {config.server.host!r}. Serve Tessera over HTTPS (for example "
+            "behind a reverse proxy) so that passwords and session cookies are encrypted."
         )
     return warnings

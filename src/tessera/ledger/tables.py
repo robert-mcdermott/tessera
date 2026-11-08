@@ -206,6 +206,64 @@ person_merge = Table(
 Index(None, person_merge.c.merged_id)
 Index(None, person_merge.c.survivor_id)
 
+# --- Accounts (PLT-06) ---------------------------------------------------------------------
+
+ROLES = ("admin", "curator", "researcher", "viewer")
+ACCOUNT_STATUSES = ("active", "disabled")
+
+account = Table(
+    "account",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("username", String(64), nullable=False, unique=True),
+    Column("display_name", String(200), nullable=False),
+    Column("email", String(320)),
+    Column("password_hash", String(255), nullable=False),  # scrypt; see tessera.auth.passwords
+    Column("status", String(16), nullable=False, server_default="active"),
+    # The researcher this account belongs to, so that they can review their own suggestions.
+    Column("person_id", ID, ForeignKey("person.id", ondelete="SET NULL")),
+    Column("created_at", UtcDateTime, nullable=False),
+    Column("updated_at", UtcDateTime, nullable=False),
+    Column("password_changed_at", UtcDateTime, nullable=False),
+    Column("last_sign_in_at", UtcDateTime),
+    CheckConstraint(_in("status", ACCOUNT_STATUSES), name="status"),
+)
+
+# A role, optionally limited to the people of one unit or to one person (CUR-06).
+role_grant = Table(
+    "role_grant",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("account_id", ID, ForeignKey("account.id", ondelete="CASCADE"), nullable=False),
+    Column("role", String(16), nullable=False),
+    Column("scope_type", String(16)),
+    Column("scope_id", ID),
+    Column("granted_by", String(200), nullable=False),
+    Column("granted_at", UtcDateTime, nullable=False),
+    CheckConstraint(_in("role", ROLES), name="role"),
+    CheckConstraint(
+        "(scope_type IS NULL AND scope_id IS NULL) OR "
+        "(scope_type IN ('unit', 'person') AND scope_id IS NOT NULL)",
+        name="scope",
+    ),
+)
+Index(None, role_grant.c.account_id)
+
+# Signed-in browsers. Only a hash of the session token is stored.
+auth_session = Table(
+    "auth_session",
+    metadata,
+    Column("token_hash", String(64), primary_key=True),
+    Column("account_id", ID, ForeignKey("account.id", ondelete="CASCADE"), nullable=False),
+    Column("csrf_token", String(64), nullable=False),
+    Column("created_at", UtcDateTime, nullable=False),
+    Column("last_seen_at", UtcDateTime, nullable=False),
+    Column("expires_at", UtcDateTime, nullable=False),
+    Column("revoked_at", UtcDateTime),
+    Column("user_agent", String(300)),
+)
+Index(None, auth_session.c.account_id)
+
 ingest_run = Table(
     "ingest_run",
     metadata,

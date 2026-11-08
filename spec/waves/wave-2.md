@@ -2,7 +2,7 @@
 
 **Goal:** turn the graph into discovery: who works on what, who should meet, and why. Make the evidence stronger with ORCID, and let more than one person use Tessera, each with the right permissions.
 
-**Branch:** `wave-2` · **Target version:** `0.2.0` · **Status:** ◐ slices 1–2 done; slice 3 next
+**Branch:** `wave-2` · **Target version:** `0.2.0` · **Status:** ◐ slices 1–3 done; slice 4 next
 
 ## Exit criteria
 
@@ -46,16 +46,16 @@ Requirements delivered: REC-02 (ORCID), REC-07, REC-08, CUR-05, CUR-06, CUR-10, 
 
 **Acceptance (met):** merge then unmerge leaves the ledger identical, including links both records decided differently; a merge survives a resolve and still unmerges cleanly; on the synthetic organization every roster-and-grant duplicate is proposed at 95% or higher and no pair of different people is; memberships show on profiles with their dates. On the pilot, which has no roster, no duplicates are proposed; a duplicate created from a one-row roster was proposed at 99%, merged, and undone through the web app.
 
-## Slice 3: Accounts and roles ☐
+## Slice 3: Accounts and roles ☑
 
 **Goal:** more than one person can use Tessera, each with the right permissions.
 
-- [ ] Ledger tables `user`, `role_grant`, and `session`; passwords hashed with the standard library's scrypt; sessions in `HttpOnly`, `SameSite=Strict` cookies with CSRF protection; sign-in and sign-out pages
-- [ ] Roles admin, curator, researcher, and viewer, enforced in every API route and in search (PLT-06); curators can be scoped to people or units; researchers review their own suggestions (CUR-06)
-- [ ] Every decision is attributed to the signed-in user; `tessera users add | list | disable | reset-password`
-- [ ] Single-operator mode remains for a server that listens on this machine only; listening on any other address requires accounts
+- [x] Ledger tables `account`, `role_grant`, and `auth_session` (migration 0005); passwords hashed with the standard library's scrypt; server-side sessions in `HttpOnly`, `SameSite=Strict` cookies with a CSRF token on every change and throttled sign-in; a sign-in page, a user menu with sign-out and password change, and an Accounts page for admins (ADR-0009)
+- [x] Roles admin, curator, researcher, and viewer, enforced in every API route through one policy table (PLT-06; search is read access, and discovered people stay with curators for everyone); curators can be scoped to units (and the units under them) or people; researchers review their own suggestions (CUR-06); the web app shows each person only what they may use
+- [x] Every decision is attributed to the signed-in user; `tessera users add | list | disable | enable | reset-password | roles`
+- [x] Single-operator mode remains for a server that listens on this machine only, and answers only to requests addressed to it; listening on any other address requires accounts; changes sent from another site are refused in both modes
 
-**Acceptance:** a test signs in as each role and checks every route; a scoped curator cannot decide outside their scope; no route is reachable without a session when accounts are on.
+**Acceptance (met):** a test signs in as each role and checks every route against the policy table, and fails if any route lacks a policy; a curator scoped to a unit decides only for its people and sees only them in the queue; a researcher reviews only their own suggestions; every API route but health, metadata, and signing in answers 401 without a session; CSRF, other-site, DNS-rebinding, throttling, expiry, sign-out, and last-admin protections are tested. Checked in the web app on the pilot data as a researcher and an admin.
 
 ## Slice 4: Evidence v2 ☐
 
@@ -116,3 +116,4 @@ Requirements delivered: REC-02 (ORCID), REC-07, REC-08, CUR-05, CUR-06, CUR-10, 
 | 2026-11-07 | ORCID's public API answers without credentials, so no credentials decision is needed. Tessera reads only directory members' iDs, at most four requests a second. |
 | 2026-11-08 | Slice 1 done. iDs are suggested from papers but only a curator confirms one, because a confirmed iD is decisive. Support for a suggestion is judged on evidence other than ORCID, so a decision about one iD never withdraws a person's second iD and ORCID evidence never supports itself. The model version is `authorship/v1.1` (hand-set weights); learned weights remain `authorship/v2` in slice 4. Found while testing: tied topics were listed in a random order in explanations, so every resolve rewrote hundreds of unchanged suggestions. |
 | 2026-11-08 | Slice 2 done. Merges move rows rather than resolving links through a pointer at read time, so every reader stays simple; a journal makes them exactly reversible. Automation never merges: duplicates are proposed for a curator. A roster without identifiers used to split a person listed under two units into two records; rows with the same full name in one file are now one person. Memberships stay one per person and unit (a second spell in the same unit updates the dates). |
+| 2026-11-08 | Slice 3 done. Accounts, roles, and sessions live in the ledger with no new dependency (ADR-0009). Authentication runs in a middleware so that it covers the API document and files too; authorization reads one policy per route. Found while testing: on SQLite, Python's driver kept schema changes outside the migration's transaction, so a failed migration could leave a half-built table; SQLAlchemy now issues BEGIN itself and DDL rolls back whole. Personal API tokens and single sign-on are left for later (wave 6 for SSO). |

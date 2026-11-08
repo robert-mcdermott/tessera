@@ -119,7 +119,7 @@ def test_profiles_and_search_show_current_units(instance: Instance, tmp_path: Pa
     import_roster(engine, roster)
     build_search(instance.config, instance.home, engine)
     engine.dispose()
-    with TestClient(create_app(instance.config)) as client:
+    with TestClient(create_app(instance.config), base_url="http://localhost") as client:
         [person] = client.get("/api/v1/people").json()["data"]
         assert person["units"] == ["Department of Medicine"]  # past units are not current
         profile = client.get(f"/api/v1/people/{person['id']}").json()["data"]

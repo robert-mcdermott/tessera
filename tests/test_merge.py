@@ -214,7 +214,7 @@ def test_duplicates_and_merges_over_the_api(dups: Duplicates) -> None:
     s = dups.s
     build_search(s.instance.config, s.instance.home, dups.engine)
     roster_id, grant_id, who = dups.pairs[0]
-    with TestClient(create_app(s.instance.config)) as client:
+    with TestClient(create_app(s.instance.config), base_url="http://localhost") as client:
         body = client.get("/api/v1/duplicates").json()
         assert body["meta"]["total"] == len(dups.pairs)
         item = next(i for i in body["data"] if i["merge"]["id"] == roster_id)

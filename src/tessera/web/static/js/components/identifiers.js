@@ -26,7 +26,8 @@ export function identifiersCard(profile, refresh) {
   const items = [...profile.identifiers].sort((a, b) =>
     (ORDER[a.status] ?? 3) - (ORDER[b.status] ?? 3) || (b.papers ?? 0) - (a.papers ?? 0)
     || a.scheme.localeCompare(b.scheme));
-  const editable = profile.status !== "merged"; // a merged record's identifiers moved on
+  // A merged record's identifiers moved on; only those who curate this person may change them.
+  const editable = profile.status !== "merged" && profile.can_curate !== false;
   const add = editable ? h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => addIdentifier(profile, refresh) },
     "Add") : null;
   const confirmed = items.some((i) => i.scheme === "orcid" && i.status === "accepted");

@@ -74,9 +74,12 @@ A configured `accent_color` is used as given by day and lightened for dark mode.
 
 | Setting | Type | Default | Meaning |
 |---|---|---|---|
-| `host` | text | `"127.0.0.1"` | Address to listen on. Tessera has no sign-in yet, so keep it on this machine; `tessera doctor` warns about anything else |
+| `host` | text | `"127.0.0.1"` | Address to listen on. Anything other than this machine needs `accounts = true` |
 | `port` | number | `8000` | Port to listen on |
-| `operator` | text | `"Operator"` | The name recorded on every curation decision |
+| `operator` | text | `"Operator"` | Without accounts, the name recorded on every curation decision |
+| `accounts` | true/false | `false` | Require sign-in with local accounts and roles; see [Accounts and sign-in](operations.md#accounts-and-sign-in) |
+| `session_idle_hours` | number | `12` | A session ends this long after it was last used (1 to 720) |
+| `session_max_days` | number | `7` | A session never lasts longer than this from sign-in (1 to 90) |
 
 ## `[ledger]`
 

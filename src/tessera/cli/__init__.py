@@ -17,6 +17,7 @@ from tessera import PRODUCT_NAME, TAGLINE, __version__
 from tessera.config import (
     DEFAULT_CONFIG_NAME,
     ENV_CONFIG_PATH,
+    LOOPBACK_HOSTS,
     config_warnings,
     example_config_text,
     find_config_path,
@@ -154,6 +155,44 @@ def build_parser() -> argparse.ArgumentParser:
     lister.add_argument("--status", default="active", help="active | former | candidate | all")
     lister.add_argument("--limit", type=int, default=50, help="at most this many (default: 50)")
     lister.set_defaults(handler=cmd_people_list)
+
+    users_cmd = commands.add_parser("users", help="local accounts and their roles")
+    users_actions = users_cmd.add_subparsers(dest="users_command", metavar="ACTION", required=True)
+    role_help = (
+        "admin, curator, researcher, or viewer; a curator for some people only is "
+        "curator=unit:<name or code> or curator=person:<ID> (repeatable)"
+    )
+    adder = users_actions.add_parser("add", help="create an account (prompts for a password)")
+    adder.add_argument("username", help="lowercase letters, digits, dots, dashes, underscores")
+    adder.add_argument("--name", help="the name shown and recorded on decisions")
+    adder.add_argument("--role", action="append", required=True, metavar="ROLE", help=role_help)
+    adder.add_argument("--email", help="contact address")
+    adder.add_argument("--person", metavar="ID", help="the person a researcher account belongs to")
+    adder.add_argument(
+        "--password-stdin", action="store_true", help="read the password from standard input"
+    )
+    adder.set_defaults(handler=cmd_users_add)
+    users_actions.add_parser("list", help="list accounts and roles").set_defaults(
+        handler=cmd_users_list
+    )
+    for action, text in (("disable", "sign an account out and block it"), ("enable", "unblock")):
+        sub = users_actions.add_parser(action, help=text)
+        sub.add_argument("username")
+        sub.set_defaults(
+            handler=cmd_users_status, status="disabled" if action == "disable" else "active"
+        )
+    resetter = users_actions.add_parser(
+        "reset-password", help="set a new password (signs the account out everywhere)"
+    )
+    resetter.add_argument("username")
+    resetter.add_argument(
+        "--password-stdin", action="store_true", help="read the password from standard input"
+    )
+    resetter.set_defaults(handler=cmd_users_password)
+    roles = users_actions.add_parser("roles", help="replace an account's roles")
+    roles.add_argument("username")
+    roles.add_argument("--role", action="append", required=True, metavar="ROLE", help=role_help)
+    roles.set_defaults(handler=cmd_users_roles)
 
     eval_cmd = commands.add_parser("eval", help="evaluate matching quality")
     eval_actions = eval_cmd.add_subparsers(dest="eval_command", metavar="WHAT", required=True)
@@ -632,10 +671,24 @@ def cmd_serve(args: argparse.Namespace) -> int:
     port = args.port or config.server.port
     for warning in config_warnings(config):
         log.warning("%s", warning)
-    if args.host and args.host not in {"127.0.0.1", "localhost", "::1"}:
-        log.warning(
-            "Listening on %s: Tessera has no sign-in yet; anyone who can reach it can curate.", host
+    if not config.server.accounts and host not in LOOPBACK_HOSTS:
+        raise TesseraError(
+            f"Without accounts, Tessera listens on this machine only, not on {host}. Set "
+            "server.accounts = true and create an admin with `tessera users add`."
         )
+    if config.server.accounts:
+        from tessera.auth.accounts import active_admins
+
+        engine = _engine(config)
+        try:
+            admins = active_admins(engine)
+        finally:
+            engine.dispose()
+        if not admins:
+            raise TesseraError(
+                "Accounts are on, but no admin can sign in. Create one first: "
+                "tessera users add <username> --role admin"
+            )
     assert config.path is not None
     os.environ[ENV_CONFIG_PATH] = str(Path(config.path).resolve())
     print(f"{config.branding.product_name} running at http://{host}:{port}/  (Ctrl-C to stop)")
@@ -649,6 +702,150 @@ def cmd_serve(args: argparse.Namespace) -> int:
         log_level="warning" if args.quiet else "info",
         server_header=False,
     )
+    return EXIT_OK
+
+
+# --- users ---------------------------------------------------------------------------------------
+
+
+def _read_password(from_stdin: bool) -> str:
+    import getpass
+
+    if from_stdin:
+        return sys.stdin.readline().rstrip("\n")
+    first = getpass.getpass("Password (at least 12 characters): ")
+    if getpass.getpass("Again: ") != first:
+        raise TesseraError("The two passwords differ.")
+    return first
+
+
+def _parse_roles(conn, specs: list[str]):  # type: ignore[no-untyped-def]
+    from tessera.auth.accounts import Grant, resolve_scope
+
+    grants = []
+    for spec in specs:
+        role, _, scope = spec.partition("=")
+        grants.append(Grant(role.strip().lower(), *resolve_scope(conn, scope.strip() or None)))
+    return grants
+
+
+def _describe_roles(grants, units: dict[str, str]) -> str:  # type: ignore[no-untyped-def]
+    out = []
+    for g in grants:
+        if g.scope_type == "unit":
+            out.append(f"{g.role} ({units.get(g.scope_id, g.scope_id)})")
+        elif g.scope_type == "person":
+            out.append(f"{g.role} ({g.scope_id})")
+        else:
+            out.append(g.role)
+    return ", ".join(out)
+
+
+def cmd_users_add(args: argparse.Namespace) -> int:
+    from tessera.auth import accounts
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    try:
+        with engine.connect() as conn:
+            grants = _parse_roles(conn, args.role)
+        password = _read_password(args.password_stdin)
+        account_id = accounts.create_account(
+            engine,
+            args.username,
+            args.name or args.username,
+            password,
+            grants,
+            actor="command line",
+            email=args.email,
+            person_id=args.person,
+        )
+    finally:
+        engine.dispose()
+    print(f"Created {args.username.lower()} ({account_id}).")
+    if not config.server.accounts:
+        print(
+            "Accounts are off: set server.accounts = true in the configuration to require sign-in."
+        )
+    return EXIT_OK
+
+
+def cmd_users_list(args: argparse.Namespace) -> int:
+    from sqlalchemy import select
+
+    from tessera.auth import accounts
+    from tessera.ledger.tables import unit
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    try:
+        rows = accounts.list_accounts(engine)
+        with engine.connect() as conn:
+            units = dict(conn.execute(select(unit.c.id, unit.c.name)).all())
+    finally:
+        engine.dispose()
+    if not rows:
+        print("No accounts yet. Create an admin: tessera users add <username> --role admin")
+        return EXIT_OK
+    for r in rows:
+        seen = r["last_sign_in_at"].date().isoformat() if r["last_sign_in_at"] else "never"
+        print(
+            f"{r['username']:<20} {r['status']:<9} {_describe_roles(r['grants'], units):<40} "
+            f"{r['display_name']} · last sign-in {seen}"
+        )
+    return EXIT_OK
+
+
+def _account_or_fail(engine, username: str):  # type: ignore[no-untyped-def]
+    from tessera.auth import accounts
+
+    row = accounts.find_account(engine, username)
+    if row is None:
+        raise TesseraError(f"No account {username!r}.")
+    return row
+
+
+def cmd_users_status(args: argparse.Namespace) -> int:
+    from tessera.auth import accounts
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    try:
+        row = _account_or_fail(engine, args.username)
+        accounts.set_status(engine, row["id"], args.status)
+    finally:
+        engine.dispose()
+    print(f"{row['username']} is now {args.status}.")
+    return EXIT_OK
+
+
+def cmd_users_password(args: argparse.Namespace) -> int:
+    from tessera.auth import accounts
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    try:
+        row = _account_or_fail(engine, args.username)
+        accounts.set_password(engine, row["id"], _read_password(args.password_stdin))
+    finally:
+        engine.dispose()
+    print(f"Set a new password for {row['username']}; their sessions were signed out.")
+    return EXIT_OK
+
+
+def cmd_users_roles(args: argparse.Namespace) -> int:
+    from tessera.auth import accounts
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    try:
+        row = _account_or_fail(engine, args.username)
+        with engine.connect() as conn:
+            grants = _parse_roles(conn, args.role)
+        accounts.update_account(engine, row["id"], actor="command line", grants=grants)
+    finally:
+        engine.dispose()
+    print(f"{row['username']}: {', '.join(g.role for g in grants)}.")
     return EXIT_OK
 
 

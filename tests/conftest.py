@@ -52,5 +52,5 @@ def instance(config_file: Path) -> Instance:
 
 @pytest.fixture
 def client(instance: Instance) -> Iterator[TestClient]:
-    with TestClient(create_app(instance.config)) as test_client:
+    with TestClient(create_app(instance.config), base_url="http://localhost") as test_client:
         yield test_client

@@ -52,7 +52,7 @@ def setup(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Setup]:
     resolve(config, home, engine, today=TODAY)
     build_search(config, home, engine)
     engine.dispose()
-    with TestClient(create_app(config)) as client:
+    with TestClient(create_app(config), base_url="http://localhost") as client:
         yield Setup(client, world, config, home)
 
 

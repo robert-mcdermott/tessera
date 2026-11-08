@@ -43,7 +43,7 @@ def world_client(
     resolve(config, home, engine, today=date(2026, 11, 7))
     build_search(config, home, engine)
     engine.dispose()
-    with TestClient(create_app(config)) as client:
+    with TestClient(create_app(config), base_url="http://localhost") as client:
         yield client, world
 
 
@@ -391,7 +391,7 @@ def test_api_reference_page(client: TestClient) -> None:
 
 
 def test_endpoints_explain_a_missing_index(instance: Instance) -> None:
-    with TestClient(create_app(instance.config)) as client:
+    with TestClient(create_app(instance.config), base_url="http://localhost") as client:
         response = client.get("/api/v1/people")
         assert response.status_code == 503
         assert "tessera build search" in response.json()["detail"]

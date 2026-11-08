@@ -47,6 +47,7 @@ def health(request: Request) -> JSONResponse:
 @router.get("/meta", summary="Product, branding, and organization details for the web app")
 def meta(request: Request) -> dict[str, Any]:
     config = _config(request)
+    signed_in = getattr(request.state, "principal", None) is not None
     return {
         "data": {
             "product": {
@@ -67,8 +68,12 @@ def meta(request: Request) -> dict[str, Any]:
                 "name": config.organization.name,
                 "short_name": config.organization.short_name,
             },
-            "mode": {"accounts": False, "operator": config.server.operator},
-            "sources": _freshness(request, config),
+            "mode": {
+                "accounts": config.server.accounts,
+                "operator": None if config.server.accounts else config.server.operator,
+            },
+            # Before sign-in, only what the sign-in page shows (name, branding).
+            "sources": _freshness(request, config) if signed_in else [],
         }
     }
 
