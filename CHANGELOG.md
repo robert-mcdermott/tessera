@@ -7,6 +7,7 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 ### Added
 
 - `tessera demo [PATH]` builds a complete installation for an invented organization, the Corvane Institute for Biomedical Research: about 100 people in 22 labs, 700 publications, grants, clinical studies, ORCID records, and a curator's decisions, so every screen has something to show. Identifiers are chosen so they can never be mistaken for real ones. It is also what the documentation's screenshots are taken from.
+- A documentation site, built from the guides with `node docs/site/build.mjs` (Node.js 22, no packages): a menu in reading order, search, light and dark themes from Tessera's own design tokens, an API reference generated from the OpenAPI document, and a check that fails the build on any broken link or anchor.
 
 ## 0.2.0 (2026-11-08)
 
