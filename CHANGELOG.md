@@ -6,6 +6,7 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 
 ### Added
 
+- Groups: divisions, departments, programs, centers, shared resources, labs, and any other kind you configure (`[vocabulary]` names the kinds, the membership roles, and what the app calls a group). A group can sit under several others, has an address that survives renames, and can be archived or merged into another. Memberships carry a role as well as a title and dates; ending one keeps the person as an alumnus, and removing one is for mistakes. **Admin → Groups** curates all of it, with each group's history. `tessera groups import` (and `POST /api/v1/groups/import`) reads groups and memberships from CSV or JSON with the source's own identifiers, so importing the same source again updates instead of duplicating; `--complete` archives what the source no longer lists and `--dry-run` changes nothing. The roster import goes through the same path and can give a group's kind and a person's role. A curator limited to a group reaches the groups beneath it through any parent. Ledger migration 0007.
 - MeSH, the National Library of Medicine's vocabulary, as a source: `tessera sync` reads the annual descriptor file once a year (`[sources.mesh]`). Expert search understands synonyms ("cancer" is Neoplasms, "AML" is acute myeloid leukemia), shows which synonym a concept came from, and lets a broad heading include the narrower ones beneath it; concept search finds headings by synonym; profiles show research areas rolled up the MeSH hierarchy; and the concept landscape is colored by MeSH category. NLM is credited, with the MeSH year, wherever these appear. New lake table `mesh_descriptor`; `derived/concept_vocabulary.parquet` and `derived/concept_area.parquet`.
 
 - `tessera demo [PATH]` builds a complete installation for an invented organization, the Corvane Institute for Biomedical Research: about 100 people in 22 labs, 700 publications, grants, clinical studies, ORCID records, and a curator's decisions, so every screen has something to show. Identifiers are chosen so they can never be mistaken for real ones. It is also what the documentation's screenshots are taken from.
@@ -15,6 +16,7 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 
 ### Changed
 
+- Units are now groups. The API's person `units` entries add the membership's role, the group's kind and address; `GET /people?unit=` and the unit matrix list only active groups.
 - In the person focus view, the person in focus stays at the centre, and topics are drawn larger than the people around them, so people gather around the topics they share.
 
 ### Fixed

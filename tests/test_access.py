@@ -174,6 +174,8 @@ def concrete(w: World, path: str) -> str:
         .replace("{merge_id}", "mrg_missing")
         .replace("{account_id}", "usr_missing")
         .replace("{batch_id}", "bat_missing")
+        .replace("{group_ref}", "unt_missing")
+        .replace("{membership_id}", "asr_missing")
     )
 
 
@@ -196,6 +198,7 @@ HARMLESS: dict[tuple[str, str], Any] = {
     ("POST", "/api/v1/merges"): {"merge": "per_missing", "into": "per_missing2"},
     ("POST", "/api/v1/merges/{merge_id}/undo"): {},
     ("POST", "/api/v1/accounts"): {"username": "x"},
+    ("POST", "/api/v1/groups"): {"name": ""},
     ("POST", "/api/v1/accounts/{account_id}"): {},
     ("POST", "/api/v1/session/password"): {"current_password": "wrong", "new_password": "x"},
 }

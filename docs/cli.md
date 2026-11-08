@@ -239,6 +239,44 @@ usage: tessera people list [-h] [--status STATUS] [--limit LIMIT]
 | `--status STATUS` | active \| former \| candidate \| all |
 | `--limit LIMIT` | at most this many (default: 50) |
 
+## `tessera groups`
+
+Groups: divisions, programs, labs, and other kinds.
+
+```text
+usage: tessera groups [-h] ACTION ...
+```
+
+### `tessera groups import`
+
+Import groups or memberships from a CSV or JSON file.
+
+Import groups (a CSV file with a 'name' column) or memberships (a CSV file with a 'group' column), or both (a JSON file with 'groups' and 'memberships'). Rows carry the source's own identifiers, so importing the same source again updates what it made earlier. See docs/groups.md for the columns.
+
+```text
+usage: tessera groups import [-h] --source SOURCE [--complete] [--dry-run] path
+```
+
+| Argument | Meaning |
+|---|---|
+| `path` | CSV or JSON file |
+| `--source SOURCE` | a short name for where the file comes from, like hr |
+| `--complete` | the file is the source's whole list: archive its missing groups and end its missing current memberships today |
+| `--dry-run` | report what would change; change nothing |
+
+### `tessera groups list`
+
+List groups.
+
+```text
+usage: tessera groups list [-h] [--kind KIND] [--all]
+```
+
+| Argument | Meaning |
+|---|---|
+| `--kind KIND` | only groups of this kind |
+| `--all` | include archived groups |
+
 ## `tessera users`
 
 Local accounts and their roles.

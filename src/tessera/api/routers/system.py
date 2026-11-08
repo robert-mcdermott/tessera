@@ -74,6 +74,7 @@ def meta(request: Request) -> dict[str, Any]:
             },
             # Before sign-in, only what the sign-in page shows (name, branding).
             "sources": _freshness(request, config) if signed_in else [],
+            "vocabulary": config.vocabulary.to_json() if signed_in else None,
         }
     }
 

@@ -33,12 +33,16 @@ const NAV = [
   { section: "Admin", items: [
     { href: "/admin/sources", label: "Sources", iconName: "sources", match: (p) => p.startsWith("/admin/sources") },
     { href: "/admin/evidence", label: "Evidence", iconName: "sparkle", when: "curate_any", match: (p) => p.startsWith("/admin/evidence") },
+    { href: "/admin/groups", label: () => groupsLabel, iconName: "unit", when: "admin", match: (p) => p.startsWith("/admin/groups") },
     { href: "/admin/accounts", label: "Accounts", iconName: "people", when: "admin", match: (p) => p.startsWith("/admin/accounts") },
     { href: "/api/docs", label: "API reference", iconName: "api", match: () => false, external: true },
   ] },
 ];
 
+let groupsLabel = "Groups"; // what the organization calls groups ([vocabulary])
+
 export function mountShell(root, meta, { onSearch }) {
+  groupsLabel = meta.vocabulary?.groups ?? groupsLabel;
   const product = meta.product;
   const org = meta.organization;
   const navItems = [];

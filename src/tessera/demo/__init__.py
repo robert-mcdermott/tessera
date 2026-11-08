@@ -120,7 +120,8 @@ def build_demo(
 
         roster = path / "roster.csv"
         _write_roster(world, roster)
-        import_roster(engine, roster, today=today)  # before grants, as an organization would
+        # Before grants, as an organization would.
+        import_roster(engine, roster, today=today, vocabulary=config.vocabulary)
         resolve(config, home, engine, today=today)
         merged = _merge_duplicates(engine, keep_open=2)
         resolve(config, home, engine, today=today)
@@ -152,14 +153,11 @@ def _remove(directory: Path) -> None:
 
 
 def _write_roster(world: World, path: Path) -> None:
-    lines = ["family,given,email,orcid,unit,title,start"]
+    lines = ["family,given,email,orcid,unit,kind,title,start"]
     for row in world.roster:
-        lines.append(
-            ",".join(
-                f'"{row[k]}"'
-                for k in ("family", "given", "email", "orcid", "unit", "title", "start")
-            )
-        )
+        values = [row[k] for k in ("family", "given", "email", "orcid", "unit")]
+        values += ["division", row["title"], row["start"]]  # the roster's units are divisions
+        lines.append(",".join(f'"{v}"' for v in values))
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 

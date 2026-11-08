@@ -140,6 +140,63 @@ class DiscoveryConfig:
     similar_per_person: int = 25  # at most this many similar people kept for each person
 
 
+# Group kinds and membership roles: (key, label) pairs, in the order the app offers them. Keys
+# are stored with each group and membership, so rename a label freely but keep its key.
+DEFAULT_KINDS: tuple[tuple[str, str], ...] = (
+    ("division", "Division"),
+    ("department", "Department"),
+    ("program", "Program"),
+    ("center", "Center"),
+    ("institute", "Institute"),
+    ("core", "Shared resource"),
+    ("lab", "Lab"),
+    ("team", "Team"),
+)
+DEFAULT_ROLES: tuple[tuple[str, str], ...] = (
+    ("lead", "Lead"),
+    ("co_lead", "Co-lead"),
+    ("member", "Member"),
+    ("staff", "Staff"),
+    ("trainee", "Trainee"),
+    ("affiliate", "Affiliate"),
+)
+_KEY = re.compile(r"^[a-z][a-z0-9_]{0,39}$")
+
+
+@dataclass(frozen=True)
+class VocabularyConfig:
+    """What the app calls groups, their kinds, and membership roles (PLT-11)."""
+
+    group: str = "Group"
+    groups: str = "Groups"
+    kinds: tuple[tuple[str, str], ...] = DEFAULT_KINDS
+    roles: tuple[tuple[str, str], ...] = DEFAULT_ROLES
+    leader_roles: tuple[str, ...] = ("lead", "co_lead")  # shown as the group's leaders
+    default_role: str = "member"  # for memberships that name no role
+
+    def kind_label(self, key: str) -> str:
+        return dict(self.kinds).get(key) or key.replace("_", " ").capitalize()
+
+    def role_label(self, key: str) -> str:
+        return dict(self.roles).get(key) or key.replace("_", " ").capitalize()
+
+    @property
+    def default_kind(self) -> str:
+        keys = [k for k, _ in self.kinds]
+        return "department" if "department" in keys else keys[0]
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "group": self.group,
+            "groups": self.groups,
+            "kinds": [{"id": k, "label": v} for k, v in self.kinds],
+            "roles": [
+                {"id": k, "label": v, "leader": k in self.leader_roles} for k, v in self.roles
+            ],
+            "default_role": self.default_role,
+        }
+
+
 @dataclass(frozen=True)
 class Config:
     organization: OrganizationConfig = field(default_factory=OrganizationConfig)
@@ -151,6 +208,7 @@ class Config:
     sync: SyncConfig = field(default_factory=SyncConfig)
     evidence: EvidenceConfig = field(default_factory=EvidenceConfig)
     discovery: DiscoveryConfig = field(default_factory=DiscoveryConfig)
+    vocabulary: VocabularyConfig = field(default_factory=VocabularyConfig)
     path: Path | None = None  # the file this configuration was loaded from
 
     @property
@@ -170,6 +228,7 @@ _SECTIONS: dict[str, type] = {
     "sync": SyncConfig,
     "evidence": EvidenceConfig,
     "discovery": DiscoveryConfig,
+    "vocabulary": VocabularyConfig,
 }
 _SOURCE_NAMES = ("pubmed", "icite", "reporter", "ctgov", "orcid", "mesh")
 _PATH_FIELDS = {("data", "home"), ("branding", "logo_light"), ("branding", "logo_dark")}
@@ -232,6 +291,8 @@ def parse_config(
         table = _apply_env(name, cls, table, environ, problems)
         if cls is SourcesConfig:
             sections[name] = _build_sources(table, problems)
+        elif cls is VocabularyConfig:
+            sections[name] = _build_vocabulary(table, problems)
         else:
             sections[name] = _build(cls, name, table, problems)
 
@@ -361,6 +422,51 @@ def _build_sources(table: dict[str, Any], problems: list[str]) -> SourcesConfig:
         else:
             problems.append(f"unknown setting sources.{key}")
     return SourcesConfig(**kwargs)
+
+
+def _pairs(value: Any, label: str, problems: list[str]) -> tuple[tuple[str, str], ...] | None:
+    """A ``key = "Label"`` table, in order."""
+    if not isinstance(value, dict) or not value:
+        problems.append(f'[{label}] must be a table of key = "Label" entries')
+        return None
+    pairs = []
+    for key, text in value.items():
+        if not _KEY.match(key):
+            problems.append(f"{label}.{key}: keys are lowercase letters, digits, and underscores")
+        elif not isinstance(text, str) or not text.strip() or len(text) > 60:
+            problems.append(f"{label}.{key} must be a label of 1 to 60 characters")
+        else:
+            pairs.append((key, text.strip()))
+    return tuple(pairs) or None
+
+
+def _build_vocabulary(table: dict[str, Any], problems: list[str]) -> VocabularyConfig:
+    kwargs: dict[str, Any] = {}
+    for key, value in table.items():
+        if key in ("kinds", "roles"):
+            pairs = _pairs(value, f"vocabulary.{key}", problems)
+            if pairs:
+                kwargs[key] = pairs
+        elif key in ("group", "groups", "default_role"):
+            converted = _convert(value, "str", f"vocabulary.{key}", problems)
+            if converted:
+                kwargs[key] = converted.strip()
+        elif key == "leader_roles":
+            converted = _convert(value, "tuple[str, ...]", f"vocabulary.{key}", problems)
+            if converted is not None:
+                kwargs[key] = converted
+        else:
+            problems.append(f"unknown setting vocabulary.{key}")
+    vocabulary = VocabularyConfig(**kwargs)
+    roles = {k for k, _ in vocabulary.roles}
+    for role in vocabulary.leader_roles:
+        if role not in roles:
+            problems.append(f"vocabulary.leader_roles: {role!r} is not in [vocabulary.roles]")
+    if vocabulary.default_role not in roles:
+        problems.append(
+            f"vocabulary.default_role: {vocabulary.default_role!r} is not in [vocabulary.roles]"
+        )
+    return vocabulary
 
 
 def _resolve_paths(config: Config, base_dir: Path) -> Config:

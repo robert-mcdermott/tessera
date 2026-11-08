@@ -248,3 +248,8 @@ fieldset.field legend { font-size: var(--fs-sm); font-weight: 600; margin-bottom
 .area-list .tabular { text-align: right; }
 .chip-via { color: var(--text-subtle); font-weight: 400; }
 .drawer-subhead { font-size: var(--fs-xs); margin: var(--space-3) 0 0; color: var(--text-subtle); text-transform: uppercase; letter-spacing: .06em; }
+
+/* ---------- Groups (admin) ---------- */
+.picker-results:empty { display: none; }
+.picker-results { max-height: 260px; overflow-y: auto; }
+.picker-option { justify-content: flex-start; width: 100%; text-align: left; height: auto; min-height: 32px; padding-block: 6px; }

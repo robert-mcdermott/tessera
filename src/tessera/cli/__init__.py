@@ -167,6 +167,39 @@ def build_parser() -> argparse.ArgumentParser:
     lister.add_argument("--limit", type=int, default=50, help="at most this many (default: 50)")
     lister.set_defaults(handler=cmd_people_list)
 
+    groups_cmd = commands.add_parser(
+        "groups", help="groups: divisions, programs, labs, and other kinds"
+    )
+    groups_actions = groups_cmd.add_subparsers(
+        dest="groups_command", metavar="ACTION", required=True
+    )
+    group_import = groups_actions.add_parser(
+        "import",
+        help="import groups or memberships from a CSV or JSON file",
+        description="Import groups (a CSV file with a 'name' column) or memberships (a CSV "
+        "file with a 'group' column), or both (a JSON file with 'groups' and 'memberships'). "
+        "Rows carry the source's own identifiers, so importing the same source again updates "
+        "what it made earlier. See docs/groups.md for the columns.",
+    )
+    group_import.add_argument("path", type=Path, help="CSV or JSON file")
+    group_import.add_argument(
+        "--source", required=True, help="a short name for where the file comes from, like hr"
+    )
+    group_import.add_argument(
+        "--complete",
+        action="store_true",
+        help="the file is the source's whole list: archive its missing groups and end its "
+        "missing current memberships today",
+    )
+    group_import.add_argument(
+        "--dry-run", action="store_true", help="report what would change; change nothing"
+    )
+    group_import.set_defaults(handler=cmd_groups_import)
+    group_list = groups_actions.add_parser("list", help="list groups")
+    group_list.add_argument("--kind", help="only groups of this kind")
+    group_list.add_argument("--all", action="store_true", help="include archived groups")
+    group_list.set_defaults(handler=cmd_groups_list)
+
     users_cmd = commands.add_parser("users", help="local accounts and their roles")
     users_actions = users_cmd.add_subparsers(dest="users_command", metavar="ACTION", required=True)
     role_help = (
@@ -677,7 +710,7 @@ def cmd_people_import(args: argparse.Namespace) -> int:
     config, _ = _load(args)
     engine = _engine(config)
     try:
-        stats = import_roster(engine, args.path)
+        stats = import_roster(engine, args.path, vocabulary=config.vocabulary)
     finally:
         engine.dispose()
     print(f"roster: {stats.rows} rows, {stats.created} people created, {stats.matched} matched")
@@ -730,6 +763,76 @@ def cmd_people_list(args: argparse.Namespace) -> int:
     finally:
         engine.dispose()
     table(rows, headers=("id", "name", "status", "accepted papers", "suggested"))
+    return EXIT_OK
+
+
+def cmd_groups_import(args: argparse.Namespace) -> int:
+    from tessera.groups.importer import import_groups, read_file
+    from tessera.search import update
+
+    config, home = _load(args)
+    engine = _engine(config)
+    try:
+        stats = import_groups(
+            engine,
+            read_file(args.path),
+            source=args.source,
+            vocabulary=config.vocabulary,
+            complete=args.complete,
+            dry_run=args.dry_run,
+        )
+        if not args.dry_run and stats.people:
+            update.apply(config, home, engine, people=stats.people)
+    finally:
+        engine.dispose()
+
+    def counts(c: dict[str, int]) -> str:
+        return ", ".join(f"{n} {k}" for k, n in sorted(c.items())) or "none"
+
+    prefix = "would import" if args.dry_run else "imported"
+    print(f"{stats.source}: {prefix} groups ({counts(stats.groups)}); "
+          f"memberships ({counts(stats.memberships)})")  # fmt: skip
+    for problem in stats.skipped[:20]:
+        print(f"  skipped {problem}")
+    if len(stats.skipped) > 20:
+        print(f"  … and {len(stats.skipped) - 20} more skipped")
+    return EXIT_OK if not stats.skipped else EXIT_PARTIAL
+
+
+def cmd_groups_list(args: argparse.Namespace) -> int:
+    from sqlalchemy import select
+
+    from tessera.groups import store as groups
+    from tessera.ledger.tables import unit
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    statuses = ("active", "archived") if args.all else ("active",)
+    query = select(unit).where(unit.c.status.in_(statuses)).order_by(unit.c.kind, unit.c.name)
+    if args.kind:
+        query = query.where(unit.c.kind == args.kind)
+    try:
+        with engine.connect() as conn:
+            rows = [dict(r) for r in conn.execute(query).mappings()]
+            counts = groups.member_counts(conn)
+            parents = groups.parents_of(conn, [r["id"] for r in rows])
+    finally:
+        engine.dispose()
+    table(
+        [
+            (
+                r["slug"],
+                r["name"],
+                config.vocabulary.kind_label(r["kind"]),
+                "; ".join(p["name"] for p in parents.get(r["id"], [])),
+                counts.get(r["id"], {}).get("current", 0),
+                r["source"] + (f":{r['external_id']}" if r["external_id"] else ""),
+                r["status"],
+            )
+            for r in rows
+        ],
+        headers=("address", "name", "kind", "within", "members", "source", "status"),
+    )
     return EXIT_OK
 
 

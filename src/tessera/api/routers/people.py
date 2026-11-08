@@ -31,8 +31,8 @@ from tessera.core.clock import utc_now
 from tessera.core.errors import TesseraError
 from tessera.core.ids import new_id
 from tessera.evidence import store
-from tessera.evidence.memberships import is_current
 from tessera.evidence.merge import active_merges
+from tessera.groups import store as groups
 from tessera.ledger.tables import (
     assertion,
     curation_event,
@@ -230,7 +230,12 @@ def get_person(request: Request, person_id: str) -> dict[str, Any]:
                 ).where(person_name.c.person_id == person_id)
             ).mappings()
         ]
-        units = {r.id: r.name for r in conn.execute(select(unit.c.id, unit.c.name))}
+        units = {
+            r.id: dict(r._mapping)
+            for r in conn.execute(
+                select(unit.c.id, unit.c.name, unit.c.slug, unit.c.kind, unit.c.status)
+            )
+        }
     links = store.assertions_for(engine, subject_id=person_id)
     authored = [a for a in links if a["predicate"] == "authored"]
     identifiers = person_identifiers(request, person_id, authored)
@@ -245,16 +250,27 @@ def get_person(request: Request, person_id: str) -> dict[str, Any]:
         ),
     }
     today = date.today()
-    memberships = [
-        {
-            "unit": units.get(a["object_id"], a["object_id"]),
-            "unit_id": a["object_id"],
-            **(a["qualifiers"] or {}),
-            "current": is_current(a["qualifiers"], today),
-        }
-        for a in links
-        if a["predicate"] == "member_of"
-    ]
+    vocabulary = config.vocabulary
+    memberships = []
+    for a in links:
+        if a["predicate"] != "member_of" or a["status"] != "accepted":
+            continue
+        group = units.get(a["object_id"]) or {"name": a["object_id"], "kind": None}
+        view = groups.membership_view(a, vocabulary, today)
+        memberships.append(
+            {
+                "unit": group["name"],
+                "unit_id": a["object_id"],
+                "membership_id": a["id"],
+                "group_slug": group.get("slug"),
+                "group_status": group.get("status"),
+                "kind": group["kind"],
+                "kind_label": vocabulary.kind_label(group["kind"]) if group["kind"] else None,
+                **{k: view[k] for k in ("role", "role_label", "leader", "title", "start", "end")},
+                "source": view["source"],
+                "current": view["current"],
+            }
+        )
     memberships.sort(key=lambda m: (m.get("start") or "", m["unit"]), reverse=True)
     memberships.sort(key=lambda m: not m["current"])  # current first, latest start first
     merges = active_merges(engine, person_id)

@@ -103,18 +103,58 @@ person_identifier = Table(
 )
 Index(None, person_identifier.c.scheme, person_identifier.c.value)
 
+# Groups: divisions, departments, programs, centers, labs, and any other kind the organization
+# configures ([vocabulary.kinds]). The table keeps its first name, ``unit``. Each group records
+# where it came from (``manual``, ``roster``, or a named feed) and its identifier there, so a
+# later import from the same source updates it instead of adding a duplicate.
+GROUP_STATUSES = ("active", "archived", "merged")
+
 unit = Table(
     "unit",
     metadata,
     Column("id", ID, primary_key=True),
     Column("name", String(300), nullable=False),
     Column("kind", String(40), nullable=False, server_default="department"),
-    Column("parent_id", ID, ForeignKey("unit.id", ondelete="SET NULL")),
     Column("code", String(80), unique=True),
+    Column("slug", String(120), unique=True),  # the group's address, /groups/<slug>
+    Column("short_name", String(80)),
+    Column("description", Text),
+    Column("status", String(16), nullable=False, server_default="active"),
+    Column("merged_into", ID, ForeignKey("unit.id", ondelete="SET NULL")),
+    Column("source", String(40), nullable=False, server_default="manual"),
+    Column("external_id", String(200)),
     Column("created_at", UtcDateTime, nullable=False),
     Column("updated_at", UtcDateTime, nullable=False),
+    UniqueConstraint("source", "external_id"),
+    CheckConstraint(_in("status", GROUP_STATUSES), name="status"),
 )
-Index(None, unit.c.parent_id)
+
+# A group may sit under several others (a program that spans divisions). ``source`` says who
+# made the link, so an import replaces only the links it supplied.
+unit_parent = Table(
+    "unit_parent",
+    metadata,
+    Column("child_id", ID, ForeignKey("unit.id", ondelete="CASCADE"), primary_key=True),
+    Column("parent_id", ID, ForeignKey("unit.id", ondelete="CASCADE"), primary_key=True),
+    Column("source", String(40), nullable=False, server_default="manual"),
+    Column("created_at", UtcDateTime, nullable=False),
+    CheckConstraint("child_id <> parent_id", name="not_self"),
+)
+Index(None, unit_parent.c.parent_id)
+
+# Every change to a group and its memberships, append-only: who, what, and the values before.
+unit_event = Table(
+    "unit_event",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("unit_id", ID, ForeignKey("unit.id", ondelete="CASCADE"), nullable=False),
+    Column("actor", String(200), nullable=False),
+    Column("action", String(20), nullable=False),
+    Column("detail", JsonType, nullable=False),
+    Column("at", UtcDateTime, nullable=False),
+)
+Index(None, unit_event.c.unit_id)
+Index(None, unit_event.c.at)
 
 assertion = Table(
     "assertion",

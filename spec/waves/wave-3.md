@@ -2,7 +2,7 @@
 
 **Goal:** give groups (labs, programs, divisions, centers, and others) a living home that their own representatives maintain, open a public window onto them, and deepen topics with the MeSH hierarchy.
 
-**Branch:** `wave-3` · **Target version:** `0.3.0` · **Status:** ◐ slice 1 done; slice 2 next
+**Branch:** `wave-3` · **Target version:** `0.3.0` · **Status:** ◐ slices 1 and 2 done; slice 3 next
 
 ## Exit criteria
 
@@ -40,14 +40,16 @@ Requirements delivered: LAB-01 to LAB-08, PLT-07, PLT-11, PLT-13, CUR-08, and th
 
 **Acceptance (met):** on the pilot, MeSH 2026 (31,110 headings) loads in about ten seconds; "cancer" is read as Neoplasms by synonym alone and finds the people who work on pancreatic, breast, and lung neoplasms; "brain tumors" is Brain Neoplasms; research areas read as fields (Neoplasms, Nervous System, Viruses, Digestive System Diseases, Plant Structures); without MeSH data, everything works as before.
 
-## Slice 2: Groups ☐
+## Slice 2: Groups ☑
 
-**Goal:** labs, programs, divisions, and any other grouping, as first-class records.
+**Goal:** labs, programs, divisions, and any other grouping, as first-class records. See [groups.md](../../docs/groups.md).
 
-- [ ] Units become groups with configurable kinds (`[vocabulary]`, PLT-11) and nesting; a group may belong to several parents (a program spans divisions)
-- [ ] Every group and membership records its source (`manual`, `roster`, or a named feed) and its external identifier there; a later import from the same source updates rather than duplicates
-- [ ] Admin → Groups: create, edit, nest, archive, and merge groups; add and end memberships with roles and dates; `tessera groups import` reads CSV or JSON with external identifiers; the roster import becomes one way in
-- [ ] API for groups and memberships, with access policies; ledger migration 0007
+- [x] Units become groups with configurable kinds (`[vocabulary]`, PLT-11) and nesting; a group may belong to several parents (a program spans divisions)
+- [x] Every group and membership records its source (`manual`, `roster`, or a named feed) and its external identifier there; a later import from the same source updates rather than duplicates
+- [x] Admin → Groups: create, edit, nest, archive, and merge groups; add and end memberships with roles and dates; `tessera groups import` reads CSV or JSON with external identifiers; the roster import becomes one way in
+- [x] API for groups and memberships, with access policies; ledger migration 0007
+
+**Acceptance (met):** existing units migrate to groups from the roster with addresses, and their memberships become plain members; an import from a named source creates, then updates, nests under several parents, archives what it no longer lists, and ends memberships it drops; a merged group's address and identifier lead to the group that remains; a curator scoped to a division reaches people in a program that spans two divisions; the directory's filters follow membership changes without a rebuild.
 
 ## Slice 3: Group pages ☐
 
@@ -93,5 +95,6 @@ Requirements delivered: LAB-01 to LAB-08, PLT-07, PLT-11, PLT-13, CUR-08, and th
 
 | Date | Note |
 |---|---|
+| 2026-11-08 | Slice 2 done. The `unit` table keeps its name (and the `unt_` IDs, the curator scope type `unit`, and the `/graph/units` routes) so that nothing outside the groups work had to move; the product and the new API say "group". A membership's role is its qualifier key, so one person can be a lab's lead and a member of it at once, and a role change from a feed updates the same membership when the feed gives membership identifiers. Feeds are in charge of what they supply; removing a membership by hand is the one decision a feed cannot undo. Group merges are recorded but not undoable from the app, unlike person merges: a group merge touches roles and nesting as well as links, and a reversible journal can wait until someone needs it. |
 | 2026-11-08 | Slice 1 done. Areas are rolled up only in the branches that say what someone studies (anatomy, organisms, diseases, psychology, phenomena); the first attempt rolled up everything and every chemist's top area was "Amino Acids, Peptides, and Proteins". Areas shared by nearly everyone ("Cells") are weighed down by IDF, as topics are. Two quirks of NLM's file server: a missing file comes back as an HTML page with a 200 status, and asking for gzip makes clients unpack the 17 MB file into 300 MB of XML. DuckDB 2.0 rejects the old `x -> …` lambda syntax. |
 | 2026-11-08 | Wave planned. NLM discontinued the ASCII MeSH files in 2026, so the connector reads the XML descriptor file. NLM's terms ask users to credit NLM as the source clearly, not to imply its endorsement, and to name the MeSH version when the data is redistributed. |

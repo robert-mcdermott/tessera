@@ -111,3 +111,29 @@ likely_weight = 0.5
 # Similar people: pairs less similar than this are not kept, and at most this many per person.
 similarity_floor = 0.10
 similar_per_person = 25
+
+[vocabulary]
+# What the app calls groups, the kinds of group it offers, and the roles people hold in them.
+# Keys are stored with each group and membership: rename a label freely, but keep its key.
+group = "Group"
+groups = "Groups"
+leader_roles = ["lead", "co_lead"]   # listed as a group's leaders
+default_role = "member"              # for memberships that name no role
+
+[vocabulary.kinds]
+division = "Division"
+department = "Department"
+program = "Program"
+center = "Center"
+institute = "Institute"
+core = "Shared resource"
+lab = "Lab"
+team = "Team"
+
+[vocabulary.roles]
+lead = "Lead"
+co_lead = "Co-lead"
+member = "Member"
+staff = "Staff"
+trainee = "Trainee"
+affiliate = "Affiliate"

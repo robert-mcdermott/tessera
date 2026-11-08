@@ -7,7 +7,6 @@ permission. Decisions are recorded under ``principal.name``.
 
 from __future__ import annotations
 
-from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
@@ -18,7 +17,8 @@ from sqlalchemy.engine import Engine
 from tessera.auth.accounts import Grant
 from tessera.evidence.memberships import is_current
 from tessera.evidence.store import survivor_of
-from tessera.ledger.tables import assertion, unit
+from tessera.groups.store import descendants
+from tessera.ledger.tables import assertion
 
 
 @dataclass
@@ -74,16 +74,7 @@ class Principal:
                 elif g.scope_type == "unit":
                     units.add(g.scope_id)
             if units:
-                children: dict[str, list[str]] = defaultdict(list)
-                for uid, parent in conn.execute(select(unit.c.id, unit.c.parent_id)):
-                    if parent:
-                        children[parent].append(uid)
-                stack = list(units)
-                while stack:  # a unit's scope includes the units under it
-                    for child in children.get(stack.pop(), []):
-                        if child not in units:
-                            units.add(child)
-                            stack.append(child)
+                units = descendants(conn, units)  # a group's scope includes the groups under it
                 today = date.today()
                 for subject, qualifiers in conn.execute(
                     select(assertion.c.subject_id, assertion.c.qualifiers).where(

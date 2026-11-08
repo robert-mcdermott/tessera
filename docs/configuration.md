@@ -137,3 +137,20 @@ Concept profiles and similar people. See [Finding experts](discovery.md).
 | `similar_per_person` | 1 to 200 | `25` | At most this many similar people are kept for each person |
 
 Changes take effect at the next `tessera sync` or `tessera build discovery`.
+
+## `[vocabulary]`
+
+What the app calls groups, the kinds of group it offers, and the roles people hold in them (see [Groups](groups.md)). Groups and memberships store the keys, so you can rename a label at any time; keep its key.
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `group`, `groups` | text | `Group`, `Groups` | What the app calls one group and several |
+| `leader_roles` | list of role keys | `["lead", "co_lead"]` | Roles listed as a group's leaders |
+| `default_role` | role key | `member` | The role of a membership that names none |
+
+`[vocabulary.kinds]` lists the kinds of group, as `key = "Label"`, in the order the app offers them. The defaults are `division` (Division), `department` (Department), `program` (Program), `center` (Center), `institute` (Institute), `core` (Shared resource), `lab` (Lab), and `team` (Team). Roster rows that name no kind are departments, or the first kind when you have no `department`.
+
+`[vocabulary.roles]` lists the membership roles the same way. The defaults are `lead` (Lead), `co_lead` (Co-lead), `member` (Member), `staff` (Staff), `trainee` (Trainee), and `affiliate` (Affiliate).
+
+Keys are lowercase letters, digits, and underscores. Replacing a table replaces the defaults entirely, and `leader_roles` and `default_role` must name roles in it.
+

@@ -202,7 +202,12 @@ class _Builder:
                 continue
             self.assertions[row["predicate"]].append(row)
         with self.engine.connect() as conn:
-            self.units = {r.id: r.name for r in conn.execute(select(unit.c.id, unit.c.name))}
+            self.units = {  # archived and merged groups are not current for anyone
+                r.id: r.name
+                for r in conn.execute(
+                    select(unit.c.id, unit.c.name).where(unit.c.status == "active")
+                )
+            }
 
     def member_links(self, predicate: str) -> list[dict[str, Any]]:
         """Links from people in the directory that count (accepted, or likely enough)."""
@@ -526,7 +531,7 @@ class _Builder:
                 "id": person.id,
                 "name": person.display_name,
                 "status": person.status,
-                "units": sorted(memberships.get(person.id, [])),
+                "units": sorted(set(memberships.get(person.id, []))),  # once per group
                 "orcid": next(iter(sorted(person.ids("orcid"))), None),
                 "counts": {
                     **papers[person.id],

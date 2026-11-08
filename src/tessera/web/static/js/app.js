@@ -89,7 +89,13 @@ async function boot() {
   route("/review/duplicates", (_, ctx) => duplicates(main, ctx));
   route("/review/log", (_, ctx) => decisions(main, ctx));
   route("/admin/sources", () => sources(main));
-  if (can("admin")) route("/admin/accounts", (_, ctx) => accounts(main, ctx));
+  if (can("admin")) {
+    route("/admin/accounts", (_, ctx) => accounts(main, ctx));
+    // Loaded on first use, like the graph views.
+    const groupsPage = () => import("./pages/groups-admin.js");
+    route("/admin/groups", async (_, ctx) => (await groupsPage()).groupsAdmin(main, ctx));
+    route("/admin/groups/:ref", async (params, ctx) => (await groupsPage()).groupAdmin(main, params, ctx));
+  }
   if (can("curate_any")) route("/admin/evidence", (_, ctx) => evidence(main, ctx));
   fallback(() => {
     setTitle("Not found");
