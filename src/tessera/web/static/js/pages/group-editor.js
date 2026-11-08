@@ -9,7 +9,7 @@ import { relative } from "../core/format.js";
 import { navigate } from "../core/router.js";
 import { confirmAction } from "../components/drawer.js";
 import { toast } from "../components/toast.js";
-import { callout, card, emptyState, pageHeader, pill } from "../components/ui.js";
+import { callout, card, emptyState, pageHeader, pill, segmented } from "../components/ui.js";
 import { show } from "./page.js";
 import { publicToggle } from "./person.js";
 
@@ -238,7 +238,61 @@ function editorView(main, params, { group, page, revisions, papers }) {
     callout("Choose the blocks the page shows and their order. Blocks marked Side column appear beside the others on wide screens. Changes stay in the draft until you publish."),
     h("div", { class: "grid-main" },
       h("div", { class: "stack" }, list, h("div", { class: "row wrap" }, adder, page.has_draft ? discard : null)),
-      h("div", { class: "stack-lg" }, history)));
+      h("div", { class: "stack-lg" }, history, embedCard(group))));
+}
+
+const EMBED_PARTS = [["publications", "Publications"], ["people", "People"], ["openings", "Openings"], ["news", "News"]];
+const EMBED_THEMES = [{ id: "", label: "Reader's choice" }, { id: "-light", label: "Light" }, { id: "-dark", label: "Dark" }];
+
+/** The code to put the group's public content on another website (LAB-09). */
+function embedCard(group) {
+  const body = h("div", { class: "stack" });
+  const panel = card({ title: "Embed on another website", pad: true, body });
+  if (!group.public) {
+    body.append(h("p", { class: "muted" }, "Turn on Public page and publish the public site (tessera publish) to embed this group's publications, people, openings, or news in another website."));
+    return panel;
+  }
+  get("/api/v1/meta").then(({ data: meta }) => {
+    const site = meta.public_site;
+    if (!site) {
+      body.append(h("p", { class: "muted" }, "Set the public site's address ([publish] base_url) to get the code to embed."));
+      return;
+    }
+    let part = "publications";
+    let theme = "-light";
+    const code = h("textarea", { class: "input mono embed-code", rows: 4, readonly: true, "aria-label": "Code to embed" });
+    const open = h("a", { target: "_blank", rel: "noopener" }, "Open it");
+    const draw = () => {
+      const label = EMBED_PARTS.find(([key]) => key === part)[1];
+      open.href = `${site}/groups/${group.slug}/embed/${part}${theme}.html`;
+      code.value = `<iframe src="${site}/groups/${group.slug}/embed/${part}${theme}.html" title="${label} of ${group.name.replaceAll('"', "&quot;")}" `
+        + 'width="100%" height="600" style="border:0" loading="lazy"></iframe>';
+    };
+    const partSelect = h("select", { class: "input input-sm", "aria-label": "What to embed", onchange: (e) => { part = e.target.value; draw(); } },
+      EMBED_PARTS.map(([key, label]) => h("option", { value: key }, label)));
+    const themeChoice = segmented(EMBED_THEMES, theme, (id) => {
+      theme = id;
+      themeChoice.querySelectorAll("button").forEach((b, i) => b.setAttribute("aria-pressed", String(EMBED_THEMES[i].id === id)));
+      draw();
+    }, "Light or dark");
+    draw();
+    body.append(
+      h("p", { class: "muted" }, "Paste this into the other website's page. It shows what the public site shows and changes when the site is published again."),
+      h("div", { class: "row-sm wrap" }, partSelect, themeChoice),
+      code,
+      h("div", { class: "row-sm" }, h("button", { type: "button", class: "btn btn-sm", onclick: async () => {
+        try {
+          await navigator.clipboard.writeText(code.value);
+          toast("Copied.");
+        } catch {
+          code.select();
+        }
+      } }, "Copy"), open),
+      h("p", { class: "muted" }, "For sites that show content themselves: ",
+        h("a", { href: `${site}/groups/${group.slug}/feed.json`, target: "_blank", rel: "noopener" }, "the group's JSON feed"),
+        " of news, openings, and publications."));
+  }).catch(() => {});
+  return panel;
 }
 
 function newsEditor(block, markDirty) {

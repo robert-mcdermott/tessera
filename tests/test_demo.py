@@ -208,7 +208,60 @@ def test_the_public_site_shows_only_what_it_may(demo) -> None:  # type: ignore[n
     assert "Postdoctoral fellow in cell therapy" in program  # an open opening
     assert "Engineered T cells for solid tumors" in program  # a theme
     assert '<script type="application/ld+json">' in program and "<script>" not in program
-    assert not (site / "sitemap.xml").exists()  # no base_url, no sitemap
+    sitemap = (site / "sitemap.xml").read_text()
+    assert "<loc>https://research.corvane.example/groups/</loc>" in sitemap
+    assert "/embed/" not in sitemap  # embeds are not pages to find
+
+
+def test_group_content_embeds_in_other_websites(demo, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
+    import json
+
+    from sqlalchemy import update
+
+    from tessera.home import DataHome
+    from tessera.ledger.db import make_engine
+    from tessera.ledger.tables import unit
+    from tessera.publish import publish
+    from tessera.publish.embed import PARTS, THEMES
+
+    result, client = demo
+    site = Path(result["public_site"]).parent
+    folder = site / "groups" / "cancer-immunotherapy-program"
+    for part in PARTS:
+        for theme in THEMES:
+            assert (folder / "embed" / f"{part}{theme}.html").is_file(), (part, theme)
+    page = (folder / "embed" / "publications-light.html").read_text()
+    assert '<html lang="en" data-theme="light">' in page and '<base target="_top">' in page
+    assert "<nav" not in page and 'class="site-header"' not in page and "<script" not in page
+    assert "pubmed.ncbi.nlm.nih.gov" in page
+    assert 'href="../../../groups/cancer-immunotherapy-program/index.html"' in page  # the full page
+    assert '<meta name="robots" content="noindex">' in page
+    feed = json.loads((folder / "feed.json").read_text())
+    assert feed["version"] == "https://jsonfeed.org/version/1.1"
+    home = "https://research.corvane.example/groups/cancer-immunotherapy-program/"
+    assert feed["home_page_url"] == home and feed["feed_url"] == f"{home}feed.json"
+    assert feed["items"] and all(i["id"] and i["content_text"] for i in feed["items"])
+    assert {"news", "opening", "publication"} <= {i["tags"][0] for i in feed["items"]}
+    assert "per_" not in json.dumps(feed)
+    meta = client.get("/api/v1/meta").json()["data"]
+    assert meta["public_site"] == "https://research.corvane.example"
+
+    # A group that is not public has no embeds.
+    config = load_config(Path(result["config"]), env={})
+    engine = make_engine(config.ledger_url)
+    try:
+        with engine.begin() as conn:
+            conn.execute(update(unit).where(unit.c.slug == "cancer-immunotherapy-program")
+                         .values(public=False))  # fmt: skip
+        out = tmp_path / "site"
+        quiet = publish(config, DataHome(config.data.home), engine, out=out, today=TODAY)
+        assert quiet.written and not quiet.problems
+        assert not (out / "groups" / "cancer-immunotherapy-program").exists()
+        with engine.begin() as conn:
+            conn.execute(update(unit).where(unit.c.slug == "cancer-immunotherapy-program")
+                         .values(public=True))  # fmt: skip
+    finally:
+        engine.dispose()
 
 
 def test_publishing_checks_before_replacing(demo, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]

@@ -11,7 +11,8 @@ The site is written to `public/` in the data home, or wherever `[publish] out` s
 - a **home page** with every published group, by kind;
 - a page for every **group** that opted in, following its published blocks (see [Groups](groups.md#the-groups-page)): what it does, its leaders and people, its publications, grants, studies, themes and projects, openings, news, topics, and contact;
 - a page for every **person** who opted in: their groups and roles, ORCID iD, research areas and topics, publications, grants, and studies;
-- indexes of groups and people, a `404.html`, `robots.txt`, and, when `base_url` is set, a `sitemap.xml`.
+- indexes of groups and people, a `404.html`, `robots.txt`, and, when `base_url` is set, a `sitemap.xml`;
+- for every public group, pages to [embed in another website](#embedding-group-content-in-another-website) and a JSON feed.
 
 ![A program's public page: what it does, its people, and its topics, in the organization's colors](images/public-group-light.webp "A group on the public site")
 
@@ -55,6 +56,30 @@ intro = "Who we are and what we work on."     # a sentence or two for the home p
 ```
 
 The site takes its colors from your branding; see [Configuration](configuration.md#branding).
+
+## Embedding group content in another website
+
+A group's publications, people, openings, and news can appear on its own website, kept current by Tessera. For every public group, `tessera publish` also writes small pages made to be framed, and a feed:
+
+| File | What it is |
+|---|---|
+| `groups/<address>/embed/publications.html` | The group's publications (featured first), as on its page |
+| `groups/<address>/embed/people.html` | Its leaders and members |
+| `groups/<address>/embed/openings.html` | Its open openings, which drop off when they close |
+| `groups/<address>/embed/news.html` | Its news |
+| `groups/<address>/feed.json` | A [JSON Feed](https://jsonfeed.org/version/1.1) of its news, openings, and confirmed publications, for sites that show content themselves |
+
+Each embed comes in three versions: `publications.html` follows the reader's light or dark preference, and `publications-light.html` and `publications-dark.html` stay light or dark to match the page around them. Embeds have no site header, carry no scripts, open links in the page around them, show only what the group's public page shows, and link back to it. They always exist for a public group, even with nothing to show yet, so the code on another site keeps working; a group that is not public has none, and search engines are asked not to index them on their own.
+
+The group's managers find the code in **Edit page → Embed on another website**, once `[publish] base_url` says where the site is served:
+
+```html
+<iframe src="https://research.example.edu/groups/okafor-lab/embed/publications-light.html"
+        title="Publications of the Okafor Lab" width="100%" height="600" style="border:0"
+        loading="lazy"></iframe>
+```
+
+The site serving the embeds must allow other sites to frame them: if your web server sends `X-Frame-Options` or a `frame-ancestors` policy for the public site, allow the sites that embed it.
 
 ## Keeping it current
 

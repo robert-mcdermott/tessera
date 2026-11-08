@@ -78,7 +78,9 @@ class _Page(HTMLParser):
             self._link["text"].append(data)
 
 
-def check_page(name: str, html: str, files: set[str]) -> list[str]:
+def check_page(name: str, html: str, files: set[str], *, embed: bool = False) -> list[str]:
+    """A page's problems. An embed (made to sit inside another page) has no header or
+    navigation of its own, so it needs only its main content and its footer."""
     page = _Page()
     page.feed(html)
     page.close()
@@ -95,7 +97,7 @@ def check_page(name: str, html: str, files: set[str]) -> list[str]:
             problems.append(f"heading levels jump from h{previous} to h{level}")
             break
         previous = level
-    for landmark in ("header", "main", "footer", "nav"):
+    for landmark in ("main", "footer") if embed else ("header", "main", "footer", "nav"):
         if not page.landmarks.get(landmark):
             problems.append(f"no <{landmark}> landmark")
     if page.landmarks.get("main", 0) > 1:
@@ -125,7 +127,7 @@ def check_site(files: dict[str, Any], config: Config) -> list[str]:
     problems: list[str] = []
     for name, content in sorted(files.items()):
         if name.endswith(".html") and name != "404.html" and isinstance(content, str):
-            problems += check_page(name, content, names)
+            problems += check_page(name, content, names, embed="/embed/" in name)
     problems += [f"colors: {p}" for p in contrast_problems(config)]
     return problems
 

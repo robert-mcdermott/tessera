@@ -104,7 +104,7 @@ Detail: [waves/wave-3.md](waves/wave-3.md)
 | 3 | Topics and studies | Topic landscape and trends with small-number warnings; studies by condition, intervention, phase, sponsor class, and registry status | ☑ |
 | 4 | Reports and exports | Saved searches with new matches; reports; snapshots that regenerate exactly; evidence-carrying CSV, Parquet, and JSON exports | ☑ |
 | 5 | Backup and operations | Backup, restore (across SQLite and PostgreSQL), and full exit export; Admin → Operations; failure alerts | ☑ |
-| 6 | Embeds | Group content embedded in an existing website, from the public site | ☐ |
+| 6 | Embeds | Group content embedded in an existing website, from the public site | ☑ |
 | 7 | Release prep | Guides, screenshots, evaluation, changelog, release | ☐ |
 
 Detail: [waves/wave-4.md](waves/wave-4.md)

@@ -422,3 +422,4 @@ tr[data-stale] th { color: var(--warn); }
 .ops-issues { border-color: color-mix(in oklch, var(--warn) 45%, var(--border)); }
 .ops-issues .icon { color: var(--warn); flex: none; }
 .text-danger { color: var(--danger); }
+.embed-code { font-size: var(--fs-xs); min-height: 96px; }

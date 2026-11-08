@@ -47,6 +47,9 @@ def build(site: Site, config: Config) -> dict[str, str]:
     files["robots.txt"] = "User-agent: *\nAllow: /\n" + (
         f"Sitemap: {base.rstrip('/')}/sitemap.xml\n" if base else ""
     )
+    from tessera.publish.embed import embed_pages  # embeds reuse this module's blocks
+
+    files.update(embed_pages(site, base))
     if base:
         files["sitemap.xml"] = sitemap(base, files)
     return files

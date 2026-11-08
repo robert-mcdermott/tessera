@@ -91,15 +91,15 @@ Requirements: INT-01 to INT-07, INT-11, DIS-10, LAB-09, PLT-08, PLT-12.
 
 **Acceptance (met):** a backup of the demo restored into a new data home gives identical API answers; a SQLite backup restores into PostgreSQL; the exit export opens in DuckDB and in a spreadsheet; a failing source shows in Operations with its error and sends one alert.
 
-## Slice 6: Embeddable group content ☐
+## Slice 6: Embeddable group content ☑
 
 **Goal:** a group's public content on its own website (LAB-09).
 
-- [ ] `tessera publish` writes, for every public group, small pages made to be framed (publications, people, openings, news) and a JSON feed, from the same allowlisted projection
-- [ ] The page editor shows the code to embed each, once the site's address is configured
-- [ ] Embed pages pass the same checks as the rest of the site, carry no scripts, follow the reader's light or dark preference, and link back to the group's full page
+- [x] `tessera publish` writes, for every public group, small pages made to be framed (publications, people, openings, news) and a JSON feed, from the same allowlisted projection
+- [x] The page editor shows the code to embed each, once the site's address is configured
+- [x] Embed pages pass the same checks as the rest of the site, carry no scripts, follow the reader's light or dark preference, and link back to the group's full page
 
-**Acceptance:** an embed of the demo program's publications shows its confirmed papers inside another page; the feed validates as JSON Feed 1.1; a group that is not public has no embeds.
+**Acceptance (met):** an embed of the demo program's publications shows its confirmed papers inside another page; the feed validates as JSON Feed 1.1; a group that is not public has no embeds.
 
 ## Slice 7: Release prep ☐
 
@@ -113,6 +113,7 @@ Requirements: INT-01 to INT-07, INT-11, DIS-10, LAB-09, PLT-08, PLT-12.
 
 | Date | Note |
 |---|---|
+| 2026-11-08 | Slice 6 done. Embeds are static pages from the public site rather than a script that renders content, so they need nothing running, carry no code into someone else's page, and show only what the allowlisted projection already shows. A first version followed only the reader's preference and showed a dark box in a light lab website; embeds now also come held to light or dark. They open links in the surrounding page, are kept out of the sitemap and search indexes, and always exist for a public group so that pasted code keeps working. The JSON feed covers sites that render content themselves. |
 | 2026-11-08 | Slice 5 done. Backups hold the ledger as portable rows rather than a database file, so one format serves SQLite and PostgreSQL and also moves an installation between them; restore reflects the schema at the backup's revision, loads the rows (references within a table are set once every row is there), resets PostgreSQL's integer sequences, and upgrades. A demo backup restored into a new data home gives identical ledger rows and identical API answers once the index is rebuilt; on PostgreSQL 16, a SQLite backup restored with identical rows. The comparison found that the search index and grant pages took a subproject's record as a grant's latest when several share a fiscal year; fixed. The demo now rebuilds its index after its last direct changes. Alerts are emailed once per set of issues, so a stale source does not send a message every night. |
 | 2026-11-08 | Slice 4 done. A snapshot keeps the inputs, not the whole lake: only the rows its cohort's figures read, so it is small (tens of kilobytes for a program) and cannot drift when the lake is compacted. Verification recomputes from those inputs with the code's metrics and fails, naming the metric, when a metric's version has moved on, rather than silently using the new definition. Deleting a report keeps its snapshots, because someone may have cited them. CSV exports are zips so that the definitions travel with the numbers; Parquet files also carry them in their own metadata. Saved searches remember up to 5,000 matches each and are visible only to their owner; what a search finds when it is saved counts as seen. |
 | 2026-11-08 | Slice 3 done. Topics count major MeSH headings only: every paper carries check tags such as Humans and Mice, which say nothing about its subject. Trend windows are halves of the period's complete years, at most three years each, so that a five-year window (the default first sync) can still show trends; the year under way is never in a window. A study counts for the period when it was under way during it (by its start and completion dates), not only when it started, because a portfolio is what is running. Field-normalized citation keeps the last two years apart and says that a ratio describes papers, not people. Correction to slice 2's note: the demo's new grants had joined the lists that papers draw their acknowledgments from, which shifted the rest of the demo; they no longer do, and the demo has its 717 papers again. |

@@ -55,7 +55,12 @@ def demo_config_text() -> str:
     text = example_config_text()
     start = text.index("[organization]")
     end = text.index("# Re-branding")
-    return text[:start] + ORGANIZATION + text[end:]
+    text = text[:start] + ORGANIZATION + text[end:]
+    # Where its public site would be served (a reserved name that cannot exist), so that the
+    # sitemap, canonical links, and the codes to embed group content are shown.
+    marker = 'base_url = ""                 # where it is served'
+    address = 'base_url = "https://research.corvane.example"  # where it is served'
+    return text.replace(marker, address)
 
 
 def _record(
