@@ -493,3 +493,69 @@ def test_the_api_curates_groups_and_memberships(instance: Instance, engine) -> N
         assert meta["vocabulary"]["kinds"][0] == {"id": "division", "label": "Division"}
     with engine.connect() as conn:
         assert conn.execute(select(unit_event.c.actor).limit(1)).scalar() == "Operator"
+
+
+# --- group pages (LAB-04, LAB-05) ------------------------------------------------------------
+
+
+def test_page_blocks_are_checked(engine) -> None:  # type: ignore[no-untyped-def]
+    from tessera.groups import pages
+
+    clean = pages.validate_blocks(
+        [
+            {"type": "about", "text": "  <script>alert(1)</script>\r\nHello  "},
+            {"type": "publications", "featured": ["123", 456], "limit": 5},
+            {"type": "news", "items": [{"title": "Hi", "date": "2026-11-09"}]},
+            {"type": "about", "title": "Second"},
+        ]
+    )
+    assert clean[0]["text"] == "<script>alert(1)</script>\nHello"  # stays text, never markup
+    assert clean[1]["featured"] == ["123", "456"] and len({b["id"] for b in clean}) == 4
+    for bad, message in (
+        ([{"type": "iframe"}], "not one of the blocks"),
+        ([{"type": "people"}, {"type": "people"}], "one People block"),
+        ([{"type": "people", "html": "<b>"}], "no 'html'"),
+        ([{"type": "news", "items": [{"title": "x", "url": "javascript:alert(1)"}]}], "https://"),
+        ([{"type": "news", "items": [{"title": "x", "date": "yesterday"}]}], "2026-11-09"),
+        ([{"type": "publications", "featured": ["not a pmid"]}], "PubMed IDs"),
+        ([{"type": "grants", "limit": 500}], "1 to 50"),
+    ):
+        with pytest.raises(store.GroupError, match=message):
+            pages.validate_blocks(bad)
+
+
+def test_draft_publish_history_and_rollback(engine) -> None:  # type: ignore[no-untyped-def]
+    from tessera.groups import pages
+
+    lab = group(engine, "Okafor Lab")
+    with engine.begin() as conn:
+        blocks, default = pages.published_blocks(conn, lab)
+        assert default and [b["type"] for b in blocks][:2] == ["about", "people"]
+        with pytest.raises(store.GroupError, match="no draft"):
+            pages.publish(conn, lab, actor="Ann")
+        pages.save_draft(conn, lab, [{"type": "about", "text": "One"}], actor="Ann")
+        assert pages.publish(conn, lab, actor="Ann", note="First") == 1
+        assert pages.get_page(conn, lab)["draft"] is None  # publishing clears the draft
+        pages.save_draft(conn, lab, [{"type": "about", "text": "Two"}], actor="Bo")
+        assert pages.publish(conn, lab, actor="Bo") == 2
+        assert pages.rollback(conn, lab, 1, actor="Ann", note="Back") == 3
+        blocks, default = pages.published_blocks(conn, lab)
+        assert not default and blocks[0]["text"] == "One"
+        assert [(r["number"], r["action"]) for r in pages.revisions(conn, lab)] == [
+            (3, "rollback"), (2, "publish"), (1, "publish"),
+        ]  # fmt: skip
+        with pytest.raises(store.GroupError, match="no version 9"):
+            pages.rollback(conn, lab, 9, actor="Ann")
+        actions = [e["action"] for e in store.events(conn, lab)][:3]
+        assert actions == ["page_rollback", "page_publish", "page_draft"]
+
+
+def test_a_manager_scope_covers_the_groups_below_only_when_granted(engine) -> None:  # type: ignore[no-untyped-def]
+    division = group(engine, "Division A", "division")
+    lab = group(engine, "Lab A", parents=[division])
+    only = Principal(name="M", grants=(Grant("manager", "unit", division),))
+    below = Principal(name="N", grants=(Grant("manager", "unit", division, True),))
+    curator = Principal(name="C", grants=(Grant("curator", "unit", division),))
+    assert only.edits_group(engine, division) and not only.edits_group(engine, lab)
+    assert below.edits_group(engine, lab) and curator.edits_group(engine, lab)
+    assert not only.reviews and only.manages_any

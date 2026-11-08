@@ -307,7 +307,7 @@ usage: tessera users add [-h] [--name NAME] --role ROLE [--email EMAIL] [--perso
 |---|---|
 | `username` | lowercase letters, digits, dots, dashes, underscores |
 | `--name NAME` | the name shown and recorded on decisions |
-| `--role ROLE` | admin, curator, researcher, or viewer; a curator for some people only is curator=unit:<name or code> or curator=person:<ID> (repeatable) |
+| `--role ROLE` | admin, curator, manager, researcher, or viewer; a curator for some people only is curator=group:<name, address, or code> or curator=person:<ID>; a manager is manager=group:<…>, or manager=group:<…>+below to manage the groups below too (repeatable) |
 | `--email EMAIL` | contact address |
 | `--person ID` | the person a researcher account belongs to |
 | `--password-stdin` | read the password from standard input |
@@ -368,7 +368,7 @@ usage: tessera users roles [-h] --role ROLE username
 | Argument | Meaning |
 |---|---|
 | `username` |  |
-| `--role ROLE` | admin, curator, researcher, or viewer; a curator for some people only is curator=unit:<name or code> or curator=person:<ID> (repeatable) |
+| `--role ROLE` | admin, curator, manager, researcher, or viewer; a curator for some people only is curator=group:<name, address, or code> or curator=person:<ID>; a manager is manager=group:<…>, or manager=group:<…>+below to manage the groups below too (repeatable) |
 
 ## `tessera evidence`
 

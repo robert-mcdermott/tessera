@@ -89,7 +89,7 @@ class Principal:
         return people
 
     def group_scopes(self) -> set[str]:
-        """Groups this principal curates or manages, without the groups beneath them."""
+        """Groups this principal curates or manages (the top of each scope)."""
         return {
             g.scope_id
             for g in self.grants
@@ -97,19 +97,40 @@ class Principal:
         }
 
     @property
+    def manages_any(self) -> bool:
+        return any(g.role == "manager" for g in self.grants)
+
+    @property
     def edits_any_group(self) -> bool:
         return self.curates_all or bool(self.group_scopes())
 
-    def edits_group(self, engine: Engine, group_id: str) -> bool:
-        """May decide for this group (its attributions, and later its page): an admin, a
-        curator for everyone, or a curator or manager of it or a group above it."""
+    def edited_groups(self, engine: Engine) -> set[str] | None:
+        """The groups this principal may decide for; None means every group. A curator's
+        group scope covers the groups below it; a manager's only when granted so."""
         if self.curates_all:
-            return True
-        scopes = self.group_scopes()
-        if not scopes:
-            return False
+            return None
+        whole = {
+            g.scope_id
+            for g in self.grants
+            if g.scope_type == "unit"
+            and g.scope_id
+            and (g.role == "curator" or (g.role == "manager" and g.include_below))
+        }
+        exact = {
+            g.scope_id
+            for g in self.grants
+            if g.role == "manager" and g.scope_type == "unit" and g.scope_id and not g.include_below
+        }
+        if not whole:
+            return exact
         with engine.connect() as conn:
-            return group_id in descendants(conn, scopes)
+            return descendants(conn, whole) | exact
+
+    def edits_group(self, engine: Engine, group_id: str) -> bool:
+        """May decide for this group (its attributions and its page): an admin, a curator for
+        everyone, or a curator or manager whose scope covers it."""
+        scope = self.edited_groups(engine)
+        return scope is None or group_id in scope
 
     def can_curate(self, engine: Engine, person_id: str) -> bool:
         scope = self.curated_people(engine)
@@ -131,6 +152,7 @@ class Principal:
                 "curate_any": self.curates_any,
                 "review": self.reviews,
                 "edit_groups": self.edits_any_group,
+                "manage": self.manages_any,
             },
         }
 

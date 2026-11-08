@@ -22,7 +22,7 @@ from tessera.core.ids import new_id
 from tessera.ledger.tables import ROLES, account, auth_session, person, role_grant, unit
 
 USERNAME = re.compile(r"^[a-z0-9][a-z0-9._-]{1,62}$")
-SCOPED_ROLES = ("curator",)
+SCOPED_ROLES = ("curator", "manager")
 
 
 class AccountError(TesseraError):
@@ -32,11 +32,17 @@ class AccountError(TesseraError):
 @dataclass(frozen=True)
 class Grant:
     role: str
-    scope_type: str | None = None  # "unit" or "person"
+    scope_type: str | None = None  # "unit" (a group) or "person"
     scope_id: str | None = None
+    include_below: bool = False  # a manager's group scope covers the groups below it
 
     def to_json(self) -> dict[str, Any]:
-        return {"role": self.role, "scope_type": self.scope_type, "scope_id": self.scope_id}
+        return {
+            "role": self.role,
+            "scope_type": self.scope_type,
+            "scope_id": self.scope_id,
+            "include_below": self.include_below,
+        }
 
 
 def normalize_username(username: str) -> str:
@@ -50,25 +56,41 @@ def normalize_username(username: str) -> str:
 
 
 def resolve_scope(conn: Connection, scope: str | None) -> tuple[str | None, str | None]:
-    """``unit:<name, code, or ID>`` or ``person:<ID>`` to (type, ID); None for everyone."""
+    """``group:<name, address, code, or ID>`` (or ``unit:``) or ``person:<ID>`` to (type, ID);
+    None for everyone. A trailing ``+below`` is ignored here (see ``make_grant``)."""
     if not scope:
         return None, None
     kind, _, value = scope.partition(":")
-    value = value.strip()
-    if kind == "unit" and value:
+    value = value.strip().removesuffix("+below").strip()
+    if kind in ("unit", "group") and value:
         found = conn.execute(
             select(unit.c.id).where(
-                or_(unit.c.id == value, unit.c.code == value, unit.c.name == value)
+                or_(
+                    unit.c.id == value,
+                    unit.c.code == value,
+                    unit.c.name == value,
+                    unit.c.slug == value,
+                ),
+                unit.c.status != "merged",
             )
         ).scalar()
         if found is None:
-            raise AccountError(f"No unit {value!r}.")
+            raise AccountError(f"No group {value!r}.")
         return "unit", found
     if kind == "person" and value:
         if conn.execute(select(person.c.id).where(person.c.id == value)).scalar() is None:
             raise AccountError(f"No person {value!r}.")
         return "person", value
-    raise AccountError("A scope is unit:<name, code, or ID> or person:<ID>.")
+    raise AccountError("A scope is group:<name, address, code, or ID> or person:<ID>.")
+
+
+def make_grant(
+    conn: Connection, role: str, scope: str | None, include_below: bool = False
+) -> Grant:
+    """A grant from a role and a scope; ``group:<…>+below`` also covers the groups below."""
+    below = include_below or bool(scope and scope.strip().endswith("+below"))
+    scope_type, scope_id = resolve_scope(conn, scope)
+    return Grant(role.strip().lower(), scope_type, scope_id, below and scope_type == "unit")
 
 
 def _check_grants(conn: Connection, grants: list[Grant], person_id: str | None) -> None:
@@ -79,6 +101,8 @@ def _check_grants(conn: Connection, grants: list[Grant], person_id: str | None) 
             raise AccountError(f"Unknown role {g.role!r}; use {', '.join(ROLES)}.")
         if g.scope_type and g.role not in SCOPED_ROLES:
             raise AccountError(f"Only {', '.join(SCOPED_ROLES)} grants take a scope.")
+        if g.role == "manager" and g.scope_type != "unit":
+            raise AccountError("A manager manages a group: give the role a group:<…> scope.")
         if (
             g.scope_type == "unit"
             and conn.execute(select(unit.c.id).where(unit.c.id == g.scope_id)).scalar() is None
@@ -145,6 +169,7 @@ def _insert_grants(conn: Connection, account_id: str, grants: list[Grant], actor
                 role=g.role,
                 scope_type=g.scope_type,
                 scope_id=g.scope_id,
+                include_below=g.include_below,
                 granted_by=actor,
                 granted_at=now,
             )
@@ -171,11 +196,16 @@ def scope_labels(conn: Connection, grants: list[Grant]) -> dict[str, str]:
 
 def grants_of(conn: Connection, account_id: str) -> list[Grant]:
     rows = conn.execute(
-        select(role_grant.c.role, role_grant.c.scope_type, role_grant.c.scope_id)
+        select(
+            role_grant.c.role,
+            role_grant.c.scope_type,
+            role_grant.c.scope_id,
+            role_grant.c.include_below,
+        )
         .where(role_grant.c.account_id == account_id)
         .order_by(role_grant.c.id)
     ).all()
-    return [Grant(*r) for r in rows]
+    return [Grant(r[0], r[1], r[2], bool(r[3])) for r in rows]
 
 
 def find_account(engine: Engine, key: str) -> dict[str, Any] | None:

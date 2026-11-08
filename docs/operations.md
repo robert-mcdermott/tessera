@@ -67,11 +67,13 @@ Roles add up:
 |---|---|
 | Viewer | Read everything: people, records, evidence, search |
 | Researcher | Also review the suggestions about their own profile (the account is linked to their person) |
-| Curator | Decide for everyone, or, when the role is limited to a unit or a person, only for them; curators for everyone also handle discovered people and duplicates |
+| Manager | Keep one group's page and decide which papers are the group's (and, when granted with `+below`, the same for the groups below it). See [Groups](groups.md#managers) |
+| Curator | Decide for everyone, or, when the role is limited to a group or a person, only for them (a group's scope includes the groups below it); curators for everyone also handle discovered people and duplicates |
 | Admin | Everything, including accounts |
 
 ```bash
-uv run tessera users add cora --name "Cora Lindqvist" --role "curator=unit:Department of Medicine"
+uv run tessera users add cora --name "Cora Lindqvist" --role "curator=group:Department of Medicine"
+uv run tessera users add wren --name "Wren Castellan" --role "manager=group:okafor-lab"
 uv run tessera users add ada.okafor --role researcher --person per_01…
 uv run tessera users list
 uv run tessera users reset-password cora     # signs her out everywhere

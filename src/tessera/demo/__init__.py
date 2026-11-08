@@ -140,6 +140,7 @@ def build_demo(
         built = build_discovery(config, home, engine)
         build_attribution(config, home, engine, today=today)
         _attribute(engine)
+        _pages(engine, today)
         people = len(store.load_people(engine))
     finally:
         engine.dispose()
@@ -308,6 +309,68 @@ def _attribute(engine: Engine) -> None:
                 store.decide(engine, r.id, "reject", CURATOR, "A member's work elsewhere")
 
 
+def _pages(engine: Engine, today: date) -> None:
+    """Published pages for the immunotherapy program and the lab with the most papers, as
+    their managers would write them."""
+    from sqlalchemy import func, select
+
+    from tessera.groups import pages
+    from tessera.ledger.tables import assertion, unit
+
+    with engine.begin() as conn:
+        lab = conn.execute(
+            select(unit.c.id, unit.c.name)
+            .join(assertion, assertion.c.object_id == unit.c.id)
+            .where(
+                unit.c.kind == "lab",
+                assertion.c.predicate == "attributed_to",
+                assertion.c.status == "accepted",
+            )
+            .group_by(unit.c.id, unit.c.name)
+            .order_by(func.count().desc(), unit.c.name)
+            .limit(1)
+        ).first()
+        program = conn.execute(
+            select(unit.c.id).where(unit.c.slug == "cancer-immunotherapy-program")
+        ).scalar()
+        for group_id, name in [(program, "Cancer Immunotherapy Program"), *([lab] if lab else [])]:
+            if not group_id:
+                continue
+            featured = conn.execute(
+                select(assertion.c.subject_id)
+                .where(
+                    assertion.c.predicate == "attributed_to",
+                    assertion.c.status == "accepted",
+                    assertion.c.object_id == group_id,
+                )
+                .order_by(assertion.c.score.desc(), assertion.c.subject_id.desc())
+                .limit(2)
+            ).scalars()
+            about = (
+                f"The {name} brings together people who share questions, data, and equipment. "
+                "We meet every other week to share results, and we train students and fellows "
+                "across the Institute.\n\nVisitors are welcome: write to us to arrange a visit "
+                "or a seminar."
+            )
+            blocks = [
+                {"type": "about", "text": about},
+                {"type": "people"},
+                {"type": "publications", "featured": [p.removeprefix("pub:") for p in featured]},
+                {"type": "news", "items": [
+                    {"date": today.replace(day=1).isoformat(), "title": "Welcome, new fellows",
+                     "text": "Three postdoctoral fellows joined this autumn."},
+                    {"date": f"{today.year}-05-14", "title": "Retreat at the coast",
+                     "text": "Posters, a keynote, and a long walk on the beach."},
+                ]},
+                {"type": "grants"},
+                {"type": "topics"},
+                {"type": "connections"},
+                {"type": "contact", "text": "Seminars are open to everyone at the Institute."},
+            ]  # fmt: skip
+            pages.save_draft(conn, group_id, blocks, actor=CURATOR)
+            pages.publish(conn, group_id, actor=CURATOR, note="First version")
+
+
 def _accounts(engine: Engine, world: World) -> None:
     """A few accounts with each role, so Admin → Accounts has something to show. Their
     passwords are random and never shown; reset one with ``tessera users reset-password``."""
@@ -323,6 +386,9 @@ def _accounts(engine: Engine, world: World) -> None:
         division = conn.execute(
             select(unit.c.id).where(unit.c.name == "Division of Neuroscience")
         ).scalar()
+        program = conn.execute(
+            select(unit.c.id).where(unit.c.slug == "cancer-immunotherapy-program")
+        ).scalar()
     key_of = _key_of(engine, world)
     researcher = next((pid for pid, key in sorted(key_of.items()) if key.startswith("p")), None)
     names = {p.id: p.display_name for p in store.load_people(engine)}
@@ -337,6 +403,10 @@ def _accounts(engine: Engine, world: World) -> None:
         ),
         ("viewer", "Guest viewer", [Grant("viewer")], None),
     ]
+    if program:  # the program's coordinator keeps its page and decides its papers
+        accounts.append(
+            ("cip.manager", "Wren Castellan", [Grant("manager", "unit", program, True)], None)
+        )
     if researcher:
         accounts.append(
             (

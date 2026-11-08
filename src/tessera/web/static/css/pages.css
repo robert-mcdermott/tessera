@@ -272,4 +272,20 @@ fieldset.field legend { font-size: var(--fs-sm); font-weight: 600; margin-bottom
 /* In the narrow side column, names wrap and the bars shrink. */
 .grid-main > .stack-lg:last-child .area-list { grid-template-columns: minmax(0, 1fr) 64px 2.8em; }
 .grid-main > .stack-lg:last-child .area-list a { white-space: normal; }
+.prose p { margin: 0 0 var(--space-3); max-width: 72ch; line-height: 1.6; }
+.prose p:last-child { margin-bottom: 0; }
+.news-list { gap: var(--space-4); }
+.news-list p { margin: 0; }
+
+/* ---------- Group page editor ---------- */
+.block-list { gap: var(--space-3); }
+.block-editor { gap: var(--space-3); display: flex; flex-direction: column; }
+.block-index { font-family: var(--mono); font-size: var(--fs-sm); color: var(--accent); letter-spacing: 0.08em; }
+.block-settings { padding-left: calc(var(--space-3) + 2ch); }
+.block-settings .field { display: flex; flex-direction: column; gap: 4px; }
+.input-narrow { width: 10rem; flex: none; }
+.feature-picker summary { cursor: pointer; font-weight: 550; }
+.feature-picker > div { max-height: 280px; overflow-y: auto; margin-top: var(--space-2); }
+.feature-option { align-items: flex-start; font-size: var(--fs-sm); }
+.news-item-editor { padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-m); }
 

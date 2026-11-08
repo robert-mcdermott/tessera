@@ -32,7 +32,7 @@ from tessera.api.common import (
 from tessera.config import VocabularyConfig
 from tessera.core.errors import TesseraError
 from tessera.evidence import store as people_store
-from tessera.groups import profile, store
+from tessera.groups import pages, profile, store
 from tessera.groups.importer import import_groups, parse_rows
 from tessera.ledger.tables import assertion, person, unit
 
@@ -666,3 +666,149 @@ def decide_publications(
         except TesseraError as exc:
             raise _fail(exc) from exc
     return envelope(results, total=len(results))
+
+
+# --- the group's page: blocks, draft, publish, history, rollback (LAB-04, LAB-05) -----------
+
+
+def _featured(request: Request, blocks: list[dict[str, Any]]) -> dict[str, Any]:
+    pmids = [p for b in blocks if b["type"] == "publications" for p in b.get("featured", [])]
+    if not pmids:
+        return {}
+    return publication_summaries(index_of(request), lake_of(request), pmids)
+
+
+def _page_view(request: Request, row: dict[str, Any], blocks: list[dict], **extra: Any) -> dict:
+    return {
+        "group_id": row["id"],
+        "blocks": blocks,
+        "featured": _featured(request, blocks),
+        "block_types": [
+            {"id": k, "label": v, "repeatable": k in pages.REPEATABLE, "side": k in pages.SIDE}
+            for k, v in pages.BLOCK_TYPES.items()
+        ],
+        **extra,
+    }
+
+
+@router.get("/groups/{group_ref}/page", summary="A group's page: its published blocks, or a draft")
+def page_blocks(
+    request: Request,
+    group_ref: str,
+    version: Annotated[
+        str, Query(max_length=10, description="published, draft (editors), or a revision number")
+    ] = "published",
+) -> dict[str, Any]:
+    with engine_of(request).connect() as conn:
+        row = _resolve(conn, group_ref)
+        page_row = pages.get_page(conn, row["id"]) or {}
+        can_edit = _can_edit(request, row["id"])
+        status = {
+            "revision": page_row.get("revision") or 0,
+            "published_at": page_row.get("published_at"),
+            "published_by": page_row.get("published_by"),
+            "has_draft": page_row.get("draft") is not None,
+            "draft_updated_at": page_row.get("draft_updated_at") if can_edit else None,
+            "draft_updated_by": page_row.get("draft_updated_by") if can_edit else None,
+            "can_edit": can_edit,
+        }
+        if version == "draft":
+            if not can_edit:
+                raise HTTPException(
+                    status_code=403, detail="Only the group's editors see its draft."
+                )
+            blocks = page_row.get("draft")
+            if blocks is None:
+                blocks, _ = pages.published_blocks(conn, row["id"])
+            shown = "draft"
+            is_default = False
+        elif version.isdigit():
+            blocks = pages.revision_blocks(conn, row["id"], int(version))
+            if blocks is None:
+                raise HTTPException(status_code=404, detail=f"This page has no version {version}.")
+            shown, is_default = int(version), False
+        else:
+            blocks, is_default = pages.published_blocks(conn, row["id"])
+            shown = "published"
+    return envelope(_page_view(request, row, blocks, version=shown, default=is_default, **status))
+
+
+class PageDraft(BaseModel):
+    blocks: list[dict[str, Any]] = Field(max_length=pages.MAX_BLOCKS)
+
+
+class PageNote(BaseModel):
+    note: str | None = Field(None, max_length=500)
+
+
+class PageRollback(BaseModel):
+    revision: int = Field(ge=1)
+    note: str | None = Field(None, max_length=500)
+
+
+def _page_change(request: Request, group_ref: str, change) -> dict[str, Any]:  # type: ignore[no-untyped-def]
+    actor = principal_of(request).name
+    try:
+        with engine_of(request).begin() as conn:
+            row = _resolve(conn, group_ref)
+            _require_edit(request, row["id"])
+            change(conn, row["id"], actor)
+    except TesseraError as exc:
+        raise _fail(exc) from exc
+    return page_blocks(request, row["id"], version="draft")
+
+
+@router.post("/groups/{group_ref}/page/draft", summary="Save the group page's draft (its editors)")
+def save_page_draft(request: Request, group_ref: str, body: PageDraft) -> dict[str, Any]:
+    return _page_change(
+        request,
+        group_ref,
+        lambda conn, gid, actor: pages.save_draft(conn, gid, body.blocks, actor=actor),
+    )
+
+
+@router.delete("/groups/{group_ref}/page/draft", summary="Discard the group page's draft")
+def discard_page_draft(request: Request, group_ref: str) -> dict[str, Any]:
+    return _page_change(
+        request, group_ref, lambda conn, gid, actor: pages.discard_draft(conn, gid, actor=actor)
+    )
+
+
+@router.post("/groups/{group_ref}/page/publish", summary="Publish the draft as the group's page")
+def publish_page(request: Request, group_ref: str, body: PageNote) -> dict[str, Any]:
+    return _page_change(
+        request,
+        group_ref,
+        lambda conn, gid, actor: pages.publish(conn, gid, actor=actor, note=body.note),
+    )
+
+
+@router.post("/groups/{group_ref}/page/rollback", summary="Publish an earlier version again")
+def rollback_page(request: Request, group_ref: str, body: PageRollback) -> dict[str, Any]:
+    return _page_change(
+        request,
+        group_ref,
+        lambda conn, gid, actor: pages.rollback(
+            conn, gid, body.revision, actor=actor, note=body.note
+        ),
+    )
+
+
+@router.get("/groups/{group_ref}/page/revisions", summary="Every published version of the page")
+def page_revisions(request: Request, group_ref: str) -> dict[str, Any]:
+    with engine_of(request).connect() as conn:
+        row = _resolve(conn, group_ref)
+        found = pages.revisions(conn, row["id"])
+    return envelope(
+        [
+            {
+                "number": r["number"],
+                "action": r["action"],
+                "actor": r["actor"],
+                "note": r["note"],
+                "at": r["at"],
+                "blocks": len(r["blocks"]),
+            }
+            for r in found
+        ]
+    )

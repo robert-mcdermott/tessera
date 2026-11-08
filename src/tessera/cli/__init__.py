@@ -207,8 +207,10 @@ def build_parser() -> argparse.ArgumentParser:
     users_cmd = commands.add_parser("users", help="local accounts and their roles")
     users_actions = users_cmd.add_subparsers(dest="users_command", metavar="ACTION", required=True)
     role_help = (
-        "admin, curator, researcher, or viewer; a curator for some people only is "
-        "curator=unit:<name or code> or curator=person:<ID> (repeatable)"
+        "admin, curator, manager, researcher, or viewer; a curator for some people only is "
+        "curator=group:<name, address, or code> or curator=person:<ID>; a manager is "
+        "manager=group:<…>, or manager=group:<…>+below to manage the groups below too "
+        "(repeatable)"
     )
     adder = users_actions.add_parser("add", help="create an account (prompts for a password)")
     adder.add_argument("username", help="lowercase letters, digits, dots, dashes, underscores")
@@ -929,12 +931,12 @@ def _read_password(from_stdin: bool) -> str:
 
 
 def _parse_roles(conn, specs: list[str]):  # type: ignore[no-untyped-def]
-    from tessera.auth.accounts import Grant, resolve_scope
+    from tessera.auth.accounts import make_grant
 
     grants = []
     for spec in specs:
         role, _, scope = spec.partition("=")
-        grants.append(Grant(role.strip().lower(), *resolve_scope(conn, scope.strip() or None)))
+        grants.append(make_grant(conn, role, scope.strip() or None))
     return grants
 
 
@@ -942,7 +944,8 @@ def _describe_roles(grants, units: dict[str, str]) -> str:  # type: ignore[no-un
     out = []
     for g in grants:
         if g.scope_type == "unit":
-            out.append(f"{g.role} ({units.get(g.scope_id, g.scope_id)})")
+            below = " and below" if g.include_below else ""
+            out.append(f"{g.role} ({units.get(g.scope_id, g.scope_id)}{below})")
         elif g.scope_type == "person":
             out.append(f"{g.role} ({g.scope_id})")
         else:

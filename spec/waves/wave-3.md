@@ -2,7 +2,7 @@
 
 **Goal:** give groups (labs, programs, divisions, centers, and others) a living home that their own representatives maintain, open a public window onto them, and deepen topics with the MeSH hierarchy.
 
-**Branch:** `wave-3` · **Target version:** `0.3.0` · **Status:** ◐ slices 1 to 3 done; slice 4 next
+**Branch:** `wave-3` · **Target version:** `0.3.0` · **Status:** ◐ slices 1 to 4 done; slice 5 next
 
 ## Exit criteria
 
@@ -61,13 +61,15 @@ Requirements delivered: LAB-01 to LAB-08, PLT-07, PLT-11, PLT-13, CUR-08, and th
 
 **Acceptance (met):** the demo has 5 divisions, 22 labs, 3 programs that each span two divisions, and a shared resource, from an import of its registry; each lab's page shows its leader, people and alumni, attributed papers by year, grants, topics and areas, and the labs and programs it writes with; suggestions show their evidence and are decided on the page; a leader's authorship alone scores below the review threshold.
 
-## Slice 4: Managers and the editorial workflow ☐
+## Slice 4: Managers and the editorial workflow ☑
 
 **Goal:** representatives control their group's view (LAB-04, LAB-05).
 
-- [ ] A `manager` role limited to a group (and, optionally, the groups below it)
-- [ ] Page blocks from an approved set (about, people, featured publications, grants, studies, themes, openings, contact, news), arranged without code
-- [ ] Draft, preview, publish, history, and rollback for each group's page
+- [x] A `manager` role limited to a group (and, optionally, the groups below it)
+- [x] Page blocks from an approved set (about, people, featured publications, grants, studies, themes, openings, contact, news), arranged without code
+- [x] Draft, preview, publish, history, and rollback for each group's page
+
+**Acceptance (met):** a manager of one group saves a draft, previews it, and publishes it; viewers see the published page and never the draft; the manager cannot edit another group or decide about people; publishing again and restoring version 1 gives version 3 with version 1's blocks; text with markup stays text; the demo's immunotherapy program and busiest lab have published pages and the program has a manager account.
 
 ## Slice 5: Inbox, openings, themes ☐
 
@@ -97,6 +99,7 @@ Requirements delivered: LAB-01 to LAB-08, PLT-07, PLT-11, PLT-13, CUR-08, and th
 
 | Date | Note |
 |---|---|
+| 2026-11-09 | Slice 4 done. Access levels gained MANAGE (below REVIEW) so that a manager reaches group routes without the review queue; each handler still checks the group. Blocks are settings, not HTML: about and news are plain paragraphs, links must be http(s), and featured papers are PubMed IDs, so a page can carry no markup into the app or the public site. Restoring a version publishes it again as a new version rather than rewinding, so the history only grows. Page drafts are per group, not per editor: two managers of one group share a draft, and the last save wins (with who and when shown), which is simple and enough for groups with one or two editors. |
 | 2026-11-09 | Slice 3 done. Attribution is a separate link because membership and authorship together are not enough: a PI's collaborations and a postdoc's earlier work are not the lab's. Every attribution is decided by a person, so the score only orders suggestions and is kept simple (additive, documented in the guide); a learned model can wait for decisions to learn from. Divisions and departments are not attributable by default, and "writes most with" lists only attributable kinds, because a division would claim, and work with, everything. The graph's collaboration communities became "clusters" so that "group" means one thing. Group contact details (email, website) went into the ledger (migration 0008) rather than page blocks, because the public site needs them as data. |
 | 2026-11-08 | Slice 2 done. The `unit` table keeps its name (and the `unt_` IDs, the curator scope type `unit`, and the `/graph/units` routes) so that nothing outside the groups work had to move; the product and the new API say "group". A membership's role is its qualifier key, so one person can be a lab's lead and a member of it at once, and a role change from a feed updates the same membership when the feed gives membership identifiers. Feeds are in charge of what they supply; removing a membership by hand is the one decision a feed cannot undo. Group merges are recorded but not undoable from the app, unlike person merges: a group merge touches roles and nesting as well as links, and a reversible journal can wait until someone needs it. |
 | 2026-11-08 | Slice 1 done. Areas are rolled up only in the branches that say what someone studies (anatomy, organisms, diseases, psychology, phenomena); the first attempt rolled up everything and every chemist's top area was "Amino Acids, Peptides, and Proteins". Areas shared by nearly everyone ("Cells") are weighed down by IDF, as topics are. Two quirks of NLM's file server: a missing file comes back as an HTML page with a 200 status, and asking for gzip makes clients unpack the 17 MB file into 300 MB of XML. DuckDB 2.0 rejects the old `x -> …` lambda syntax. |

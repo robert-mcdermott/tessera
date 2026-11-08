@@ -4529,6 +4529,311 @@
           }
         }
       }
+    },
+    "/api/v1/groups/{group_ref}/page": {
+      "get": {
+        "tags": [
+          "groups"
+        ],
+        "summary": "A group's page: its published blocks, or a draft",
+        "operationId": "page_blocks_api_v1_groups__group_ref__page_get",
+        "parameters": [
+          {
+            "name": "group_ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Ref"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 10,
+              "description": "published, draft (editors), or a revision number",
+              "default": "published",
+              "title": "Version"
+            },
+            "description": "published, draft (editors), or a revision number"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Page Blocks Api V1 Groups  Group Ref  Page Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/groups/{group_ref}/page/draft": {
+      "post": {
+        "tags": [
+          "groups"
+        ],
+        "summary": "Save the group page's draft (its editors)",
+        "operationId": "save_page_draft_api_v1_groups__group_ref__page_draft_post",
+        "parameters": [
+          {
+            "name": "group_ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Ref"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageDraft"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Save Page Draft Api V1 Groups  Group Ref  Page Draft Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "groups"
+        ],
+        "summary": "Discard the group page's draft",
+        "operationId": "discard_page_draft_api_v1_groups__group_ref__page_draft_delete",
+        "parameters": [
+          {
+            "name": "group_ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Ref"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Discard Page Draft Api V1 Groups  Group Ref  Page Draft Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/groups/{group_ref}/page/publish": {
+      "post": {
+        "tags": [
+          "groups"
+        ],
+        "summary": "Publish the draft as the group's page",
+        "operationId": "publish_page_api_v1_groups__group_ref__page_publish_post",
+        "parameters": [
+          {
+            "name": "group_ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Ref"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageNote"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Publish Page Api V1 Groups  Group Ref  Page Publish Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/groups/{group_ref}/page/rollback": {
+      "post": {
+        "tags": [
+          "groups"
+        ],
+        "summary": "Publish an earlier version again",
+        "operationId": "rollback_page_api_v1_groups__group_ref__page_rollback_post",
+        "parameters": [
+          {
+            "name": "group_ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Ref"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageRollback"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Rollback Page Api V1 Groups  Group Ref  Page Rollback Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/groups/{group_ref}/page/revisions": {
+      "get": {
+        "tags": [
+          "groups"
+        ],
+        "summary": "Every published version of the page",
+        "operationId": "page_revisions_api_v1_groups__group_ref__page_revisions_get",
+        "parameters": [
+          {
+            "name": "group_ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Ref"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Page Revisions Api V1 Groups  Group Ref  Page Revisions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5354,6 +5659,68 @@
         ],
         "title": "MergeRequest"
       },
+      "PageDraft": {
+        "properties": {
+          "blocks": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "title": "Blocks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "blocks"
+        ],
+        "title": "PageDraft"
+      },
+      "PageNote": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "title": "PageNote"
+      },
+      "PageRollback": {
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Revision"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "revision"
+        ],
+        "title": "PageRollback"
+      },
       "PasswordChange": {
         "properties": {
           "current_password": {
@@ -5439,7 +5806,7 @@
           "role": {
             "type": "string",
             "title": "Role",
-            "description": "admin, curator, researcher, or viewer"
+            "description": "admin, curator, manager, researcher, or viewer"
           },
           "scope": {
             "anyOf": [
@@ -5451,7 +5818,13 @@
               }
             ],
             "title": "Scope",
-            "description": "For curators: unit:<name, code, or ID> or person:<ID>; none for all"
+            "description": "For curators: group:<name, address, code, or ID> or person:<ID>; none for all. For managers: group:<…> (required)"
+          },
+          "include_below": {
+            "type": "boolean",
+            "title": "Include Below",
+            "description": "A manager also manages the groups below",
+            "default": false
           }
         },
         "type": "object",

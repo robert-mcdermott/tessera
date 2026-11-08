@@ -79,6 +79,7 @@ async function boot() {
   const groupPages = () => import("./pages/groups.js");
   route("/groups", async (_, ctx) => (await groupPages()).groupsDirectory(main, ctx));
   route("/groups/:slug", async (params, ctx) => (await groupPages()).groupPage(main, params, ctx));
+  route("/groups/:slug/edit", async (params) => (await import("./pages/group-editor.js")).groupEditor(main, params));
   route("/people", (_, ctx) => browse(main, "person", ctx));
   route("/people/:id", (params, ctx) => person(main, params, ctx));
   route("/publications", (_, ctx) => browse(main, "publication", ctx));

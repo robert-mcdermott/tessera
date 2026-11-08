@@ -250,7 +250,7 @@ Index(None, person_merge.c.survivor_id)
 
 # --- Accounts (PLT-06) ---------------------------------------------------------------------
 
-ROLES = ("admin", "curator", "researcher", "viewer")
+ROLES = ("admin", "curator", "manager", "researcher", "viewer")
 ACCOUNT_STATUSES = ("active", "disabled")
 
 account = Table(
@@ -280,6 +280,9 @@ role_grant = Table(
     Column("role", String(16), nullable=False),
     Column("scope_type", String(16)),
     Column("scope_id", ID),
+    # A manager's group scope covers the groups below it only when this is set; a curator's
+    # group scope always does.
+    Column("include_below", Boolean, nullable=False, server_default=false()),
     Column("granted_by", String(200), nullable=False),
     Column("granted_at", UtcDateTime, nullable=False),
     CheckConstraint(_in("role", ROLES), name="role"),
@@ -290,6 +293,36 @@ role_grant = Table(
     ),
 )
 Index(None, role_grant.c.account_id)
+
+# A group's page: blocks from an approved set (spec: wave-3 slice 4), as a draft that its
+# managers edit and the published version everyone sees. ``revision`` counts publications.
+group_page = Table(
+    "group_page",
+    metadata,
+    Column("unit_id", ID, ForeignKey("unit.id", ondelete="CASCADE"), primary_key=True),
+    Column("draft", JsonType),
+    Column("draft_updated_at", UtcDateTime),
+    Column("draft_updated_by", String(200)),
+    Column("published", JsonType),
+    Column("revision", Integer, nullable=False, server_default="0"),
+    Column("published_at", UtcDateTime),
+    Column("published_by", String(200)),
+)
+
+# Every published version of every group page, so any can be looked at and restored.
+group_page_revision = Table(
+    "group_page_revision",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("unit_id", ID, ForeignKey("unit.id", ondelete="CASCADE"), nullable=False),
+    Column("number", Integer, nullable=False),
+    Column("blocks", JsonType, nullable=False),
+    Column("action", String(20), nullable=False),  # publish | rollback
+    Column("actor", String(200), nullable=False),
+    Column("note", Text),
+    Column("at", UtcDateTime, nullable=False),
+    UniqueConstraint("unit_id", "number"),
+)
 
 # Signed-in browsers. Only a hash of the session token is stored.
 auth_session = Table(

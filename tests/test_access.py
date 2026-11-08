@@ -101,6 +101,7 @@ def world(tmp_path_factory: pytest.TempPathFactory) -> Iterator[World]:
             "admin": ([Grant("admin")], None),
             "curator": ([Grant("curator")], None),
             "unitcur": ([Grant("curator", "unit", ids["unit"])], None),
+            "manager": ([Grant("manager", "unit", ids["unit"])], None),
             "researcher": ([Grant("researcher")], researcher),
             "viewer": ([Grant("viewer")], None),
         }
@@ -118,7 +119,7 @@ def world(tmp_path_factory: pytest.TempPathFactory) -> Iterator[World]:
         passwords.SCRYPT_N = cheap
     engine.dispose()
     w = World(config, path, ids)
-    for name in ("admin", "curator", "unitcur", "researcher", "viewer"):
+    for name in ("admin", "curator", "unitcur", "manager", "researcher", "viewer"):
         client = TestClient(create_app(config), base_url=LOCAL)
         client.__enter__()
         signed = client.post("/api/v1/session", json={"username": name, "password": PASSWORD})
@@ -157,6 +158,7 @@ def test_every_api_route_has_a_policy(world: World) -> None:
 
 ROLE_LEVELS = {
     "viewer": Level.READ,
+    "manager": Level.MANAGE,
     "researcher": Level.REVIEW,
     "unitcur": Level.CURATE_ANY,
     "curator": Level.CURATE_ALL,
@@ -199,6 +201,8 @@ HARMLESS: dict[tuple[str, str], Any] = {
     ("POST", "/api/v1/merges/{merge_id}/undo"): {},
     ("POST", "/api/v1/accounts"): {"username": "x"},
     ("POST", "/api/v1/groups"): {"name": ""},
+    ("POST", "/api/v1/groups/{group_ref}/page/draft"): {"blocks": "not a list"},
+    ("POST", "/api/v1/groups/{group_ref}/page/rollback"): {"revision": 0},
     ("POST", "/api/v1/groups/{group_ref}/publications/decisions"): {
         "ids": ["asr_missing"],
         "action": "accept",
@@ -349,6 +353,7 @@ def test_viewers_read_but_never_decide(world: World) -> None:
         "curate_any": False,
         "review": False,
         "edit_groups": False,
+        "manage": False,
     }
 
 
@@ -473,6 +478,7 @@ def test_admins_manage_accounts(world: World) -> None:
             "role": "curator",
             "scope_type": "unit",
             "scope_id": world.ids["unit"],
+            "include_below": False,
             "scope_label": world.ids["unit_name"],
         }
     ]
@@ -492,3 +498,31 @@ def test_admins_manage_accounts(world: World) -> None:
     last = call(world, "admin", "POST", f"/api/v1/accounts/{admin_id}", {"status": "disabled"})
     assert last.status_code == 400 and "last active admin" in last.json()["detail"]
     assert call(world, "curator", "GET", "/api/v1/accounts").status_code == 403
+
+
+def test_managers_edit_their_group_and_nothing_else(world: World) -> None:
+    unit = world.ids["unit"]
+    draft = call(world, "manager", "POST", f"/api/v1/groups/{unit}/page/draft",
+                 {"blocks": [{"type": "about", "text": "We study things."}]})  # fmt: skip
+    assert draft.status_code == 200, draft.text
+    assert (
+        call(world, "manager", "POST", f"/api/v1/groups/{unit}/page/publish", {}).status_code == 200
+    )
+    page = call(world, "viewer", "GET", f"/api/v1/groups/{unit}/page").json()["data"]
+    assert page["blocks"][0]["text"] == "We study things." and page["revision"] == 1
+    assert (
+        call(world, "viewer", "GET", f"/api/v1/groups/{unit}/page?version=draft").status_code == 403
+    )
+    # Another group is out of the manager's scope; people decisions are out of their role.
+    other = call(world, "admin", "POST", "/api/v1/groups", {"name": "Elsewhere Lab", "kind": "lab"})
+    other_id = other.json()["data"]["id"]
+    refused = call(
+        world, "manager", "POST", f"/api/v1/groups/{other_id}/page/draft", {"blocks": []}
+    )
+    assert refused.status_code == 403 and "your scope" in refused.text
+    path = f"/api/v1/assertions/{world.ids['inside_asr']}/decision"
+    decision = call(world, "manager", "POST", path, {"action": "accept"})
+    assert decision.status_code == 403
+    session = call(world, "manager", "GET", "/api/v1/session").json()["data"]
+    assert session["permissions"]["manage"] and session["permissions"]["edit_groups"]
+    assert not session["permissions"]["review"]

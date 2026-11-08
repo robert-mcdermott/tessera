@@ -4,13 +4,13 @@
 
 import { get, post } from "../core/api.js";
 import { h, icon } from "../core/dom.js";
-import { number, percent, plural } from "../core/format.js";
+import { number, paragraphs, percent, plural } from "../core/format.js";
 import { query, setQuery } from "../core/router.js";
 import { can } from "../core/session.js";
 import { openEvidence } from "../components/drawer.js";
 import { grantItem, publicationItem, studyItem } from "../components/items.js";
 import { toast } from "../components/toast.js";
-import { avatar, barChart, card, debounce, emptyState, pageHeader, pager, pill, tabs } from "../components/ui.js";
+import { avatar, barChart, callout, card, debounce, emptyState, pageHeader, pager, pill, tabs } from "../components/ui.js";
 import { show } from "./page.js";
 
 const PAGE = 20;
@@ -86,29 +86,34 @@ function personTile(m, { alumni = false } = {}) {
       h("span", { class: "subtle" }, [m.role_label, m.title, span].filter(Boolean).join(" · "))));
 }
 
-/** One group's showcase. */
+/** One group's showcase, built from its page's blocks (or a draft or older version, to preview). */
 export function groupPage(main, params, ctx = {}) {
   const ref = params.slug;
   const state = query();
   const peopleTab = state.get("people") === "alumni" ? "alumni" : "current";
   const pubTab = state.get("papers") === "suggested" ? "suggested" : "accepted";
   const offset = Number(state.get("offset") || 0);
+  const version = state.get("preview") === "draft" ? "draft" : (state.get("version") || "published");
   const reload = () => groupPage(main, params, { samePage: true });
   return show(main, {
     title: (d) => d.group.name,
     quiet: ctx.samePage,
     load: async () => {
-      const [overview, papers] = await Promise.all([
-        get(`/api/v1/groups/${encodeURIComponent(ref)}/overview`, null, { fresh: ctx.samePage }),
-        get(`/api/v1/groups/${encodeURIComponent(ref)}/publications`, { status: pubTab, limit: PAGE, offset }, { fresh: ctx.samePage }),
+      const base = `/api/v1/groups/${encodeURIComponent(ref)}`;
+      const [overview, page, papers] = await Promise.all([
+        get(`${base}/overview`, null, { fresh: ctx.samePage }),
+        get(`${base}/page`, { version }, { fresh: true }),
+        get(`${base}/publications`, { status: pubTab, limit: PAGE, offset }, { fresh: ctx.samePage }),
       ]);
-      return { group: overview.data, vocab: overview.meta.vocabulary, meshYear: overview.meta.mesh_year, papers };
+      return { group: overview.data, vocab: overview.meta.vocabulary, meshYear: overview.meta.mesh_year, page: page.data, papers };
     },
-    view: ({ group, vocab, meshYear, papers }) => {
+    view: ({ group, vocab, meshYear, page, papers }) => {
       if (group.slug !== ref) window.history.replaceState(null, "", `/groups/${group.slug}${window.location.search}`);
-      const contact = [
+      const editor = page.can_edit;
+      const actions = [
         group.website ? h("a", { class: "btn", href: group.website, rel: "noopener", target: "_blank" }, icon("external", "icon icon-sm"), "Website") : null,
         group.email ? h("a", { class: "btn", href: `mailto:${group.email}` }, "Contact") : null,
+        editor ? h("a", { class: "btn btn-primary", href: `/groups/${group.slug}/edit` }, "Edit page") : null,
         can("admin") ? h("a", { class: "btn btn-ghost", href: `/admin/groups/${group.slug}` }, "Manage") : null,
       ].filter(Boolean);
       const header = pageHeader({
@@ -119,83 +124,132 @@ export function groupPage(main, params, ctx = {}) {
           group.status === "archived" ? pill("Archived", "warn") : null),
         title: group.name,
         meta: group.description ? h("p", { class: "lede" }, group.description) : null,
-        actions: contact.length ? contact : null,
+        actions: actions.length ? actions : null,
       });
+      const banner = page.version === "published" ? null : callout(h("span", {},
+        page.version === "draft" ? "You are looking at the draft of this page, as it will look once published. "
+          : `You are looking at version ${page.version} of this page. `,
+        h("a", { href: `/groups/${group.slug}` }, "See the published page"),
+        editor ? [" or ", h("a", { href: `/groups/${group.slug}/edit` }, "go back to the editor")] : null, "."), "warn");
       const stats = h("div", { class: "stats" },
         stat("person", "Members", group.people.length, group.alumni.length ? `${number(group.alumni.length)} alumni` : null),
         stat("publication", "Publications", group.publications.accepted,
           group.publications.suggested && group.can_edit ? `${number(group.publications.suggested)} to review` : "attributed to the group"),
         stat("grant", "Grants", group.grants.length, "held by members"),
         stat("study", "Studies", group.studies.length, "led by members"));
-      const leaders = group.leaders.length ? card({ title: group.leaders.length > 1 ? "Leaders" : "Leader", pad: true, attrs: { "data-entity": "person" },
-        body: h("ul", { class: "plain-list leader-list" }, group.leaders.map((m) => h("li", { class: "row" },
-          avatar(m.name, "lg"), h("div", { class: "stack-xs" },
-            h("a", { class: "strong", href: `/people/${m.person_id}` }, m.name),
-            h("span", { class: "subtle" }, [m.role_label, m.title].filter(Boolean).join(" · ")))))) }) : null;
-      const shownPeople = peopleTab === "alumni" ? group.alumni : group.people;
-      const people = card({
-        title: "People",
-        attrs: { "data-entity": "person" },
-        action: group.alumni.length ? tabs([{ id: "current", label: "Current", count: group.people.length },
-          { id: "alumni", label: "Alumni", count: group.alumni.length }], peopleTab,
-        (id) => setQuery({ people: id === "alumni" ? "alumni" : null })) : null,
-        pad: true,
-        body: shownPeople.length
-          ? h("ul", { class: "plain-list people-grid" }, shownPeople.map((m) => personTile(m, { alumni: peopleTab === "alumni" })))
-          : h("p", { class: "subtle" }, peopleTab === "alumni" ? "No alumni recorded." : "No current members recorded."),
-      });
-      const paperTabs = group.can_edit && group.publications.suggested
-        ? tabs([{ id: "accepted", label: "Attributed", count: group.publications.accepted },
-          { id: "suggested", label: "To review", count: group.publications.suggested }], pubTab,
-        (id) => setQuery({ papers: id === "suggested" ? "suggested" : null, offset: null }))
-        : null;
-      const chart = pubTab === "accepted" && group.publications.by_year.length > 1
-        ? barChart(group.publications.by_year.map((y) => ({ label: String(y.year).slice(2), value: y.count })),
-          { caption: "Publications attributed to the group, by year" })
-        : null;
-      const paperRows = papers.data.map((item) => pubTab === "suggested"
-        ? suggestionRow(group, item, reload)
-        : publicationItem(item.summary));
-      const publications = card({
-        title: "Publications",
+      const ctxBlocks = { group, vocab, meshYear, page, papers, peopleTab, pubTab, offset, reload };
+      const main_ = [];
+      const side = [];
+      for (const block of page.blocks) {
+        const nodes = [RENDER[block.type]?.(block, ctxBlocks)].flat().filter(Boolean);
+        (SIDE.has(block.type) ? side : main_).push(...nodes);
+      }
+      if (group.children.length) {
+        side.push(card({ title: "Within this group", pad: true, attrs: { "data-entity": "unit" },
+          body: h("ul", { class: "plain-list" }, group.children.map((c) => h("li", { class: "row-sm" },
+            h("a", { class: "grow", href: `/groups/${c.slug}` }, c.name),
+            h("span", { class: "subtle" }, `${c.kind_label} · ${plural(c.members, "member")}`)))) }));
+      }
+      return h("div", { class: "stack-lg" }, banner, header, stats,
+        h("div", { class: "grid-main" }, h("div", { class: "stack-lg" }, main_), h("div", { class: "stack-lg" }, side)));
+    },
+  });
+}
+
+const SIDE = new Set(["topics", "connections", "contact"]);
+
+function textBody(text) {
+  return paragraphs(text).map((p) => h("p", {}, p));
+}
+
+const RENDER = {
+  about: (b) => b.text
+    ? card({ title: b.title ?? "About", pad: true, body: h("div", { class: "prose" }, textBody(b.text)) })
+    : null,
+  people: (b, { group, peopleTab }) => {
+    const leaders = group.leaders.length ? card({ title: group.leaders.length > 1 ? "Leaders" : "Leader", pad: true, attrs: { "data-entity": "person" },
+      body: h("ul", { class: "plain-list leader-list" }, group.leaders.map((m) => h("li", { class: "row" },
+        avatar(m.name, "lg"), h("div", { class: "stack-xs" },
+          h("a", { class: "strong", href: `/people/${m.person_id}` }, m.name),
+          h("span", { class: "subtle" }, [m.role_label, m.title].filter(Boolean).join(" · ")))))) }) : null;
+    const showAlumni = b.show_alumni !== false && group.alumni.length;
+    const tab = showAlumni ? peopleTab : "current";
+    const shown = tab === "alumni" ? group.alumni : group.people;
+    const people = card({
+      title: b.title ?? "People",
+      attrs: { "data-entity": "person" },
+      action: showAlumni ? tabs([{ id: "current", label: "Current", count: group.people.length },
+        { id: "alumni", label: "Alumni", count: group.alumni.length }], tab,
+      (id) => setQuery({ people: id === "alumni" ? "alumni" : null })) : null,
+      pad: true,
+      body: shown.length
+        ? h("ul", { class: "plain-list people-grid" }, shown.map((m) => personTile(m, { alumni: tab === "alumni" })))
+        : h("p", { class: "subtle" }, tab === "alumni" ? "No alumni recorded." : "No current members recorded."),
+    });
+    return [leaders, people];
+  },
+  publications: (b, { group, page, papers, pubTab, offset, reload }) => {
+    const featured = (b.featured ?? []).map((pmid) => page.featured[pmid]).filter(Boolean);
+    const paperTabs = group.can_edit && group.publications.suggested
+      ? tabs([{ id: "accepted", label: "Attributed", count: group.publications.accepted },
+        { id: "suggested", label: "To review", count: group.publications.suggested }], pubTab,
+      (id) => setQuery({ papers: id === "suggested" ? "suggested" : null, offset: null }))
+      : null;
+    const chart = pubTab === "accepted" && b.show_chart !== false && group.publications.by_year.length > 1
+      ? barChart(group.publications.by_year.map((y) => ({ label: String(y.year).slice(2), value: y.count })),
+        { caption: "Publications attributed to the group, by year" })
+      : null;
+    const limit = b.limit ?? PAGE;
+    const rows = papers.data.slice(0, limit).map((item) => pubTab === "suggested"
+      ? suggestionRow(group, item, reload)
+      : publicationItem(item.summary));
+    return [
+      featured.length ? card({ title: "Featured publications", attrs: { "data-entity": "publication" },
+        body: h("div", { class: "items" }, featured.map((s) => publicationItem(s))) }) : null,
+      card({
+        title: b.title ?? "Publications",
         attrs: { "data-entity": "publication" },
         action: paperTabs,
         body: h("div", {},
           chart ? h("div", { class: "card-body" }, chart) : null,
-          paperRows.length ? h("div", { class: "items" }, paperRows)
+          rows.length ? h("div", { class: "items" }, rows)
             : h("div", { class: "card-body" }, emptyState({ kind: "publication",
               title: pubTab === "suggested" ? "Nothing to review" : "No publications attributed yet",
               text: pubTab === "suggested" ? "Every suggested paper has been decided."
                 : "A paper becomes the group's when someone who curates the group says so; a member's authorship alone is not enough." })),
-          pager({ total: papers.meta.total, offset, limit: PAGE, onPage: (next) => setQuery({ offset: next || null }) })),
-      });
-      const grants = group.grants.length ? card({ title: "Grants", attrs: { "data-entity": "grant" },
-        body: h("div", { class: "items" }, group.grants.slice(0, 12).map((g) => grantItem(g.summary))) }) : null;
-      const studies = group.studies.length ? card({ title: "Studies", attrs: { "data-entity": "study" },
-        body: h("div", { class: "items" }, group.studies.slice(0, 12).map((s) => studyItem(s.summary))) }) : null;
-      const topics = group.topics.length ? card({ title: "Topics", pad: true, attrs: { "data-entity": "concept" },
-        body: h("div", { class: "stack" },
-          group.areas.length ? areaBars(group.areas, "the group's topics") : null,
-          h("div", { class: "chips" }, group.topics.map((t) => h("a", { class: "chip", href: `/experts?concept=${t.descriptor_ui}`,
-            title: `${plural(t.people, "member")} work on this` }, t.descriptor))),
-          h("p", { class: "subtle" }, "What the group's current members work on, from their papers' MeSH headings.",
-            meshYear ? ` Areas: MeSH ${meshYear}, from the U.S. National Library of Medicine.` : "")) }) : null;
-      const connections = group.connections.length ? card({ title: "Writes most with", pad: true, attrs: { "data-entity": "unit" },
-        body: h("ul", { class: "plain-list" }, group.connections.map((c) => h("li", { class: "row-sm" },
-          h("a", { class: "grow", href: `/groups/${c.slug}` }, c.name),
-          h("span", { class: "subtle tabular nowrap", title: `${plural(c.people, "person", "people")} there` }, plural(c.papers, "paper"))))),
-          }) : null;
-      const within = group.children.length ? card({ title: "Within this group", pad: true, attrs: { "data-entity": "unit" },
-        body: h("ul", { class: "plain-list" }, group.children.map((c) => h("li", { class: "row-sm" },
-          h("a", { class: "grow", href: `/groups/${c.slug}` }, c.name),
-          h("span", { class: "subtle" }, `${c.kind_label} · ${plural(c.members, "member")}`)))) }) : null;
-      return h("div", { class: "stack-lg" }, header, stats,
-        h("div", { class: "grid-main" },
-          h("div", { class: "stack-lg" }, leaders, people, publications, grants, studies),
-          h("div", { class: "stack-lg" }, topics, connections, within)));
-    },
-  });
-}
+          pager({ total: Math.min(papers.meta.total, limit === PAGE ? papers.meta.total : limit), offset, limit: Math.min(limit, PAGE),
+            onPage: (next) => setQuery({ offset: next || null }) })),
+      }),
+    ];
+  },
+  grants: (b, { group }) => group.grants.length ? card({ title: b.title ?? "Grants", attrs: { "data-entity": "grant" },
+    body: h("div", { class: "items" }, group.grants.slice(0, b.limit ?? 12).map((g) => grantItem(g.summary))) }) : null,
+  studies: (b, { group }) => group.studies.length ? card({ title: b.title ?? "Studies", attrs: { "data-entity": "study" },
+    body: h("div", { class: "items" }, group.studies.slice(0, b.limit ?? 12).map((s) => studyItem(s.summary))) }) : null,
+  topics: (b, { group, meshYear }) => group.topics.length ? card({ title: b.title ?? "Topics", pad: true, attrs: { "data-entity": "concept" },
+    body: h("div", { class: "stack" },
+      group.areas.length ? areaBars(group.areas, "the group's topics") : null,
+      h("div", { class: "chips" }, group.topics.map((t) => h("a", { class: "chip", href: `/experts?concept=${t.descriptor_ui}`,
+        title: `${plural(t.people, "member")} work on this` }, t.descriptor))),
+      h("p", { class: "subtle" }, "What the group's current members work on, from their papers' MeSH headings.",
+        meshYear ? ` Areas: MeSH ${meshYear}, from the U.S. National Library of Medicine.` : "")) }) : null,
+  connections: (b, { group }) => group.connections.length ? card({ title: b.title ?? "Writes most with", pad: true, attrs: { "data-entity": "unit" },
+    body: h("ul", { class: "plain-list" }, group.connections.map((c) => h("li", { class: "row-sm" },
+      h("a", { class: "grow", href: `/groups/${c.slug}` }, c.name),
+      h("span", { class: "subtle tabular nowrap", title: `${plural(c.people, "person", "people")} there` }, plural(c.papers, "paper"))))) }) : null,
+  contact: (b, { group }) => (group.email || group.website || b.text) ? card({ title: b.title ?? "Contact", pad: true,
+    body: h("div", { class: "stack-sm" },
+      b.text ? textBody(b.text) : null,
+      group.email ? h("a", { href: `mailto:${group.email}` }, group.email) : null,
+      group.website ? h("a", { href: group.website, rel: "noopener", target: "_blank" }, group.website.replace(/^https?:\/\//, "")) : null) }) : null,
+  news: (b) => b.items?.length ? card({ title: b.title ?? "News", pad: true,
+    body: h("ol", { class: "plain-list news-list" }, b.items.map((n) => h("li", { class: "stack-xs" },
+      n.date ? h("span", { class: "eyebrow tabular" }, n.date) : null,
+      n.url ? h("a", { class: "strong", href: n.url, rel: "noopener", target: "_blank" }, n.title) : h("strong", {}, n.title),
+      n.text ? h("p", { class: "muted" }, n.text) : null))) }) : null,
+  themes: () => null,
+  openings: () => null,
+};
 
 function stat(kind, label, value, note) {
   return h("div", { class: "card stat", "data-entity": kind },

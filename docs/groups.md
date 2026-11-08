@@ -56,7 +56,43 @@ A lab's members write papers that are not the lab's: a principal investigator co
 | The paper acknowledges a grant a member holds | +0.15 |
 | Most of its MeSH headings are among the group's topics | +0.10 |
 
-A leader's authorship alone is weak evidence. **Every attribution is decided by a person**: the group's curators (or, from the next section, its managers) choose **The group's** or **Not** under **Publications → To review** on the group's page. The score only orders the suggestions, and decisions stand through later syncs. Run `tessera groups attribute` to refresh suggestions without a full sync.
+A leader's authorship alone is weak evidence. **Every attribution is decided by a person**: the group's managers or curators, or an admin, choose **The group's** or **Not** under **Publications → To review** on the group's page. The score only orders the suggestions, and decisions stand through later syncs. Run `tessera groups attribute` to refresh suggestions without a full sync.
+
+## Managers
+
+A **manager** is someone from the group, such as a lab manager or a program coordinator, who keeps its page. A manager's role is limited to one group, and optionally to the groups below it:
+
+```
+uv run tessera users add wren --name "Wren Castellan" --role "manager=group:cancer-immunotherapy-program"
+uv run tessera users add ines --role "manager=group:division-of-neuroscience+below"
+```
+
+or, in **Admin → Accounts**, choose **Manager** and the group, and tick **and the groups below it** if they should keep those pages too. Managers can:
+
+- edit, preview, and publish their group's page, and restore any earlier version;
+- decide which suggested papers are the group's.
+
+They cannot change memberships, other groups, or decisions about people; those stay with admins and curators. Curators limited to a group can do everything a manager of that group can.
+
+## The group's page
+
+A group's page is made of **blocks**, chosen and arranged by its managers (or a curator or admin) with **Edit page** on the group's page. Nothing on a page is code: each block is a few settings, checked when saved.
+
+| Block | Shows |
+|---|---|
+| About | Paragraphs of text about the group |
+| People | Leaders, then current members, with alumni on their own tab (which can be hidden) |
+| Publications | Papers attributed to the group, newest first, with a chart by year; up to 20 chosen papers can be featured above them |
+| Grants, Studies | Members' grants and studies |
+| Topics | What current members work on, with broader research areas |
+| Writes most with | The labs and programs the group writes papers with |
+| Themes and projects, Openings | The group's themes and projects, and its open positions |
+| Contact | The group's contact address and website, with an optional note |
+| News | Short dated items, each with an optional link |
+
+About and News can appear more than once; the others once each. Topics, Writes most with, and Contact sit beside the others on wide screens. A group whose page has never been published shows the standard arrangement of all of them.
+
+Changes go into a **draft**. **Preview** shows the draft as the page will look. **Publish** makes it the page everyone sees, as a new numbered version with an optional note. **Published versions** lists every version with who published it and when; **View** opens any of them, and **Restore** publishes an old one again as a new version, so nothing is ever lost. **Discard draft** throws away unpublished changes. The group's history records every save, publication, and restore.
 
 ## Curating groups in the app
 
