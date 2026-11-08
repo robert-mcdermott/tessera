@@ -32,6 +32,7 @@ PREFIXES = {
     "rpt": "report",
     "snp": "snapshot",
     "opl": "opportunity",
+    "tem": "team",
 }
 
 _CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"

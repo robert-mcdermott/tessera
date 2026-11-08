@@ -529,3 +529,30 @@ def test_managers_edit_their_group_and_nothing_else(world: World) -> None:
     session = call(world, "manager", "GET", "/api/v1/session").json()["data"]
     assert session["permissions"]["manage"] and session["permissions"]["edit_groups"]
     assert not session["permissions"]["review"]
+
+
+def test_a_team_is_seen_only_by_its_owner_members_shares_and_admins(world: World) -> None:
+    made = call(world, "researcher", "POST", "/api/v1/teams", {"name": "Grant team"})
+    assert made.status_code == 200, made.text
+    team_id = made.json()["data"]["id"]
+    path = f"/api/v1/teams/{team_id}"
+    assert call(world, "researcher", "GET", path).status_code == 200
+    assert call(world, "admin", "GET", path).status_code == 200
+    for who in ("viewer", "curator", "manager"):
+        assert call(world, who, "GET", path).status_code == 404
+        assert team_id not in {
+            t["id"] for t in call(world, who, "GET", "/api/v1/teams").json()["data"]
+        }
+    # Members can see the team: a researcher linked to a person on it.
+    other = call(world, "admin", "POST", "/api/v1/teams", {"name": "Admin team"}).json()["data"]
+    added = call(world, "admin", "POST", f"/api/v1/teams/{other['id']}/members",
+                 {"person_id": world.ids["researcher"], "role": "lead"})  # fmt: skip
+    assert added.status_code == 200, added.text
+    assert call(world, "researcher", "GET", f"/api/v1/teams/{other['id']}").status_code == 200
+    # Only the owner (or an admin) shares or deletes it.
+    shared = call(world, "researcher", "POST", f"/api/v1/teams/{other['id']}",
+                  {"shared_with": [world.ids["inside"]]})  # fmt: skip
+    assert shared.status_code == 400
+    assert call(world, "researcher", "DELETE", f"/api/v1/teams/{other['id']}").status_code == 400
+    assert call(world, "researcher", "DELETE", path).status_code == 200
+    assert call(world, "researcher", "GET", path).status_code == 404

@@ -83,6 +83,10 @@ async function boot() {
   route("/studies/:nct", (params) => study(main, params));
   route("/opportunities", (_, ctx) => browse(main, "opportunity", ctx));
   route("/opportunities/:id", async (params) => (await import("./pages/opportunities.js")).opportunityPage(main, params));
+  const teamPages = () => import("./pages/teams.js");
+  route("/teams", async () => (await teamPages()).teamsPage(main));
+  route("/teams/:id", async (params) => (await teamPages()).teamPage(main, params));
+  route("/teams/:id/brief", async (params) => (await teamPages()).briefPage(main, params));
   const insightPages = () => import("./pages/insight.js");
   route("/insight", async (_, ctx) => (await insightPages()).insightOverview(main, ctx));
   route("/insight/funding", async () => (await insightPages()).funding(main));

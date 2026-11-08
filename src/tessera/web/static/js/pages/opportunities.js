@@ -129,7 +129,9 @@ export function opportunityPage(main, params) {
           h("div", { class: "stack-lg" },
             o.description ? card({ title: "About", pad: true, body: h("div", { class: "abstract" }, paragraphs(o.description).map((p) => h("p", {}, p))) }) : null,
             card({ title: "Who fits", pad: true, attrs: { id: "fit" }, body: h("div", { class: "stack" },
-              h("p", { class: "subtle" }, "People whose confirmed work matches its topics, and groups that fit through their members. Fit is shown in bands, never as a ranking, and says nothing about eligibility."),
+              h("div", { class: "row wrap" },
+                h("p", { class: "subtle grow" }, "People whose confirmed work matches its topics, and groups that fit through their members. Fit is shown in bands, never as a ranking, and says nothing about eligibility."),
+                h("button", { type: "button", class: "btn btn-primary", onclick: async () => (await import("./teams.js")).startTeamFor(o.id) }, icon("people", "icon icon-sm"), "Start a team")),
               whoFits(f), conceptReader(f)) }),
             card({ title: "Who may apply", pad: true, body: h("div", { class: "stack-sm" },
               o.applicant_type_labels.length ? h("ul", { class: "plain-list" }, o.applicant_type_labels.map((t) => h("li", {}, t)))

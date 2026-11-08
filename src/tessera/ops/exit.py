@@ -72,6 +72,8 @@ LEDGER_NOTES = {
     "report_snapshot": "Frozen report snapshots (their files are in snapshots/)",
     "opportunity": "Funding opportunities the organization tracks itself (foundation, internal)",
     "opportunity_interest": "Opportunities people watch or have dismissed from their own lists",
+    "team": "Teams assembled for an opportunity, with the topics they need and their sharing",
+    "team_member": "The people on each team, with their roles",
     "auto_accept_batch": "Links accepted automatically, by batch",
     "ingest_run": "Every fetch, resolve, and build run",
     "source_checkpoint": "Where each source's incremental fetches left off",

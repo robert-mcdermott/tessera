@@ -571,3 +571,36 @@ opportunity_interest = Table(
     CheckConstraint(_in("state", INTEREST_STATES), name="state"),
 )
 Index(None, opportunity_interest.c.owner)
+
+# Teams (INT-10): people assembled for an opportunity, or for topics someone chooses. A team is
+# its owner's (an account's ID, or "operator"), and visible to its members, the people it is
+# shared with (person IDs), and admins. ``concepts`` are the topics it needs.
+TEAM_ROLES = ("lead", "co_investigator", "collaborator", "core", "other")
+team = Table(
+    "team",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("name", String(200), nullable=False),
+    Column("purpose", Text),
+    Column("opportunity", String(80)),
+    Column("concepts", JsonType, nullable=False),
+    Column("notes", Text),
+    Column("shared_with", JsonType, nullable=False),
+    Column("owner", String(200), nullable=False),
+    Column("owner_name", String(200), nullable=False),
+    Column("created_at", UtcDateTime, nullable=False),
+    Column("updated_at", UtcDateTime, nullable=False),
+)
+Index(None, team.c.owner)
+team_member = Table(
+    "team_member",
+    metadata,
+    Column("team_id", ID, ForeignKey("team.id", ondelete="CASCADE"), primary_key=True),
+    Column("person_id", ID, ForeignKey("person.id", ondelete="CASCADE"), primary_key=True),
+    Column("role", String(20), nullable=False, server_default="collaborator"),
+    Column("note", String(500)),
+    Column("added_by", String(200), nullable=False),
+    Column("added_at", UtcDateTime, nullable=False),
+    CheckConstraint(_in("role", TEAM_ROLES), name="role"),
+)
+Index(None, team_member.c.person_id)

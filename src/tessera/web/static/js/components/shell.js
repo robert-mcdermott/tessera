@@ -25,6 +25,7 @@ const NAV = [
     { href: "/grants", label: "Grants", iconName: "grant", match: (p) => p.startsWith("/grants") },
     { href: "/studies", label: "Studies", iconName: "study", match: (p) => p.startsWith("/studies") },
     { href: "/opportunities?status=posted&status=forecasted", label: "Opportunities", iconName: "opportunity", match: (p) => p.startsWith("/opportunities") },
+    { href: "/teams", label: "Teams", iconName: "people", match: (p) => p.startsWith("/teams") },
   ] },
   { section: "Insight", items: [
     { href: "/insight", label: "Portfolio", iconName: "chart", match: (p) => p.startsWith("/insight") },

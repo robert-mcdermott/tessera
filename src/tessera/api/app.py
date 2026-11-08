@@ -29,6 +29,7 @@ from tessera.api.routers import (
     records,
     saved,
     system,
+    teams,
 )
 from tessera.api.security import install_security_headers
 from tessera.api.static import (
@@ -88,6 +89,7 @@ def create_app(config: Config) -> FastAPI:
         records,
         impact,
         opportunities,
+        teams,
         curation,
         evidence,
         groups,

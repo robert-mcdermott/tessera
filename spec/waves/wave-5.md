@@ -2,7 +2,7 @@
 
 **Goal:** connect discovery to outcomes and opportunities. Follow a grant forward to the papers, studies, and clinical citations that came after it; see which open funding opportunities fit the organization's people and groups, and whether the organization can apply; assemble a team for one; and, where an organization chooses to turn it on, ask questions answered from Tessera's own records.
 
-**Branch:** `wave-5` · **Target version:** `0.5.0` · **Status:** ◐ slices 1 to 3 done
+**Branch:** `wave-5` · **Target version:** `0.5.0` · **Status:** ◐ slices 1 to 4 done
 
 ## Exit criteria
 
@@ -72,16 +72,16 @@ Requirements: INT-08 to INT-12, AI-01 to AI-08.
 
 **Acceptance (met):** on the demo, a cell-therapy opportunity lists the immunotherapy program and its people with the concepts that match; an opportunity open only to small businesses shows "does not meet" for applicant type while its fit is still shown; dismissing an opportunity hides it for that person only; a lab's inbox lists a new fitting opportunity once.
 
-## Slice 4: Team builder ☐
+## Slice 4: Team builder ☑
 
 **Goal:** assemble people for an opportunity and see what is covered and what is missing (INT-10).
 
-- [ ] A team: name, purpose, an opportunity or a set of concepts it needs, members with roles (lead, co-investigator, collaborator, core or resource), and notes; owned by its creator, shared with named people, visible to admins (ledger migration 0016)
-- [ ] Coverage: the needed concepts against each member's confirmed work; covered and missing concepts; for each gap, people who cover it, with reasons; who on the team has worked together before and which pairings are new; the groups and divisions the team spans
-- [ ] The team brief: a printable page and Markdown, with JSON and CSV, giving the purpose, the opportunity, each member's role with their relevant confirmed papers, grants, and studies, and the coverage, carrying its sources and data dates as exports do
-- [ ] Suggestions are ordered by the gap they fill, with their reasons, and never show a metric of a person
+- [x] A team: name, purpose, an opportunity or a set of concepts it needs, members with roles (lead, co-investigator, collaborator, core or resource), and notes; owned by its creator, shared with named people, visible to admins (ledger migration 0016)
+- [x] Coverage: the needed concepts against each member's confirmed work; covered and missing concepts; for each gap, people who cover it, with reasons; who on the team has worked together before and which pairings are new; the groups and divisions the team spans
+- [x] The team brief: a printable page and Markdown, with JSON and CSV, giving the purpose, the opportunity, each member's role with their relevant confirmed papers, grants, and studies, and the coverage, carrying its sources and data dates as exports do
+- [x] Suggestions are ordered by the gap they fill, with their reasons, and never show a metric of a person
 
-**Acceptance:** building a team for the demo's cell-therapy opportunity shows two missing concepts and suggests people who cover them; adding one updates the coverage; the brief lists only confirmed papers; a viewer the team is not shared with cannot open it.
+**Acceptance (met):** building a team for the demo's cell-therapy opportunity shows two missing concepts and suggests people who cover them; adding one updates the coverage; the brief lists only confirmed papers; a viewer the team is not shared with cannot open it.
 
 ## Slice 5: The AI layer: providers, configuration, invisibility, and the log ☐
 
@@ -135,6 +135,7 @@ Requirements: INT-08 to INT-12, AI-01 to AI-08.
 
 | Date | Note |
 |---|---|
+| 2026-11-08 | Slice 4 done. A member covers a topic when it, or a narrower heading, carries at least 0.15 of their concept profile (profiles are unit length; a typical topic carries about 0.23), so coverage says what someone's confirmed work is about. Suggestions for a gap reuse the expert finder with that one topic and leave out the members. Teams are visible to their members as well as their owner and the people it is shared with, because a team is usually discussed with the people on it; sharing and deleting stay with the owner and admins. The brief lists confirmed papers only, since its reader cannot see the evidence, and says when a member has none yet. |
 | 2026-11-08 | Slice 3 done. An opportunity is read the way an expert search reads a question, but its words find papers when any of them match (ranked by how many, and how rare), not all: the first reading, needing every word, found no papers for titles such as "Circuit Mechanisms of Chronic Pain" and read several opportunities as nothing. Plural words are now read as singular ("germinal centers" names Germinal Center), in expert search too. On the demo, people in an opportunity's field score 0.7 to 0.98 and everyone else under 0.3, so the bands are strong from 0.6 and some from 0.35. Eligibility separates checks that decide (applicant type, deadline, internal deadline, limited submission, career stage, cost sharing) from notes that do not (the clinical-trial rule, a forecast's estimated dates); otherwise every NIH notice would have said "check the notice". A group's inbox counts the opportunities Tessera first held since the last review (fetched, or added), not the sponsor's posting date, which can be weeks old by the first fetch. On the pilot, 1,459 open opportunities are read in 100 seconds at each sync (194 before the reading stopped building search highlights it never shows); 254 of them fit at least one person, with 31 strong and 462 some fits. |
 | 2026-11-08 | Slice 2 done. The pilot's first live Grants.gov sync read all 1,460 forecast and posted opportunities in 12 minutes 15 seconds with no failures (Grants.gov answered more slowly toward the end); a second sync, with nothing changed, took 1.9 seconds. A sync reads an opportunity again when the search's listing of it changes, two weeks after its last read, or when it is no longer listed (it closed); forecasts keep their status while listed, because their dates are estimates. Curation and administration pages now load when first opened: the app's first load had reached 101 KB of its 100 KB budget, and is now 79 KB. |
 | 2026-11-08 | Slice 1 done. Threads add no ledger tables: they follow the `acknowledges`, `references`, and `funded_by` links Tessera already keeps (accepted and still reported) and iCite's clinical citations, so a curator's rejection removes a step at once. Citing articles get their own lake table, never `pubmed_article`, so they cannot become anyone's authorship candidates. iCite is asked for named fields, so `cited_by_clin` had to be added; existing rows fill as their monthly refresh comes round, or at once with the new `tessera ingest icite --full`. On the pilot, a full iCite read of 6,054 papers took 9 seconds and PubMed returned all 1,165 citing articles in 15; the 88 grants' threads answer in 17 ms at the median and 54 ms at most (the largest is a grant acknowledged by 1,256 papers), every grant's counts together in 70 ms, and the two impact figures in 43 and 22 ms. A first thread view dimmed what was not linked to a choice, but the linked papers sat out of sight in long columns; a choice now narrows each column to what is linked, with counts such as 1 of 34. The thread component loads only with the pages that show one, keeping the app shell under its 100 KB budget. The demo's clinical citations come from their own random stream (more often for papers with a higher translation score), so the rest of the demo is unchanged; the program project (P01) reaches a guideline through two papers. |

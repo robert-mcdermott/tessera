@@ -48,6 +48,19 @@ Some facts are shown as notes because they decide nothing: whether a clinical tr
 
 **Watch** puts an opportunity on your home page; **Dismiss** takes it off your own lists. Neither changes what anyone else sees.
 
+## Building a team
+
+**Start a team** on an opportunity's page makes a team that needs the topics the opportunity was read as; **Teams** in the menu lists yours, and **Start a team** there makes one for topics you choose. On a team's page:
+
+- **Coverage** shows each topic the team needs against each member: a mark where the topic, or a narrower one, is a prominent part of the topics of their confirmed work (hover it for the heading and its papers). It says what their papers are about, not what they could do.
+- **Missing topics** lists the topics nobody on the team covers, each with people who do, ordered by how well they cover that gap and shown with their reasons. Add one with a click.
+- **Others who fit the opportunity** lists the rest of the people who fit it.
+- **Members** takes a role for each person (lead, co-investigator, collaborator, core or resource, other); **Topics it needs** can be changed; **Worked together** says who on the team has papers, grants, or studies in common, and how many pairings would be new; **Groups it spans** lists their groups.
+
+A team is its owner's, and can be seen by its members (once their accounts are linked to their profiles), by the people its owner shares it with, and by admins. Only its owner or an admin shares or deletes it.
+
+**Team brief** gives a page to print or save as PDF: the team, its opportunity, each member's role with their confirmed papers on its topics, their active NIH grants and their studies (with registry status), the coverage, and the groups spanned, with the data's sources and dates. It also downloads as Markdown, and the members as CSV. Only confirmed papers are listed, because the reader cannot see the evidence.
+
 ## Where else opportunities appear
 
 - **Home**: opportunities that fit your work, and those you watch.
