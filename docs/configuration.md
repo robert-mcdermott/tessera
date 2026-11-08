@@ -223,3 +223,11 @@ The static public site (`tessera publish`); see [The public site](public-site.md
 | `title` | text | the organization's name | The site's title |
 | `intro` | text | empty | A sentence or two for the home page (at most 1,000 characters) |
 
+## `[insight]`
+
+Portfolio figures; see [Insight](insight.md).
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `small_number` | number | `5` | Counts above zero and below this are marked as small numbers, and trends are not claimed from them (1 to 100) |
+

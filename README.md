@@ -55,7 +55,7 @@ To look around first, `uv run tessera demo` builds an invented research institut
 
 The guides are published, with screenshots, at **[robert-mcdermott.github.io/tessera](https://robert-mcdermott.github.io/tessera/)**. In the repository:
 
-- [Getting started](docs/getting-started.md), [Describing your organization](docs/organization-profile.md), [Curating](docs/curation.md), [Finding experts](docs/discovery.md), [Groups](docs/groups.md), and [The public site](docs/public-site.md)
+- [Getting started](docs/getting-started.md), [Describing your organization](docs/organization-profile.md), [Curating](docs/curation.md), [Finding experts](docs/discovery.md), [Groups](docs/groups.md), [Insight](docs/insight.md), and [The public site](docs/public-site.md)
 - [Configuration](docs/configuration.md), [Running Tessera](docs/operations.md), [The API](docs/api.md), and the [Command reference](docs/cli.md)
 - [`spec/`](spec/README.md): vision, architecture, data model, evidence engine, roadmap, and design decisions
 

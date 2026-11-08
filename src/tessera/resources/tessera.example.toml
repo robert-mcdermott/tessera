@@ -167,3 +167,8 @@ base_url = ""       # the app's address, for links in messages
 base_url = ""                 # where it is served, for its sitemap and canonical links
 title = ""                    # the site's title; the organization's name when empty
 intro = ""                    # a sentence or two for the home page
+
+[insight]
+# Portfolio figures. Counts above zero and below this are marked as small numbers, and
+# trends are not claimed from them.
+small_number = 5

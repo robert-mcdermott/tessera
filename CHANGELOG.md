@@ -2,6 +2,14 @@
 
 All notable changes to Tessera are recorded here. Versions follow [semantic versioning](https://semver.org/); each wave of work ships as a minor release (wave 1 → 0.1.0, wave 2 → 0.2.0).
 
+## Unreleased
+
+### Added
+
+- Insight (wave 4): portfolio figures that say exactly what they count. Every figure is a metric over a cohort and a period, and **About** shows the metric's definition and version (`publications.count/v1`), the cohort and its size, the period, the options, the sources with when each was last fetched, notes, and the records counted with the links behind each. **Insight → Definitions** lists every metric. Counts above zero and below `[insight] small_number` (5) are hatched in charts and marked in tables; years before a source's first sync reached are marked incomplete, and the default period starts where the data is complete. No figure ranks people.
+- Cohorts: the organization, a group (with or without the groups beneath it, counting each member's work while they were a member where the dates are known, or everything its current members have done), picked people, or a people search. Cohorts can be saved under a name for everyone (`/api/v1/insight/cohorts`, ledger migration 0012).
+- The first figure: publications by year, confirmed and likely, with *confirmed only* one click away.
+
 ## 0.3.0 (2026-11-08)
 
 Showcase. Every lab, program, and division now has a home that its own people keep: members with roles and dates, the papers that are truly the group's, its grants, studies, themes, openings, and news, on a page its managers arrange and publish. A weekly inbox brings them what changed, a public site shows the groups and people who opt in, and MeSH teaches expert search synonyms and the hierarchy of topics.

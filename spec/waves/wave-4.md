@@ -34,17 +34,17 @@ Requirements: INT-01 to INT-07, INT-11, DIS-10, LAB-09, PLT-08, PLT-12.
 
 ---
 
-## Slice 1: Metrics, cohorts, and the figure ☐
+## Slice 1: Metrics, cohorts, and the figure ☑
 
 **Goal:** the foundation every other slice uses (INT-01, INT-11).
 
-- [ ] A metric registry (`tessera.insight.metrics`): identifier, version, name, plain-language definition, counting rule, unit, sources, and caveats; `GET /api/v1/insight/metrics` and an **Insight → Definitions** page
-- [ ] Cohorts: the organization, a group (with or without the groups beneath it, counting each member's work while they were a member where the dates are known), picked people, or a people search; saved for everyone to reuse (ledger migration 0012)
-- [ ] Periods in calendar or fiscal years; the figure envelope: rows, columns and units, notes, small-number marks, the records counted, and the sources with their data timestamps
-- [ ] Figures are pure functions of their inputs (tables gathered from the lake and the ledger), so a snapshot can recompute them later from frozen inputs
-- [ ] **Insight** in the app: a cohort and period bar kept in the address, the figure card (chart, table, and **About this figure**), and the first figure: publications by year, confirmed and likely
+- [x] A metric registry (`tessera.insight.metrics`): identifier, version, name, plain-language definition, counting rule, unit, sources, and caveats; `GET /api/v1/insight/metrics` and an **Insight → Definitions** page
+- [x] Cohorts: the organization, a group (with or without the groups beneath it, counting each member's work while they were a member where the dates are known), picked people, or a people search; saved for everyone to reuse (ledger migration 0012)
+- [x] Periods in calendar or fiscal years; the figure envelope: rows, columns and units, notes, small-number marks, the records counted, and the sources with their data timestamps
+- [x] Figures are pure functions of their inputs (tables gathered from the lake and the ledger), so a snapshot can recompute them later from frozen inputs
+- [x] **Insight** in the app: a cohort and period bar kept in the address, the figure card (chart, table, and **About this figure**), and the first figure: publications by year, confirmed and likely
 
-**Acceptance:** the organization's publications by year equal the distinct PMIDs that count for its members; a program's figure counts a member's paper only from the year they joined when the start date is known; a year with three papers is marked as a small number; the figure's About panel names `publications.count/v1`, the cohort with its size, the period, and PubMed's last successful fetch.
+**Acceptance (met):** the organization's publications by year equal the distinct PMIDs that count for its members; a program's figure counts a member's paper only from the year they joined when the start date is known; a year with three papers is marked as a small number; the figure's About panel names `publications.count/v1`, the cohort with its size, the period, and PubMed's last successful fetch.
 
 ## Slice 2: Funding portfolio ☐
 
@@ -113,4 +113,5 @@ Requirements: INT-01 to INT-07, INT-11, DIS-10, LAB-09, PLT-08, PLT-12.
 
 | Date | Note |
 |---|---|
+| 2026-11-08 | Slice 1 done. Metric definitions live in code with a version rather than in the ledger: a definition is part of what the code computes, and a snapshot records the definition it used. Figures are computed from tables gathered once for the cohort (the members with their years, links, and lake rows), so a snapshot can keep those tables and compute the figures again. Group cohorts count a member's work by year, from the year they joined to the year they left; most memberships have no dates yet, so About says how many do. The first sync's window (`sync.window_years`) makes earlier years incomplete; the default period starts at the first complete year, and figures that reach back further say so. |
 | 2026-11-08 | Wave planned, after folding the maintainer's guidance on single sign-on and the AI assistant into the roadmap (waves 6 and 5). The 0.3.0 release date was corrected to 2026-11-08 in the changelog, roadmap, and wave 3 file. |

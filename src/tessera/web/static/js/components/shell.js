@@ -25,6 +25,9 @@ const NAV = [
     { href: "/grants", label: "Grants", iconName: "grant", match: (p) => p.startsWith("/grants") },
     { href: "/studies", label: "Studies", iconName: "study", match: (p) => p.startsWith("/studies") },
   ] },
+  { section: "Insight", items: [
+    { href: "/insight", label: "Portfolio", iconName: "chart", match: (p) => p.startsWith("/insight") },
+  ] },
   { section: "Curate", items: [
     { href: "/inbox", label: "Inbox", iconName: "list", badge: "inbox", when: "edit_groups", match: (p) => p.startsWith("/inbox") },
     { href: "/review", label: () => (can("curate_any") ? "Review queue" : "My suggestions"), iconName: "review", badge: "review", when: "review", match: (p) => p === "/review" },

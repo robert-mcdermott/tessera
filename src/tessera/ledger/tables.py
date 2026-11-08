@@ -389,6 +389,22 @@ group_inbox = Table(
     Column("reviewed_by", String(200), nullable=False),
 )
 
+# Saved cohorts for Insight (INT-01): whose work a figure counts. ``definition`` is a cohort
+# specification (see tessera.insight.cohorts): the organization, a group, picked people, or a
+# people search. Shared with everyone who can read Insight.
+cohort = Table(
+    "cohort",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("name", String(200), nullable=False),
+    Column("description", Text),
+    Column("definition", JsonType, nullable=False),
+    Column("created_by", String(200), nullable=False),
+    Column("created_at", UtcDateTime, nullable=False),
+    Column("updated_by", String(200), nullable=False),
+    Column("updated_at", UtcDateTime, nullable=False),
+)
+
 # Signed-in browsers. Only a hash of the session token is stored.
 auth_session = Table(
     "auth_session",

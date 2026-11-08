@@ -5399,6 +5399,387 @@
           }
         }
       }
+    },
+    "/api/v1/insight/metrics": {
+      "get": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "Every metric Insight shows, with its definition and version",
+        "operationId": "list_metrics_api_v1_insight_metrics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response List Metrics Api V1 Insight Metrics Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insight/figures/{metric_id}": {
+      "get": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "A figure: a metric over a cohort and a period, with what it counted",
+        "operationId": "get_figure_api_v1_insight_figures__metric_id__get",
+        "parameters": [
+          {
+            "name": "metric_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Metric Id"
+            }
+          },
+          {
+            "name": "cohort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 4000
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "organization (default), group:<address>[+below][;current], people:<ID>,<ID>, search:<words>, or a saved cohort's ID",
+              "title": "Cohort"
+            },
+            "description": "organization (default), group:<address>[+below][;current], people:<ID>,<ID>, search:<words>, or a saved cohort's ID"
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "First year (calendar or fiscal, by metric)",
+              "title": "Start"
+            },
+            "description": "First year (calendar or fiscal, by metric)"
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Last year",
+              "title": "End"
+            },
+            "description": "Last year"
+          },
+          {
+            "name": "records",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include the records counted",
+              "default": false,
+              "title": "Records"
+            },
+            "description": "Include the records counted"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Figure Api V1 Insight Figures  Metric Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insight/cohort": {
+      "get": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "Who a cohort is: its label, size, and members",
+        "operationId": "preview_cohort_api_v1_insight_cohort_get",
+        "parameters": [
+          {
+            "name": "cohort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 4000
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cohort"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 2000,
+              "minimum": 0,
+              "default": 200,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Preview Cohort Api V1 Insight Cohort Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insight/cohorts": {
+      "get": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "Saved cohorts",
+        "operationId": "list_saved_api_v1_insight_cohorts_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response List Saved Api V1 Insight Cohorts Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "Save a cohort under a name, for everyone to use",
+        "operationId": "save_cohort_api_v1_insight_cohorts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CohortIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Save Cohort Api V1 Insight Cohorts Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insight/cohorts/{cohort_id}": {
+      "post": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "Rename or redefine a saved cohort",
+        "operationId": "change_cohort_api_v1_insight_cohorts__cohort_id__post",
+        "parameters": [
+          {
+            "name": "cohort_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cohort Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CohortChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Change Cohort Api V1 Insight Cohorts  Cohort Id  Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "Delete a saved cohort",
+        "operationId": "delete_cohort_api_v1_insight_cohorts__cohort_id__delete",
+        "parameters": [
+          {
+            "name": "cohort_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Cohort Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Delete Cohort Api V1 Insight Cohorts  Cohort Id  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insight/years": {
+      "get": {
+        "tags": [
+          "insight"
+        ],
+        "summary": "The years Insight can show, and the period it starts with",
+        "operationId": "data_years_api_v1_insight_years_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Data Years Api V1 Insight Years Get"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5701,6 +6082,85 @@
           "action"
         ],
         "title": "BulkDecision"
+      },
+      "CohortChange": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "cohort": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cohort"
+          }
+        },
+        "type": "object",
+        "title": "CohortChange"
+      },
+      "CohortIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "cohort": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Cohort",
+            "description": "A cohort as written in an address"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "cohort"
+        ],
+        "title": "CohortIn"
       },
       "Decision": {
         "properties": {

@@ -19,6 +19,7 @@ from tessera.api.routers import (
     evidence,
     graph,
     groups,
+    insight,
     merges,
     overview,
     people,
@@ -84,6 +85,7 @@ def create_app(config: Config) -> FastAPI:
         curation,
         evidence,
         groups,
+        insight,
     ):
         app.include_router(module.router)
     install_api_reference(app)

@@ -1,0 +1,70 @@
+# Insight
+
+**Insight** shows what the organization, a division, a program, or a lab publishes, is funded for, and runs as studies, over the years you choose. It is built for people who have to stand behind a number. Every figure says exactly what it counts, for whom, over which years, and from which sources, and the records behind it are one click away.
+
+Open it from **Insight → Portfolio** in the menu.
+
+## Reading a figure
+
+Every figure is a **metric** over a **cohort** and a **period**:
+
+- the **metric** says what is counted, and how (see [Definitions](#definitions));
+- the **cohort** says whose work counts (see [Cohorts](#cohorts));
+- the **period** is a span of years: calendar years for papers and studies, and the funder's fiscal years for grants.
+
+Under each figure, one line names the cohort and its size, the period, when each source was last fetched, and the metric with its version, such as `publications.count/v1`. **About** opens the full account:
+
+- **What it shows** and **What is counted**: the metric's definition and its counting rule, word for word;
+- **For whom, and when**: the cohort with its size and how its members' work is counted, the period, and the options chosen;
+- **Sources**: each source, when it was last fetched, and the first year its records are complete;
+- **Notes** about this figure in particular, such as how many papers are strong suggestions not yet confirmed;
+- **Keep in mind**: what the source cannot see;
+- **Behind the number**: the records counted, each with the members it counts for and the links (with their identifiers) that put it there.
+
+**Chart** and **Table** switch between the picture and the numbers.
+
+### Confirmed and likely
+
+A paper counts for a member when their authorship is **confirmed**, or when it is a **strong suggestion** nobody has decided yet: the same papers that count on profiles. Rejected and weaker suggestions never count. Figures show the two apart (confirmed in solid, likely in a lighter shade) and the notes say how many are likely. Choose **Confirmed only** in the bar at the top to count decided papers alone.
+
+### Small numbers
+
+Counts from 1 to 4 are **small numbers**: one paper more or less changes them a lot, and they may point at a handful of people. They are hatched in charts and marked † in tables, and trends are never claimed from them. Set the threshold with `[insight] small_number` (see [Configuration](configuration.md#insight)).
+
+### Incomplete years
+
+The first sync collects a set number of years of history (`[sync] window_years`, five by default). Years before that are incomplete: a figure that reaches back past them dims them and says so, and the period starts at the first complete year unless you choose otherwise.
+
+### No league tables
+
+No figure ranks people. Figures break down by year, funder, activity, topic, phase, or group. Where a table lists groups, it is in alphabetical order until you sort it.
+
+## Cohorts
+
+The **Cohort** button at the top of every Insight page chooses whose work is counted:
+
+| Cohort | Who | Written in the address as |
+|---|---|---|
+| The organization | Everyone in the directory, current and former | `organization` (the default) |
+| A group | Its members; with **Include the groups beneath it**, theirs too | `group:<address>`, `group:<address>+below` |
+| Picked people | The people listed | `people:<ID>,<ID>` |
+| A search | The people a directory search finds | `search:<words>` |
+| A saved cohort | Any of the above, under a name | its ID, `coh_…` |
+
+For a group, **While members** (the default) counts each member's work from the year they joined to the year they left, where the membership's dates are known; a member with no dates counts throughout. **Current members, all their work** counts everything the group's current members have done, whenever and wherever they did it. About says which, and how many members have dates.
+
+**Save this cohort** keeps the current cohort under a name for everyone to choose. Managers, curators, researchers, and admins can save cohorts; whoever saved one, or an admin, can rename or delete it. A saved cohort holds its definition, not a list of people, so a saved group follows the group's membership as it changes.
+
+The cohort, the period, and the options are part of the page's address, so a view can be bookmarked and shared.
+
+## Definitions
+
+**Insight → Definitions** lists every metric with its identifier and version, definition, counting rule, unit, years, sources, options, and caveats. A metric's definition never changes in place: counting something differently makes a new version, so a saved report always says what it counted.
+
+### Publications by year
+
+`publications.count/v1`: the cohort's papers published in each year of the period. Each paper counts once, however many members wrote it (distinct PubMed IDs), in its year of publication. Retracted papers are not counted. PubMed covers biomedical journals; papers in venues it does not index are missing.
+
+## The API
+
+Every figure is at `GET /api/v1/insight/figures/<metric>` with `cohort`, `start`, `end`, and the metric's options (such as `basis=confirmed`); `records=true` adds the records counted. `GET /api/v1/insight/metrics` lists the definitions, and `/api/v1/insight/cohorts` saves and lists cohorts. See [The API](api.md#what-is-available).
