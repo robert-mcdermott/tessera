@@ -80,7 +80,7 @@ It waits until the main screens have settled: once wave 2's discovery views exis
 
 ## Wave 3: Showcase (v0.3.0) ☑
 
-**Goal:** give labs and groups a living home that maintains itself, and open a public window. Released as 0.3.0 on 2026-11-09: MeSH synonyms and hierarchy, groups of every kind with roles and alumni, group pages with lab attribution, managers and an editorial workflow, the weekly inbox and digests, openings and themes, a static public site, and the brand kit.
+**Goal:** give labs and groups a living home that maintains itself, and open a public window. Released as 0.3.0 on 2026-11-08: MeSH synonyms and hierarchy, groups of every kind with roles and alumni, group pages with lab attribution, managers and an editorial workflow, the weekly inbox and digests, openings and themes, a static public site, and the brand kit.
 
 Detail: [waves/wave-3.md](waves/wave-3.md)
 
@@ -93,17 +93,21 @@ Detail: [waves/wave-3.md](waves/wave-3.md)
 - Brand kit (PLT-13), arriving with the public site, where an organization's own look matters most: an optional `[branding.palette]` that sets core colors by day and night (surfaces, text, accent and its text, record types, stripe), footer links, a favicon, and a social preview image. `tessera doctor` runs the same WCAG AA check used on rendered pages over every configured color pair, including a configured accent, and fails any pair below AA
 - In-app digest notifications
 
-## Wave 4: Insight (v0.4.0) ☐
+## Wave 4: Insight (v0.4.0) ◐
 
 **Goal:** trustworthy portfolio intelligence and reproducible reporting.
 
-- Metric definitions as first-class records; every chart shows definition, cohort, period, source, and timestamp
-- Funding portfolio with strict counting rules; grants with upcoming end dates
-- Topic landscape and trends with small-number warnings
-- Study portfolio by condition, intervention, phase, sponsor class, and registry status
-- Cohorts and saved searches; reporting snapshots; evidence-carrying exports (CSV, Parquet, JSON)
-- Backup, restore, and full exit export; operational dashboard for jobs and failures
-- Embeddable lab widgets
+| Slice | Name | Delivers | Status |
+|---|---|---|---|
+| 1 | Metrics, cohorts, and the figure | Metric definitions as versioned records; cohorts (the organization, a group, picked people, a search); every figure shows definition, cohort, period, sources, and data timestamps; small-number marks | ☐ |
+| 2 | Funding portfolio | Strict counting per core project and fiscal-year record; awards by year, institute, activity, mechanism, and group; grants with upcoming end dates | ☐ |
+| 3 | Topics and studies | Topic landscape and trends with small-number warnings; studies by condition, intervention, phase, sponsor class, and registry status | ☐ |
+| 4 | Reports and exports | Saved searches with new matches; reports; snapshots that regenerate exactly; evidence-carrying CSV, Parquet, and JSON exports | ☐ |
+| 5 | Backup and operations | Backup, restore (across SQLite and PostgreSQL), and full exit export; Admin → Operations; failure alerts | ☐ |
+| 6 | Embeds | Group content embedded in an existing website, from the public site | ☐ |
+| 7 | Release prep | Guides, screenshots, evaluation, changelog, release | ☐ |
+
+Detail: [waves/wave-4.md](waves/wave-4.md)
 
 ## Wave 5: Impact (v0.5.0) ☐
 
@@ -112,14 +116,17 @@ Detail: [waves/wave-3.md](waves/wave-3.md)
 - Grant-to-impact threads: grant → publications → studies → clinical citations, as an interactive thread view
 - Grants.gov connector; opportunity navigator with fit and eligibility as separate signals
 - Team builder: assemble people for an opportunity, see covered and missing concepts, export a team brief
-- Optional AI layer, off by default: pluggable provider, grounded Q&A with citations, reviewable plain-language summaries, full model and prompt logging
+- Optional AI assistant, **off by default and invisible until it is enabled** in the configuration: while it is off there is no menu item, setting, route, or mention of it anywhere in the app, the API document, or the public site
+- Providers chosen by the adopter: any OpenAI-compatible or Anthropic-compatible endpoint, official or self-hosted (including locally hosted models), and Amazon Bedrock, with credentials read from the environment, never the configuration file
+- Grounded questions and answers that cite Tessera records and decline what the records don't support; the assistant reads only what the signed-in person may read, through the same access policy
+- Reviewable plain-language summaries for profiles and group pages, approved before they are shown; full model, prompt, and source logging
 
 ## Wave 6: Adoption (v0.6.0) ☐
 
 **Goal:** make Tessera easy for another organization to adopt and operate.
 
 - PostgreSQL ledger with the full test suite running against both databases
-- Optional OIDC single sign-on
+- Optional single sign-on with OpenID Connect, beside local accounts, which stay the default and may be all a small organization needs: any standards-based provider (Microsoft Entra ID, Okta, Google, Keycloak, and others) through the authorization-code flow with PKCE; accounts matched or created at first sign-in; an optional mapping from the provider's groups or app roles to Tessera roles and group scopes, applied at every sign-in; a local admin account always works as a way back in
 - White-label kit: a visual theme builder on top of wave 3's brand kit, logo guidance, vocabulary presets
 - Optional container image and reference service files (systemd)
 - Adopter's guide: install, configure the organization profile, first sync, curation playbook, backups, upgrades

@@ -2,7 +2,7 @@
 
 All notable changes to Tessera are recorded here. Versions follow [semantic versioning](https://semver.org/); each wave of work ships as a minor release (wave 1 → 0.1.0, wave 2 → 0.2.0).
 
-## 0.3.0 (2026-11-09)
+## 0.3.0 (2026-11-08)
 
 Showcase. Every lab, program, and division now has a home that its own people keep: members with roles and dates, the papers that are truly the group's, its grants, studies, themes, openings, and news, on a page its managers arrange and publish. A weekly inbox brings them what changed, a public site shows the groups and people who opt in, and MeSH teaches expert search synonyms and the hierarchy of topics.
 
