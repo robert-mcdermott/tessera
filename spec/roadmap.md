@@ -19,7 +19,7 @@ Status key: ☐ planned · ◐ in progress · ☑ done
 
 ---
 
-## Wave 1: First light (v0.1.0) ◐
+## Wave 1: First light (v0.1.0) ☑
 
 **Goal:** prove that a useful, trustworthy research graph can be built from public data alone, with evidence on every link.
 
@@ -31,11 +31,11 @@ Status key: ☐ planned · ◐ in progress · ☑ done
 | 4 | API and search | `/api/v1` for people, publications, grants, studies, assertions, and sources; FTS5 search with facets | ☑ |
 | 5 | Web app and design system | Vanilla JS shell, tokens, light/dark themes, branding, command palette; Home, Search, People, profile, and detail pages; source health | ☑ |
 | 6 | Curation | Review queue with evidence drawer, keyboard flow, bulk within band, undo, manual additions, discovered-people queue | ☑ |
-| 7 | Release prep | Docs, quickstart, changelog, version bump, evaluation report, release | ◐ |
+| 7 | Release prep | Docs, quickstart, changelog, version bump, evaluation report, release | ☑ |
 
-Detail: [waves/wave-1.md](waves/wave-1.md)
+Released as [v0.1.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0.1.0) on 2026-11-07. Detail: [waves/wave-1.md](waves/wave-1.md)
 
-## Wave 2: Connections (v0.2.0) ☐
+## Wave 2: Connections (v0.2.0) ◐
 
 **Goal:** turn the graph into discovery: who works on what, who should meet, and why.
 
@@ -47,6 +47,8 @@ Detail: [waves/wave-1.md](waves/wave-1.md)
 - Local accounts, sessions, and roles (admin, curator, researcher, viewer); researchers review their own suggestions; scoped curators
 - Reversible person merges; dated unit memberships
 - Safe auto-accept gated by evaluation; first learned weights (`authorship/v2`)
+
+Detail: [waves/wave-2.md](waves/wave-2.md)
 
 ## Documentation site (between v0.2.0 and v0.3.0) ☐
 
@@ -73,6 +75,7 @@ It waits until the main screens have settled: once wave 2's discovery views exis
 - Research themes and projects; openings with expiry
 - Public allowlisted projection: server-rendered public profiles and lab pages; SEO and accessibility; abstract display rules
 - Configurable vocabulary for unit kinds, roles, and labels
+- Brand kit (PLT-13), arriving with the public site, where an organization's own look matters most: an optional `[branding.palette]` that sets core colors by day and night (surfaces, text, accent and its text, record types, stripe), footer links, a favicon, and a social preview image. `tessera doctor` runs the same WCAG AA check used on rendered pages over every configured color pair, including a configured accent, and fails any pair below AA
 - In-app digest notifications
 
 ## Wave 4: Insight (v0.4.0) ☐
@@ -102,7 +105,7 @@ It waits until the main screens have settled: once wave 2's discovery views exis
 
 - PostgreSQL ledger with the full test suite running against both databases
 - Optional OIDC single sign-on
-- White-label kit: theme builder, logo guidance, vocabulary presets
+- White-label kit: a visual theme builder on top of wave 3's brand kit, logo guidance, vocabulary presets
 - Optional container image and reference service files (systemd)
 - Adopter's guide: install, configure the organization profile, first sync, curation playbook, backups, upgrades
 - Performance at 10,000 people and 1 million publications

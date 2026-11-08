@@ -60,9 +60,9 @@ How the organization appears in public records. See [Describing your organizatio
 |---|---|---|
 | `tessera` | Calm cool neutrals with an indigo accent | Neutral graphite with a soft indigo accent |
 | `harbor` | White and light grey, dark navy text, teal actions, a navy-to-gold rule | Deep navy, bright blue actions, gold and purple accents |
-| `cassette` | Cream label paper, a red-orange accent, rainbow stripes | Black labels, an orange accent, sunset stripes |
+| `cassette` | Cream label paper, a red-orange accent, a thin sunset stripe | Black labels, an orange accent, the same sunset stripe |
 
-A configured `accent_color` is used as given by day and lightened for dark mode; text on it is chosen for contrast. Logos look best at about 190 by 30 pixels.
+A configured `accent_color` is used as given by day and lightened for dark mode. It also colors links and labels, so choose one that reads on white at a contrast of at least 4.5:1, such as a deep blue or teal rather than a yellow. Write it as a hex value so that text on accent-colored buttons can be chosen for contrast; with other forms that text is white. Tessera and Harbor suit public and leadership views best; Cassette is playful by design. Logos look best at about 190 by 30 pixels.
 
 ## `[data]`
 

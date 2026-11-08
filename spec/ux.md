@@ -34,8 +34,8 @@ All visual values are CSS custom properties defined once in `tokens.css`. Colors
 - **Surfaces:** `--bg`, `--surface-1..3`, `--border`, `--border-strong`
 - **Text:** `--text`, `--text-muted`, `--text-subtle`, `--text-inverse`
 - **Accent:** `--accent`, `--accent-hover`, `--accent-strong` (accent text on accent tints), `--accent-soft`, `--on-accent`; the palette's accent unless configuration sets one
-- **Entities:** `--ent-person`, `--ent-pub`, `--ent-grant`, `--ent-study`, `--ent-concept`, `--ent-unit`, each with a `-soft` tint for backgrounds
-- **Status:** `--ok`, `--warn`, `--danger`, `--info`; and evidence states `--accepted`, `--suggested`, `--rejected`
+- **Entities:** `--ent-person`, `--ent-pub`, `--ent-grant`, `--ent-study`, `--ent-concept`, `--ent-unit`, each with a `-soft` tint for backgrounds; `--ent-grant-fill` is a brighter gold for charts, since dark gold reads as olive in large areas. Each record type keeps its color family in every palette (person blue, publication teal, grant gold, study raspberry or purple, concept violet)
+- **Status:** `--ok`, `--warn`, `--danger`, `--info`; and evidence states `--accepted`, `--suggested`, `--rejected`. Record colors keep their hue at least 28° (in OKLCH) from green, amber, and red in every palette and mode, so a record's color never reads as a status; a test enforces it
 - **Spacing:** 4 px base scale (`--space-1` = 4 px … `--space-10` = 64 px)
 - **Radius:** `--radius-s` 6 px, `--radius-m` 10 px, `--radius-l` 16 px
 - **Elevation:** three shadow levels, deeper in dark mode
@@ -59,13 +59,14 @@ Appearance has two independent choices, both under **Appearance** in the top bar
 |---|---|---|
 | **Tessera** (default) | Calm cool neutrals, indigo accent, mosaic motif | Neutral graphite, soft indigo accent |
 | **Harbor** | White and light grey, dark navy text, teal actions; a navy, bright blue, purple, and gold rule | Deep navy surfaces, bright blue actions, gold and purple accents |
-| **Cassette** | Cream label paper, red-orange accent, rainbow stripes along the top and across the hero, heavy italic wordmark, small spaced capitals on card titles | Black labels, orange accent, sunset stripes |
+| **Cassette** | Cream label paper, red-orange accent, a thin sunset stripe along the top and faint diagonal pinstripes in the hero, heavy italic wordmark, small spaced capitals on card titles | Black labels, orange accent, the same sunset stripe |
 
 - Every palette and mode is checked for WCAG AA by sampling the rendered text of the main pages against its actual background, including chips, marks, badges, and tinted rows. Accent text on accent tints uses `--accent-strong`.
+- Tessera and Harbor suit leadership views and public pages. Cassette is playful by design and is best left as a personal choice.
 
 ### Branding (white-label)
 
-An adopting organization sets its product name, organization name, logo (light and dark variants, shown in place of the Tessera mark and name), default palette, and optionally its own accent color in `tessera.toml`. The server generates `theme.css` from these settings: a configured accent replaces the palette's accent by day and is lightened for dark mode, with text on it chosen for contrast. A custom favicon comes with the white-label kit (wave 6). No code changes are needed, and "Tessera" appears only in a small "Powered by Tessera" footer link, which can be turned off.
+An adopting organization sets its product name, organization name, logo (light and dark variants, shown in place of the Tessera mark and name), default palette, and optionally its own accent color in `tessera.toml`. The server generates `theme.css` from these settings: a configured accent replaces the palette's accent by day and is lightened for dark mode, with text on it chosen for contrast. Text on a configured accent is chosen for contrast only when the accent is a hex value, and the accent also colors links and labels, so it should read on white at 4.5:1. The brand kit (wave 3, PLT-13) adds an organization's own palette, footer links, a favicon, and a social preview image, with `tessera doctor` checking every configured color pair for AA. No code changes are needed, and "Tessera" appears only in a small "Powered by Tessera" footer link, which can be turned off.
 
 ## Information architecture
 

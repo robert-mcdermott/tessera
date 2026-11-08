@@ -204,7 +204,7 @@ a.card:hover { text-decoration: none; border-color: var(--border-strong); box-sh
 /* ---------- Entity colors ---------- */
 [data-entity="person"] { --entity: var(--ent-person); --entity-soft: var(--ent-person-soft); }
 [data-entity="publication"] { --entity: var(--ent-pub); --entity-soft: var(--ent-pub-soft); }
-[data-entity="grant"] { --entity: var(--ent-grant); --entity-soft: var(--ent-grant-soft); }
+[data-entity="grant"] { --entity: var(--ent-grant); --entity-soft: var(--ent-grant-soft); --entity-fill: var(--ent-grant-fill); }
 [data-entity="study"] { --entity: var(--ent-study); --entity-soft: var(--ent-study-soft); }
 [data-entity="concept"] { --entity: var(--ent-concept); --entity-soft: var(--ent-concept-soft); }
 [data-entity="unit"] { --entity: var(--ent-unit); --entity-soft: var(--ent-unit-soft); }
@@ -476,10 +476,11 @@ a.item-title:hover { color: var(--accent); text-decoration: none; }
 /* ---------- Charts ---------- */
 .chart { width: 100%; height: auto; overflow: visible; align-self: center; }
 .chart text { fill: var(--text-subtle); font-size: 11px; font-family: var(--font); }
-.chart .bar { fill: var(--entity, var(--accent)); }
-.chart .bar-soft { fill: color-mix(in oklch, var(--entity, var(--accent)) 35%, var(--surface-3)); }
+/* charts fill with --entity-fill where a record type sets one: dark gold reads as olive in bulk */
+.chart .bar { fill: var(--entity-fill, var(--entity, var(--accent))); }
+.chart .bar-soft { fill: color-mix(in oklch, var(--entity-fill, var(--entity, var(--accent))) 35%, var(--surface-3)); }
 .chart .axis { stroke: var(--border); }
-.sparkline path.line { fill: none; stroke: var(--entity, var(--accent)); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.sparkline path.line { fill: none; stroke: var(--entity-fill, var(--entity, var(--accent))); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .sparkline path.area { fill: color-mix(in oklch, var(--entity, var(--accent)) 14%, transparent); stroke: none; }
 .legend { display: flex; gap: var(--space-4); font-size: var(--fs-xs); color: var(--text-muted); }
 .legend-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
@@ -513,7 +514,7 @@ a.item-title:hover { color: var(--accent); text-decoration: none; }
 .candidates-table td { vertical-align: top; }
 .plain-list.compact { gap: 2px; }
 .shortcuts td:first-child { width: 40%; white-space: nowrap; }
-.btn kbd { margin-left: var(--space-1); opacity: 0.75; font-size: 11px; padding: 0 5px; }
+.btn kbd { margin-left: var(--space-1); font-size: 11px; padding: 0 5px; }
 .field-error { margin: 0; color: var(--danger); font-size: var(--fs-sm); }
 .callout > .row-sm { align-self: center; }
 .segmented { max-width: 100%; overflow-x: auto; scrollbar-width: none; }

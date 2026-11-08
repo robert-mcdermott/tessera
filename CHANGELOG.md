@@ -4,7 +4,15 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 
 ## Unreleased
 
-Nothing yet.
+### Changed
+
+- Cassette's stripe is now a thin sunset gradient in both modes, and the hero's diagonal bands are faint pinstripes in the same sunset colors.
+- Record-type colors no longer resemble status colors: grants are gold, studies raspberry, and Cassette's publications teal, each kept well apart from the green, amber, and red of accepted, suggested, and rejected (a test checks every palette and mode). Warnings and "suggested" are a warmer amber.
+- Charts of grant amounts use a brighter gold fill.
+
+### Fixed
+
+- Keyboard hints on buttons were faded below WCAG AA contrast; they are now full strength.
 
 ## 0.1.0 (2026-11-07)
 

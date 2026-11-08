@@ -37,7 +37,7 @@ export const PALETTES = [
     id: "tessera", name: "Tessera", description: "Calm neutrals with an indigo accent; graphite after dark.",
     light: { bg: "#f9fafc", surface: "#ffffff", accent: "#4f46e5", text: "#1b2030" },
     dark: { bg: "#141518", surface: "#1b1c20", accent: "#a6a2f2", text: "#f0f1f3" },
-    bands: ["#4f46e5", "#0e8a8a", "#b7791f", "#c2364f", "#7c3aed"],
+    bands: ["#4f46e5", "#0e8a8a", "#9d8012", "#bc3181", "#7c3aed"],
   },
   {
     id: "harbor", name: "Harbor", description: "Deep navy with teal, bright blue, purple, and gold.",
@@ -46,10 +46,10 @@ export const PALETTES = [
     bands: ["#18365d", "#0a799a", "#00abc8", "#aa4ac4", "#ffb500"],
   },
   {
-    id: "cassette", name: "Cassette", description: "Label paper and rainbow stripes by day; black labels and a sunset at night.",
+    id: "cassette", name: "Cassette", description: "Label paper by day and black labels at night, under a sunset stripe.",
     light: { bg: "#eee5d1", surface: "#f8f2e4", accent: "#b3321a", text: "#1f1812" },
     dark: { bg: "#110f10", surface: "#1a1718", accent: "#f39a45", text: "#f4ebdd" },
-    bands: ["#d9402f", "#ec8a26", "#f0c02e", "#2e9b58", "#2a6db5"],
+    bands: ["#6e4bb8", "#b8479d", "#ec5f7c", "#f38a3d", "#f5c64a"],
   },
 ];
 const PALETTE_IDS = new Set(PALETTES.map((p) => p.id));

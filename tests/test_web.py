@@ -7,6 +7,7 @@ module and run the JavaScript unit tests in tests/js.
 from __future__ import annotations
 
 import gzip
+import math
 import re
 import shutil
 import subprocess
@@ -181,6 +182,54 @@ def test_every_configurable_palette_is_styled() -> None:
         assert f'id: "{name}"' in prefs, name
         if name != "tessera":  # the default lives in tokens.css
             assert f':root[data-palette="{name}"]' in css, name
+
+
+_COLOR = r"#[0-9a-fA-F]{6}|oklch\([^)]*\)"
+_PAIR = re.compile(
+    rf"--(?P<name>[\w-]+):\s*light-dark\((?P<light>{_COLOR}),\s*(?P<dark>{_COLOR})\)"
+)
+
+
+def _hue(color: str) -> float:
+    """The OKLCH hue of a hex or oklch() color, in degrees."""
+    if color.startswith("oklch"):
+        return float(re.findall(r"[\d.]+", color)[2])
+    rgb = [int(color[i : i + 2], 16) / 255 for i in (1, 3, 5)]
+    r, g, b = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in rgb]
+    l_, m_, s_ = (
+        (0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b) ** (1 / 3),
+        (0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b) ** (1 / 3),
+        (0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b) ** (1 / 3),
+    )
+    a = 1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_
+    b_ = 0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_
+    return math.degrees(math.atan2(b_, a)) % 360
+
+
+def _palette_colors(name: str) -> dict[str, tuple[str, str]]:
+    """Light and dark values of a palette's color tokens, over the defaults it inherits."""
+    tokens = (CSS_ROOT / "tokens.css").read_text("utf-8")
+    start = tokens.index(":root {\n")
+    block = tokens[start : tokens.index("\n}", start)]
+    colors = {m["name"]: (m["light"], m["dark"]) for m in _PAIR.finditer(block)}
+    if name != "tessera":
+        css = (CSS_ROOT / "palettes.css").read_text("utf-8")
+        start = css.index(f':root[data-palette="{name}"] {{')
+        block = css[start : css.index("\n}", start)]
+        colors.update({m["name"]: (m["light"], m["dark"]) for m in _PAIR.finditer(block)})
+    return colors
+
+
+@pytest.mark.parametrize("palette", ["tessera", "harbor", "cassette"])
+def test_record_colors_stay_clear_of_status_colors(palette: str) -> None:
+    """A record type's color must not read as a status: hues at least 28 degrees apart."""
+    colors = _palette_colors(palette)
+    for mode, label in enumerate(("light", "dark")):
+        for record in ("ent-person", "ent-pub", "ent-grant", "ent-study", "ent-concept"):
+            for status in ("ok", "warn", "danger"):
+                gap = abs(_hue(colors[record][mode]) - _hue(colors[status][mode])) % 360
+                gap = min(gap, 360 - gap)
+                assert gap >= 28, f"{palette} ({label}): --{record} is {gap:.0f}° from --{status}"
 
 
 def test_api_reference_page(client: TestClient) -> None:
