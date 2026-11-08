@@ -249,6 +249,37 @@ def build_parser() -> argparse.ArgumentParser:
     )
     publish_cmd.set_defaults(handler=cmd_publish)
 
+    report_cmd = commands.add_parser(
+        "report",
+        help="Insight reports: list them, freeze snapshots, verify and export them",
+        description="Reports are named sets of Insight figures over a cohort and a period. A "
+        "snapshot freezes one with the exact inputs its figures were computed from, so it can "
+        "be verified and exported long after the data has moved on.",
+    )
+    report_actions = report_cmd.add_subparsers(
+        dest="report_command", metavar="ACTION", required=True
+    )
+    report_list = report_actions.add_parser("list", help="reports and their snapshots")
+    report_list.set_defaults(handler=cmd_report_list)
+    report_snap = report_actions.add_parser("snapshot", help="freeze a report now")
+    report_snap.add_argument("report", help="the report's name or ID")
+    report_snap.add_argument("--note", help="why it was taken")
+    report_snap.set_defaults(handler=cmd_report_snapshot)
+    report_verify = report_actions.add_parser(
+        "verify", help="compute a snapshot again from its frozen inputs and compare"
+    )
+    report_verify.add_argument("snapshot", help="the snapshot's ID")
+    report_verify.set_defaults(handler=cmd_report_verify)
+    report_export = report_actions.add_parser(
+        "export", help="write a snapshot's figures, records, and definitions to a file"
+    )
+    report_export.add_argument("snapshot", help="the snapshot's ID")
+    report_export.add_argument(
+        "--format", choices=("csv", "parquet", "json"), default="csv", help="(default: csv)"
+    )
+    report_export.add_argument("--out", type=Path, help="the file to write (default: its name)")
+    report_export.set_defaults(handler=cmd_report_export)
+
     users_cmd = commands.add_parser("users", help="local accounts and their roles")
     users_actions = users_cmd.add_subparsers(dest="users_command", metavar="ACTION", required=True)
     role_help = (
@@ -947,6 +978,98 @@ def cmd_publish(args: argparse.Namespace) -> int:
         f"publish: {verb} {result.pages} pages ({result.groups} groups, {result.people} people)"
         + ("" if args.check else f" to {result.out}")
     )
+    return EXIT_OK
+
+
+def cmd_report_list(args: argparse.Namespace) -> int:
+    from tessera.insight import reports
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    try:
+        with engine.connect() as conn:
+            rows = reports.list_reports(conn)
+            snapshots = reports.list_snapshots(conn)
+    finally:
+        engine.dispose()
+    if not rows and not snapshots:
+        print("No reports yet. Save one from any Insight page.")
+        return EXIT_OK
+    table(
+        [(r["id"], r["name"], r["cohort"], len(r["figures"]), r["snapshots"]) for r in rows],
+        headers=("ID", "Report", "Cohort", "Figures", "Snapshots"),
+    )
+    if snapshots:
+        print()
+        table(
+            [(s["id"], s["name"], s["taken_at"].strftime("%Y-%m-%d %H:%M"), s["taken_by"],
+              s["note"] or "") for s in snapshots[:30]],
+            headers=("Snapshot", "Report", "Taken (UTC)", "By", "Note"),
+        )  # fmt: skip
+    return EXIT_OK
+
+
+def cmd_report_snapshot(args: argparse.Namespace) -> int:
+    from tessera.insight import reports
+    from tessera.lake import Lake
+    from tessera.search.index import index_path
+    from tessera.search.query import SearchIndex
+
+    config, home = _load(args)
+    engine = _engine(config)
+    path = index_path(home)
+    try:
+        with engine.connect() as conn:
+            row = reports.find_report(conn, args.report)
+        with Lake(home.lake) as lake:
+            snapshot_id = reports.take_snapshot(
+                engine, lake, config, home, row["id"], actor=config.server.operator,
+                note=args.note, search=SearchIndex(path) if path.is_file() else None,
+            )  # fmt: skip
+    finally:
+        engine.dispose()
+    print(f"report: froze {row['name']!r} as {snapshot_id}")
+    return EXIT_OK
+
+
+def cmd_report_verify(args: argparse.Namespace) -> int:
+    from tessera.insight import reports
+
+    config, home = _load(args)
+    engine = _engine(config)
+    try:
+        with engine.connect() as conn:
+            row = reports.get_snapshot(conn, args.snapshot)
+    finally:
+        engine.dispose()
+    result = reports.verify_snapshot(home, row)
+    for problem in result["problems"]:
+        print(f"  problem: {problem}")
+    for figure in result["figures"]:
+        mark = "same" if figure["same"] else "DIFFERENT"
+        print(f"  {mark:9} {figure['metric']}  {figure.get('problem', '')}".rstrip())
+    if result["same"]:
+        print(f"report: {row['id']} computes again exactly ({len(result['figures'])} figures)")
+        return EXIT_OK
+    print(f"report: {row['id']} does not compute again as it was")
+    return EXIT_ERROR
+
+
+def cmd_report_export(args: argparse.Namespace) -> int:
+    from tessera.insight import export, reports
+
+    config, home = _load(args)
+    engine = _engine(config)
+    try:
+        with engine.connect() as conn:
+            row = reports.get_snapshot(conn, args.snapshot)
+    finally:
+        engine.dispose()
+    manifest, figures = reports.load_snapshot(home, row)
+    content, _, name = export.snapshot_export(manifest, figures, args.format)
+    out = args.out or Path(name)
+    out.write_bytes(content)
+    print(f"report: wrote {out} ({len(content):,} bytes, {len(figures)} figures)")
     return EXIT_OK
 
 

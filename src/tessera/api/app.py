@@ -24,6 +24,7 @@ from tessera.api.routers import (
     overview,
     people,
     records,
+    saved,
     system,
 )
 from tessera.api.security import install_security_headers
@@ -86,6 +87,7 @@ def create_app(config: Config) -> FastAPI:
         evidence,
         groups,
         insight,
+        saved,
     ):
         app.include_router(module.router)
     install_api_reference(app)

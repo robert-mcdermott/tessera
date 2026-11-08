@@ -2,7 +2,7 @@
 // (UX-02): ?cohort=…&start=…&end=…&basis=…, so a view can be bookmarked and shared.
 
 import { get, post, request } from "../core/api.js";
-import { h, icon } from "../core/dom.js";
+import { h, icon, replace } from "../core/dom.js";
 import { plural } from "../core/format.js";
 import { query, setQuery } from "../core/router.js";
 import { can } from "../core/session.js";
@@ -71,7 +71,7 @@ function chooseCohort(currentSpec, cohort) {
       const draw = (groups) => {
         const words = filter.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
         const shown = groups.filter((g) => words.every((w) => `${g.name} ${g.code ?? ""} ${g.kind_label}`.toLowerCase().includes(w)));
-        list.replaceChildren(...shown.slice(0, 80).map((g) => h("li", {}, h("button", { type: "button", class: "choice",
+        replace(list, ...shown.slice(0, 80).map((g) => h("li", {}, h("button", { type: "button", class: "choice",
           "aria-pressed": String(group?.slug === g.slug),
           onclick: () => apply(groupSpec(g.slug, below, current)) },
         h("span", { class: "grow" }, h("strong", {}, g.name), h("span", { class: "muted" }, g.kind_label))))),
@@ -81,7 +81,7 @@ function chooseCohort(currentSpec, cohort) {
         const [groups, cohorts] = await Promise.all([get("/api/v1/groups", { limit: 200 }), get("/api/v1/insight/cohorts")]);
         draw(groups.data);
         filter.addEventListener("input", () => draw(groups.data));
-        saved.replaceChildren(...cohorts.data.map((c) => h("li", {}, h("div", { class: "choice-row" },
+        replace(saved, ...cohorts.data.map((c) => h("li", {}, h("div", { class: "choice-row" },
           h("button", { type: "button", class: "choice", "aria-pressed": String(currentSpec === c.id), onclick: () => apply(c.id) },
             h("span", { class: "grow" }, h("strong", {}, c.name), h("span", { class: "muted" }, c.description || `Saved by ${c.created_by}`))),
           mayShare() ? h("button", { type: "button", class: "icon-button", "aria-label": `Delete ${c.name}`, title: "Delete", onclick: async () => {
@@ -96,7 +96,7 @@ function chooseCohort(currentSpec, cohort) {
           } }, icon("trash", "icon icon-sm")) : null))));
         if (!cohorts.data.length) saved.append(h("li", { class: "muted" }, "None yet."));
       } catch (error) {
-        list.replaceChildren(callout(error.detail || error.message, "warn"));
+        replace(list, callout(error.detail || error.message, "warn"));
       }
       if (mayShare() && cohort && !cohort.saved && cohort.kind !== "organization") {
         const name = h("input", { class: "input", required: true, maxlength: 200, value: cohort.label, "aria-label": "Name for this cohort" });
@@ -137,7 +137,7 @@ export function cohortBar({ period = null, years = null, withBasis = true, fisca
   chip.addEventListener("click", () => chooseCohort(params.cohort, cohort));
   get("/api/v1/insight/cohort", { cohort: params.cohort, limit: 0 }).then(({ data }) => {
     cohort = data;
-    chip.querySelector(".cohort-label").replaceChildren(h("strong", {}, data.label), h("span", { class: "muted" }, ` · ${plural(data.size, "person", "people")}`));
+    replace(chip.querySelector(".cohort-label"), h("strong", {}, data.label), h("span", { class: "muted" }, ` · ${plural(data.size, "person", "people")}`));
     chip.title = data.note;
   }).catch((error) => {
     chip.querySelector(".cohort-label").textContent = error.detail || "Unknown cohort";

@@ -4,7 +4,7 @@
 // dimmed.
 
 import { get } from "../core/api.js";
-import { h, icon, svg } from "../core/dom.js";
+import { h, icon, replace, svg } from "../core/dom.js";
 import { date, money, number, percent, plural, relative } from "../core/format.js";
 import { openDrawer } from "./drawer.js";
 import { callout, emptyState, entityHref, segmented, sparkline } from "./ui.js";
@@ -184,8 +184,24 @@ function recordsTable(figure) {
   figure.records.length > 300 ? h("p", { class: "muted" }, `The first 300 of ${number(figure.records.length)}; export the figure for all of them.`) : null);
 }
 
+const FORMATS = [["csv", "CSV"], ["parquet", "Parquet"], ["json", "JSON"]];
+
+/** Download links for a figure: CSV and Parquet come as zips with the records and definitions. */
+export function exportLinks(hrefFor) {
+  return h("ul", { class: "export-list" }, FORMATS.map(([fmt, label]) => h("li", {},
+    h("a", { href: hrefFor(fmt), download: "" }, icon("download", "icon icon-sm"), label))));
+}
+
+/** The address that exports a live figure. */
+export function liveExport(metric, params) {
+  return (fmt) => {
+    const search = new URLSearchParams({ ...params, format: fmt });
+    return `/api/v1/insight/figures/${metric}/export?${search}`;
+  };
+}
+
 /** The About panel: definition, counting rule, cohort, period, options, sources, notes. */
-export function openAbout(figure, params) {
+export function openAbout(figure, params, { exportHref = null, recordsLoader = null } = {}) {
   const m = figure.metric;
   openDrawer({
     title: m.name,
@@ -193,12 +209,13 @@ export function openAbout(figure, params) {
     render: (body) => {
       const records = h("div", { class: "stack-sm" },
         h("button", { type: "button", class: "btn btn-sm", onclick: async () => {
-          records.replaceChildren(h("p", { class: "muted" }, "Loading the records…"));
+          replace(records, h("p", { class: "muted" }, "Loading the records…"));
           try {
-            const full = (await get(`/api/v1/insight/figures/${m.id}`, { ...params, records: "true" })).data;
-            records.replaceChildren(recordsTable(full));
+            const full = recordsLoader ? await recordsLoader()
+              : (await get(`/api/v1/insight/figures/${m.id}`, { ...params, records: "true" })).data;
+            replace(records, recordsTable(full));
           } catch (error) {
-            records.replaceChildren(callout(error.detail || error.message, "warn"));
+            replace(records, callout(error.detail || error.message, "warn"));
           }
         } }, icon("list", "icon icon-sm"), `Show the ${plural(figure.record_count, "record")} counted`));
       body.append(
@@ -222,7 +239,10 @@ export function openAbout(figure, params) {
           h("ul", {}, figure.notes.map((n) => h("li", {}, n)))) : null,
         m.caveats?.length ? h("section", { class: "about-section" }, h("h3", {}, "Keep in mind"),
           h("ul", {}, m.caveats.map((n) => h("li", {}, n)))) : null,
-        h("section", { class: "about-section" }, h("h3", {}, "Behind the number"), records));
+        h("section", { class: "about-section" }, h("h3", {}, "Behind the number"), records),
+        exportHref ? h("section", { class: "about-section" }, h("h3", {}, "Export"),
+          h("p", { class: "muted" }, "The figure, every record counted with its links, and this account of what it is. CSV and Parquet come as a zip."),
+          exportLinks(exportHref)) : null);
     },
   });
 }
@@ -231,7 +251,9 @@ export function openAbout(figure, params) {
  * A card for one figure. draw(figure) returns the chart; without it the table is shown.
  * params: cohort, start, end, and the metric's options.
  */
-export function figureCard({ metric, params, title = null, draw = null, empty = "Nothing to count for this cohort and period.", wide = false }) {
+export function figureCard({ metric, params, title = null, draw = null, empty = "Nothing to count for this cohort and period.", wide = false,
+  data = null, exportHref = null, recordsLoader = null, onLoad = null }) {
+  exportHref = exportHref ?? liveExport(metric, params);
   const heading = h("h2", {}, title ?? "…");
   const actions = h("div", { class: "figure-actions" });
   const body = h("div", { class: "figure-body" }, h("div", { class: "skeleton skeleton-chart" }));
@@ -245,25 +267,29 @@ export function figureCard({ metric, params, title = null, draw = null, empty = 
     const chart = draw && !nothing ? draw(figure) : null;
     const view = nothing ? emptyState({ iconName: "info", title: "Nothing counted", text: empty })
       : mode === "table" || !chart ? figureTable(figure) : chart;
-    body.replaceChildren(view);
-    actions.replaceChildren(
+    replace(body, view);
+    replace(actions, 
       draw && !nothing ? segmented([{ id: "chart", label: "Chart" }, { id: "table", label: "Table" }], mode, (id) => {
         mode = id;
         render(figure);
       }, "Show as") : null,
-      h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => openAbout(figure, params),
+      h("details", { class: "export-menu" }, h("summary", { class: "btn btn-sm btn-ghost", "aria-label": `Export ${figure.metric.name}` },
+        icon("download", "icon icon-sm"), "Export"), exportLinks(exportHref)),
+      h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => openAbout(figure, params, { exportHref, recordsLoader }),
         "aria-label": `About this figure: ${figure.metric.name}` }, icon("info", "icon icon-sm"), "About"));
-    footer.replaceChildren(
+    replace(footer, 
       figure.notes?.length ? h("ul", { class: "figure-notes" }, figure.notes.map((n) => h("li", {}, n))) : null,
       figureMeta(figure));
   };
-  get(`/api/v1/insight/figures/${metric}`, params).then(({ data }) => {
+  const loaded = data ? Promise.resolve({ data }) : get(`/api/v1/insight/figures/${metric}`, params);
+  loaded.then(({ data: figure }) => {
     card.removeAttribute("aria-busy");
-    heading.textContent = title ?? data.metric.name;
-    render(data);
+    heading.textContent = title ?? figure.metric.name;
+    render(figure);
+    onLoad?.(figure);
   }).catch((error) => {
     card.removeAttribute("aria-busy");
-    body.replaceChildren(callout(error.detail || error.message || "This figure could not be computed.", "warn"));
+    replace(body, callout(error.detail || error.message || "This figure could not be computed.", "warn"));
   });
   return card;
 }

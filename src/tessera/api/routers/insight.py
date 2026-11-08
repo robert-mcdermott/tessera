@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
 
 from tessera.api.access import principal_of
@@ -18,7 +18,7 @@ from tessera.api.common import config_of, engine_of, envelope, index_of, lake_of
 from tessera.connectors.reporter import fiscal_year
 from tessera.core.clock import isoformat
 from tessera.core.errors import TesseraError
-from tessera.insight import cohorts, metrics
+from tessera.insight import cohorts, export, metrics, reports
 from tessera.insight.figure import Period, PeriodError
 from tessera.insight.inputs import coverage
 from tessera.insight.run import figure as make_figure
@@ -30,7 +30,9 @@ RESERVED = {"cohort", "start", "end", "records"}
 
 def _fail(exc: TesseraError) -> HTTPException:
     message = str(exc)
-    missing = message.startswith(("There is no metric", "No saved cohort", "No group"))
+    missing = message.startswith(
+        ("There is no metric", "No saved cohort", "No group", "No report", "No snapshot")
+    )
     return HTTPException(status_code=404 if missing else 400, detail=message)
 
 
@@ -198,6 +200,258 @@ def delete_cohort(request: Request, cohort_id: str) -> dict[str, Any]:
     except TesseraError as exc:
         raise _fail(exc) from exc
     return envelope({"deleted": cohort_id})
+
+
+# --- exports ------------------------------------------------------------------------------------
+
+
+def _download(content: bytes, media: str, filename: str) -> Response:
+    return Response(
+        content, media_type=media,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )  # fmt: skip
+
+
+@router.get(
+    "/figures/{metric_id}/export",
+    summary="A figure with its records and definitions, as CSV, Parquet, or JSON",
+    response_class=Response,
+)
+def export_figure(
+    request: Request,
+    metric_id: str,
+    format: str = Query("csv", description="csv (a zip), parquet (a zip), or json"),
+    cohort: str | None = Query(None, max_length=4000),
+    start: int | None = None,
+    end: int | None = None,
+) -> Response:
+    options = {k: v for k, v in request.query_params.items() if k not in RESERVED | {"format"}}
+    try:
+        result = make_figure(
+            engine_of(request), lake_of(request), config_of(request), metric_id,
+            cohort=cohort, start=start, end=end, options=options, search=_search(request),
+        )  # fmt: skip
+        payload = result.to_json(records=True)
+        filters = {"cohort": cohort or "organization", "start": start, "end": end, **options}
+        return _download(*export.figure_export(payload, format, filters=filters))
+    except TesseraError as exc:
+        raise _fail(exc) from exc
+
+
+# --- reports and snapshots ----------------------------------------------------------------------
+
+
+def _report_view(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": row["id"],
+        "name": row["name"],
+        "description": row["description"],
+        "cohort": row["cohort"],
+        "start": row["start_year"],
+        "end": row["end_year"],
+        "figures": row["figures"],
+        "snapshots": row.get("snapshots"),
+        "created_by": row["created_by"],
+        "created_at": isoformat(row["created_at"]),
+        "updated_by": row["updated_by"],
+        "updated_at": isoformat(row["updated_at"]),
+    }
+
+
+def _snapshot_view(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": row["id"],
+        "report_id": row["report_id"],
+        "name": row["name"],
+        "note": row["note"],
+        "taken_by": row["taken_by"],
+        "taken_at": isoformat(row["taken_at"]),
+        "digest": row["digest"],
+        "summary": row["summary"],
+    }
+
+
+class FigureIn(BaseModel):
+    metric: str = Field(min_length=1, max_length=80)
+    options: dict[str, str] = Field(default_factory=dict)
+
+
+class ReportIn(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    description: str | None = Field(None, max_length=4000)
+    cohort: str = Field("organization", min_length=1, max_length=4000)
+    start: int | None = None
+    end: int | None = None
+    figures: list[FigureIn] = Field(min_length=1, max_length=reports.MAX_FIGURES)
+
+
+class ReportChange(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=200)
+    description: str | None = Field(None, max_length=4000)
+    cohort: str | None = Field(None, min_length=1, max_length=4000)
+    start: int | None = None
+    end: int | None = None
+    figures: list[FigureIn] | None = Field(None, min_length=1, max_length=reports.MAX_FIGURES)
+
+
+class SnapshotIn(BaseModel):
+    note: str | None = Field(None, max_length=2000)
+
+
+@router.get("/reports", summary="Reports: named sets of figures over a cohort and a period")
+def list_reports(request: Request) -> dict[str, Any]:
+    with engine_of(request).connect() as conn:
+        return envelope([_report_view(r) for r in reports.list_reports(conn)])
+
+
+@router.post("/reports", summary="Save a report for everyone who reads Insight")
+def create_report(request: Request, body: ReportIn) -> dict[str, Any]:
+    actor = principal_of(request).name
+    try:
+        cohorts.resolve(engine_of(request), body.cohort, search=_search(request))  # it must resolve
+        with engine_of(request).begin() as conn:
+            report_id = reports.create_report(
+                conn, name=body.name, description=body.description, cohort=body.cohort,
+                start=body.start, end=body.end, actor=actor,
+                figures=[f.model_dump() for f in body.figures],
+            )  # fmt: skip
+            row = reports.get_report(conn, report_id)
+    except TesseraError as exc:
+        raise _fail(exc) from exc
+    return envelope(_report_view(row))
+
+
+@router.get("/reports/{report_id}", summary="A report's definition and its snapshots")
+def get_report(request: Request, report_id: str) -> dict[str, Any]:
+    try:
+        with engine_of(request).connect() as conn:
+            row = reports.get_report(conn, report_id)
+            snaps = reports.list_snapshots(conn, report_id)
+    except TesseraError as exc:
+        raise _fail(exc) from exc
+    return envelope({**_report_view(row), "snapshot_list": [_snapshot_view(s) for s in snaps]})
+
+
+@router.post("/reports/{report_id}", summary="Change a report")
+def change_report(request: Request, report_id: str, body: ReportChange) -> dict[str, Any]:
+    actor = principal_of(request).name
+    given = body.model_fields_set
+    try:
+        if body.cohort:
+            cohorts.resolve(engine_of(request), body.cohort, search=_search(request))
+        with engine_of(request).begin() as conn:
+            _may_change(request, reports.get_report(conn, report_id))
+            reports.update_report(
+                conn, report_id, actor=actor, name=body.name, description=body.description,
+                cohort=body.cohort,
+                figures=[f.model_dump() for f in body.figures] if body.figures else None,
+                start=body.start if "start" in given else "keep",
+                end=body.end if "end" in given else "keep",
+            )  # fmt: skip
+            row = reports.get_report(conn, report_id)
+    except TesseraError as exc:
+        raise _fail(exc) from exc
+    return envelope(_report_view(row))
+
+
+@router.delete("/reports/{report_id}", summary="Delete a report (its snapshots stay)")
+def delete_report(request: Request, report_id: str) -> dict[str, Any]:
+    try:
+        with engine_of(request).begin() as conn:
+            _may_change(request, reports.get_report(conn, report_id))
+            reports.delete_report(conn, report_id)
+    except TesseraError as exc:
+        raise _fail(exc) from exc
+    return envelope({"deleted": report_id})
+
+
+@router.post(
+    "/reports/{report_id}/snapshots",
+    summary="Freeze a report: its figures and the exact inputs they were computed from",
+)
+def take_snapshot(request: Request, report_id: str, body: SnapshotIn) -> dict[str, Any]:
+    try:
+        snapshot_id = reports.take_snapshot(
+            engine_of(request), lake_of(request), config_of(request), request.app.state.home,
+            report_id, actor=principal_of(request).name, note=body.note,
+            search=_search(request),
+        )  # fmt: skip
+        with engine_of(request).connect() as conn:
+            row = reports.get_snapshot(conn, snapshot_id)
+    except TesseraError as exc:
+        raise _fail(exc) from exc
+    return envelope(_snapshot_view(row))
+
+
+@router.get("/snapshots", summary="Every snapshot, newest first")
+def list_snapshots(request: Request) -> dict[str, Any]:
+    with engine_of(request).connect() as conn:
+        return envelope([_snapshot_view(r) for r in reports.list_snapshots(conn)])
+
+
+def _snapshot(request: Request, snapshot_id: str) -> dict[str, Any]:
+    try:
+        with engine_of(request).connect() as conn:
+            return reports.get_snapshot(conn, snapshot_id)
+    except TesseraError as exc:
+        raise _fail(exc) from exc
+
+
+@router.get("/snapshots/{snapshot_id}", summary="A snapshot: its manifest and frozen figures")
+def get_snapshot(
+    request: Request,
+    snapshot_id: str,
+    records: bool = Query(False, description="Include each figure's records"),
+) -> dict[str, Any]:
+    row = _snapshot(request, snapshot_id)
+    try:
+        manifest, figures = reports.load_snapshot(request.app.state.home, row)
+    except TesseraError as exc:
+        raise _fail(exc) from exc
+    if not records:
+        figures = [{k: v for k, v in f.items() if k not in ("records", "record_columns")}
+                   for f in figures]  # fmt: skip
+    return envelope({**_snapshot_view(row), "manifest": manifest, "figures": figures})
+
+
+@router.get(
+    "/snapshots/{snapshot_id}/verify",
+    summary="Compute a snapshot's figures again from its frozen inputs and compare",
+)
+def verify_snapshot(request: Request, snapshot_id: str) -> dict[str, Any]:
+    row = _snapshot(request, snapshot_id)
+    try:
+        return envelope(reports.verify_snapshot(request.app.state.home, row))
+    except TesseraError as exc:
+        raise _fail(exc) from exc
+
+
+@router.get(
+    "/snapshots/{snapshot_id}/export",
+    summary="A snapshot's figures with their records, definitions, and manifest (a zip)",
+    response_class=Response,
+)
+def export_snapshot(
+    request: Request,
+    snapshot_id: str,
+    format: str = Query("csv", description="csv, parquet, or json"),
+    figure: int | None = Query(None, ge=1, description="Only this figure (1, 2, …)"),
+) -> Response:
+    row = _snapshot(request, snapshot_id)
+    try:
+        manifest, figures = reports.load_snapshot(request.app.state.home, row)
+        if figure is not None:
+            if figure > len(figures):
+                raise HTTPException(status_code=404, detail=f"The snapshot has no figure {figure}.")
+            report_ = manifest["report"]
+            payload = figures[figure - 1]
+            filters = {"cohort": report_["cohort"], "start": report_["start"],
+                       "end": report_["end"], **export.option_values(payload)}  # fmt: skip
+            return _download(*export.figure_export(payload, format, filters=filters,
+                                                   snapshot=snapshot_id))  # fmt: skip
+        return _download(*export.snapshot_export(manifest, figures, format))
+    except TesseraError as exc:
+        raise _fail(exc) from exc
 
 
 @router.get("/years", summary="The years Insight can show, and the period it starts with")

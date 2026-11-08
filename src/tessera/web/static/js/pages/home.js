@@ -5,6 +5,7 @@ import { h, icon } from "../core/dom.js";
 import { number } from "../core/format.js";
 import { navigate } from "../core/router.js";
 import { grantItem, publicationItem } from "../components/items.js";
+import { savedSearchesCard } from "../components/saved-search.js";
 import { barChart, card, emptyState, freshness, statTile } from "../components/ui.js";
 import { show } from "./page.js";
 
@@ -48,6 +49,7 @@ export function home(main, meta) {
               body: barChart(recentYears.map((y) => ({ label: String(y.year), value: y.count })),
                 { caption: "Publications by year" }) }) : null),
           h("div", { class: "stack-lg" },
+            savedSearchesCard(),
             card({ title: "Largest active grants", action: h("a", { href: "/grants?status=active" }, "All grants"),
               body: grants.length ? h("div", { class: "items" }, grants.map((g) => grantItem(g)))
                 : h("div", { class: "card-body muted" }, "No active grants in the data.") }),

@@ -123,6 +123,29 @@ An ending project is not a gap in funding: projects are often renewed, extended 
 
 Keep in mind what RePORTER cannot show: foundation, industry, and most other federal funding are not in it; amounts are awarded, not spent; and public data holds awards only, never applications, so success rates cannot be computed. A member who leads one project of a multi-project award is linked to the whole award.
 
+## Reports and snapshots
+
+A **report** is a named set of figures over one cohort and one period, for everyone who reads Insight. **Save as report** on any Insight page saves the figures on that page with the cohort, the years, and the options you chose; **Insight → Reports** lists them. Opening a report computes its figures from the data as it is now, so a report is a question you can ask again.
+
+A **snapshot** freezes a report. **Take snapshot** on a report (or `tessera report snapshot <name>`) computes every figure once and keeps, in `snapshots/<id>/` in the data home:
+
+- the **inputs**: every table the figures were computed from, for the cohort's people only (its members with their years, their links, and the rows read from PubMed, RePORTER, ClinicalTrials.gov, iCite, and MeSH), as Parquet files;
+- the **figures**, each as it was shown, with every record it counted;
+- a **manifest**: the report's definition, the cohort as it was resolved, each figure's metric, version, period, and options, the sources and when each was last fetched, the moment it was computed, and a SHA-256 digest of every input file and every figure.
+
+A snapshot never changes: later syncs and decisions change the report, not its snapshots, and deleting a report keeps them. **Verify** (or `tessera report verify <snapshot>`) reads the frozen inputs back, computes every figure again with the same metric versions, and confirms that each comes out byte for byte the same. It reports any input that was altered, and any metric whose version has moved on since.
+
+Managers, curators, researchers, and admins can save reports and take snapshots; whoever saved a report, or an admin, can change or delete it. Everyone who can read Insight can open them.
+
+## Exports
+
+Every figure has **Export**: CSV, Parquet, or JSON. An export carries its meaning with it:
+
+- the figure's rows, and the **records** it counted with the links (and their identifiers) behind each;
+- **about.json** and **README.txt**: the metric's definition, version, and counting rule, the cohort with its definition and size, the period, the options and the filters exactly as written in the address, the sources with their data timestamps, the notes, and when it was computed and exported.
+
+CSV and Parquet come as a zip (`funding-awarded.csv`, `funding-awarded-records.csv`, `about.json`, `README.txt`); each Parquet file also carries the account in its schema metadata under `tessera`, so it travels with the data. JSON is one file. A snapshot's **Export all** (or `tessera report export <snapshot> --format csv`) puts every figure in one zip with the manifest, and says which snapshot it came from.
+
 ## The API
 
-Every figure is at `GET /api/v1/insight/figures/<metric>` with `cohort`, `start`, `end`, and the metric's options (such as `basis=confirmed`); `records=true` adds the records counted. `GET /api/v1/insight/metrics` lists the definitions, and `/api/v1/insight/cohorts` saves and lists cohorts. See [The API](api.md#what-is-available).
+Every figure is at `GET /api/v1/insight/figures/<metric>` with `cohort`, `start`, `end`, and the metric's options (such as `basis=confirmed`); `records=true` adds the records counted, and `/export?format=csv` (or `parquet`, `json`) downloads it. `GET /api/v1/insight/metrics` lists the definitions, `/api/v1/insight/cohorts` saves and lists cohorts, `/api/v1/insight/reports` saves and lists reports and takes their snapshots, and `/api/v1/insight/snapshots/<id>` shows, verifies, and exports a snapshot. See [The API](api.md#what-is-available).

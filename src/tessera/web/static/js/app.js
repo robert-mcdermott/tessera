@@ -93,6 +93,9 @@ async function boot() {
   route("/insight/funding", async () => (await insightPages()).funding(main));
   route("/insight/topics", async () => (await insightPages()).topics(main));
   route("/insight/studies", async () => (await insightPages()).studies(main));
+  route("/insight/reports", async () => (await insightPages()).reports(main));
+  route("/insight/reports/:id", async (params) => (await insightPages()).reportPage(main, params));
+  route("/insight/snapshots/:id", async (params) => (await insightPages()).snapshotPage(main, params));
   route("/insight/definitions", async () => (await insightPages()).definitions(main));
   route("/inbox", async (_, ctx) => (await import("./pages/inbox.js")).inboxPage(main, ctx));
   route("/review", () => review(main));

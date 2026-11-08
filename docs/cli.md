@@ -359,6 +359,63 @@ usage: tessera publish [-h] [--out OUT] [--check]
 | `--out OUT` | where to write it ([publish] out) |
 | `--check` | build and check, but write nothing |
 
+## `tessera report`
+
+Insight reports: list them, freeze snapshots, verify and export them.
+
+Reports are named sets of Insight figures over a cohort and a period. A snapshot freezes one with the exact inputs its figures were computed from, so it can be verified and exported long after the data has moved on.
+
+```text
+usage: tessera report [-h] ACTION ...
+```
+
+### `tessera report list`
+
+Reports and their snapshots.
+
+```text
+usage: tessera report list [-h]
+```
+
+### `tessera report snapshot`
+
+Freeze a report now.
+
+```text
+usage: tessera report snapshot [-h] [--note NOTE] report
+```
+
+| Argument | Meaning |
+|---|---|
+| `report` | the report's name or ID |
+| `--note NOTE` | why it was taken |
+
+### `tessera report verify`
+
+Compute a snapshot again from its frozen inputs and compare.
+
+```text
+usage: tessera report verify [-h] snapshot
+```
+
+| Argument | Meaning |
+|---|---|
+| `snapshot` | the snapshot's ID |
+
+### `tessera report export`
+
+Write a snapshot's figures, records, and definitions to a file.
+
+```text
+usage: tessera report export [-h] [--format {csv,parquet,json}] [--out OUT] snapshot
+```
+
+| Argument | Meaning |
+|---|---|
+| `snapshot` | the snapshot's ID |
+| `--format FORMAT` | (default: csv) |
+| `--out OUT` | the file to write (default: its name) |
+
 ## `tessera users`
 
 Local accounts and their roles.

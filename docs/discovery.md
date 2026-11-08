@@ -74,6 +74,12 @@ People are coloured by group (division, program, lab) when the view spans severa
 
 ![The unit matrix: shading for shared interests, squares for collaboration, and the pairs behind one cell](images/units-light.webp "Units")
 
+## Saved searches
+
+Any search can be saved: **Save search** on the People, Publications, Grants, or Studies page keeps the words and filters, and on Search it keeps a search of everything. What the search finds when you save it counts as seen.
+
+Your saved searches are listed on the home page with how many matches are **new** since you last looked. Opening one shows the new matches above the results; **Mark as seen** clears them. Saved searches are your own: nobody else sees them. Up to 5,000 matches are remembered for each; a search that finds more still shows its count.
+
 ## Keeping it current
 
 `tessera sync` rebuilds profiles, similar people, and the graphs at the end of every run. To rebuild them alone, for example after many curation decisions or a change to `[discovery]`:
