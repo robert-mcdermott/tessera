@@ -269,3 +269,116 @@ def test_opportunities_can_be_saved_searches(demo) -> None:  # type: ignore[no-u
         "filters": {"status": ["posted"]}})  # fmt: skip
     assert saved.status_code in (200, 201), saved.text
     assert saved.json()["data"]["total"] >= 1
+
+
+# --- the navigator: fit and eligibility, kept apart (slice 3) ---------------------------------
+
+
+def test_eligibility_checks_are_separate_and_say_why() -> None:
+    from tessera.config import Config, OrganizationConfig
+    from tessera.opportunities.eligibility import check
+
+    config = Config(organization=OrganizationConfig(name="Example", applicant_types=("12",)))
+    base = {"status": "posted", "closes": date(2027, 1, 1), "applicant_types": ["12", "20"],
+            "activity_codes": ["R01"], "clinical_trial": "optional", "cost_sharing": False,
+            "limited_submission": None, "internal_deadline": None}  # fmt: skip
+    ok = check(base, config, TODAY)
+    assert ok["overall"] == "meets" and ok["checks"][0]["result"] == "meets"
+    assert [c["result"] for c in ok["checks"] if c["key"] == "clinical_trial"] == ["note"]
+    small = check({**base, "applicant_types": ["23"]}, config, TODAY)
+    assert (
+        small["overall"] == "does_not_meet" and "small businesses" in small["checks"][0]["detail"]
+    )
+    career = check({**base, "activity_codes": ["K99", "R00"]}, config, TODAY)
+    assert career["overall"] == "check" and any(c["key"] == "career" for c in career["checks"])
+    unset = check(base, Config(), TODAY)
+    assert unset["overall"] == "check" and "applicant_types" in unset["checks"][0]["detail"]
+    closed = check({**base, "status": "closed"}, config, TODAY)
+    assert closed["overall"] == "does_not_meet"
+    limited = check({**base, "limited_submission": True, "internal_deadline": date(2026, 12, 1)},
+                    config, TODAY)  # fmt: skip
+    assert limited["overall"] == "check"
+
+
+def test_who_fits_an_opportunity_and_why(demo) -> None:  # type: ignore[no-untyped-def]
+    _, client = demo
+    cell = client.get("/api/v1/opportunities/9900101/fit").json()["data"]
+    names = [c["descriptor"] for c in cell["concepts"]]
+    assert "Receptors, Chimeric Antigen" in names and "Multiple Myeloma" in names
+    assert cell["people"] and all(p["band"] in ("strong", "some") for p in cell["people"])
+    assert all(p["matches"] for p in cell["people"])  # every fit has its reasons
+    assert "score" in cell["people"][0]  # kept for ordering, but shown as bands
+    groups = {g["name"]: g for g in cell["groups"]}
+    assert "Cancer Immunotherapy Program" in groups
+    assert groups["Cancer Immunotherapy Program"]["members"]
+    assert cell["eligibility"]["overall"] == "meets"
+    small = client.get("/api/v1/opportunities/9900109/fit").json()["data"]
+    assert small["eligibility"]["overall"] == "does_not_meet"
+    assert small["people"]  # its fit is still shown
+    dropped = cell["concepts"][0]["descriptor_ui"]
+    adjusted = client.get("/api/v1/opportunities/9900101/fit", params={"drop": dropped}).json()
+    assert adjusted["data"]["adjusted"] and dropped not in {
+        c["descriptor_ui"] for c in adjusted["data"]["concepts"]
+    }
+
+
+def test_opportunities_filter_by_eligibility_person_and_group(demo) -> None:  # type: ignore[no-untyped-def]
+    _, client = demo
+    out = client.get("/api/v1/opportunities", params={"status": ["posted", "forecasted"]}).json()
+    eligibility = {f["value"]: f["count"] for f in out["meta"]["facets"]["eligibility"]}
+    assert eligibility["does_not_meet"] >= 1 and eligibility["meets"] >= 5
+    assert all("eligibility" in o for o in out["data"])
+    cell = client.get("/api/v1/opportunities/9900101/fit").json()["data"]
+    person = cell["people"][0]["id"]
+    fitting = client.get("/api/v1/opportunities", params={"fits": person}).json()["data"]
+    assert "opp:9900101" in {o["id"] for o in fitting}
+    theirs = client.get(f"/api/v1/people/{person}/opportunities").json()["data"]
+    assert "opp:9900101" in {o["id"] for o in theirs}
+    assert all(o["fit"]["band"] and o["eligibility"]["overall"] for o in theirs)
+    slug = next(g["slug"] for g in cell["groups"] if g["name"] == "Cancer Immunotherapy Program")
+    by_group = client.get("/api/v1/opportunities", params={"group": slug}).json()["data"]
+    assert "opp:9900101" in {o["id"] for o in by_group}
+    assert client.get(f"/api/v1/groups/{slug}/opportunities").json()["data"]
+    assert client.get("/api/v1/opportunities", params={"fits": "me"}).status_code == 400
+
+
+def test_watching_and_dismissing_are_ones_own(demo) -> None:  # type: ignore[no-untyped-def]
+    _, client = demo
+    assert client.post("/api/v1/opportunities/9900102/interest",
+                       json={"state": "watching"}).status_code == 200  # fmt: skip
+    mine = client.get("/api/v1/me/opportunities").json()
+    assert "opp:9900102" in {o["id"] for o in mine["data"] if o["watching"]}
+    client.post("/api/v1/opportunities/9900102/interest", json={"state": "dismissed"})
+    mine = client.get("/api/v1/me/opportunities").json()
+    assert "opp:9900102" not in {o["id"] for o in mine["data"]} and mine["meta"]["dismissed"] == 1
+    assert client.get("/api/v1/opportunities/9900102/fit").json()["data"]["interest"] == "dismissed"
+    assert client.post("/api/v1/opportunities/9900102/interest",
+                       json={"state": "maybe"}).status_code == 400  # fmt: skip
+    client.post("/api/v1/opportunities/9900102/interest", json={"state": None})
+    assert client.get("/api/v1/opportunities/9900102/fit").json()["data"]["interest"] is None
+
+
+def test_a_groups_inbox_lists_a_new_fitting_opportunity_once(demo) -> None:  # type: ignore[no-untyped-def]
+    from tessera.home import DataHome
+    from tessera.jobs.build import build_opportunities
+
+    config, client = demo
+    body = {
+        "source": "Example Foundation", "title": "Chimeric antigen receptor T cells in myeloma",
+        "description": "Support for CAR T cell research in multiple myeloma and lymphoma.",
+        "posted_on": date.today().isoformat(), "closes_on": "2027-03-01",
+    }  # fmt: skip
+    made = client.post("/api/v1/opportunities", json=body).json()["data"]
+    engine = make_engine(config.ledger_url)
+    try:
+        build_opportunities(config, DataHome(config.data.home), engine)
+    finally:
+        engine.dispose()
+    cell = client.get("/api/v1/opportunities/9900101/fit").json()["data"]
+    slug = next(g["slug"] for g in cell["groups"] if g["name"] == "Cancer Immunotherapy Program")
+    inbox = client.get(f"/api/v1/groups/{slug}/inbox").json()["data"]
+    assert made["id"] in {o["id"] for o in inbox["opportunities"]}
+    assert inbox["counts"]["opportunities"] >= 1
+    assert client.post(f"/api/v1/groups/{slug}/inbox/reviewed", json={}).status_code == 200
+    again = client.get(f"/api/v1/groups/{slug}/inbox").json()["data"]
+    assert made["id"] not in {o["id"] for o in again["opportunities"]}

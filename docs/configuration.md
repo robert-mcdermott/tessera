@@ -40,8 +40,27 @@ How the organization appears in public records. See [Describing your organizatio
 | `ctgov_org_names` | list | `[]` | Sponsor, collaborator, and site names in ClinicalTrials.gov (falls back to `aliases`) |
 | `email_domains` | list | `[]` | Domains whose addresses count as evidence of membership |
 | `exclusions` | list | `[]` | Look-alike organizations that contain one of the aliases |
+| `applicant_types` | list | `[]` | Who the organization is when it applies for funding, in Grants.gov's applicant type codes, so that [Opportunities](opportunities.md) can say whether it may apply. Leave empty to have every opportunity's applicant types checked by hand |
 
 `name` and at least one of `aliases`, `affiliation_patterns`, or `reporter_org_names` are required, so Tessera can recognize the organization.
+
+Grants.gov's applicant type codes, for `applicant_types`:
+
+| Code | Applicant |
+|---|---|
+| `00`, `01`, `02`, `04` | State, county, city or township, and special district governments |
+| `05` | Independent school districts |
+| `06` | Public and state-controlled institutions of higher education |
+| `07`, `11` | Federally recognized Native American tribal governments; other Native American tribal organizations |
+| `08` | Public and Indian housing authorities |
+| `12` | Nonprofits with 501(c)(3) status, other than institutions of higher education |
+| `13` | Nonprofits without 501(c)(3) status, other than institutions of higher education |
+| `20` | Private institutions of higher education |
+| `21` | Individuals |
+| `22`, `23` | For-profit organizations other than small businesses; small businesses |
+| `25`, `99` | Others named in the eligibility notes; unrestricted |
+
+A private university is usually `["20"]`; an independent nonprofit research institute, `["12"]`.
 
 ## `[branding]`
 

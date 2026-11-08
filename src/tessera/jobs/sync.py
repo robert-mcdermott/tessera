@@ -7,7 +7,7 @@
    MeSH, and funding opportunities.
 4. Resolve everything: links, authorship suggestions, study officials.
 5. Rebuild the search and serving index, then concept profiles, similar people, and the
-   collaboration graph.
+   collaboration graph, then who fits each funding opportunity.
 """
 
 from __future__ import annotations
@@ -22,7 +22,12 @@ from tessera.config import Config
 from tessera.connectors.base import IngestOptions
 from tessera.evidence.resolve import ResolveResult, resolve
 from tessera.home import DataHome
-from tessera.jobs.build import build_attribution, build_discovery, build_search
+from tessera.jobs.build import (
+    build_attribution,
+    build_discovery,
+    build_opportunities,
+    build_search,
+)
 from tessera.jobs.ingest import RunResult, ingest_many
 
 FIRST = ("reporter", "ctgov", "pubmed", "pubmed:linked")
@@ -69,4 +74,5 @@ def sync(
     result.build = build_search(config, home, engine, today=today)
     result.build["discovery"] = build_discovery(config, home, engine)
     result.build["attribution"] = build_attribution(config, home, engine, today=today)
+    result.build["opportunities"] = build_opportunities(config, home, engine, today=today)
     return result

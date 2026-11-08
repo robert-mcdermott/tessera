@@ -220,7 +220,7 @@ export function pager({ total, offset, limit, onPage }) {
 export const FACET_LABELS = {
   status: "Status", unit: "Unit", year: "Year", journal: "Journal", type: "Type", flag: "Flags",
   activity: "Activity code", institute: "Institute", phase: "Phase", person: "Person",
-  source: "From", kind: "Kind", closing: "Closes within", agency: "Sponsor", category: "Category",
+  source: "From", kind: "Kind", closing: "Closes within", agency: "Sponsor", category: "Category", eligibility: "Eligibility",
 };
 
 /** Facet checkboxes. selected: {name: [values]}; onChange(name, values). */

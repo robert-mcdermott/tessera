@@ -43,7 +43,16 @@ FACETS = {
     "publication": ("year", "journal", "type", "flag"),
     "grant": ("status", "activity", "institute", "year"),
     "study": ("status", "phase", "type", "year"),
-    "opportunity": ("status", "source", "kind", "closing", "agency", "activity", "category"),
+    "opportunity": (
+        "status",
+        "eligibility",
+        "closing",
+        "source",
+        "kind",
+        "agency",
+        "activity",
+        "category",
+    ),
     "candidate": ("status", "source"),
 }
 
@@ -68,6 +77,89 @@ def to_fts_query(text: str | None) -> str | None:
         parts.append(f'"{token}"' + ("*" if last and len(token) >= 2 else ""))
     parts = parts[:MAX_TERMS]
     return " ".join(parts) if parts else None
+
+
+# Words too common to help find papers on a subject when any word may match.
+STOPWORDS = frozenset(
+    {
+        "a",
+        "an",
+        "and",
+        "are",
+        "as",
+        "at",
+        "be",
+        "by",
+        "for",
+        "from",
+        "has",
+        "have",
+        "in",
+        "into",
+        "is",
+        "it",
+        "its",
+        "of",
+        "on",
+        "or",
+        "that",
+        "the",
+        "their",
+        "this",
+        "to",
+        "was",
+        "were",
+        "which",
+        "with",
+        "will",
+        "can",
+        "may",
+        "new",
+        "also",
+        "other",
+        "such",
+        "these",
+        "those",
+        "than",
+        "more",
+        "most",
+        "using",
+        "studies",
+        "study",
+        "research",
+        "award",
+        "awards",
+        "program",
+        "programs",
+        "grant",
+        "grants",
+        "funding",
+        "opportunity",
+        "notice",
+        "applications",
+        "application",
+        "support",
+        "supports",
+        "trial",
+        "trials",
+        "clinical",
+    }
+)
+MAX_ANY_TERMS = 24
+
+
+def to_fts_any(text: str | None) -> str | None:
+    """Turn text into an FTS5 query that matches any of its distinctive words (ranked by how
+    many match, and how rare they are), for reading a long text such as an opportunity."""
+    if not text:
+        return None
+    words = []
+    for token in re.findall(r"\w+", text[: MAX_QUERY_LENGTH * 20].lower()):
+        common = token in STOPWORDS or token.isdigit()
+        if len(token) >= 3 and not common and token not in words:
+            words.append(token)
+    words = words[:MAX_ANY_TERMS]
+    return " OR ".join(f'"{w}"' for w in words) if words else None
 
 
 @dataclass
@@ -123,10 +215,14 @@ class SearchIndex:
         limit: int = 20,
         offset: int = 0,
         with_facets: bool = True,
+        match: str = "all",
+        with_highlights: bool = True,
     ) -> SearchResult:
+        """``match`` "all" needs every word (searches people type); "any" ranks papers by how
+        many of the text's distinctive words they have (reading a long text)."""
         if kind not in ALL_KINDS:
             raise TesseraError(f"Unknown kind {kind!r}; choose from {', '.join(ALL_KINDS)}")
-        fts = to_fts_query(query)
+        fts = to_fts_any(query) if match == "any" else to_fts_query(query)
         where, params = self._filters(kind, filters or {})
         con = self.connect()
         try:
@@ -151,7 +247,8 @@ class SearchIndex:
                 f"SELECT d.* {base} ORDER BY {order_sql} LIMIT ? OFFSET ?",
                 [*base_params, limit, offset],
             ).fetchall()
-            marks = self._highlights(con, fts, [r["id"] for r in rows]) if fts else {}
+            wanted = fts and with_highlights
+            marks = self._highlights(con, fts, [r["id"] for r in rows]) if wanted else {}
             facets = self._facet_counts(con, kind, base, base_params) if with_facets else {}
         except sqlite3.OperationalError as exc:  # defensive: input is sanitized above
             raise TesseraError(f"Search failed: {exc}") from exc

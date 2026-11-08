@@ -25,7 +25,7 @@ from tessera.core.clock import utc_now
 from tessera.core.errors import TesseraError
 from tessera.core.ids import new_id
 from tessera.ledger.tables import OPPORTUNITY_KINDS, opportunity
-from tessera.opportunities.catalog import APPLICANT_TYPES
+from tessera.opportunities.codes import APPLICANT_TYPES
 
 TEXT_LIMITS = {"source": 200, "external_id": 200, "number": 100, "title": 500, "sponsor": 300,
                "url": 1000, "description": 20000, "eligibility_notes": 5000}  # fmt: skip
@@ -281,5 +281,38 @@ __all__ = [
     "create",
     "csv_rows",
     "import_rows",
+    "interests",
     "read_rows",
+    "set_interest",
 ]
+
+
+# --- watching and dismissing, for oneself -------------------------------------------------------
+
+
+def set_interest(engine: Engine, owner: str, ref: str, state: str | None) -> None:
+    """Watch an opportunity, dismiss it from one's own lists, or (None) neither."""
+    from sqlalchemy import delete
+
+    from tessera.ledger.tables import INTEREST_STATES, opportunity_interest
+
+    if state is not None and state not in INTEREST_STATES:
+        raise OpportunityError(f"state is one of {', '.join(INTEREST_STATES)}, or null.")
+    where = (opportunity_interest.c.owner == owner) & (opportunity_interest.c.opportunity == ref)
+    with engine.begin() as conn:
+        conn.execute(delete(opportunity_interest).where(where))
+        if state is not None:
+            conn.execute(insert(opportunity_interest).values(
+                owner=owner, opportunity=ref, state=state, updated_at=utc_now()))  # fmt: skip
+
+
+def interests(engine: Engine, owner: str) -> dict[str, str]:
+    """{opportunity ref: "watching" or "dismissed"} for one owner."""
+    from tessera.ledger.tables import opportunity_interest
+
+    with engine.connect() as conn:
+        rows = conn.execute(
+            select(opportunity_interest.c.opportunity, opportunity_interest.c.state).where(
+                opportunity_interest.c.owner == owner)
+        ).all()  # fmt: skip
+    return dict(rows)

@@ -7,6 +7,8 @@ A group's inbox gathers, in one place, what its editors need to look at:
 * **Roster changes:** people who joined, left, or changed role since then (from imports, the
   roster, or by hand).
 * **Openings closing soon:** open openings that close within two weeks (extend or close them).
+* **Opportunities that fit:** funding opportunities that Tessera first held since then (fetched
+  from Grants.gov, or added by the organization) and that fit the group through its members.
 
 **Mark as reviewed** sets the point from which new grants and roster changes count; papers
 and openings stay until they are decided. A group never reviewed counts the last week.
@@ -47,10 +49,40 @@ def _since(conn: Connection, group_id: str, now: datetime) -> datetime:
     return row["reviewed_at"] if row else now - WINDOW
 
 
+def new_opportunities(
+    conn: Connection, home: Any, group_id: str, since: datetime, today: date
+) -> list[dict[str, Any]]:
+    """Open opportunities that fit the group and that Tessera first held since then."""
+    from tessera.lake import Lake
+    from tessera.opportunities import catalog, fit
+
+    fits = {f["opportunity"]: f for f in fit.fitting(home, "group", group_id)}
+    if not fits:
+        return []
+    with Lake(home.lake) as lake:
+        views = catalog.some(conn.engine, lake, list(fits), today)
+        seen = catalog.first_seen(conn.engine, lake, list(fits))
+    out = []
+    for v in views:
+        when = seen.get(v["id"])
+        if v["status"] in catalog.OPEN and when is not None and when > since:
+            found = fits[v["id"]]
+            out.append({"id": v["id"], "title": v["title"], "sponsor": v["sponsor"],
+                        "status": v["status"], "closes": v["closes"], "band": found["band"],
+                        "band_label": found["band_label"]})  # fmt: skip
+    out.sort(key=lambda o: (o["band"] != "strong", o["closes"] or date.max, o["id"]))
+    return out
+
+
 def group_inbox_items(
-    conn: Connection, group_id: str, config: Config, today: date, now: datetime | None = None
+    conn: Connection,
+    group_id: str,
+    config: Config,
+    today: date,
+    now: datetime | None = None,
+    home: Any = None,
 ) -> dict[str, Any]:
-    """Everything in one group's inbox."""
+    """Everything in one group's inbox (opportunities only when the data home is given)."""
     now = now or utc_now()
     since = _since(conn, group_id, now)
     papers = [a for a in attributions(conn, group_id, ("suggested",)) if a["reported"]]
@@ -86,6 +118,7 @@ def group_inbox_items(
         conn.execute(select(person.c.id, person.c.display_name).where(person.c.id.in_(ids))).all()
     )
     expiring = openings.expiring(conn, [group_id], today, EXPIRING_DAYS)
+    fitting = new_opportunities(conn, home, group_id, since, today) if home is not None else []
     return {
         "since": since,
         "reviewed": reviewed_at(conn, group_id),
@@ -107,11 +140,13 @@ def group_inbox_items(
             for e in roster
         ],
         "openings": expiring,
+        "opportunities": fitting,
         "counts": {
             "papers": len(papers),
             "grants": len(grants),
             "roster": len(roster),
             "openings": len(expiring),
+            "opportunities": len(fitting),
         },
     }
 
@@ -133,7 +168,7 @@ def mark_reviewed(conn: Connection, group_id: str, *, actor: str) -> datetime:
 
 
 def digest(
-    engine: Engine, principal: Any, config: Config, today: date | None = None
+    engine: Engine, principal: Any, config: Config, today: date | None = None, home: Any = None
 ) -> dict[str, Any]:
     """Pending work for one person: their groups' inboxes, and their curation queues."""
     from tessera.evidence import store as evidence
@@ -152,7 +187,7 @@ def digest(
             # A curator for everyone sees the groups that have something waiting, not all.
             query = query.where(unit.c.kind.in_(config.vocabulary.attributable_kinds))
         for gid, name, slug, kind in conn.execute(query.order_by(unit.c.name)).all():
-            counts = group_inbox_items(conn, gid, config, today, now)["counts"]
+            counts = group_inbox_items(conn, gid, config, today, now, home)["counts"]
             if scope is not None or any(counts.values()):
                 groups.append(
                     {
@@ -212,6 +247,7 @@ def digest_text(result: dict[str, Any], config: Config, name: str) -> tuple[str,
         "grants": ("new grant", "new grants"),
         "roster": ("roster change", "roster changes"),
         "openings": ("opening closing soon", "openings closing soon"),
+        "opportunities": ("new opportunity that fits", "new opportunities that fit"),
     }
     for g in result["groups"]:
         parts = [

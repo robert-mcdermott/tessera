@@ -61,6 +61,9 @@ class OrganizationConfig:
     email_domains: tuple[str, ...] = ()
     # Look-alike names that contain an alias but are a different organization.
     exclusions: tuple[str, ...] = ()
+    # Who the organization is as an applicant, in Grants.gov's codes (e.g. "20", a private
+    # institution of higher education), to check opportunities' eligibility (wave 5).
+    applicant_types: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -694,6 +697,12 @@ def validate(config: Config) -> list[str]:
     email = config.sources.contact_email
     if email and not _EMAIL.match(email):
         problems.append(f"sources.contact_email: {email!r} is not an email address")
+    from tessera.opportunities.codes import APPLICANT_TYPES
+
+    for code in config.organization.applicant_types:
+        if code not in APPLICANT_TYPES:
+            problems.append(f"organization.applicant_types: {code!r} is not a Grants.gov "
+                            "applicant type code (such as 06, 12, or 20)")  # fmt: skip
     grants = config.sources.grants_gov
     for code in grants.categories:
         if not re.fullmatch(r"[A-Z]{1,4}", code):

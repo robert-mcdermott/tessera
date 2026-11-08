@@ -188,8 +188,15 @@ OPPORTUNITY_SUMMARY = (
 )  # fmt: skip
 
 
-def opportunity_doc(view: dict[str, Any], today: date) -> Doc:
-    """An opportunity as a search document: soonest deadline first, closed ones last."""
+def opportunity_doc(
+    view: dict[str, Any],
+    today: date,
+    eligibility: dict[str, Any] | None = None,
+    fits: list[tuple[str, str]] = (),  # type: ignore[assignment]
+) -> Doc:
+    """An opportunity as a search document: soonest deadline first, closed ones last. Its
+    eligibility (``eligibility`` facet) and who fits it (``fits``: people; ``group``) can be
+    filtered on."""
     closes, posted = view["closes"], view["posted"] or view["expected_post"]
     status = view["status"]
     when = closes if closes and status == "posted" else None
@@ -201,6 +208,12 @@ def opportunity_doc(view: dict[str, Any], today: date) -> Doc:
     if when is not None:
         days = (when - today).days
         facets += [("closing", str(n)) for n in (30, 90) if 0 <= days <= n]
+    if eligibility is not None:
+        facets.append(("eligibility", eligibility["overall"]))
+    facets += list(fits)
+    summary = {k: view[k] for k in OPPORTUNITY_SUMMARY}
+    if eligibility is not None:
+        summary["eligibility"] = {"overall": eligibility["overall"], "label": eligibility["label"]}
     return Doc(
         "opportunity",
         view["id"],
@@ -209,7 +222,7 @@ def opportunity_doc(view: dict[str, Any], today: date) -> Doc:
         (closes or posted).year if (closes or posted) else None,
         sort_key=f"{STATUS_RANK[status]}{(closes or date.max).isoformat()}{view['id']}",
         weight=float(posted.toordinal()) if posted else 0.0,
-        summary={k: view[k] for k in OPPORTUNITY_SUMMARY},
+        summary=summary,
         terms="; ".join([
             *(x for x in (view["number"], view["sponsor"], view["parent_sponsor"],
                           view["agency_code"], view["source_label"]) if x),
@@ -523,9 +536,13 @@ class _Builder:
 
     def opportunities(self, today: date) -> None:
         from tessera.opportunities.catalog import everything
+        from tessera.opportunities.eligibility import check
+        from tessera.opportunities.fit import facets
 
+        fits = facets(self.home)
         for view in everything(self.engine, self.lake, today):
-            self.docs.append(opportunity_doc(view, today))
+            eligible = check(view, self.config, today)
+            self.docs.append(opportunity_doc(view, today, eligible, fits.get(view["id"], [])))
 
     # -- people -----------------------------------------------------------------------------
 

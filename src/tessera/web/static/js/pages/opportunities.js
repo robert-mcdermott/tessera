@@ -5,12 +5,12 @@
 import { get, invalidate, post, request } from "../core/api.js";
 import { h, icon } from "../core/dom.js";
 import { date, enumLabel, money, number, paragraphs, relative } from "../core/format.js";
-import { navigate } from "../core/router.js";
+import { navigate, query, queryList, setQuery } from "../core/router.js";
 import { can } from "../core/session.js";
 import { openDrawer } from "../components/drawer.js";
-import { opportunityWhen } from "../components/items.js";
+import { eligibilityPill, opportunityWhen } from "../components/items.js";
 import { toast } from "../components/toast.js";
-import { callout, card, emptyState, entityIcon, kv, pageHeader, pill } from "../components/ui.js";
+import { callout, card, chip, debounce, emptyState, entityIcon, kv, pageHeader, pill } from "../components/ui.js";
 import { show } from "./page.js";
 
 const TONE = { posted: "ok", forecasted: "accent", closed: "", archived: "" };
@@ -27,14 +27,92 @@ function range(o) {
   return null;
 }
 
+const RESULT = {
+  meets: { icon: "check", tone: "ok", label: "Meets" },
+  check: { icon: "warning", tone: "warn", label: "Check" },
+  does_not_meet: { icon: "close", tone: "danger", label: "Does not meet" },
+  note: { icon: "info", tone: "", label: "Note" },
+};
+
+function eligibilityCard(e) {
+  return card({ title: "Can the organization apply?", pad: true, attrs: { class: "card eligibility" }, body: h("div", { class: "stack-sm" },
+    h("div", { class: "row-sm" }, eligibilityPill(e), h("span", { class: "subtle" }, "Kept apart from who fits.")),
+    h("ul", { class: "plain-list eligibility-list" }, e.checks.map((c) => h("li", { "data-result": c.result },
+      h("span", { class: `eligibility-mark tone-${RESULT[c.result].tone || "plain"}`, title: RESULT[c.result].label }, icon(RESULT[c.result].icon, "icon icon-sm")),
+      h("div", { class: "grow" }, h("strong", {}, c.label), h("span", { class: "sr-only" }, `: ${RESULT[c.result].label}.`), " ", c.detail,
+        h("span", { class: "subtle" }, ` From ${c.from}.`)))))) });
+}
+
+function conceptReader(f) {
+  const drop = queryList("drop");
+  const added = queryList("concept");
+  const suggestions = h("div", { class: "chips" });
+  const input = h("input", { class: "input", type: "search", placeholder: "Add a topic", "aria-label": "Add a topic to the reading" });
+  const lookup = debounce(async () => {
+    const text = input.value.trim();
+    if (text.length < 2) { suggestions.replaceChildren(); return; }
+    const found = (await get("/api/v1/concepts", { q: text })).data.slice(0, 6);
+    suggestions.replaceChildren(...found.map((c) => h("button", { type: "button", class: "chip", "data-entity": "concept",
+      onclick: () => setQuery({ concept: [...added, c.descriptor_ui], drop: drop.filter((d) => d !== c.descriptor_ui) }) }, icon("plus", "icon icon-sm"), c.descriptor)));
+  }, 250);
+  input.addEventListener("input", lookup);
+  return h("div", { class: "stack-sm" },
+    h("p", { class: "subtle" }, "Read as these topics, from the words it uses and the organization's papers on the same subject. Remove a topic, or add one, to read it again."),
+    f.concepts.length ? h("div", { class: "chips" }, f.concepts.map((c) => h("span", { class: "chip", "data-entity": "concept", title: c.via ? `From “${c.via}”` : null },
+      c.descriptor, h("button", { type: "button", class: "chip-remove", "aria-label": `Leave out ${c.descriptor}`,
+        onclick: () => setQuery({ drop: [...drop, c.descriptor_ui], concept: added.filter((a) => a !== c.descriptor_ui) }) }, icon("close", "icon icon-sm")))))
+      : h("p", { class: "muted" }, "No topic was recognized."),
+    h("div", { class: "row-sm wrap" }, input, f.adjusted ? h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => setQuery({ concept: null, drop: null }) }, "Reset") : null),
+    suggestions);
+}
+
+function whoFits(f) {
+  const people = f.people.length
+    ? h("ul", { class: "plain-list fit-list" }, f.people.map((p) => h("li", {},
+      h("div", { class: "row-sm wrap" }, h("a", { href: `/people/${p.id}` }, p.name), pill(p.band_label, p.band === "strong" ? "ok" : "")),
+      h("span", { class: "subtle" }, p.matches.slice(0, 3).map((m) => `${m.descriptor}${m.papers ? ` (${number(m.papers)} ${m.papers === 1 ? "paper" : "papers"})` : ""}`).join(" · ")))))
+    : h("p", { class: "muted" }, "Nobody's confirmed work matches it closely.");
+  const groups = f.groups.length
+    ? h("ul", { class: "plain-list fit-list" }, f.groups.map((g) => h("li", {},
+      h("div", { class: "row-sm wrap" }, g.slug ? h("a", { href: `/groups/${g.slug}` }, g.name) : h("span", {}, g.name), pill(g.band_label, g.band === "strong" ? "ok" : ""),
+        g.kind ? h("span", { class: "subtle" }, enumLabel(g.kind)) : null),
+      g.members.length ? h("div", { class: "chips" }, g.members.slice(0, 6).map((m) => chip("person", m.name, `/people/${m.id}`))) : null)))
+    : h("p", { class: "muted" }, "No group fits it through its members.");
+  return h("div", { class: "grid-2 fit-grid" },
+    h("section", { class: "stack-sm", "aria-label": "People" }, h("h3", { class: "fit-heading" }, "People"), people),
+    h("section", { class: "stack-sm", "aria-label": "Groups" }, h("h3", { class: "fit-heading" }, "Groups"), groups));
+}
+
+function interestButtons(o, interest, reload) {
+  const set = async (state) => {
+    await post(`/api/v1/opportunities/${encodeURIComponent(o.id)}/interest`, { state });
+    invalidate();
+    reload();
+    toast(state === "watching" ? "Watching. It is on your home page." : state === "dismissed" ? "Dismissed from your lists." : "Done.");
+  };
+  return [
+    h("button", { type: "button", class: `btn${interest === "watching" ? " btn-primary" : ""}`, "aria-pressed": interest === "watching" ? "true" : "false",
+      onclick: () => set(interest === "watching" ? null : "watching") }, icon("bookmark", "icon icon-sm"), interest === "watching" ? "Watching" : "Watch"),
+    h("button", { type: "button", class: "btn btn-ghost", "aria-pressed": interest === "dismissed" ? "true" : "false",
+      onclick: () => set(interest === "dismissed" ? null : "dismissed") }, interest === "dismissed" ? "Dismissed" : "Dismiss"),
+  ];
+}
+
 export function opportunityPage(main, params) {
   const id = params.id;
   const reload = () => opportunityPage(main, params);
   return show(main, {
     title: (o) => o.title,
-    load: async () => (await get(`/api/v1/opportunities/${encodeURIComponent(id)}`, null, { fresh: true })).data,
+    load: async () => {
+      const [o, f] = await Promise.all([
+        get(`/api/v1/opportunities/${encodeURIComponent(id)}`, null, { fresh: true }).then((r) => r.data),
+        get(`/api/v1/opportunities/${encodeURIComponent(id)}/fit`, { concept: queryList("concept"), drop: queryList("drop") }, { fresh: true }).then((r) => r.data),
+      ]);
+      return { ...o, fit: f };
+    },
     view: (o) => {
       const local = o.source === "local";
+      const f = o.fit;
       const fetched = (o.sources ?? []).find((s) => s.last_success_at);
       return h("div", { class: "stack-lg" },
         pageHeader({
@@ -43,19 +121,23 @@ export function opportunityPage(main, params) {
           title: o.title,
           meta: [o.number ? h("span", { class: "tabular" }, o.number) : null, o.sponsor ? h("span", {}, o.sponsor) : null,
             h("span", {}, opportunityWhen(o))],
-          actions: [external(o.url, local ? "Website" : "Grants.gov"), external(o.guide_url, "NIH Guide"),
+          actions: [...interestButtons(o, f.interest, reload), external(o.url, local ? "Website" : "Grants.gov"), external(o.guide_url, "NIH Guide"),
             local && can("curate_all") ? h("button", { type: "button", class: "btn", onclick: () => editOpportunity(o, reload) }, icon("edit", "icon icon-sm"), "Edit") : null],
         }),
         o.forecast && o.status === "forecasted" ? callout("This is a forecast: the sponsor expects to post a notice. Its dates and amounts are estimates.", "info") : null,
         h("div", { class: "grid-main" },
           h("div", { class: "stack-lg" },
             o.description ? card({ title: "About", pad: true, body: h("div", { class: "abstract" }, paragraphs(o.description).map((p) => h("p", {}, p))) }) : null,
+            card({ title: "Who fits", pad: true, attrs: { id: "fit" }, body: h("div", { class: "stack" },
+              h("p", { class: "subtle" }, "People whose confirmed work matches its topics, and groups that fit through their members. Fit is shown in bands, never as a ranking, and says nothing about eligibility."),
+              whoFits(f), conceptReader(f)) }),
             card({ title: "Who may apply", pad: true, body: h("div", { class: "stack-sm" },
               o.applicant_type_labels.length ? h("ul", { class: "plain-list" }, o.applicant_type_labels.map((t) => h("li", {}, t)))
                 : h("p", { class: "muted" }, "The sponsor lists no applicant types; see the notice."),
               o.eligibility_notes ? h("p", {}, o.eligibility_notes) : null,
               o.limited_submission ? callout("A limited submission: the organization may send only a few applications, chosen internally first.", "warn") : null) })),
           h("div", { class: "stack-lg" },
+            eligibilityCard(f.eligibility),
             card({ title: "Dates and money", pad: true, body: kv([
               ["Status", o.status_label],
               [o.forecast ? "Expected" : "Posted", date(o.forecast ? o.expected_post ?? o.posted : o.posted)],

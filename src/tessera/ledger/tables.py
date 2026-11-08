@@ -555,3 +555,19 @@ opportunity = Table(
     CheckConstraint(_in("kind", OPPORTUNITY_KINDS), name="kind"),
 )
 Index(None, opportunity.c.closes_on)
+
+# What someone does with an opportunity for themselves (INT-09): watch it, or dismiss it from
+# their own lists. ``owner`` is the account's ID, or "operator" without accounts.
+INTEREST_STATES = ("watching", "dismissed")
+opportunity_interest = Table(
+    "opportunity_interest",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("owner", String(200), nullable=False),
+    Column("opportunity", String(80), nullable=False),
+    Column("state", String(12), nullable=False),
+    Column("updated_at", UtcDateTime, nullable=False),
+    UniqueConstraint("owner", "opportunity"),
+    CheckConstraint(_in("state", INTEREST_STATES), name="state"),
+)
+Index(None, opportunity_interest.c.owner)

@@ -361,27 +361,41 @@ def _refresh_meta(con: sqlite3.Connection) -> None:
     )
 
 
-def refresh_opportunities(home: DataHome, engine: Engine, refs: Iterable[str]) -> int | None:
-    """Rewrite the documents of these opportunities (``opp:<id>``) after a change to the
-    organization's own. Returns how many were written, or None when there is no index."""
-    from tessera.opportunities.catalog import some
+def refresh_opportunities(
+    config: Config, home: DataHome, engine: Engine, refs: Iterable[str] | None = None
+) -> int | None:
+    """Rewrite the documents of these opportunities (``opp:<id>``; all of them when None),
+    after a change to the organization's own or after who fits them was worked out again.
+    Returns how many were written, or None when there is no index."""
+    from tessera.opportunities.catalog import everything, some
+    from tessera.opportunities.eligibility import check
+    from tessera.opportunities.fit import facets
     from tessera.search.index import opportunity_doc
 
     path = index_path(home)
     if not path.is_file():
         return None
-    wanted = sorted(set(refs))
     today = date.today()
     with Lake(home.lake) as lake:
-        views = {v["id"]: v for v in some(engine, lake, wanted, today)}
+        found_views = (
+            everything(engine, lake, today) if refs is None else some(engine, lake, refs, today)
+        )
+    views = {v["id"]: v for v in found_views}
+    wanted = sorted(views) if refs is None else sorted(set(refs))
+    fits = facets(home)
     con = sqlite3.connect(path, timeout=15)
     try:
-        for found in _docs(con, set(wanted)).values():
+        stale = set(wanted)
+        if refs is None:
+            stale |= {r[0] for r in con.execute("SELECT ref FROM doc WHERE kind = 'opportunity'")}
+        for found in _docs(con, stale).values():
             _delete_doc(con, found["id"])
         next_id = _next_id(con)
         for ref in wanted:
             if ref in views:
-                insert_doc(con, next_id, opportunity_doc(views[ref], today))
+                eligible = check(views[ref], config, today)
+                doc = opportunity_doc(views[ref], today, eligible, fits.get(ref, []))
+                insert_doc(con, next_id, doc)
                 next_id += 1
         _refresh_meta(con)
         con.commit()

@@ -975,7 +975,8 @@ def group_inbox(request: Request, group_ref: str) -> dict[str, Any]:
     with engine_of(request).connect() as conn:
         row = _resolve(conn, group_ref)
         _require_edit(request, row["id"])
-        items = inbox.group_inbox_items(conn, row["id"], config, date.today())
+        items = inbox.group_inbox_items(conn, row["id"], config, date.today(),
+                                        home=request.app.state.home)  # fmt: skip
     pmids = [a["subject_id"].removeprefix("pub:") for a in items["papers"]]
     summaries = publication_summaries(index_of(request), lake_of(request), pmids)
     try:
@@ -1015,7 +1016,9 @@ def inbox_reviewed(request: Request, group_ref: str) -> dict[str, Any]:
 
 @router.get("/inbox", summary="Your digest: pending work in your groups and review queues")
 def my_digest(request: Request) -> dict[str, Any]:
-    return envelope(inbox.digest(engine_of(request), principal_of(request), config_of(request)))
+    found = inbox.digest(engine_of(request), principal_of(request), config_of(request),
+                         home=request.app.state.home)  # fmt: skip
+    return envelope(found)
 
 
 class GroupPublicIn(BaseModel):

@@ -53,6 +53,8 @@ reporter_org_names = ["{REPORTER_ORG}"]
 ctgov_org_names = ["{ORG}", "{ORG_SHORT} Medical Center"]
 email_domains = ["{DOMAIN}"]
 exclusions = []
+# A nonprofit research institute, when it applies for funding (Grants.gov's code 12).
+applicant_types = ["12"]
 
 '''
 
@@ -136,7 +138,7 @@ def federal_opportunities(today: date) -> list[dict[str, Any]]:
             "url": f"https://www.grants.gov/search-results-detail/{oid}",
             "activity_codes": nih.get("activity_codes") or [],
             "clinical_trial": nih.get("clinical_trial"), "guide_url": None,
-            "last_updated": opens,
+            "last_updated": min(opens, today - timedelta(days=12)),
         })  # fmt: skip
     return out
 
@@ -172,7 +174,12 @@ def build_demo(
     from tessera.evidence.people import import_roster
     from tessera.evidence.resolve import resolve
     from tessera.groups.importer import import_groups
-    from tessera.jobs.build import build_attribution, build_discovery, build_search
+    from tessera.jobs.build import (
+        build_attribution,
+        build_discovery,
+        build_opportunities,
+        build_search,
+    )
 
     today = today or date.today()
     path = Path(path)
@@ -225,6 +232,7 @@ def build_demo(
         build_search(config, home, engine, today=today)
         built = build_discovery(config, home, engine)
         build_attribution(config, home, engine, today=today)
+        build_opportunities(config, home, engine, today=today)
         _attribute(engine)
         _pages(engine, today)
         _public(engine)

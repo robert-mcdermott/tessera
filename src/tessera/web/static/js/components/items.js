@@ -109,6 +109,12 @@ export function personTable(people) {
 }
 
 const OPP_TONE = { posted: "ok", forecasted: "accent", closed: "", archived: "" };
+const ELIGIBLE_TONE = { meets: "ok", check: "warn", does_not_meet: "danger" };
+
+/** Whether the organization may apply, as a pill (kept apart from fit). */
+export function eligibilityPill(e) {
+  return e ? h("span", { class: `pill ${ELIGIBLE_TONE[e.overall] ? `pill-${ELIGIBLE_TONE[e.overall]}` : ""}`, title: "Whether the organization may apply" }, e.label) : null;
+}
 
 function day(value) {
   return value ? new Date(`${value}T12:00:00`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : null;
@@ -123,6 +129,15 @@ export function opportunityWhen(s) {
   return `Closed ${day(s.closes)}`;
 }
 
+/** A short list of opportunities with fit and eligibility (home, profiles, group pages). */
+export function opportunityList(items, limit = 5) {
+  return h("ul", { class: "plain-list fit-list" }, items.slice(0, limit).map((o) => h("li", {},
+    h("a", { href: entityHref("opportunity", o.id) }, o.title),
+    h("div", { class: "row-sm wrap" },
+      o.fit?.band ? h("span", { class: "chip", "data-entity": "person" }, o.fit.label) : o.watching ? h("span", { class: "chip" }, "Watching") : null,
+      h("span", { class: "subtle" }, opportunityWhen(o)), eligibilityPill(o.eligibility)))));
+}
+
 export function opportunityItem(summary, { highlights = null } = {}) {
   const s = summary ?? {};
   const award = s.award_ceiling ? `Up to ${money(s.award_ceiling, { compactForm: true })}` : null;
@@ -135,8 +150,10 @@ export function opportunityItem(summary, { highlights = null } = {}) {
         s.source === "local" ? chip("plain", s.source_label) : null,
         s.limited_submission ? chip("plain", "Limited submission") : null,
         (s.activity_codes ?? []).map((a) => chip("plain", a)),
-        s.clinical_trial ? chip("plain", `Clinical trial ${enumLabel(s.clinical_trial).toLowerCase()}`) : null)),
-    h("div", { class: "item-side" }, s.status ? pill(s.status === "posted" ? "Open" : enumLabel(s.status), OPP_TONE[s.status] ?? "") : null));
+        s.clinical_trial ? chip("plain", `Clinical trial ${enumLabel(s.clinical_trial).toLowerCase()}`) : null,
+        s.fit ? h("span", { class: "chip", "data-entity": "person", title: "How well your work matches it" }, s.fit.label) : null)),
+    h("div", { class: "item-side" }, s.status ? pill(s.status === "posted" ? "Open" : enumLabel(s.status), OPP_TONE[s.status] ?? "") : null,
+      eligibilityPill(s.eligibility)));
 }
 
 export function itemFor(kind, item, options = {}) {

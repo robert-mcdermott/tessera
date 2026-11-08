@@ -25,7 +25,7 @@ MAX_SAVED = 100  # per person
 PAGE = 200
 FILTER_NAMES = frozenset(
     {"status", "unit", "year", "journal", "type", "flag", "activity", "institute", "phase",
-     "person", "kind", "closing", "agency", "category", "source"}
+     "person", "kind", "closing", "agency", "category", "source", "eligibility", "fits", "group"}
 )  # fmt: skip
 
 

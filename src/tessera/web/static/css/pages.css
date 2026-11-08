@@ -429,6 +429,19 @@ label.check { display: inline-flex; align-items: center; gap: var(--space-2); fo
 .impact-grants li:first-child { border-top: 0; }
 @media (max-width: 900px) { .thread { grid-template-columns: 1fr; } .thread-items { max-height: 18rem; } }
 
+/* ---------- Opportunities ---------- */
+.fit-heading { margin: 0; font-size: var(--fs-sm); font-weight: 600; }
+.fit-list li { display: flex; flex-direction: column; gap: 4px; padding: var(--space-2) 0; border-top: 1px solid var(--border); }
+.fit-list li:first-child { border-top: 0; }
+.eligibility-list li { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-2) 0; border-top: 1px solid var(--border); font-size: var(--fs-sm); }
+.eligibility-list li:first-child { border-top: 0; }
+.eligibility-mark { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 1.5rem; height: 1.5rem; border-radius: 50%; background: var(--surface-2); color: var(--text-muted); }
+.eligibility-mark.tone-ok { background: color-mix(in oklch, var(--ok) 18%, transparent); color: var(--ok); }
+.eligibility-mark.tone-warn { background: color-mix(in oklch, var(--warn) 18%, transparent); color: var(--warn); }
+.eligibility-mark.tone-danger { background: color-mix(in oklch, var(--danger) 18%, transparent); color: var(--danger); }
+.chip-remove { display: inline-flex; margin-left: 2px; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; opacity: 0.7; }
+.chip-remove:hover { opacity: 1; }
+
 /* ---------- Reports ---------- */
 .report-card { display: flex; flex-direction: column; gap: var(--space-2); }
 .report-card h2 { font-size: var(--fs-md); margin: 0; }

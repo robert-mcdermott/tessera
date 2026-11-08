@@ -8,7 +8,7 @@ import { number, paragraphs, percent, plural } from "../core/format.js";
 import { query, setQuery } from "../core/router.js";
 import { can } from "../core/session.js";
 import { openDrawer, openEvidence } from "../components/drawer.js";
-import { grantItem, publicationItem, studyItem } from "../components/items.js";
+import { grantItem, opportunityList, publicationItem, studyItem } from "../components/items.js";
 import { toast } from "../components/toast.js";
 import { avatar, barChart, callout, card, debounce, emptyState, pageHeader, pager, pill, tabs } from "../components/ui.js";
 import { show } from "./page.js";
@@ -100,14 +100,15 @@ export function groupPage(main, params, ctx = {}) {
     quiet: ctx.samePage,
     load: async () => {
       const base = `/api/v1/groups/${encodeURIComponent(ref)}`;
-      const [overview, page, papers] = await Promise.all([
+      const [overview, page, papers, opportunities] = await Promise.all([
         get(`${base}/overview`, null, { fresh: ctx.samePage }),
         get(`${base}/page`, { version }, { fresh: true }),
         get(`${base}/publications`, { status: pubTab, limit: PAGE, offset }, { fresh: ctx.samePage }),
+        get(`${base}/opportunities`).then((r) => r.data).catch(() => []),
       ]);
-      return { group: overview.data, vocab: overview.meta.vocabulary, meshYear: overview.meta.mesh_year, page: page.data, papers };
+      return { group: overview.data, vocab: overview.meta.vocabulary, meshYear: overview.meta.mesh_year, page: page.data, papers, opportunities };
     },
-    view: ({ group, vocab, meshYear, page, papers }) => {
+    view: ({ group, vocab, meshYear, page, papers, opportunities }) => {
       if (group.slug !== ref) window.history.replaceState(null, "", `/groups/${group.slug}${window.location.search}`);
       const editor = page.can_edit;
       const actions = [
@@ -143,6 +144,12 @@ export function groupPage(main, params, ctx = {}) {
       for (const block of page.blocks) {
         const nodes = [RENDER[block.type]?.(block, ctxBlocks)].flat().filter(Boolean);
         (SIDE.has(block.type) ? side : main_).push(...nodes);
+      }
+      if (opportunities.length) {
+        side.push(card({ title: "Opportunities that fit", pad: true, attrs: { "data-entity": "opportunity" },
+          action: h("a", { href: `/opportunities?group=${encodeURIComponent(group.slug)}&status=posted&status=forecasted` }, "All"),
+          body: h("div", { class: "stack-sm" }, opportunityList(opportunities, 4),
+            h("p", { class: "subtle" }, "Open opportunities that fit through the group's members. Shown only inside the organization.")) }));
       }
       if (group.children.length) {
         side.push(card({ title: "Within this group", pad: true, attrs: { "data-entity": "unit" },

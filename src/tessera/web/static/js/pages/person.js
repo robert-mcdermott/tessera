@@ -8,7 +8,7 @@ import { can } from "../core/session.js";
 import { openDrawer, openEvidence } from "../components/drawer.js";
 import { toast } from "../components/toast.js";
 import { identifiersCard } from "../components/identifiers.js";
-import { grantItem, publicationItem, studyItem } from "../components/items.js";
+import { grantItem, opportunityList, publicationItem, studyItem } from "../components/items.js";
 import { avatar, barChart, callout, card, debounce, emptyState, pageHeader, pager, pill, segmented, statTile, tabs, topicChips } from "../components/ui.js";
 import { show } from "./page.js";
 
@@ -27,10 +27,11 @@ export function person(main, params, { samePage = false } = {}) {
     title: (d) => d.profile.name,
     quiet: samePage,
     load: async () => {
-      const [profile, concepts, similar] = await Promise.all([
+      const [profile, concepts, similar, opportunities] = await Promise.all([
         get(`/api/v1/people/${encodeURIComponent(id)}`, null, { fresh: samePage }).then((r) => r.data),
         get(`/api/v1/people/${encodeURIComponent(id)}/concepts`).catch(() => ({ data: [], meta: {} })),
         get(`/api/v1/people/${encodeURIComponent(id)}/similar`).then((r) => r.data).catch(() => []),
+        get(`/api/v1/people/${encodeURIComponent(id)}/opportunities`).then((r) => r.data).catch(() => []),
       ]);
       let list = null;
       if (tab === "publications") {
@@ -49,9 +50,9 @@ export function person(main, params, { samePage = false } = {}) {
       } else if (tab === "history") {
         list = await get(`/api/v1/people/${encodeURIComponent(id)}/history`, null, { fresh: true });
       }
-      return { profile, list, concepts: concepts.data, areas: concepts.meta.areas ?? [], meshYear: concepts.meta.mesh_year, similar };
+      return { profile, list, concepts: concepts.data, areas: concepts.meta.areas ?? [], meshYear: concepts.meta.mesh_year, similar, opportunities };
     },
-    view: ({ profile, list, concepts, areas, meshYear, similar }) => {
+    view: ({ profile, list, concepts, areas, meshYear, similar, opportunities }) => {
       const c = profile.counts;
       const pubs = c.publications ?? {};
       const suggested = (c.suggested_by_band?.strong ?? 0) + (c.suggested_by_band?.possible ?? 0);
@@ -125,6 +126,9 @@ export function person(main, params, { samePage = false } = {}) {
           : profile.concepts.length ? card({ title: "Topics", pad: true, attrs: { "data-entity": "concept" },
             body: h("div", { class: "stack-sm" }, topicChips(profile.concepts, 8),
               h("p", { class: "subtle" }, "Most distinctive MeSH topics across confirmed and strongly suggested papers.")) }) : null,
+        opportunities.length ? card({ title: "Opportunities that fit", pad: true, attrs: { "data-entity": "opportunity" },
+          action: h("a", { href: `/opportunities?fits=${encodeURIComponent(profile.id)}&status=posted&status=forecasted` }, "All"),
+          body: opportunityList(opportunities, 4) }) : null,
         similar.length ? card({ title: "Similar people", pad: true, attrs: { "data-entity": "person" },
           action: h("a", { class: "btn btn-sm btn-ghost", href: `/graph?view=focus&person=${profile.id}` }, icon("network", "icon icon-sm"), "Connections"),
           body: h("ul", { class: "plain-list similar" }, similar.slice(0, 6).map((p) => h("li", {},

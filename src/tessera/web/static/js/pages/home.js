@@ -4,7 +4,7 @@ import { get } from "../core/api.js";
 import { h, icon } from "../core/dom.js";
 import { number } from "../core/format.js";
 import { navigate } from "../core/router.js";
-import { grantItem, publicationItem } from "../components/items.js";
+import { grantItem, opportunityList, publicationItem } from "../components/items.js";
 import { savedSearchesCard } from "../components/saved-search.js";
 import { barChart, card, emptyState, freshness, statTile } from "../components/ui.js";
 import { show } from "./page.js";
@@ -13,14 +13,15 @@ export function home(main, meta) {
   return show(main, {
     title: "Home",
     load: async () => {
-      const [stats, pubs, grants] = await Promise.all([
+      const [stats, pubs, grants, mine] = await Promise.all([
         get("/api/v1/stats"),
         get("/api/v1/publications", { sort: "year", limit: 6 }).catch(() => null),
         get("/api/v1/grants", { status: "active", sort: "amount", limit: 5 }).catch(() => null),
+        get("/api/v1/me/opportunities", null, { fresh: true }).catch(() => null),
       ]);
-      return { stats: stats.data, pubs: pubs?.data ?? [], grants: grants?.data ?? [] };
+      return { stats: stats.data, pubs: pubs?.data ?? [], grants: grants?.data ?? [], mine };
     },
-    view: ({ stats, pubs, grants }) => {
+    view: ({ stats, pubs, grants, mine }) => {
       const org = meta.organization;
       const years = stats.publications_by_year ?? [];
       const recentYears = years.slice(-8);
@@ -50,6 +51,10 @@ export function home(main, meta) {
                 { caption: "Publications by year" }) }) : null),
           h("div", { class: "stack-lg" },
             savedSearchesCard(),
+            mine?.data.length ? card({ title: "Opportunities for you", pad: true, attrs: { "data-entity": "opportunity" },
+              action: mine.meta.linked ? h("a", { href: "/opportunities?fits=me&status=posted&status=forecasted" }, "All that fit") : null,
+              body: h("div", { class: "stack-sm" }, opportunityList(mine.data),
+                h("p", { class: "subtle" }, "Open opportunities that fit your confirmed work, and those you watch. Fit is not eligibility; each says whether the organization may apply.")) }) : null,
             card({ title: "Largest active grants", action: h("a", { href: "/grants?status=active" }, "All grants"),
               body: grants.length ? h("div", { class: "items" }, grants.map((g) => grantItem(g)))
                 : h("div", { class: "card-body muted" }, "No active grants in the data.") }),

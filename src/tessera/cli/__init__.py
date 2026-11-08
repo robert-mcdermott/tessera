@@ -147,6 +147,9 @@ def build_parser() -> argparse.ArgumentParser:
     build_actions.add_parser(
         "discovery", help="concept profiles, similar people, and the collaboration graph"
     ).set_defaults(handler=cmd_build_discovery)
+    build_actions.add_parser(
+        "opportunities", help="who fits each open funding opportunity (after discovery)"
+    ).set_defaults(handler=cmd_build_opportunities)
 
     sync_cmd = commands.add_parser(
         "sync", help="fetch every source and resolve, in the right order (the usual command)"
@@ -839,6 +842,23 @@ def cmd_build_discovery(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def cmd_build_opportunities(args: argparse.Namespace) -> int:
+    from tessera.jobs.build import build_opportunities
+
+    config, home = _load(args)
+    engine = _engine(config)
+    try:
+        result = build_opportunities(config, home, engine)
+    finally:
+        engine.dispose()
+    if not result.get("ready"):
+        print("nothing to read yet: build search and discovery first")
+        return EXIT_PARTIAL
+    print(f"opportunity fit: {result['opportunities']:,} open opportunities read in "
+          f"{result['seconds']:.1f}s; {result['indexed']:,} indexed")  # fmt: skip
+    return EXIT_OK
+
+
 def cmd_build_search(args: argparse.Namespace) -> int:
     from tessera.jobs.build import build_search
 
@@ -1002,7 +1022,7 @@ def cmd_opportunities_import(args: argparse.Namespace) -> int:
             with Lake(home.lake) as lake:
                 refs = [v["id"] for v in catalog.everything(engine, lake)
                         if v["source"] == catalog.LOCAL]  # fmt: skip
-            refresh_opportunities(home, engine, refs)
+            refresh_opportunities(config, home, engine, refs)
     finally:
         engine.dispose()
     if result["problems"]:
@@ -1038,7 +1058,7 @@ def cmd_digest(args: argparse.Namespace) -> int:
     from tessera.groups.inbox import digest, digest_text
     from tessera.mail import message, send
 
-    config, _ = _load(args)
+    config, home = _load(args)
     engine = _engine(config)
     outgoing = []
     try:
@@ -1070,7 +1090,7 @@ def cmd_digest(args: argparse.Namespace) -> int:
             principals = [({"username": operator, "email": None, "display_name": operator},
                            Principal(name=operator, single_operator=True))]  # fmt: skip
         for account, principal in principals:
-            result = digest(engine, principal, config)
+            result = digest(engine, principal, config, home=home)
             if not result["total"]:
                 continue
             subject, text = digest_text(result, config, account["display_name"])

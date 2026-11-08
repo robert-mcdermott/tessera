@@ -18,32 +18,13 @@ from sqlalchemy.engine import Engine
 from tessera.connectors.grantsgov import opportunity_status
 from tessera.lake import Lake
 from tessera.ledger.tables import opportunity
+from tessera.opportunities.codes import APPLICANT_TYPES
 
 FEDERAL, LOCAL = "grants_gov", "local"
 STATUS_LABELS = {"posted": "Open", "forecasted": "Forecast", "closed": "Closed",
                  "archived": "Archived"}  # fmt: skip
 OPEN = ("posted", "forecasted")
 
-# Grants.gov's codes for who may apply (its "eligible applicants"), in short.
-APPLICANT_TYPES = {
-    "00": "State governments",
-    "01": "County governments",
-    "02": "City or township governments",
-    "04": "Special district governments",
-    "05": "Independent school districts",
-    "06": "Public and state-controlled institutions of higher education",
-    "07": "Federally recognized Native American tribal governments",
-    "08": "Public and Indian housing authorities",
-    "11": "Native American tribal organizations",
-    "12": "Nonprofits with 501(c)(3) status, other than institutions of higher education",
-    "13": "Nonprofits without 501(c)(3) status, other than institutions of higher education",
-    "20": "Private institutions of higher education",
-    "21": "Individuals",
-    "22": "For-profit organizations other than small businesses",
-    "23": "Small businesses",
-    "25": "Others (see the eligibility notes)",
-    "99": "Unrestricted (see the eligibility notes)",
-}
 KIND_LABELS = {"federal": "Federal", "foundation": "Foundation", "internal": "Internal",
                "state": "State", "industry": "Industry", "other": "Other"}  # fmt: skip
 
@@ -177,10 +158,28 @@ def local_view(r: dict[str, Any], today: date) -> dict[str, Any]:
         "guide_url": None,
         "last_updated": r["updated_at"].date() if r["updated_at"] else None,
         "external_id": r["external_id"],
+        "created_at": r["created_at"],
         "created_by": r["created_by"],
         "updated_by": r["updated_by"],
         "updated_at": r["updated_at"],
     }
+
+
+def first_seen(engine: Engine, lake: Lake, refs: Iterable[str]) -> dict[str, Any]:
+    """When Tessera first held each opportunity: its first fetch from Grants.gov, or when the
+    organization added its own."""
+    ids = [id_of(r) for r in refs]
+    federal = sorted({i for i in ids if i.isdigit()})
+    out: dict[str, Any] = {}
+    if federal:
+        marks = ", ".join("?" for _ in federal)
+        table = "grants_gov_opportunity__all"  # every version kept, so the first fetch is there
+        sql = f"SELECT opportunity_id, min(_retrieved_at) AS seen FROM {table} WHERE opportunity_id IN ({marks}) GROUP BY 1"  # noqa: E501, S608
+        for r in lake.rows(sql, federal):
+            out[ref_of(r["opportunity_id"])] = r["seen"]
+    for r in _local(engine, ids):
+        out[ref_of(r["id"])] = r["created_at"]
+    return out
 
 
 def get(engine: Engine, lake: Lake, ref: str, today: date | None = None) -> dict[str, Any] | None:
@@ -220,6 +219,7 @@ __all__ = [
     "OPEN",
     "STATUS_LABELS",
     "everything",
+    "first_seen",
     "get",
     "id_of",
     "is_local",

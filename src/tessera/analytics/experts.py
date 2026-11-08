@@ -51,6 +51,19 @@ def _words(text: str) -> list[str]:
     return re.findall(r"[a-z0-9]+", text.lower())
 
 
+def _singular(word: str) -> str:
+    """A plural read as its singular, so that "germinal centers" names "Germinal Center"."""
+    if len(word) > 4 and word.endswith("ies"):
+        return word[:-3] + "y"
+    if len(word) > 3 and word.endswith("s") and not word.endswith(("ss", "us", "is")):
+        return word[:-1]
+    return word
+
+
+def _phrase(words: list[str]) -> str:
+    return " ".join(_singular(w) for w in words)
+
+
 def _vocabulary(cur: Any, vocabulary: Path | None) -> list[dict[str, Any]]:
     if not _exists(vocabulary):
         return []
@@ -63,6 +76,152 @@ def _vocabulary(cur: Any, vocabulary: Path | None) -> list[dict[str, Any]]:
     return [dict(zip(names, row, strict=True)) for row in result.fetchall()]
 
 
+class ConceptReader:
+    """What the organization's concept profiles and MeSH's vocabulary know, loaded once, to
+    read questions (or funding opportunities) as concepts and match people to them."""
+
+    def __init__(self, lake: Lake, profile: Path, vocabulary: Path | None = None) -> None:
+        self.lake, self.profile = lake, profile
+        cur = lake.cursor()
+        try:
+            self.known = _people_with(cur, profile)
+            self.population = cur.execute(
+                "SELECT count(DISTINCT person_id) FROM read_parquet(?)", [str(profile)]
+            ).fetchall()[0][0]
+            self.vocab_rows = _vocabulary(cur, vocabulary)
+        finally:
+            cur.close()
+        vocab = {v["descriptor_ui"]: v for v in self.vocab_rows if v["people_below"]}
+        # A heading can be asked for if someone holds it or anything beneath it.
+        self.holders = {ui: n for ui, (_, n) in self.known.items()}
+        for ui, v in vocab.items():
+            self.holders[ui] = max(self.holders.get(ui, 0), v["people_below"])
+        self.name_of = {ui: name for ui, (name, _) in self.known.items()} | {
+            ui: v["name"] for ui, v in vocab.items()
+        }
+        # Phrases that name a heading or one of its synonyms.
+        self.terms: dict[str, str] = {}
+        for ui, name in self.name_of.items():
+            self.terms.setdefault(_phrase(_words(name)), ui)
+        for ui, v in vocab.items():
+            for term in v["entry_terms"] or []:
+                self.terms.setdefault(_phrase(_words(term)), ui)
+
+    def idf(self, ui: str) -> float:
+        return math.log((self.population + 1) / self.holders[ui])
+
+    def read(
+        self,
+        index: SearchIndex,
+        q: str | None,
+        concepts: list[str],
+        papers_by: str | None = None,
+        match: str = "all",
+    ) -> list[dict[str, Any]]:
+        """The concepts a text stands for, with weights (unit length): the headings and
+        synonyms it names, and the headings of the organization's papers that ``papers_by``
+        (the text itself, unless given) finds."""
+        weights: Counter = Counter()
+        via: dict[str, str] = {}
+        named: set[str] = set()  # concepts the query names outright, or that were chosen
+        for ui in concepts:
+            ui = ui.removeprefix("msh:")
+            if ui in self.holders:
+                weights[ui] += 3.0 * self.idf(ui)
+                named.add(ui)
+        if q and q.strip():
+            words = _words(q)
+            singular = [_singular(w) for w in words]
+            used = [False] * len(words)
+            for size in range(min(LONGEST_PHRASE, len(words)), 0, -1):
+                for i in range(len(words) - size + 1):
+                    if any(used[i : i + size]):
+                        continue
+                    phrase = " ".join(singular[i : i + size])
+                    ui = self.terms.get(phrase)
+                    if ui and ui in self.holders and self.name_of[ui] not in CHECK_TAGS:
+                        weights[ui] += 3.0 * self.idf(ui)
+                        named.add(ui)
+                        if phrase != _phrase(_words(self.name_of[ui])):
+                            via[ui] = " ".join(words[i : i + size])
+                        used[i : i + size] = [True] * size
+            finder = q if papers_by is None else papers_by
+            hits = index.search("publication", finder, None, None, QUERY_PAPERS, 0,
+                                with_facets=False, match=match, with_highlights=False)  # fmt: skip
+            ranked = [item["ref"].removeprefix("pub:") for item in hits.items]
+            if ranked:
+                rank = {pmid: i for i, pmid in enumerate(ranked)}
+                cur = self.lake.cursor()
+                try:
+                    cur.register("_hits", pa.table({"pmid": pa.array(ranked, pa.string())}))
+                    found = cur.execute(
+                        "SELECT pmid, descriptor_ui, descriptor "
+                        "FROM pubmed_mesh JOIN _hits USING (pmid)"
+                    ).fetchall()
+                finally:
+                    cur.close()
+                for pmid, ui, descriptor in found:
+                    if ui in self.known and descriptor not in CHECK_TAGS:
+                        weights[ui] += self.idf(ui) / (1 + rank[pmid] / 50)  # earlier count more
+        # What the query names leads what its papers suggest, however broad the heading.
+        others = max((w for ui, w in weights.items() if ui not in named), default=0.0)
+        for ui in named:
+            weights[ui] = max(weights[ui], 1.2 * others)
+        top = weights.most_common(QUERY_CONCEPTS)
+        norm = math.sqrt(sum(w * w for _, w in top)) or 1.0
+        return [
+            {
+                "descriptor_ui": ui,
+                "descriptor": self.name_of[ui],
+                "weight": round(w / norm, 4),
+                **({"via": via[ui]} if ui in via else {}),
+            }
+            for ui, w in top
+            if w > 0
+        ]
+
+    def rank(self, wanted: list[dict[str, Any]], limit: int = 20,
+             cur: Any = None, source: str | None = None) -> list[dict[str, Any]]:  # fmt: skip
+        """People whose profiles match these concepts, best first, each with the headings
+        that match. ``source`` is a table already holding the profiles (for many queries)."""
+        if not wanted:
+            return []
+        own = cur is None
+        cur = cur or self.lake.cursor()
+        try:
+            cur.register("_query", _expanded(wanted, self.vocab_rows, set(self.known)))
+            table = source or "read_parquet(?)"
+            params = ([] if source else [str(self.profile)]) + [MATCHES_SHOWN, limit]
+            rows = cur.execute(
+                f"""
+                WITH best AS (  -- each person's best heading for each query concept
+                  SELECT p.person_id, q.query_ui, q.q,
+                         arg_max(p.descriptor_ui, p.weight * q.factor) AS ui,
+                         arg_max(p.descriptor, p.weight * q.factor) AS descriptor,
+                         arg_max(p.papers, p.weight * q.factor) AS papers,
+                         max(p.weight * q.factor) AS w
+                  FROM {table} p JOIN _query q ON q.member_ui = p.descriptor_ui
+                  GROUP BY p.person_id, q.query_ui, q.q
+                )
+                SELECT person_id, sum(w * q) AS score,
+                       list_slice(list({{'descriptor_ui': ui, 'descriptor': descriptor,
+                                        'contribution': w * q, 'papers': papers}}
+                                       ORDER BY w * q DESC), 1, ?) AS matches
+                FROM best GROUP BY person_id ORDER BY score DESC, person_id LIMIT ?
+                """,  # noqa: S608 - the table is ours
+                params,
+            ).fetchall()
+            cur.unregister("_query")
+        finally:
+            if own:
+                cur.close()
+        return [
+            {"id": pid, "score": round(score, 4), "matches": _merged(matches)}
+            for pid, score, matches in rows
+            if score > 0
+        ]
+
+
 def query_profile(
     lake: Lake,
     index: SearchIndex,
@@ -72,83 +231,7 @@ def query_profile(
     vocabulary: Path | None = None,
 ) -> list[dict[str, Any]]:
     """The concepts a query stands for, with weights (unit length)."""
-    cur = lake.cursor()
-    try:
-        known = _people_with(cur, profile)
-        population = cur.execute(
-            "SELECT count(DISTINCT person_id) FROM read_parquet(?)", [str(profile)]
-        ).fetchall()[0][0]
-        vocab = {v["descriptor_ui"]: v for v in _vocabulary(cur, vocabulary) if v["people_below"]}
-        # A heading can be asked for if someone holds it or anything beneath it.
-        holders = {ui: n for ui, (_, n) in known.items()}
-        for ui, v in vocab.items():
-            holders[ui] = max(holders.get(ui, 0), v["people_below"])
-        name_of = {ui: name for ui, (name, _) in known.items()} | {
-            ui: v["name"] for ui, v in vocab.items()
-        }
-
-        def idf(ui: str) -> float:
-            return math.log((population + 1) / holders[ui])
-
-        weights: Counter = Counter()
-        via: dict[str, str] = {}
-        named: set[str] = set()  # concepts the query names outright, or that were chosen
-        for ui in concepts:
-            ui = ui.removeprefix("msh:")
-            if ui in holders:
-                weights[ui] += 3.0 * idf(ui)
-                named.add(ui)
-        if q and q.strip():
-            # Phrases that name a heading or one of its synonyms, longest first.
-            terms: dict[str, str] = {}
-            for ui, name in name_of.items():
-                terms.setdefault(" ".join(_words(name)), ui)
-            for ui, v in vocab.items():
-                for term in v["entry_terms"] or []:
-                    terms.setdefault(" ".join(_words(term)), ui)
-            words = _words(q)
-            used = [False] * len(words)
-            for size in range(min(LONGEST_PHRASE, len(words)), 0, -1):
-                for i in range(len(words) - size + 1):
-                    if any(used[i : i + size]):
-                        continue
-                    phrase = " ".join(words[i : i + size])
-                    ui = terms.get(phrase)
-                    if ui and ui in holders and name_of[ui] not in CHECK_TAGS:
-                        weights[ui] += 3.0 * idf(ui)
-                        named.add(ui)
-                        if phrase != " ".join(_words(name_of[ui])):
-                            via[ui] = phrase
-                        used[i : i + size] = [True] * size
-            hits = index.search("publication", q, None, None, QUERY_PAPERS, 0, with_facets=False)
-            ranked = [item["ref"].removeprefix("pub:") for item in hits.items]
-            if ranked:
-                rank = {pmid: i for i, pmid in enumerate(ranked)}
-                cur.register("_hits", pa.table({"pmid": pa.array(ranked, pa.string())}))
-                for pmid, ui, descriptor in cur.execute(
-                    "SELECT pmid, descriptor_ui, descriptor "
-                    "FROM pubmed_mesh JOIN _hits USING (pmid)"
-                ).fetchall():
-                    if ui in known and descriptor not in CHECK_TAGS:
-                        weights[ui] += idf(ui) / (1 + rank[pmid] / 50)  # earlier hits count more
-        # What the query names leads what its papers suggest, however broad the heading.
-        others = max((w for ui, w in weights.items() if ui not in named), default=0.0)
-        for ui in named:
-            weights[ui] = max(weights[ui], 1.2 * others)
-        top = weights.most_common(QUERY_CONCEPTS)
-    finally:
-        cur.close()
-    norm = math.sqrt(sum(w * w for _, w in top)) or 1.0
-    return [
-        {
-            "descriptor_ui": ui,
-            "descriptor": name_of[ui],
-            "weight": round(w / norm, 4),
-            **({"via": via[ui]} if ui in via else {}),
-        }
-        for ui, w in top
-        if w > 0
-    ]
+    return ConceptReader(lake, profile, vocabulary).read(index, q, concepts)
 
 
 def _expanded(
@@ -190,43 +273,9 @@ def find_experts(
 ) -> dict[str, Any]:
     if not _exists(profile):
         return {"concepts": [], "people": [], "ready": False}
-    wanted = query_profile(lake, index, profile, q, concepts, vocabulary)
-    if not wanted:
-        return {"concepts": [], "people": [], "ready": True}
-    cur = lake.cursor()
-    try:
-        known = set(_people_with(cur, profile))
-        cur.register("_query", _expanded(wanted, _vocabulary(cur, vocabulary), known))
-        rows = cur.execute(
-            """
-            WITH best AS (  -- each person's best heading for each query concept
-              SELECT p.person_id, q.query_ui, q.q,
-                     arg_max(p.descriptor_ui, p.weight * q.factor) AS ui,
-                     arg_max(p.descriptor, p.weight * q.factor) AS descriptor,
-                     arg_max(p.papers, p.weight * q.factor) AS papers,
-                     max(p.weight * q.factor) AS w
-              FROM read_parquet(?) p JOIN _query q ON q.member_ui = p.descriptor_ui
-              GROUP BY p.person_id, q.query_ui, q.q
-            )
-            SELECT person_id, sum(w * q) AS score,
-                   list_slice(list({'descriptor_ui': ui, 'descriptor': descriptor,
-                                    'contribution': w * q, 'papers': papers}
-                                   ORDER BY w * q DESC), 1, ?) AS matches
-            FROM best GROUP BY person_id ORDER BY score DESC, person_id LIMIT ?
-            """,
-            [str(profile), MATCHES_SHOWN, limit],
-        ).fetchall()
-    finally:
-        cur.close()
-    return {
-        "concepts": wanted,
-        "people": [
-            {"id": pid, "score": round(score, 4), "matches": _merged(matches)}
-            for pid, score, matches in rows
-            if score > 0
-        ],
-        "ready": True,
-    }
+    reader = ConceptReader(lake, profile, vocabulary)
+    wanted = reader.read(index, q, concepts)
+    return {"concepts": wanted, "people": reader.rank(wanted, limit), "ready": True}
 
 
 def _merged(matches: list[dict[str, Any]]) -> list[dict[str, Any]]:

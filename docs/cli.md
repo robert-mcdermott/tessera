@@ -193,6 +193,14 @@ Concept profiles, similar people, and the collaboration graph.
 usage: tessera build discovery [-h]
 ```
 
+### `tessera build opportunities`
+
+Who fits each open funding opportunity (after discovery).
+
+```text
+usage: tessera build opportunities [-h]
+```
+
 ## `tessera sync`
 
 Fetch every source and resolve, in the right order (the usual command).

@@ -5,6 +5,7 @@ import { get } from "../core/api.js";
 import { h, icon } from "../core/dom.js";
 import { enumLabel, number } from "../core/format.js";
 import { query, queryList, setQuery } from "../core/router.js";
+import { session } from "../core/session.js";
 import { read, write } from "../core/prefs.js";
 import { itemFor, personCard, personTable } from "../components/items.js";
 import { saveSearchButton, savedSearchPanel } from "../components/saved-search.js";
@@ -25,7 +26,8 @@ export const KINDS = {
     sorts: [["year", "Newest"]], placeholder: "Search titles, conditions, interventions, officials",
     blurb: "Registry records for studies the organization sponsors, hosts, or leads. Statuses are registry statuses." },
   opportunity: { title: "Opportunities", path: "/opportunities", endpoint: "/api/v1/opportunities",
-    facets: ["status", "closing", "source", "kind", "agency", "activity", "category"], sorts: [["closes", "Closing soonest"], ["posted", "Newest"]],
+    facets: ["status", "eligibility", "closing", "source", "kind", "agency", "activity", "category"], sorts: [["closes", "Closing soonest"], ["posted", "Newest"]],
+    params: ["fits", "group"],
     placeholder: "Search titles, sponsors, numbers, and descriptions",
     blurb: "Funding opportunities: forecast and posted federal ones from Grants.gov, and those the organization tracks itself." },
 };
@@ -33,10 +35,10 @@ export const KINDS = {
 const LIMIT = 24;
 
 const OPPORTUNITY_FACETS = { posted: "Open", forecasted: "Forecast", grants_gov: "Grants.gov", local: "Tracked here",
-  30: "30 days", 90: "90 days" };
+  30: "30 days", 90: "90 days", meets: "Meets", check: "Check the notice", does_not_meet: "Does not meet" };
 
 function facetFormat(name, value) {
-  if (name === "closing" || name === "source" || (name === "status" && OPPORTUNITY_FACETS[value])) return OPPORTUNITY_FACETS[value] ?? value;
+  if (name === "closing" || name === "source" || name === "eligibility" || (name === "status" && OPPORTUNITY_FACETS[value])) return OPPORTUNITY_FACETS[value] ?? value;
   if (name === "status" || name === "phase" || name === "type" || name === "kind") return enumLabel(value);
   return value;
 }
@@ -49,11 +51,13 @@ export function browse(main, kind, { samePage = false } = {}) {
   const selected = Object.fromEntries(spec.facets.map((f) => [f, queryList(f)]));
   const view = kind === "person" ? (query().get("view") ?? read("peopleView", "cards")) : "list";
   const savedId = query().get("saved");
+  const extra = Object.fromEntries((spec.params ?? []).map((name) => [name, query().get(name)]).filter(([, v]) => v));
+  const me = session()?.person_id ?? null;
 
   return show(main, {
     title: spec.title,
     quiet: samePage,
-    load: () => get(spec.endpoint, { q, sort, limit: LIMIT, offset: (pageNo - 1) * LIMIT, ...selected }),
+    load: () => get(spec.endpoint, { q, sort, limit: LIMIT, offset: (pageNo - 1) * LIMIT, ...selected, ...extra }),
     view: (result) => {
       const { data, meta } = result;
       const searchInput = h("input", { class: "input", type: "search", value: q, placeholder: spec.placeholder,
@@ -75,6 +79,11 @@ export function browse(main, kind, { samePage = false } = {}) {
         h("span", { class: "filter-chip" }, `${FACET_LABELS[name] ?? name}: ${facetFormat(name, value)}`,
           h("button", { type: "button", "aria-label": `Remove filter ${value}`, onclick: () => setQuery({ [name]: values.filter((v) => v !== value), page: null }) },
             icon("close", "icon icon-sm"))))) ;
+      for (const [name, value] of Object.entries(extra)) {
+        const label = name === "fits" ? (value === "me" || value === me ? "Fits your work" : "Fits a person") : `Fits the group ${value}`;
+        active.push(h("span", { class: "filter-chip" }, label,
+          h("button", { type: "button", "aria-label": `Remove filter ${label}`, onclick: () => setQuery({ [name]: null, page: null }) }, icon("close", "icon icon-sm"))));
+      }
 
       let results;
       if (!data.length) {
@@ -100,6 +109,8 @@ export function browse(main, kind, { samePage = false } = {}) {
             h("div", { class: "toolbar" },
               h("div", { class: "search-field" }, icon("search"), searchInput),
               sortSelect,
+              kind === "opportunity" && me ? h("button", { type: "button", class: `btn${extra.fits ? " btn-primary" : ""}`, "aria-pressed": extra.fits ? "true" : "false",
+                onclick: () => setQuery({ fits: extra.fits ? null : "me", page: null }) }, "Fits my work") : null,
               kind === "person" ? segmented([{ id: "cards", icon: "grid", title: "Cards" }, { id: "table", icon: "list", title: "Table" }],
                 view, (id) => { write("peopleView", id); setQuery({ view: id }); }, "View") : null,
               savedId ? null : saveSearchButton({ kind, q, filters: Object.fromEntries(Object.entries(selected).filter(([, v]) => v.length)),

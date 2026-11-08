@@ -3308,6 +3308,63 @@
             "description": "federal, foundation, internal, …"
           },
           {
+            "name": "eligible",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "meets, check, does_not_meet (the organization)",
+              "title": "Eligible"
+            },
+            "description": "meets, check, does_not_meet (the organization)"
+          },
+          {
+            "name": "fits",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a person's ID, or me: opportunities they fit",
+              "title": "Fits"
+            },
+            "description": "a person's ID, or me: opportunities they fit"
+          },
+          {
+            "name": "group",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a group: opportunities it fits",
+              "title": "Group"
+            },
+            "description": "a group: opportunities it fits"
+          },
+          {
             "name": "closing",
             "in": "query",
             "required": false,
@@ -3700,6 +3757,257 @@
                   "additionalProperties": true,
                   "type": "object",
                   "title": "Response Import Opportunities Api V1 Opportunities Import Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/opportunities/{oid}/fit": {
+      "get": {
+        "tags": [
+          "opportunities"
+        ],
+        "summary": "Who fits an opportunity and why, and whether the organization may apply",
+        "operationId": "opportunity_fit_api_v1_opportunities__oid__fit_get",
+        "parameters": [
+          {
+            "name": "oid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Oid"
+            }
+          },
+          {
+            "name": "concept",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "MeSH IDs to add",
+              "title": "Concept"
+            },
+            "description": "MeSH IDs to add"
+          },
+          {
+            "name": "drop",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "MeSH IDs to leave out",
+              "title": "Drop"
+            },
+            "description": "MeSH IDs to leave out"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Opportunity Fit Api V1 Opportunities  Oid  Fit Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/opportunities/{oid}/interest": {
+      "post": {
+        "tags": [
+          "opportunities"
+        ],
+        "summary": "Watch an opportunity, or dismiss it",
+        "operationId": "opportunity_interest_api_v1_opportunities__oid__interest_post",
+        "parameters": [
+          {
+            "name": "oid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Oid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_opportunity_interest_api_v1_opportunities__oid__interest_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Opportunity Interest Api V1 Opportunities  Oid  Interest Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/opportunities": {
+      "get": {
+        "tags": [
+          "opportunities"
+        ],
+        "summary": "Opportunities that fit your work, and those you watch",
+        "operationId": "my_opportunities_api_v1_me_opportunities_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response My Opportunities Api V1 Me Opportunities Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/people/{person_id}/opportunities": {
+      "get": {
+        "tags": [
+          "opportunities"
+        ],
+        "summary": "Open opportunities that fit a person",
+        "operationId": "person_opportunities_api_v1_people__person_id__opportunities_get",
+        "parameters": [
+          {
+            "name": "person_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Person Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Person Opportunities Api V1 People  Person Id  Opportunities Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/groups/{group_ref}/opportunities": {
+      "get": {
+        "tags": [
+          "opportunities"
+        ],
+        "summary": "Open opportunities that fit a group",
+        "operationId": "group_opportunities_api_v1_groups__group_ref__opportunities_get",
+        "parameters": [
+          {
+            "name": "group_ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Ref"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Group Opportunities Api V1 Groups  Group Ref  Opportunities Get"
                 }
               }
             }
@@ -7531,6 +7839,27 @@
         },
         "type": "object",
         "title": "Body_import_opportunities_api_v1_opportunities_import_post"
+      },
+      "Body_opportunity_interest_api_v1_opportunities__oid__interest_post": {
+        "properties": {
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State",
+            "description": "watching, dismissed, or null"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "title": "Body_opportunity_interest_api_v1_opportunities__oid__interest_post"
       },
       "BulkDecision": {
         "properties": {

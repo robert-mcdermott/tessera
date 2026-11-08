@@ -28,6 +28,13 @@ email_domains = ["example.edu"]
 # Different organizations whose names contain one of the aliases above.
 exclusions = ["Example University of Technology"]
 
+# Who the organization is when it applies for funding, in Grants.gov's applicant type codes, so
+# that Opportunities can say whether it may apply: "06" public and "20" private institutions of
+# higher education, "12" nonprofits with 501(c)(3) status (other than higher education), and so
+# on (see docs/configuration.md). Leave empty to have every opportunity's applicant types checked
+# by hand.
+applicant_types = []
+
 # Re-branding. Everything here is optional.
 [branding]
 product_name = "Tessera"

@@ -14,10 +14,12 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 - Opportunities an organization tracks itself (INT-12): foundation calls, internal pilot funds, and limited submissions, kept in the ledger (migration 0014), added and edited in **Admin → Opportunities**, or imported from CSV or JSON with `tessera opportunities import` (or `POST /opportunities/import`); importing again updates in place, and nothing is written when any row has a problem.
 - **Opportunities** in the menu: every opportunity, open and forecast first by closing date, with search and filters (status, closing within 30 or 90 days, source, kind, sponsor, activity code, category), an opportunity's page with its dates, money, who may apply, and details, and opportunities in search, the command palette, and saved searches.
 - The demo organization has twelve invented federal opportunities and three of its own.
+- The opportunity navigator (INT-09): each open or forecast opportunity is read as topics, the way an expert search reads a question, and matched to the people whose confirmed work fits it (**strong** or **some** fit, with the headings that match) and the groups that fit through their members. On an opportunity's page, **Who fits** shows them and the topics it was read as, which can be removed or added to read it again. **Can the organization apply?** checks, separately, the applicant type against the new `[organization] applicant_types`, the deadline, an internal deadline, limited submission, career stage, and cost sharing, each with what it was decided from; clinical-trial rules and forecast dates are notes. The list filters by eligibility and **Fits my work**; the home page shows opportunities that fit your work, profiles and group pages show theirs, and a group's inbox and digest list new ones that fit it. **Watch** and **Dismiss** are your own (migration 0015). Fits are worked out after each sync, or by `tessera build opportunities`. A guide, *Opportunities*, describes it all.
 
 ### Changed
 
 - Curation and administration pages load when first opened, not with the app, which keeps the app's first load smaller.
+- An expert search reads plural words as singular, so "germinal centers" finds Germinal Center.
 
 ## 0.4.0 (2026-11-08)
 
