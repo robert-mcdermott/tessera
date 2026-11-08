@@ -99,15 +99,66 @@ Sessions end after `session_idle_hours` without use (12 by default) and after `s
 
 ## Backups
 
-With SQLite, back up `ledger.db` with SQLite's own backup command, which is safe while Tessera runs:
+`tessera backup` writes one archive of everything that cannot be made again:
 
 ```bash
-sqlite3 var/ledger.db ".backup 'backups/ledger-$(date +%F).db'"
+uv run tessera backup                          # into <data home>/backups/
+uv run tessera backup --out /mnt/backups/      # or anywhere else
+uv run tessera backup --verify /mnt/backups/tessera-backup-20261108-030000.tar.gz
 ```
 
-Copying the whole data home while no job is running also works. With PostgreSQL, use `pg_dump` as for any database.
+The archive (`.tar.gz`) holds the ledger as portable rows (one JSON-lines file per table, any backend), the lake (what was fetched, as Parquet), Insight report snapshots, and the configuration file, with a manifest giving each file's size and SHA-256 digest and the ledger's schema revision and row counts. `--raw` adds the raw responses from each source, which are large and can be fetched again. The search index, discovery files, and public site are left out: they are made again from the rest. A backup holds the data home's job lock, so it waits for no sync and no sync starts while it reads, and it reads the ledger in one transaction. A demo-sized installation backs up in under a second.
 
-To restore, stop Tessera, put the ledger back, and run `uv run tessera build search` and `uv run tessera build discovery` to rebuild the index and discovery data from it.
+Schedule it after the nightly sync, and copy the archives somewhere else:
+
+```cron
+0 4 * * * cd /srv/tessera && /usr/local/bin/uv run tessera --quiet backup --out /mnt/backups/
+```
+
+`tessera doctor`, **Admin → Operations**, and [alerts](#alerts) warn when the last backup is older than `[alerts] backup_days` (seven by default).
+
+### Restoring
+
+```bash
+uv run tessera --config new.toml restore /mnt/backups/tessera-backup-20261108-030000.tar.gz
+uv run tessera --config new.toml build search
+uv run tessera --config new.toml build discovery
+```
+
+`tessera restore` checks every file against the manifest first, then loads the archive into the data home and ledger that the configuration names, which must be empty: a new SQLite file, or a new PostgreSQL database. The ledger is brought to the backup's schema, every row is loaded, and the schema is upgraded to this version of Tessera, so a backup from an earlier release restores into a later one. Because the rows are portable, **a backup taken on SQLite restores into PostgreSQL** (and the other way round): that is also the way to move an installation from one to the other. A copy of the backup's configuration is put in `restored/` in the data home for reference; the configuration you pass is the one used.
+
+## The exit export
+
+`tessera export` writes everything Tessera knows in open formats, readable without Tessera, for leaving it or for analysis elsewhere:
+
+```bash
+uv run tessera export /mnt/exports/tessera-2026-11-08
+```
+
+The folder has every ledger table (people, names and identifiers, groups and memberships, every link with its evidence and decision, the decision logs, pages, reports, and settings) and every lake table (the current version of each record fetched from PubMed, iCite, NIH RePORTER, ClinicalTrials.gov, ORCID, and MeSH), each as Parquet and CSV; report snapshots; `DATA-DICTIONARY.md`, describing every table and column; and a `manifest.json` with row counts and digests. Password hashes and browser sessions are left out. In CSV files, lists and objects are JSON text.
+
+## Operations and alerts
+
+**Admin → Operations** shows, for administrators:
+
+- what needs attention now: runs that failed or partly failed in the last two days, sources that have gone stale, and a backup older than `[alerts] backup_days`;
+- every source and job over the last 30 days: the last run and when it last succeeded, runs, failures, the typical time a run takes and the recent run times, and the last error;
+- the sizes of the ledger, the lake (table by table), the raw responses, the search and discovery files, report snapshots, and backups kept in the data home;
+- the last backup, and whether a data job is running now.
+
+The same is at `GET /api/v1/operations`.
+
+### Alerts
+
+Set who hears about problems, and give Tessera a mail server (see [Configuration](configuration.md#mail)):
+
+```toml
+[alerts]
+email = ["research-it@example.edu"]
+backup_days = 7
+```
+
+`tessera sync` then sends one email at its end when there are issues, and `tessera alerts --send` does the same at any time (`tessera alerts` alone lists them). The same set of issues is sent once, and again after a week if it persists; `--force` sends it now. A sync never fails because an alert could not be sent.
 
 ## Upgrading
 
@@ -119,7 +170,7 @@ uv run tessera build search    # rebuild the index with the new version
 uv run tessera build discovery # and concept profiles and the graph
 ```
 
-`tessera doctor` and the web app's health check (`/api/v1/health`) report a ledger that needs `db upgrade`. Migrations keep every row: they are tested on SQLite and PostgreSQL with a populated ledger, upgrading and downgrading. Back up the ledger before upgrading anyway. The [changelog](../CHANGELOG.md) notes anything that needs more than these steps.
+`tessera doctor` and the web app's health check (`/api/v1/health`) report a ledger that needs `db upgrade`. Migrations keep every row: they are tested on SQLite and PostgreSQL with a populated ledger, upgrading and downgrading. Take a backup before upgrading anyway (`tessera backup`). The [changelog](../CHANGELOG.md) notes anything that needs more than these steps.
 
 ## PostgreSQL
 

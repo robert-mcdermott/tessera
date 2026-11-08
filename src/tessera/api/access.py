@@ -118,6 +118,7 @@ POLICIES: dict[tuple[str, str], Level] = {
     ("GET", "/api/v1/insight/snapshots/{snapshot_id}"): R,
     ("GET", "/api/v1/insight/snapshots/{snapshot_id}/verify"): R,
     ("GET", "/api/v1/insight/snapshots/{snapshot_id}/export"): R,
+    ("GET", "/api/v1/operations"): Level.ADMIN,
     ("GET", "/api/v1/saved-searches"): R,
     ("POST", "/api/v1/saved-searches"): R,
     ("GET", "/api/v1/saved-searches/{search_id}"): R,

@@ -80,16 +80,16 @@ Requirements: INT-01 to INT-07, INT-11, DIS-10, LAB-09, PLT-08, PLT-12.
 
 **Acceptance (met):** a snapshot taken, then followed by a sync that adds papers, still shows and exports its original numbers, and verifies; a live report shows the new ones; every export names its metric versions, cohort, period, filters, and sources; a saved search shows two new matches after two matching grants arrive.
 
-## Slice 5: Backup, restore, exit export, and operations ☐
+## Slice 5: Backup, restore, exit export, and operations ☑
 
 **Goal:** an installation that can be recovered, moved, left, and watched (PLT-08, PLT-12).
 
-- [ ] `tessera backup` writes one archive: the ledger as portable rows (any backend), the lake, snapshots, and the configuration, with checksums; `tessera backup --verify` checks an archive; `tessera restore` loads it into an empty data home, SQLite or PostgreSQL
-- [ ] `tessera export` writes a full exit export: every ledger table and every lake table as Parquet and CSV, with a data dictionary, readable without Tessera
-- [ ] Admin → Operations: runs by source and job with durations, records, and failures; freshness; ledger, lake, and raw sizes; the last backup
-- [ ] Alerts: `[alerts]` sends one email through `[mail]` when a sync has failures or a source goes stale; `tessera doctor` warns when there is no recent backup
+- [x] `tessera backup` writes one archive: the ledger as portable rows (any backend), the lake, snapshots, and the configuration, with checksums; `tessera backup --verify` checks an archive; `tessera restore` loads it into an empty data home, SQLite or PostgreSQL
+- [x] `tessera export` writes a full exit export: every ledger table and every lake table as Parquet and CSV, with a data dictionary, readable without Tessera
+- [x] Admin → Operations: runs by source and job with durations, records, and failures; freshness; ledger, lake, and raw sizes; the last backup
+- [x] Alerts: `[alerts]` sends one email through `[mail]` when a sync has failures or a source goes stale; `tessera doctor` warns when there is no recent backup
 
-**Acceptance:** a backup of the demo restored into a new data home gives identical API answers; a SQLite backup restores into PostgreSQL; the exit export opens in DuckDB and in a spreadsheet; a failing source shows in Operations with its error and sends one alert.
+**Acceptance (met):** a backup of the demo restored into a new data home gives identical API answers; a SQLite backup restores into PostgreSQL; the exit export opens in DuckDB and in a spreadsheet; a failing source shows in Operations with its error and sends one alert.
 
 ## Slice 6: Embeddable group content ☐
 
@@ -113,6 +113,7 @@ Requirements: INT-01 to INT-07, INT-11, DIS-10, LAB-09, PLT-08, PLT-12.
 
 | Date | Note |
 |---|---|
+| 2026-11-08 | Slice 5 done. Backups hold the ledger as portable rows rather than a database file, so one format serves SQLite and PostgreSQL and also moves an installation between them; restore reflects the schema at the backup's revision, loads the rows (references within a table are set once every row is there), resets PostgreSQL's integer sequences, and upgrades. A demo backup restored into a new data home gives identical ledger rows and identical API answers once the index is rebuilt; on PostgreSQL 16, a SQLite backup restored with identical rows. The comparison found that the search index and grant pages took a subproject's record as a grant's latest when several share a fiscal year; fixed. The demo now rebuilds its index after its last direct changes. Alerts are emailed once per set of issues, so a stale source does not send a message every night. |
 | 2026-11-08 | Slice 4 done. A snapshot keeps the inputs, not the whole lake: only the rows its cohort's figures read, so it is small (tens of kilobytes for a program) and cannot drift when the lake is compacted. Verification recomputes from those inputs with the code's metrics and fails, naming the metric, when a metric's version has moved on, rather than silently using the new definition. Deleting a report keeps its snapshots, because someone may have cited them. CSV exports are zips so that the definitions travel with the numbers; Parquet files also carry them in their own metadata. Saved searches remember up to 5,000 matches each and are visible only to their owner; what a search finds when it is saved counts as seen. |
 | 2026-11-08 | Slice 3 done. Topics count major MeSH headings only: every paper carries check tags such as Humans and Mice, which say nothing about its subject. Trend windows are halves of the period's complete years, at most three years each, so that a five-year window (the default first sync) can still show trends; the year under way is never in a window. A study counts for the period when it was under way during it (by its start and completion dates), not only when it started, because a portfolio is what is running. Field-normalized citation keeps the last two years apart and says that a ratio describes papers, not people. Correction to slice 2's note: the demo's new grants had joined the lists that papers draw their acknowledgments from, which shifted the rest of the demo; they no longer do, and the demo has its 717 papers again. |
 | 2026-11-08 | Slice 2 done. Award types come from the first digit of the project number (1 new, 2 renewal, 3 supplement; the rest continuing), which RePORTER does not state separately. The organization's portfolio is what was awarded to it, matched by the awardee's name with the same rules as everywhere else, so grants of people not yet in the directory still count; a cohort's portfolio needs a member on the grant. Grants by group are listed by name, and say that their amounts overlap, so the figure cannot be read as a ranking. Fiscal-year figures default to the fiscal year under way (October onward) and say it is incomplete. The demo's mechanisms now use RePORTER's names, labeled in words. One demo test assumed a person's research areas sum to one; they are shares of the whole profile with eight kept, so the test now checks that. |

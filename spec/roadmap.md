@@ -103,7 +103,7 @@ Detail: [waves/wave-3.md](waves/wave-3.md)
 | 2 | Funding portfolio | Strict counting per core project and fiscal-year record; awards by year, institute, activity, mechanism, and group; grants with upcoming end dates | ☑ |
 | 3 | Topics and studies | Topic landscape and trends with small-number warnings; studies by condition, intervention, phase, sponsor class, and registry status | ☑ |
 | 4 | Reports and exports | Saved searches with new matches; reports; snapshots that regenerate exactly; evidence-carrying CSV, Parquet, and JSON exports | ☑ |
-| 5 | Backup and operations | Backup, restore (across SQLite and PostgreSQL), and full exit export; Admin → Operations; failure alerts | ☐ |
+| 5 | Backup and operations | Backup, restore (across SQLite and PostgreSQL), and full exit export; Admin → Operations; failure alerts | ☑ |
 | 6 | Embeds | Group content embedded in an existing website, from the public site | ☐ |
 | 7 | Release prep | Guides, screenshots, evaluation, changelog, release | ☐ |
 

@@ -142,6 +142,7 @@ def build_demo(
         _attribute(engine)
         _pages(engine, today)
         _public(engine)
+        build_search(config, home, engine)  # include what the steps above changed directly
         from tessera.publish import publish
 
         site = publish(config, home, engine, today=today)

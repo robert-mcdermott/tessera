@@ -249,6 +249,60 @@ def build_parser() -> argparse.ArgumentParser:
     )
     publish_cmd.set_defaults(handler=cmd_publish)
 
+    backup_cmd = commands.add_parser(
+        "backup",
+        help="write one archive of the ledger, the lake, snapshots, and the configuration",
+        description="Write a .tar.gz archive that `tessera restore` can load into an empty data "
+        "home, on SQLite or PostgreSQL: the ledger as portable rows, the lake, report snapshots, "
+        "and the configuration, each file with its SHA-256 digest. The search index, discovery "
+        "files, and public site are rebuilt from these. Holds the job lock, so no sync runs "
+        "meanwhile.",
+    )
+    backup_cmd.add_argument(
+        "--out", type=Path, help="file or folder to write (default: <data home>/backups/)"
+    )
+    backup_cmd.add_argument(
+        "--raw", action="store_true", help="include the raw responses from each source too"
+    )
+    backup_cmd.add_argument(
+        "--verify", type=Path, metavar="ARCHIVE", help="check an archive instead of writing one"
+    )
+    backup_cmd.set_defaults(handler=cmd_backup)
+
+    restore_cmd = commands.add_parser(
+        "restore",
+        help="load a backup into an empty data home and ledger",
+        description="Check an archive, then load it into the configured data home and ledger, "
+        "which must be empty (a new SQLite file or PostgreSQL database). The ledger is brought to "
+        "the backup's schema, loaded, and upgraded to this version. Then run `tessera build`.",
+    )
+    restore_cmd.add_argument("archive", type=Path, help="the backup to restore")
+    restore_cmd.set_defaults(handler=cmd_restore)
+
+    export_cmd = commands.add_parser(
+        "export",
+        help="write a full exit export: every table as Parquet and CSV, with a data dictionary",
+        description="Write everything Tessera knows, in open formats readable without it: every "
+        "ledger table and every lake table as Parquet and CSV, report snapshots, a data "
+        "dictionary, and a manifest with digests. Password hashes and sessions are left out.",
+    )
+    export_cmd.add_argument("out", type=Path, help="a new, empty folder to write")
+    export_cmd.set_defaults(handler=cmd_export)
+
+    alerts_cmd = commands.add_parser(
+        "alerts",
+        help="check for failed runs, stale sources, and old backups; email [alerts] if any",
+        description="List what needs attention: runs that failed or partly failed in the last "
+        "two days, sources that have gone stale, and backups older than [alerts] backup_days. "
+        "With --send, email them to [alerts] email through [mail], once per new set of issues "
+        "(and again after a week). `tessera sync` does this by itself when alerts are set up.",
+    )
+    alerts_cmd.add_argument("--send", action="store_true", help="email the issues, if any")
+    alerts_cmd.add_argument(
+        "--force", action="store_true", help="send even if the same issues were sent this week"
+    )
+    alerts_cmd.set_defaults(handler=cmd_alerts)
+
     report_cmd = commands.add_parser(
         "report",
         help="Insight reports: list them, freeze snapshots, verify and export them",
@@ -785,7 +839,25 @@ def cmd_sync(args: argparse.Namespace) -> int:
         _print_result(run)
     _print_resolve(result.resolves[-1])
     _print_build(result.build)
+    _alert_after_sync(config, home)
     return {"succeeded": EXIT_OK, "partial": EXIT_PARTIAL}.get(result.status, EXIT_ERROR)
+
+
+def _alert_after_sync(config, home) -> None:  # type: ignore[no-untyped-def]
+    """Email [alerts] about new issues, when alerts are set up; never fail the sync for it."""
+    if not config.alerts.email or not config.mail.host:
+        return
+    from tessera.ops.status import alert
+
+    engine = _engine(config)
+    try:
+        found, _, sent = alert(config, engine, home)
+        if sent:
+            print(f"alerts: sent {len(found)} issues to {', '.join(config.alerts.email)}")
+    except Exception as exc:  # the sync's own result matters more than the alert
+        log.warning("Could not send alerts: %s", exc)
+    finally:
+        engine.dispose()
 
 
 def cmd_people_import(args: argparse.Namespace) -> int:
@@ -979,6 +1051,108 @@ def cmd_publish(args: argparse.Namespace) -> int:
         + ("" if args.check else f" to {result.out}")
     )
     return EXIT_OK
+
+
+def _size(n: int) -> str:
+    for unit in ("bytes", "KB", "MB", "GB"):
+        if n < 1024 or unit == "GB":
+            return f"{n:,} {unit}" if unit == "bytes" else f"{n:,.1f} {unit}"
+        n /= 1024  # type: ignore[assignment]
+    return str(n)  # pragma: no cover
+
+
+def cmd_backup(args: argparse.Namespace) -> int:
+    from tessera.ops import backup
+
+    if args.verify:
+        result = backup.verify_backup(args.verify)
+        for problem in result.problems[:30]:
+            print(f"  problem: {problem}")
+        manifest = result.manifest
+        if result.ok:
+            rows = sum(manifest["ledger"]["tables"].values())
+            print(f"backup: {args.verify} is intact: {len(manifest['files'])} files, {rows:,} "
+                  f"ledger rows at schema {manifest['ledger']['revision']}, taken "
+                  f"{manifest['created_at']} by Tessera {manifest['tessera_version']}")  # fmt: skip
+            return EXIT_OK
+        print(f"backup: {args.verify} does not match its manifest")
+        return EXIT_ERROR
+    config, home = _load(args)
+    home.require()
+    engine = _engine(config)
+    try:
+        result = backup.create_backup(config, home, engine, out=args.out, raw=args.raw)
+    finally:
+        engine.dispose()
+    rows = sum(result.tables.values())
+    print(f"backup: wrote {result.path} ({_size(result.bytes)}; {rows:,} ledger rows in "
+          f"{len(result.tables)} tables, {result.files} files)")  # fmt: skip
+    return EXIT_OK
+
+
+def cmd_restore(args: argparse.Namespace) -> int:
+    from tessera.ledger.db import make_engine
+    from tessera.ops import backup
+
+    config, home = _load(args)
+    home.create()
+    engine = make_engine(config.ledger_url)
+    try:
+        result = backup.restore_backup(config, home, engine, args.archive)
+    finally:
+        engine.dispose()
+    rows = sum(result.tables.values())
+    upgraded = f", upgraded to schema {result.upgraded_to}" if result.upgraded_to else ""
+    print(f"restore: loaded {rows:,} ledger rows at schema {result.revision}{upgraded} and "
+          f"{result.files} files into {home.root}")  # fmt: skip
+    print("Next: `tessera build search` and `tessera build discovery` to rebuild what is "
+          "computed, and `tessera publish` if you publish a public site.")  # fmt: skip
+    return EXIT_OK
+
+
+def cmd_export(args: argparse.Namespace) -> int:
+    from tessera.ops.exit import write_exit
+
+    config, home = _load(args)
+    home.require()
+    engine = _engine(config)
+    try:
+        result = write_exit(config, home, engine, args.out)
+    finally:
+        engine.dispose()
+    print(f"export: wrote {result.files} files ({_size(result.bytes)}) to {result.out}: "
+          f"{len(result.ledger)} ledger tables ({sum(result.ledger.values()):,} rows) and "
+          f"{len(result.lake)} lake tables ({sum(result.lake.values()):,} rows)")  # fmt: skip
+    return EXIT_OK
+
+
+def cmd_alerts(args: argparse.Namespace) -> int:
+    from tessera.ops.status import alert, issues
+
+    config, home = _load(args)
+    engine = _engine(config)
+    try:
+        if not args.send:
+            found = issues(config, home, engine)
+            sent = False
+        else:
+            if not config.alerts.email or not config.mail.host:
+                print("alerts: set [alerts] email and [mail] host to send alerts")
+                return EXIT_ERROR
+            found, _, sent = alert(config, engine, home, force=args.force)
+    finally:
+        engine.dispose()
+    for issue in found:
+        print(f"  {issue['kind']}: {issue['text']}")
+    if not found:
+        print("alerts: nothing needs attention")
+        return EXIT_OK
+    if args.send:
+        print(f"alerts: {len(found)} issues; " + ("sent to " + ", ".join(config.alerts.email)
+              if sent else "already sent this week (--force to send again)"))  # fmt: skip
+    else:
+        print(f"alerts: {len(found)} issues")
+    return EXIT_PARTIAL
 
 
 def cmd_report_list(args: argparse.Namespace) -> int:

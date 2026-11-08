@@ -21,6 +21,7 @@ from tessera.api.routers import (
     groups,
     insight,
     merges,
+    operations,
     overview,
     people,
     records,
@@ -88,6 +89,7 @@ def create_app(config: Config) -> FastAPI:
         groups,
         insight,
         saved,
+        operations,
     ):
         app.include_router(module.router)
     install_api_reference(app)

@@ -6567,6 +6567,29 @@
           }
         }
       }
+    },
+    "/api/v1/operations": {
+      "get": {
+        "tags": [
+          "operations"
+        ],
+        "summary": "Runs over the last 30 days, sizes, the last backup, and issues (admins)",
+        "operationId": "operations_api_v1_operations_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Operations Api V1 Operations Get"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {

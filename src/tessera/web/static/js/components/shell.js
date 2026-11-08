@@ -40,6 +40,7 @@ const NAV = [
     { href: "/admin/evidence", label: "Evidence", iconName: "sparkle", when: "curate_any", match: (p) => p.startsWith("/admin/evidence") },
     { href: "/admin/groups", label: () => groupsLabel, iconName: "unit", when: "admin", match: (p) => p.startsWith("/admin/groups") },
     { href: "/admin/accounts", label: "Accounts", iconName: "people", when: "admin", match: (p) => p.startsWith("/admin/accounts") },
+    { href: "/admin/operations", label: "Operations", iconName: "clock", when: "admin", match: (p) => p.startsWith("/admin/operations") },
     { href: "/api/docs", label: "API reference", iconName: "api", match: () => false, external: true },
   ] },
 ];

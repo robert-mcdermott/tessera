@@ -238,7 +238,7 @@ def get_grant(request: Request, core: str) -> dict[str, Any]:
     )
     if not years:
         raise HTTPException(status_code=404, detail="No such grant.")
-    latest = years[-1]
+    latest = ([y for y in years if not y["subproject_id"]] or years)[-1]  # not a subproject
     investigators = lake.rows(
         "SELECT DISTINCT i.profile_id, i.full_name, i.is_contact_pi FROM reporter_investigator i "
         "JOIN reporter_project p USING (appl_id) WHERE p.core_project_num = ?",

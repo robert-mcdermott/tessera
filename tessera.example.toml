@@ -172,3 +172,8 @@ intro = ""                    # a sentence or two for the home page
 # Portfolio figures. Counts above zero and below this are marked as small numbers, and
 # trends are not claimed from them.
 small_number = 5
+
+[alerts]
+# Who hears when a sync fails, a source goes stale, or backups lapse (sent through [mail]).
+email = []          # for example ["research-it@example.edu"]
+backup_days = 7     # warn when the last `tessera backup` is older than this; 0 never warns

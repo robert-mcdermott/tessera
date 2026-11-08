@@ -359,6 +359,65 @@ usage: tessera publish [-h] [--out OUT] [--check]
 | `--out OUT` | where to write it ([publish] out) |
 | `--check` | build and check, but write nothing |
 
+## `tessera backup`
+
+Write one archive of the ledger, the lake, snapshots, and the configuration.
+
+Write a .tar.gz archive that `tessera restore` can load into an empty data home, on SQLite or PostgreSQL: the ledger as portable rows, the lake, report snapshots, and the configuration, each file with its SHA-256 digest. The search index, discovery files, and public site are rebuilt from these. Holds the job lock, so no sync runs meanwhile.
+
+```text
+usage: tessera backup [-h] [--out OUT] [--raw] [--verify ARCHIVE]
+```
+
+| Argument | Meaning |
+|---|---|
+| `--out OUT` | file or folder to write (default: <data home>/backups/) |
+| `--raw` | include the raw responses from each source too |
+| `--verify ARCHIVE` | check an archive instead of writing one |
+
+## `tessera restore`
+
+Load a backup into an empty data home and ledger.
+
+Check an archive, then load it into the configured data home and ledger, which must be empty (a new SQLite file or PostgreSQL database). The ledger is brought to the backup's schema, loaded, and upgraded to this version. Then run `tessera build`.
+
+```text
+usage: tessera restore [-h] archive
+```
+
+| Argument | Meaning |
+|---|---|
+| `archive` | the backup to restore |
+
+## `tessera export`
+
+Write a full exit export: every table as Parquet and CSV, with a data dictionary.
+
+Write everything Tessera knows, in open formats readable without it: every ledger table and every lake table as Parquet and CSV, report snapshots, a data dictionary, and a manifest with digests. Password hashes and sessions are left out.
+
+```text
+usage: tessera export [-h] out
+```
+
+| Argument | Meaning |
+|---|---|
+| `out` | a new, empty folder to write |
+
+## `tessera alerts`
+
+Check for failed runs, stale sources, and old backups; email [alerts] if any.
+
+List what needs attention: runs that failed or partly failed in the last two days, sources that have gone stale, and backups older than [alerts] backup_days. With --send, email them to [alerts] email through [mail], once per new set of issues (and again after a week). `tessera sync` does this by itself when alerts are set up.
+
+```text
+usage: tessera alerts [-h] [--send] [--force]
+```
+
+| Argument | Meaning |
+|---|---|
+| `--send` | email the issues, if any |
+| `--force` | send even if the same issues were sent this week |
+
 ## `tessera report`
 
 Insight reports: list them, freeze snapshots, verify and export them.

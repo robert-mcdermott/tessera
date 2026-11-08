@@ -415,3 +415,10 @@ label.check { display: inline-flex; align-items: center; gap: var(--space-2); fo
 .snapshot-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3); }
 .figure-aside { margin: 0; font-size: var(--fs-xs); }
 .page-actions .export-menu[open] > .export-list { right: 0; }
+
+/* ---------- Operations ---------- */
+.ops-error { max-width: 28rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: var(--fs-xs); }
+tr[data-stale] th { color: var(--warn); }
+.ops-issues { border-color: color-mix(in oklch, var(--warn) 45%, var(--border)); }
+.ops-issues .icon { color: var(--warn); flex: none; }
+.text-danger { color: var(--danger); }

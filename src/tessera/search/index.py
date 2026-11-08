@@ -337,7 +337,7 @@ class _Builder:
             "SELECT core_project_num, fiscal_year, title, abstract, activity_code, "
             "agency_ic_admin, org_name, award_amount, subproject_id, project_start, project_end, "
             "is_active, terms FROM reporter_project WHERE core_project_num IS NOT NULL "
-            "ORDER BY core_project_num, fiscal_year"
+            "ORDER BY core_project_num, fiscal_year, appl_id"
         )
         pis: dict[str, set[str]] = defaultdict(set)
         for r in self.lake.rows(
@@ -358,9 +358,9 @@ class _Builder:
             )
             if not ours:
                 continue
-            latest = records[-1]
             years = sorted({r["fiscal_year"] for r in records if r["fiscal_year"]})
             parent = [r for r in records if not r["subproject_id"]] or records
+            latest = parent[-1]  # the award itself, not one of its subprojects
             total = sum(r["award_amount"] or 0 for r in parent)
             active = bool(latest["is_active"])
             summary = {
