@@ -29,7 +29,16 @@ from tessera.ledger.tables import assertion, curation_event, person, person_even
 
 router = APIRouter(prefix="/api/v1", tags=["curation"])
 
-CONFLICTS = frozenset({"slot_conflict", "middle_conflict", "given_conflict", "orcid_conflict"})
+CONFLICTS = frozenset(
+    {
+        "slot_conflict",
+        "middle_conflict",
+        "given_conflict",
+        "orcid_conflict",
+        "orcid_rejected",
+        "orcid_inconsistent",
+    }
+)
 
 
 def _label(engine, ref: str, index) -> str | None:  # type: ignore[no-untyped-def]
@@ -334,5 +343,7 @@ def recent_decisions(
                 "status": e["current_status"],
                 "subject": {"id": e["person_id"], "label": e["display_name"]},
             }
+            if e["action"] == "identifier":
+                base["identifier"] = e["detail"]
         items.append(base)
     return envelope(items, total=total, limit=p.limit, next_cursor=p.next_cursor(total))

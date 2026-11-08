@@ -124,12 +124,13 @@ def test_person_profile(client: TestClient, world: synthetic_org.World) -> None:
     pid = person_id(client, researcher.family)
     data = ok(client.get(f"/api/v1/people/{pid}"))["data"]
     assert data["status"] == "active"
-    assert {
-        "scheme": "nih_profile",
-        "value": str(researcher.profile_id),
-        "status": "accepted",
-        "source": "reporter",
-    } in data["identifiers"]
+    [nih] = [i for i in data["identifiers"] if i["scheme"] == "nih_profile"]
+    assert (nih["value"], nih["status"], nih["source"], nih["also"]) == (
+        str(researcher.profile_id),
+        "accepted",
+        "reporter",
+        [],
+    )
     assert data["counts"]["grants"] == 1
     assert data["counts"]["publications"]["suggested"] >= len(researcher.papers)
     assert data["timeline"] and all(t["publications"] for t in data["timeline"])

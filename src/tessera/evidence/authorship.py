@@ -1,4 +1,4 @@
-"""Who wrote what: candidate retrieval and the ``authorship/v1`` evidence model.
+"""Who wrote what: candidate retrieval and the ``authorship/v1.1`` evidence model.
 
 Every candidate (person, paper, author position) gets a score from an additive model:
 feature weights in log-odds, summed and passed through a logistic function. Each feature
@@ -6,8 +6,9 @@ that fires becomes an evidence item with a plain-language explanation, so the sc
 always be explained. See spec/evidence-engine.md.
 
 Passes:
-1. Direct evidence only (ORCID, email, affiliation, grants, name, ambiguity).
-2. Adds evidence learned from the person's other papers (coauthors, topics, journals),
+1. Direct evidence only (ORCID iDs and works, email, affiliation, grants, name, ambiguity).
+2. Adds evidence learned from the person's other papers (coauthors, topics, journals, and
+   the ORCID iDs printed on them),
    taken from human-accepted papers plus the previous pass's likely matches (score of at
    least SEED_THRESHOLD), repeated SEED_ROUNDS times. A paper never serves as evidence for
    itself (leave-one-out), rejected papers never do, and human decisions are never
@@ -28,17 +29,25 @@ from sqlalchemy.engine import Engine
 
 from tessera.config import Config
 from tessera.evidence import store
+from tessera.evidence.identifiers import propose_orcids
 from tessera.evidence.names import Match, Name, best_match, family_keys, key, make_name
 from tessera.evidence.orgmatch import OrgMatcher, emails_in
 from tessera.lake import Lake
 
 log = logging.getLogger("tessera.evidence.authorship")
 
-METHOD = "authorship/v1"
+# v1.1 adds ORCID works, curator-rejected iDs, deprecated iDs, and ORCID consistency across
+# a person's own papers to v1's hand-set weights.
+METHOD = "authorship/v1.1"
 WEIGHTS = {
     "prior": -1.5,
     "orcid_match": 8.0,
     "orcid_conflict": -8.0,
+    "orcid_rejected": -8.0,
+    "orcid_work": 6.0,
+    "orcid_consistent_one": 2.0,
+    "orcid_consistent": 3.0,
+    "orcid_inconsistent": -2.0,
     "email_match": 6.0,
     "org_affiliation": 2.5,
     "grant_link": 3.0,
@@ -78,9 +87,21 @@ GENERIC_VENUES = frozenset({
     "biorxiv", "medrxiv", "arxiv", "research square", "ssrn", "preprints", "sci rep",
     "plos one", "peerj", "f1000res", "cureus", "heliyon",
 })  # fmt: skip
-DIRECT_EVIDENCE = frozenset({"orcid_match", "email_match", "org_affiliation", "grant_link"})
+DIRECT_EVIDENCE = frozenset(
+    {"orcid_match", "orcid_work", "email_match", "org_affiliation", "grant_link"}
+)
+# A person's other papers show a predominant ORCID iD once it is on this many of them, and on
+# at least this share of those that carry any iD.
+PREDOMINANT_MIN = 3
+PREDOMINANT_SHARE = 0.8
 
-_ORDER = {"orcid_match": 0, "orcid_conflict": 0, "email_match": 1}
+_ORDER = {
+    "orcid_match": 0,
+    "orcid_conflict": 0,
+    "orcid_rejected": 0,
+    "orcid_work": 0,
+    "email_match": 1,
+}
 
 
 def sigmoid(value: float) -> float:
@@ -103,10 +124,21 @@ class Profile:
     grants: set[str] = field(default_factory=set)  # core project numbers
     serials: set[str] = field(default_factory=set)  # institute + serial
     earliest_year: int | None = None
+    # Works on the person's public ORCID records: PubMed ID or DOI -> (iD, who added it).
+    orcid_pmids: dict[str, tuple[str, str]] = field(default_factory=dict)
+    orcid_dois: dict[str, tuple[str, str]] = field(default_factory=dict)
 
     @property
     def orcids(self) -> set[str]:
         return self.person.ids("orcid")
+
+    @property
+    def rejected_orcids(self) -> set[str]:
+        return self.person.rejected_ids("orcid")
+
+    @property
+    def suggested_orcids(self) -> set[str]:
+        return self.person.suggested_ids("orcid")
 
     @property
     def emails(self) -> set[str]:
@@ -118,9 +150,10 @@ class Slot:
     pmid: str
     position: int
     name: Name
-    orcid: str | None
+    orcid: str | None  # as printed, or the iD that replaced it if the printed one is deprecated
     affiliations: list[str]
     author_count: int | None
+    printed_orcid: str | None = None
 
 
 @dataclass
@@ -128,6 +161,7 @@ class Paper:
     pmid: str
     year: int | None = None
     journal: str | None = None
+    doi: str | None = None
     mesh: set[str] = field(default_factory=set)
     cores: set[str] = field(default_factory=set)  # acknowledged grants (core numbers)
     serials: set[str] = field(default_factory=set)  # acknowledged grants (institute + serial)
@@ -157,6 +191,8 @@ class Seeds:
     mesh: Counter = field(default_factory=Counter)
     journals: Counter = field(default_factory=Counter)
     rejected_coauthors: Counter = field(default_factory=Counter)
+    orcids: Counter = field(default_factory=Counter)  # iDs printed at the person's positions
+    slot_orcids: dict[str, str] = field(default_factory=dict)  # pmid -> iD at that position
 
 
 def coauthor_key(name: Name | None) -> str | None:
@@ -213,8 +249,43 @@ def build_profiles(lake: Lake, people: list[store.PersonRecord]) -> list[Profile
     return profiles
 
 
+def orcid_aliases(lake: Lake) -> dict[str, str]:
+    """Deprecated ORCID iDs and the iDs that replaced them."""
+    rows = lake.rows(
+        "SELECT orcid, primary_orcid FROM orcid_record "
+        "WHERE status = 'deprecated' AND primary_orcid IS NOT NULL"
+    )
+    return {r["orcid"]: r["primary_orcid"] for r in rows}
+
+
+def attach_orcid_works(lake: Lake, profiles: list[Profile]) -> None:
+    """Index each person's public ORCID works by PubMed ID and DOI."""
+    owners: dict[str, list[Profile]] = defaultdict(list)
+    for profile in profiles:
+        for orcid in profile.orcids:
+            owners[orcid].append(profile)
+    if not owners:
+        return
+    cur = lake.cursor()
+    try:
+        cur.register("_orcids", pa.table({"orcid": pa.array(sorted(owners), pa.string())}))
+        rows = cur.execute(
+            "SELECT w.orcid, w.pmid, w.doi, w.source_name FROM orcid_work w "
+            "JOIN orcid_record r USING (orcid) JOIN _orcids USING (orcid) "
+            "WHERE r.status = 'public'"
+        ).fetchall()
+    finally:
+        cur.close()
+    for orcid, pmid, doi, source in rows:
+        for profile in owners[orcid]:
+            if pmid:
+                profile.orcid_pmids.setdefault(pmid, (orcid, source or "ORCID"))
+            if doi:
+                profile.orcid_dois.setdefault(doi.lower(), (orcid, source or "ORCID"))
+
+
 def candidate_slots(
-    lake: Lake, profiles: list[Profile]
+    lake: Lake, profiles: list[Profile], aliases: dict[str, str] | None = None
 ) -> dict[str, list[tuple[Profile, Slot, Match]]]:
     """Author positions whose name is compatible with one of each person's names."""
     index: dict[str, list[Profile]] = defaultdict(list)
@@ -249,7 +320,8 @@ def candidate_slots(
         name = make_name(fam, given, initials)
         if name is None:
             continue
-        slot = Slot(pmid, position, name, orcid, list(affiliations or []), count)
+        current = (aliases or {}).get(orcid, orcid) if orcid else None
+        slot = Slot(pmid, position, name, current, list(affiliations or []), count, orcid)
         seen: set[str] = set()
         for k in family_keys(fam):
             for profile in index.get(k, []):
@@ -269,11 +341,11 @@ def load_papers(lake: Lake, pmids: set[str]) -> dict[str, Paper]:
     cur = lake.cursor()
     try:
         cur.register("_pmids", pa.table({"pmid": pa.array(sorted(pmids), pa.string())}))
-        for pmid, year, journal in cur.execute(
-            "SELECT pmid, pub_year, coalesce(journal_abbrev, journal) FROM pubmed_article "
-            "JOIN _pmids USING (pmid)"
+        for pmid, year, journal, doi in cur.execute(
+            "SELECT pmid, pub_year, coalesce(journal_abbrev, journal), lower(doi) "
+            "FROM pubmed_article JOIN _pmids USING (pmid)"
         ).fetchall():
-            papers[pmid].year, papers[pmid].journal = year, journal
+            papers[pmid].year, papers[pmid].journal, papers[pmid].doi = year, journal, doi
         for pmid, descriptor in cur.execute(
             "SELECT pmid, descriptor FROM pubmed_mesh JOIN _pmids USING (pmid)"
         ).fetchall():
@@ -372,25 +444,51 @@ def score_candidate(
         ref,
     )
 
-    if slot.orcid and profile.orcids:
-        if slot.orcid in profile.orcids:
-            total += _feature(
-                f,
-                "orcid_match",
-                WEIGHTS["orcid_match"],
-                slot.orcid,
-                f"The author's ORCID iD on this paper ({slot.orcid}) is {person}'s",
-                ref,
-            )
-        else:
-            total += _feature(
-                f,
-                "orcid_conflict",
-                WEIGHTS["orcid_conflict"],
-                slot.orcid,
-                f"The author's ORCID iD on this paper ({slot.orcid}) belongs to someone else",
-                ref,
-            )
+    printed = slot.printed_orcid or slot.orcid
+    replaced = f", which replaced {printed}" if printed != slot.orcid else ""
+    if slot.orcid and slot.orcid in profile.orcids:
+        total += _feature(
+            f,
+            "orcid_match",
+            WEIGHTS["orcid_match"],
+            slot.orcid,
+            f"The author's ORCID iD on this paper ({slot.orcid}{replaced}) is {person}'s",
+            ref,
+        )
+    elif slot.orcid and slot.orcid in profile.rejected_orcids:
+        total += _feature(
+            f,
+            "orcid_rejected",
+            WEIGHTS["orcid_rejected"],
+            slot.orcid,
+            f"The author's ORCID iD on this paper ({slot.orcid}) was marked as not {person}'s",
+            ref,
+        )
+    elif slot.orcid and profile.orcids and slot.orcid not in profile.suggested_orcids:
+        # (an iD suggested for this very person is undecided: consistency evidence covers it)
+        total += _feature(
+            f,
+            "orcid_conflict",
+            WEIGHTS["orcid_conflict"],
+            slot.orcid,
+            f"The author's ORCID iD on this paper ({slot.orcid}) belongs to someone else",
+            ref,
+        )
+
+    listed = profile.orcid_pmids.get(paper.pmid) or (
+        profile.orcid_dois.get(paper.doi) if paper.doi else None
+    )
+    if listed:
+        orcid, source = listed
+        added = "" if source == "ORCID" else f" (added by {source})"
+        total += _feature(
+            f,
+            "orcid_work",
+            WEIGHTS["orcid_work"],
+            orcid,
+            f"{person}'s ORCID record ({orcid}) lists this paper{added}",
+            f"orcid:{orcid}",
+        )
 
     emails = {e for a in slot.affiliations for e in emails_in(a)}
     shared = sorted(emails & profile.emails)
@@ -547,7 +645,9 @@ def _seed_features(
             cosine = dot / (math.sqrt(norm_sq) * math.sqrt(len(paper.mesh)))
             weight = round(WEIGHTS["topic_fit_max"] * min(1.0, cosine), 3)
             if weight >= 0.1:
-                top = sorted(paper.mesh, key=lambda d: -(seeds.mesh[d] - (1 if own else 0)))[:3]
+                # ties broken by name, so the explanation is the same on every run
+                top = sorted(paper.mesh, key=lambda d: (-(seeds.mesh[d] - (1 if own else 0)), d))
+                top = top[:3]
                 total += _feature(
                     f,
                     "topic_fit",
@@ -556,6 +656,12 @@ def _seed_features(
                     "Topics overlap with this person's other papers: " + ", ".join(top),
                     ref,
                 )
+
+    # Only for iDs the decisive features leave open: none on record, or one suggested.
+    slot_orcid, profile = cand.slot.orcid, cand.profile
+    open_question = slot_orcid and slot_orcid not in profile.orcids | profile.rejected_orcids
+    if open_question and (not profile.orcids or slot_orcid in profile.suggested_orcids):
+        total += _consistency(f, slot_orcid, paper.pmid, seeds, ref)
 
     if (
         paper.journal
@@ -573,8 +679,50 @@ def _seed_features(
     return total
 
 
+def _consistency(f: list[dict[str, Any]], orcid: str, pmid: str, seeds: Seeds, ref: str) -> float:
+    """ORCID iDs printed on the person's other likely papers (for people with no iD on record).
+
+    The same iD elsewhere is good evidence. A different iD is weaker evidence against, since
+    some people have two iDs: it counts only when the person's other papers show one iD
+    clearly and never this one.
+    """
+    counts = Counter(seeds.orcids)
+    if seeds.slot_orcids.get(pmid):  # leave this paper out
+        counts[seeds.slot_orcids[pmid]] -= 1
+    same = counts[orcid]
+    if same > 0:
+        key = "orcid_consistent" if same >= 2 else "orcid_consistent_one"
+        papers = (
+            "1 of this person's other papers"
+            if same == 1
+            else (f"{same} of this person's other papers")
+        )
+        return _feature(
+            f, key, WEIGHTS[key], same, f"The same ORCID iD ({orcid}) is on {papers}", ref
+        )
+    with_ids = sum(v for v in counts.values() if v > 0)
+    if not with_ids:
+        return 0.0
+    top, top_count = counts.most_common(1)[0]
+    if top_count >= PREDOMINANT_MIN and top_count / with_ids >= PREDOMINANT_SHARE:
+        return _feature(
+            f,
+            "orcid_inconsistent",
+            WEIGHTS["orcid_inconsistent"],
+            top,
+            f"The author's ORCID iD here ({orcid}) differs from the one on {top_count} of this "
+            f"person's other papers ({top}); some people have two iDs",
+            ref,
+        )
+    return 0.0
+
+
 def _seeds(
-    pmids: set[str], rejected: set[str], papers: dict[str, Paper], positions: dict[str, int]
+    pmids: set[str],
+    rejected: set[str],
+    papers: dict[str, Paper],
+    positions: dict[str, int],
+    slot_orcids: dict[str, str] | None = None,
 ) -> Seeds:
     seeds = Seeds(papers=set(pmids))
     for pmid in pmids:
@@ -582,6 +730,9 @@ def _seeds(
         if not paper:
             continue
         own = positions.get(pmid)
+        if slot_orcids and (orcid := slot_orcids.get(pmid)):
+            seeds.orcids[orcid] += 1
+            seeds.slot_orcids[pmid] = orcid
         seeds.coauthors.update({k for p, k in paper.coauthors.items() if p != own})
         seeds.mesh.update(paper.mesh)
         if paper.journal:
@@ -605,6 +756,7 @@ class AuthorshipStats:
     unlikely: int = 0
     slot_conflicts: int = 0
     store: dict[str, int] = field(default_factory=dict)
+    identifiers: dict[str, int] = field(default_factory=dict)
 
     def to_json(self) -> dict[str, Any]:
         return dict(vars(self))
@@ -615,7 +767,8 @@ def resolve_authorship(
 ) -> AuthorshipStats:
     people = store.load_people(engine, ("active", "former"))
     profiles = build_profiles(lake, people)
-    found = candidate_slots(lake, profiles)
+    attach_orcid_works(lake, profiles)
+    found = candidate_slots(lake, profiles, orcid_aliases(lake))
     pmids = {slot.pmid for cands in found.values() for _, slot, _ in cands}
     papers = load_papers(lake, pmids)
     ambiguity = ambiguity_counts(found)
@@ -663,14 +816,42 @@ def resolve_authorship(
                 profile.earliest_year = earliest
 
     # Later passes: evidence from the person's other likely papers (leave-one-out).
+    last_seeds: dict[str, Seeds] = {}
     for _ in range(SEED_ROUNDS):
         for person_id, cands in candidates.items():
             likely = {c.slot.pmid for c in cands if c.score >= SEED_THRESHOLD}
             seed_pmids = (accepted[person_id] | likely) - rejected[person_id]
             positions = {c.slot.pmid: c.slot.position for c in cands}
-            seeds = _seeds(seed_pmids, rejected[person_id], papers, positions)
+            slot_orcids = {c.slot.pmid: c.slot.orcid for c in cands if c.slot.orcid}
+            seeds = _seeds(seed_pmids, rejected[person_id], papers, positions, slot_orcids)
+            last_seeds[person_id] = seeds
             for cand in cands:
                 score_candidate(cand, papers[cand.slot.pmid], matcher, ambiguity, seeds)
+
+    # ORCID iDs printed at the person's position on their likely papers, to suggest as theirs.
+    # "Likely" is judged without the ORCID features, so that decisions about one iD (and the
+    # consistency evidence) never decide whether another iD is proposed.
+    support: dict[str, Counter] = defaultdict(Counter)
+    for person_id, cands in candidates.items():
+        for cand in cands:
+            pmid = cand.slot.pmid
+            if not cand.slot.orcid or pmid in rejected[person_id]:
+                continue
+            orcid = sum(f["weight"] for f in cand.features if f["feature"].startswith("orcid"))
+            without = sigmoid(cand.total - orcid)
+            if pmid in accepted[person_id] or without >= config.evidence.strong_threshold:
+                support[person_id][cand.slot.orcid] += 1
+    proposals = propose_orcids(engine, support)
+    stats.identifiers = proposals.to_json()
+    # A new suggestion changes how that person's papers are read (a second iD is no longer a
+    # conflict), so their scores are refreshed now, with the same evidence from their other
+    # papers, rather than at the next resolve.
+    for person_id, orcid in proposals.added:
+        if person_id in candidates:
+            candidates[person_id][0].profile.person.suggested.setdefault("orcid", set()).add(orcid)
+    for person_id in sorted({p for p, _ in proposals.added} & set(candidates)):
+        for cand in candidates[person_id]:
+            score_candidate(cand, papers[cand.slot.pmid], matcher, ambiguity, last_seeds[person_id])
 
     # Author-position conflicts: one author position belongs to at most one person.
     by_slot: dict[tuple[str, int], list[Candidate]] = defaultdict(list)

@@ -30,7 +30,7 @@ An **assertion** is a typed, evidenced, reviewable link between two entities. Ev
 | `object_type`, `object_id` | e.g. `publication`, `pub:12345678` |
 | `qualifiers` | Predicate-specific detail: author position, role, date range |
 | `origin` | `source` (stated by a public record), `inferred` (computed by Tessera), or `human` (entered by a person) |
-| `method` | Rule or model that produced it, with a version, e.g. `authorship/v1` |
+| `method` | Rule or model that produced it, with a version, e.g. `authorship/v1.1` |
 | `score` | 0–1 confidence for inferred assertions; null otherwise |
 | `evidence` | List of evidence items (below) |
 | `status` | `suggested`, `accepted`, `rejected`, or `deferred` |
@@ -69,11 +69,11 @@ The ledger is relational and portable across SQLite and PostgreSQL. JSON fields 
 |---|---|---|
 | `person` | One row per real person | `id`, `display_name`, `family_name`, `given_name`, `status` (`active`, `former`, `candidate` for people discovered in the data, `dismissed` for candidates a curator judged not to be members), `created_at`, `updated_at` |
 | `person_name` | Name variants used for matching | `person_id`, `family`, `given`, `initials`, `kind` (`primary`, `variant`, `former`), `source` |
-| `person_identifier` | External IDs | `person_id`, `scheme` (`orcid`, `nih_profile`, `email`, `local`), `value`, `status`, `source` |
+| `person_identifier` | External IDs | `person_id`, `scheme` (`orcid`, `nih_profile`, `email`, `local`), `value`, `status` (`accepted`; `suggested`, when the evidence engine proposes an ORCID iD found on the person's papers; `rejected`, kept so it is never proposed again and counts as evidence against), `source` (`roster`, `reporter`, `pubmed`, `papers`, `curator`) |
 | `unit` | Organizational units | `id`, `name`, `kind`, `parent_id`, `code` |
 | `assertion` | All typed links (see above) | as above; unique on (`subject_id`, `predicate`, `object_id`, qualifier key) |
 | `curation_event` | Append-only decision log | `id`, `assertion_id`, `actor`, `action`, `from_status`, `to_status`, `note`, `at` |
-| `person_event` | Append-only log of decisions about people | `id`, `person_id`, `actor`, `action` (`promote`, `dismiss`, `undo`), `from_status`, `to_status`, `note`, `at`. Automation only ever promotes candidates, and discovery treats dismissed people as known, so a curator's decision is never reversed by a sync |
+| `person_event` | Append-only log of decisions about people | `id`, `person_id`, `actor`, `action` (`promote`, `dismiss`, `undo`, `identifier`), `from_status`, `to_status`, `note`, `at`, `detail` (for identifier decisions: scheme, value, and the action: add, accept, reject, or remove; the statuses are the identifier's). Migration 0003 added `identifier` and `detail`. Automation only ever promotes candidates, and discovery treats dismissed people as known, so a curator's decision is never reversed by a sync |
 | `ingest_run` | One row per connector or job run | `id`, `source`, `kind`, `started_at`, `finished_at`, `status`, `params`, `counts`, `error` |
 | `source_checkpoint` | Incremental watermarks | `source`, `scope`, `watermark`, `updated_at` |
 | `setting` | Runtime settings editable in the app | `key`, `value`, `updated_by`, `updated_at` |

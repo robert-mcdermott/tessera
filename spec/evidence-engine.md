@@ -44,7 +44,7 @@ For each active person, gather candidate publications from:
 1. The **affiliation sweep** results whose author name is compatible with the person.
 2. A **person search** in PubMed by name, over the sync window. PubMed author search is literal (`"Okafor, Ada"[fau]` does not find `"Okafor, Ada B"`), so each person's query ORs their full-name forms and two-letter initials (`"Okafor AB"[au]`). A lone initial (`"Okafor A"[au]`) is used only for people known by initials alone; in the live check it multiplied the fetched papers almost fivefold with nothing but noise. Batches of ten people are split when they match too much, and a name that still matches over 2,000 papers is skipped with a note (its papers come from the sweep and grant links). Adding people changes the query, so their full history is searched on the next sync.
 3. **Grant links:** publications linked to any grant the person is an investigator on.
-4. **ORCID works** *(wave 2)*.
+4. **ORCID works:** papers listed on the public ORCID records of a person's confirmed iDs. Those missing from the lake are fetched from PubMed by ID during sync.
 
 Retrieval recall is measured separately from scoring accuracy (see Evaluation). A paper that is never retrieved can never be suggested.
 
@@ -52,13 +52,19 @@ Retrieval recall is measured separately from scoring accuracy (see Evaluation). 
 
 Each (person, publication, author position) candidate gets a score from an **additive evidence model**: a sum of feature weights in log-odds, passed through a logistic function to give a 0–1 score. It is deliberately simple so that every point can be explained.
 
-### Features in `authorship/v1`
+### Features in `authorship/v1.1`
+
+Version 1.1 (wave 2) adds the ORCID features marked *v1.1* to v1's hand-set weights.
 
 | Feature | Fires when | Weight (log-odds) |
 |---|---|---|
 | Prior | Starting point for every candidate: a compatible name alone is weak evidence | −1.5 |
 | ORCID match | The author's ORCID equals the person's confirmed ORCID | +8.0 (decisive) |
-| ORCID conflict | The author has a *different* ORCID | −8.0 (decisive) |
+| ORCID conflict | The author has a *different* ORCID, and it is not one suggested for this person | −8.0 (decisive) |
+| ORCID rejected *(v1.1)* | The author's ORCID iD is one a curator marked as not this person's | −8.0 (decisive) |
+| ORCID works *(v1.1)* | The paper's PubMed ID or DOI is on the public ORCID record of one of the person's confirmed iDs | +6.0 |
+| ORCID consistency *(v1.1)* | For a person with no confirmed iD, or for an iD suggested for them: the same iD is printed at their position on their other likely papers (leave-one-out) | +2.0 for one paper, +3.0 for two or more |
+| ORCID inconsistency *(v1.1)* | Same conditions, but the person's other likely papers show one iD clearly (on at least 3 of them and 80% of those with any iD) and never this one. Weak, because some people have two iDs | −2.0 |
 | Email match | An email in the affiliation text matches a known email for the person | +6.0 |
 | Organization affiliation | The author's affiliation on this paper matches the organization profile | +2.5 |
 | Grant link | The paper acknowledges, or is linked to, a grant the person is an investigator on | +3.0 |
@@ -73,13 +79,19 @@ Each (person, publication, author position) candidate gets a score from an **add
 | Rejected-cluster signal | Coauthors mostly come from papers the person rejected | −1.0 to −2.0 |
 | Author-slot conflict | Another person is a stronger match for the same author slot | −4.0 |
 
-Weights in v1 are hand-set starting values. They are versioned with the method (`authorship/v1`), so every assertion records which weights produced it. Once enough local decisions exist, weights are fitted to them (a small logistic regression in pure Python, with no new dependencies) and released as `authorship/v2` with an evaluation report.
+A printed iD that ORCID has deprecated counts as the iD that replaced it.
+
+Weights in v1 and v1.1 are hand-set starting values. They are versioned with the method (`authorship/v1.1`), so every assertion records which weights produced it. Once enough local decisions exist, weights are fitted to them (a small logistic regression in pure Python, with no new dependencies) and released as `authorship/v2` with an evaluation report.
 
 ### Evidence feeds itself
 
 Scoring runs in passes. Pass 1 uses only direct evidence (ORCID, email, affiliation, grants, name, ambiguity). Later passes add evidence from the person's other papers (coauthors, topics, journals), taken from human-accepted papers plus the previous pass's likely matches (score ≥ 0.90), repeated twice. A paper never counts as evidence for itself (leave-one-out), and rejected papers never count for the person.
 
 Accepting a paper therefore strengthens later scores, and rejections teach the engine which coauthor clusters belong to *someone else*. Every resolve re-scores open suggestions; it never touches decided ones.
+
+### ORCID iDs: suggested, confirmed, rejected
+
+People rarely arrive with an ORCID iD on record (grant records carry none), so Tessera finds them on the papers. An iD printed at a person's author position on at least two of their likely papers (accepted, or strong on evidence *other than* ORCID, so that ORCID evidence never supports itself) becomes a **suggested** identifier. A curator confirms it on the profile; the engine never does. Confirmed iDs make the decisive features apply and have their public records read at the next sync. A **rejected** iD is kept, never suggested again, and counts against papers that carry it. A suggestion whose support disappears is withdrawn. An iD a curator gave to someone else is not suggested; an iD recorded for two people is flagged on both profiles (a likely duplicate, for the merge tools in wave 2).
 
 ### Bands and policy
 
@@ -132,6 +144,10 @@ Before any curator decisions existed, the pilot (a mid-sized research institute:
 | Precision at the review threshold | 97.9% (recall 95.8%) | ≥ 90% |
 
 Seven of the nine strong-band disagreements carry the person's grant acknowledgment and the organization's affiliation on that paper, with shared coauthors, and appear to be the same person under a second ORCID iD, a known weakness of this check. The other two sit just above the strong threshold on coauthor evidence alone for a short, common given name, and are genuine near misses. Two lessons for wave 2: ORCID consistency across a person's own papers is useful evidence the model does not use yet, provided it allows for people with more than one iD; and a short given name that many people share should weigh more heavily against a match.
+
+### ORCID evidence on the pilot (wave 2)
+
+Re-scoring the pilot with `authorship/v1.1`, before any iD was confirmed, suggested 49 ORCID iDs for 48 of the 70 members; one member has two. The strong band grew from 1,652 to 1,666 suggestions: 18 papers moved up into it, mostly where the iD on the paper matches the one on the person's other papers, and 4 moved down. All four are papers by a person with a short, common given name, matched on coauthors alone, the near misses the v0.1.0 check found; they now wait in the *possible* band for a curator. Because the new features read the same printed iDs that the v0.1.0 check used as labels, that check cannot judge them; the synthetic organization can. On it, strong-band precision stayed at 100% across eight worlds, recall in the strong band rose slightly, and false matches above the review threshold fell in the hardest world (namesakes in the same field) from 8 to 3. Confirming one iD on the pilot and reading its public record made 25 papers decisive matches and added 2 matches from the works list.
 
 ### Targets (to validate during the pilot)
 

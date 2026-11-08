@@ -10,6 +10,9 @@ import { show } from "./page.js";
 
 const PAGE = 50;
 const PERSON_ACTIONS = { promote: "Promoted", dismiss: "Dismissed", undo: "Undone" };
+const IDENTIFIER_ACTIONS = { add: "Added an identifier", accept: "Confirmed an identifier",
+  reject: "Marked an identifier as not theirs", remove: "Removed an identifier" };
+const SCHEMES = { orcid: "ORCID iD", email: "email", nih_profile: "NIH profile", local: "local ID" };
 const STATUS_WORDS = { accepted: "confirmed", rejected: "rejected", deferred: "deferred", suggested: "suggested",
   active: "active member", candidate: "awaiting a decision", dismissed: "dismissed", former: "former member" };
 const PREDICATES = { authored: "authored", investigator_on: "investigator on", official_of: "official of" };
@@ -29,12 +32,16 @@ export function decisions(main, ctx = {}) {
         const what = e.kind === "link"
           ? [subject, ` ${PREDICATES[e.predicate] ?? e.predicate} `,
             objectKind ? h("a", { href: entityHref(objectKind, e.object.id) }, e.object.label ?? e.object.id) : (e.object.label ?? e.object.id)]
+          : e.identifier ? [subject, ` · ${SCHEMES[e.identifier.scheme] ?? e.identifier.scheme} `,
+            h("span", { class: "mono" }, e.identifier.value)]
           : [subject];
-        const action = (e.kind === "person" ? PERSON_ACTIONS : ACTION_LABELS)[e.action] ?? e.action;
+        const action = e.identifier ? IDENTIFIER_ACTIONS[e.identifier.action] ?? e.identifier.action
+          : (e.kind === "person" ? PERSON_ACTIONS : ACTION_LABELS)[e.action] ?? e.action;
+        const word = (value) => STATUS_WORDS[value] ?? value ?? (e.identifier ? "not recorded" : "–");
         return h("tr", {},
           h("td", { class: "nowrap muted", title: date(e.at) }, relative(e.at)),
           h("td", {}, h("strong", {}, action),
-            h("div", { class: "subtle" }, `${STATUS_WORDS[e.from_status] ?? e.from_status ?? "–"} → ${STATUS_WORDS[e.to_status] ?? e.to_status}`)),
+            h("div", { class: "subtle" }, `${word(e.from_status)} → ${word(e.to_status)}`)),
           h("td", {}, h("div", {}, what), e.note ? h("div", { class: "subtle" }, `“${e.note}”`) : null),
           h("td", { class: "muted" }, e.actor),
           h("td", { class: "actions" }, e.kind === "link"

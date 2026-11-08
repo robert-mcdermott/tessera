@@ -6,8 +6,8 @@ Tessera suggests; people decide. Every link between a person and a paper starts 
 
 For each person, Tessera looks at every paper with a compatible author name and adds up evidence for and against a match. Each item of evidence carries a weight and a plain-language explanation, for example:
 
-- **For:** the author's ORCID iD matches the person's; an email at your domain; your organization in the affiliation; the paper acknowledges the person's grant; coauthors who also appear on the person's other papers; the full first name matches; the paper's topics fit the person's work; a journal they publish in.
-- **Against:** a different full first name or middle initial; the name is common (many people share it); the paper falls outside the person's career; another person in the directory is a better fit for the same author position.
+- **For:** the author's ORCID iD matches the person's; the paper is listed on the person's public ORCID record; the same ORCID iD appears on the person's other papers; an email at your domain; your organization in the affiliation; the paper acknowledges the person's grant; coauthors who also appear on the person's other papers; the full first name matches; the paper's topics fit the person's work; a journal they publish in.
+- **Against:** a different ORCID iD, or one you marked as not theirs; a different full first name or middle initial; the name is common (many people share it); the paper falls outside the person's career; another person in the directory is a better fit for the same author position.
 
 The total becomes a likelihood, shown as a percentage, and a band:
 
@@ -56,6 +56,19 @@ Select several people to promote or dismiss them together. The *Promoted* and *D
 - Every paper, grant, and study carries a status mark; select it to open the evidence and accept, reject, defer, or undo.
 - **Add a publication** attaches a paper the evidence engine missed, by its PubMed ID. Tessera fetches the paper from PubMed if needed and records it as confirmed, entered by you.
 - The **History** tab lists every decision about the person's links.
+- **Identifiers** lists the person's ORCID iDs and other identifiers, described in the next section.
+
+## ORCID iDs
+
+An ORCID iD is the strongest evidence Tessera has: a researcher's own identifier, printed on many papers. When an iD appears at a person's author position on at least two of their likely papers, Tessera suggests it on their profile, under **Identifiers**, with how many of their papers carry it and, once it has been read, what the public ORCID record says. Tessera never confirms an iD on its own.
+
+- **Confirm** makes the iD the person's. From the next sync, papers carrying it match decisively, papers listed on the person's ORCID record count as strong evidence (and are fetched from PubMed if Tessera lacks them), and papers carrying a *different* iD count against.
+- **Not theirs** keeps the iD on record as someone else's: it is never suggested again, and papers carrying it count against the person.
+- **Add** records an identifier you have checked yourself (an ORCID iD, an email, or a local ID).
+- Some people have two ORCID iDs. Each is suggested separately; confirm both. An iD suggested for the person is never treated as a conflict while it waits for a decision.
+- If an iD is recorded for two people, both profiles say so; one of the records is probably a duplicate.
+
+Every identifier decision appears in the decision log.
 
 ## The decision log
 

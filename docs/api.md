@@ -19,7 +19,7 @@ Like the web app, the API listens on this machine only until sign-in arrives.
 |---|---|
 | System | `GET /health`, `GET /meta` |
 | Search and overview | `GET /search` (everything, or one kind with facets), `GET /stats`, `GET /sources`, `GET /runs` |
-| People | `GET /people`, `GET /people/{id}`, and the person's `/publications`, `/grants`, `/studies`, and `/history`; `POST /people/{id}/publications` adds a paper by PubMed ID |
+| People | `GET /people`, `GET /people/{id}`, and the person's `/publications`, `/grants`, `/studies`, and `/history`; `POST /people/{id}/publications` adds a paper by PubMed ID; `POST /people/{id}/identifiers` adds, confirms, rejects, or removes an identifier |
 | Records | `GET /publications`, `/grants`, `/studies`, each with search and facets, and one record by its identifier with its connections and provenance |
 | Curation | `GET /assertions/{id}` (a link with its evidence and history), `POST /assertions/{id}/decision`, `POST /assertions/decisions` (one decision for many), `GET /review` (the queue), `POST /review/bulk`, `GET /decisions` (the log) |
 | Discovered people | `GET /candidates`, `POST /candidates/decisions` (promote, dismiss, or undo) |

@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import Counter
 from typing import Annotated, Any
 
+import pyarrow as pa
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -25,6 +26,7 @@ from tessera.api.common import (
     split_values,
 )
 from tessera.core.clock import utc_now
+from tessera.core.errors import TesseraError
 from tessera.core.ids import new_id
 from tessera.evidence import store
 from tessera.ledger.tables import (
@@ -72,6 +74,141 @@ def _person_row(request: Request, person_id: str) -> dict[str, Any]:
     return dict(row)
 
 
+def person_identifiers(
+    request: Request, person_id: str, authored: list[dict[str, Any]] | None = None
+) -> list[dict[str, Any]]:
+    """A person's identifiers, with what a curator needs to judge an ORCID iD.
+
+    For each iD: how many of the person's papers (confirmed or suggested) carry it at their
+    author position, what the public ORCID record says, and anyone else who holds it.
+    """
+    engine = engine_of(request)
+    with engine.connect() as conn:
+        rows = [
+            dict(r)
+            for r in conn.execute(
+                select(
+                    person_identifier.c.scheme,
+                    person_identifier.c.value,
+                    person_identifier.c.status,
+                    person_identifier.c.source,
+                )
+                .where(person_identifier.c.person_id == person_id)
+                .order_by(person_identifier.c.scheme, person_identifier.c.value)
+            ).mappings()
+        ]
+        values = [(r["scheme"], r["value"]) for r in rows]
+        others = conn.execute(
+            select(
+                person_identifier.c.scheme,
+                person_identifier.c.value,
+                person_identifier.c.status,
+                person.c.id,
+                person.c.display_name,
+            )
+            .join(person, person.c.id == person_identifier.c.person_id)
+            .where(
+                person_identifier.c.person_id != person_id,
+                person_identifier.c.status != "rejected",
+                person_identifier.c.value.in_([v for _, v in values] or [""]),
+            )
+        ).mappings()
+        also: dict[tuple[str, str], list[dict[str, str]]] = {}
+        for o in others:
+            if (o["scheme"], o["value"]) in values:
+                also.setdefault((o["scheme"], o["value"]), []).append(
+                    {"id": o["id"], "name": o["display_name"], "status": o["status"]}
+                )
+    orcids = [r["value"] for r in rows if r["scheme"] == "orcid"]
+    on_papers: Counter = Counter()
+    records: dict[str, dict[str, Any]] = {}
+    if orcids:
+        if authored is None:
+            authored = [
+                a
+                for a in store.assertions_for(engine, subject_id=person_id)
+                if a["predicate"] == "authored"
+            ]
+        slots = [
+            (a["object_id"].removeprefix("pub:"), int(a["qualifiers"]["author_position"]))
+            for a in authored
+            if a["status"] in ("accepted", "suggested")
+            and (a["qualifiers"] or {}).get("author_position") is not None
+        ]
+        lake = lake_of(request)
+        cur = lake.cursor()
+        try:
+            cur.register(
+                "_slots",
+                pa.table(
+                    {
+                        "pmid": pa.array([p for p, _ in slots], pa.string()),
+                        "position": pa.array([n for _, n in slots], pa.int16()),
+                    }
+                ),
+            )
+            cur.register("_orcids", pa.table({"orcid": pa.array(orcids, pa.string())}))
+            for orcid, count in cur.execute(
+                "SELECT a.orcid, count(*) FROM pubmed_author a JOIN _slots USING (pmid, position) "
+                "JOIN _orcids USING (orcid) GROUP BY a.orcid"
+            ).fetchall():
+                on_papers[orcid] = count
+            for orcid, status, given, family, works in cur.execute(
+                "SELECT r.orcid, r.status, r.given_names, r.family_name, "
+                "(SELECT count(*) FROM orcid_work w WHERE w.orcid = r.orcid) "
+                "FROM orcid_record r JOIN _orcids USING (orcid)"
+            ).fetchall():
+                name = " ".join(n for n in (given, family) if n) or None
+                records[orcid] = {"status": status, "name": name, "works": works}
+        finally:
+            cur.close()
+    out = []
+    for r in rows:
+        item = {**r, "also": also.get((r["scheme"], r["value"]), [])}
+        if r["scheme"] == "orcid":
+            item |= {
+                "url": f"https://orcid.org/{r['value']}",
+                "papers": on_papers[r["value"]],
+                "record": records.get(r["value"]),
+            }
+        out.append(item)
+    return out
+
+
+class IdentifierDecision(BaseModel):
+    scheme: str = Field("orcid", description="orcid, email, nih_profile, or local")
+    value: str = Field(min_length=1, max_length=320)
+    action: str = Field(description="add, accept, reject, or remove")
+    note: str | None = Field(None, max_length=2000)
+
+
+@router.post(
+    "/{person_id}/identifiers",
+    summary="Add, confirm, reject, or remove one of a person's identifiers (logged)",
+)
+def decide_identifier(request: Request, person_id: str, body: IdentifierDecision) -> dict[str, Any]:
+    """Confirming an ORCID iD makes it decisive evidence from the next resolve or sync, and
+    its public record is read at the next sync. A rejected iD is kept so that it is never
+    proposed again and counts against papers that carry it."""
+    _person_row(request, person_id)
+    config = config_of(request)
+    try:
+        result = store.decide_identifier(
+            engine_of(request),
+            person_id,
+            body.scheme,
+            body.value,
+            body.action,
+            config.server.operator,
+            body.note,
+        )
+    except store.InvalidIdentifier as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except TesseraError as exc:  # e.g. confirming an iD the person does not have
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return envelope({**result, "identifiers": person_identifiers(request, person_id)})
+
+
 @router.get("/{person_id}", summary="A person's profile, live from the ledger")
 def get_person(request: Request, person_id: str) -> dict[str, Any]:
     config = config_of(request)
@@ -89,20 +226,10 @@ def get_person(request: Request, person_id: str) -> dict[str, Any]:
                 ).where(person_name.c.person_id == person_id)
             ).mappings()
         ]
-        identifiers = [
-            dict(r)
-            for r in conn.execute(
-                select(
-                    person_identifier.c.scheme,
-                    person_identifier.c.value,
-                    person_identifier.c.status,
-                    person_identifier.c.source,
-                ).where(person_identifier.c.person_id == person_id)
-            ).mappings()
-        ]
         units = {r.id: r.name for r in conn.execute(select(unit.c.id, unit.c.name))}
     links = store.assertions_for(engine, subject_id=person_id)
     authored = [a for a in links if a["predicate"] == "authored"]
+    identifiers = person_identifiers(request, person_id, authored)
     counts: dict[str, Any] = {
         "publications": dict(Counter(a["status"] for a in authored)),
         "suggested_by_band": dict(

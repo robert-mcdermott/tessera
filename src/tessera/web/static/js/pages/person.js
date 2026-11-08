@@ -6,12 +6,12 @@ import { enumLabel, number, relative } from "../core/format.js";
 import { query, setQuery } from "../core/router.js";
 import { openDrawer, openEvidence } from "../components/drawer.js";
 import { toast } from "../components/toast.js";
+import { identifiersCard } from "../components/identifiers.js";
 import { grantItem, publicationItem, studyItem } from "../components/items.js";
-import { avatar, barChart, callout, card, emptyState, kv, pageHeader, pager, pill, segmented, statTile, tabs, topicChips } from "../components/ui.js";
+import { avatar, barChart, callout, card, emptyState, pageHeader, pager, pill, segmented, statTile, tabs, topicChips } from "../components/ui.js";
 import { show } from "./page.js";
 
 const LIMIT = 20;
-const SCHEMES = { orcid: "ORCID", nih_profile: "NIH profile", email: "Email", local: "Local ID" };
 
 export function person(main, params, { samePage = false } = {}) {
   const id = params.id;
@@ -102,8 +102,7 @@ export function person(main, params, { samePage = false } = {}) {
               { caption: "Papers per year (confirmed inside all likely papers)", height: 120 }),
             h("div", { class: "legend" }, h("span", {}, h("span", { class: "legend-swatch swatch-strong" }), "Confirmed"),
               h("span", {}, h("span", { class: "legend-swatch swatch-soft" }), "Likely")) ) }) : null,
-        card({ title: "Identifiers", pad: true, body: kv(profile.identifiers.map((i) => [SCHEMES[i.scheme] ?? i.scheme,
-          h("span", {}, i.value, h("span", { class: "subtle" }, ` · ${i.source}`))])) }),
+        identifiersCard(profile, refresh),
         profile.names.length > 1 ? card({ title: "Names in the data", pad: true,
           body: h("div", { class: "chips" }, profile.names.map((n) => h("span", { class: "chip chip-plain" }, `${n.given ? `${n.given} ` : ""}${n.family}`))) }) : null);
 

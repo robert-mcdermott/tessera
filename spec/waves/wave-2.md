@@ -2,7 +2,7 @@
 
 **Goal:** turn the graph into discovery: who works on what, who should meet, and why. Make the evidence stronger with ORCID, and let more than one person use Tessera, each with the right permissions.
 
-**Branch:** `wave-2` · **Target version:** `0.2.0` · **Status:** ◐ slice 1 in progress
+**Branch:** `wave-2` · **Target version:** `0.2.0` · **Status:** ◐ slice 1 done; slice 2 next
 
 ## Exit criteria
 
@@ -24,17 +24,17 @@ Requirements delivered: REC-02 (ORCID), REC-07, REC-08, CUR-05, CUR-06, CUR-10, 
 
 ---
 
-## Slice 1: ORCID ◐
+## Slice 1: ORCID ☑
 
 **Goal:** researcher-confirmed evidence. See [data-sources.md](../data-sources.md#orcid-wave-2) and [evidence-engine.md](../evidence-engine.md).
 
 - [x] ORCID connector: public records by iD (works with their PubMed IDs and DOIs, and employment), through the shared HTTP client with a rate limit, raw capture, and replay; parser to lake tables `orcid_record`, `orcid_work`, `orcid_employment`; deprecated, locked, and missing records kept as data. The public API needs no credentials
-- [ ] Which iDs are read: the accepted iDs of directory members, refreshed every 30 days (done); iDs carried by a person's accepted papers become identifier claims (to do), never the iDs of everyone who appears in PubMed
-- [ ] Evidence: the paper is in the person's ORCID works (strong); the paper's author carries an iD the person is known to have (strong); the author carries a different iD (against, unless the person is known to have more than one)
-- [ ] Identifier claims on profiles: add or remove an ORCID iD with a note; conflicting mappings (one iD on two people) are flagged (REC-02)
-- [ ] Evaluation without circularity: the ORCID-based check from v0.1.0 cannot judge ORCID features, so this slice is evaluated on the synthetic organization and on decisions made before the change
+- [x] Which iDs are read: the confirmed iDs of directory members, refreshed every 30 days, never the iDs of everyone who appears in PubMed; papers their records list are fetched from PubMed when missing
+- [x] Evidence (`authorship/v1.1`): the paper is on the person's ORCID record (+6.0); a curator-rejected iD (−8.0); the same iD on the person's other likely papers (+2.0 or +3.0) or a clearly different one (−2.0, weak, for people with two iDs); deprecated iDs count as their replacements; an iD suggested for the person is never a conflict
+- [x] Identifier claims: iDs on at least two of a person's likely papers (judged without ORCID evidence) are suggested, never confirmed automatically; curators confirm, reject, restore, add, or remove them on the profile, with a note; every decision is logged (migration 0003); an iD on two people is flagged on both (REC-02)
+- [x] Evaluation without circularity: the ORCID-based check from v0.1.0 cannot judge ORCID features, so this slice was evaluated on the synthetic organization (strong band still 100% precise across eight worlds; false matches above the review threshold in the hardest world fell from 8 to 3) and by reviewing every pilot suggestion that changed band
 
-**Acceptance:** ingest is idempotent and replayable like the other sources; evidence appears in the drawer with its source; the synthetic organization's strong band keeps 100% precision and recall does not fall.
+**Acceptance (met):** ingest is idempotent and replayable like the other sources; evidence appears in the drawer with its source; the synthetic organization's strong band keeps 100% precision and recall rose slightly. On the pilot, 49 iDs were suggested for 48 of 70 members, and confirming one made 25 papers decisive matches. Resolving twice changes nothing (a test checks it).
 
 ## Slice 2: People model ☐
 
@@ -114,3 +114,4 @@ Requirements delivered: REC-02 (ORCID), REC-07, REC-08, CUR-05, CUR-06, CUR-10, 
 |---|---|
 | 2026-11-07 | Wave planned. Before slice 1, a design review of the palettes led to three changes: record-type colors were moved clear of the status colors (a test now enforces at least 28° of hue between them in every palette and mode), Cassette's stripe became a thin sunset gradient with faint pinstripes in the hero, and grant charts gained a brighter gold fill. An organization's own palette, footer links, favicon, and social preview image were planned as the brand kit (PLT-13) for wave 3, with the public site. |
 | 2026-11-07 | ORCID's public API answers without credentials, so no credentials decision is needed. Tessera reads only directory members' iDs, at most four requests a second. |
+| 2026-11-08 | Slice 1 done. iDs are suggested from papers but only a curator confirms one, because a confirmed iD is decisive. Support for a suggestion is judged on evidence other than ORCID, so a decision about one iD never withdraws a person's second iD and ORCID evidence never supports itself. The model version is `authorship/v1.1` (hand-set weights); learned weights remain `authorship/v2` in slice 4. Found while testing: tied topics were listed in a random order in explanations, so every resolve rewrote hundreds of unchanged suggestions. |

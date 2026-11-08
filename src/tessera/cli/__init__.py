@@ -473,6 +473,12 @@ def _print_resolve(result) -> None:  # type: ignore[no-untyped-def]
             f"{a['strong']:,} strong, {a['possible']:,} possible, {a['unlikely']:,} unlikely "
             f"({stored.get('inserted', 0):,} new, {stored.get('updated', 0):,} updated)"
         )
+        ids = a.get("identifiers") or {}
+        if ids.get("proposed") or ids.get("withdrawn"):
+            print(
+                f"  ORCID iDs suggested from people's papers: {ids.get('proposed', 0):,} new, "
+                f"{ids.get('withdrawn', 0):,} withdrawn (confirm them on profiles)"
+            )
     for predicate, stats in counts.get("links", {}).items():
         if stats:
             total = stats.get("inserted", 0) + stats.get("updated", 0) + stats.get("unchanged", 0)

@@ -20,6 +20,7 @@ from datetime import date
 from typing import Any
 
 import httpx
+import pyarrow as pa
 from sqlalchemy.engine import Engine
 
 from tessera.config import Config
@@ -40,7 +41,8 @@ log = logging.getLogger("tessera.ingest")
 PUBLISH_EVERY = 25  # payloads between lake publishes, so interruptions lose little
 ICITE_REFRESH_DAYS = 30
 ORCID_REFRESH_DAYS = 30
-INGEST_ORDER = ("reporter", "ctgov", "pubmed", "pubmed:linked", "icite", "orcid")
+# ORCID comes before "linked", so that papers listed on members' ORCID records are fetched.
+INGEST_ORDER = ("reporter", "ctgov", "pubmed", "orcid", "pubmed:linked", "icite")
 
 
 @dataclass
@@ -115,7 +117,7 @@ def _resolve_ids(
     if source == "icite" and options.mode in {"auto", "refresh"}:
         ids = pmids_needing_metrics(home)
     elif source == "pubmed" and options.mode == "linked":
-        ids = linked_pmids_missing(home)
+        ids = linked_pmids_missing(home, engine)
     elif source == "orcid" and options.mode in {"auto", "refresh"}:
         ids = orcids_to_read(home, engine)
     else:
@@ -168,15 +170,26 @@ def people_terms(engine: Engine) -> list[tuple[str, str]]:
     return terms
 
 
-def linked_pmids_missing(home: DataHome) -> list[str]:
-    """PMIDs that grants or studies point to but that the lake doesn't have yet."""
+def linked_pmids_missing(home: DataHome, engine: Engine | None = None) -> list[str]:
+    """PMIDs that grants, studies, or members' ORCID records list but the lake doesn't have."""
+    from tessera.evidence.store import directory_orcids
+
+    orcids = directory_orcids(engine) if engine is not None else []
     with Lake(home.lake) as lake:
-        rows = lake.rows(
-            "SELECT pmid FROM (SELECT pmid FROM reporter_publication_link "
-            "UNION SELECT pmid FROM ctgov_reference) l "
-            "WHERE NOT EXISTS (SELECT 1 FROM pubmed_article a WHERE a.pmid = l.pmid) ORDER BY pmid"
-        )
-    return [r["pmid"] for r in rows]
+        cur = lake.cursor()
+        try:
+            cur.register("_orcids", pa.table({"orcid": pa.array(orcids, pa.string())}))
+            rows = cur.execute(
+                "SELECT pmid FROM (SELECT pmid FROM reporter_publication_link "
+                "UNION SELECT pmid FROM ctgov_reference "
+                "UNION SELECT w.pmid FROM orcid_work w JOIN _orcids USING (orcid) "
+                "WHERE w.pmid IS NOT NULL) l "
+                "WHERE NOT EXISTS (SELECT 1 FROM pubmed_article a WHERE a.pmid = l.pmid) "
+                "ORDER BY pmid"
+            ).fetchall()
+        finally:
+            cur.close()
+    return [r[0] for r in rows]
 
 
 def ingest(

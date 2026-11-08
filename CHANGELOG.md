@@ -6,6 +6,9 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 
 ### Added
 
+- ORCID iDs suggested from people's own papers: an iD printed at a person's author position on at least two of their likely papers is suggested on their profile, with how many papers carry it and what the public ORCID record says. Curators confirm it, mark it as not theirs, or add identifiers by hand; every decision is logged. An iD recorded for two people is flagged on both profiles. `POST /api/v1/people/{id}/identifiers`; ledger migration 0003.
+- ORCID evidence in authorship scoring (`authorship/v1.1`): papers listed on a person's public ORCID record (+6.0), iDs a curator rejected (−8.0, like a conflict), and the same iD on the person's other papers (+2.0 or +3.0) or a clearly different one (−2.0, weak, since some people have two iDs). Deprecated iDs count as the iD that replaced them; an iD suggested for the person is never a conflict. On the pilot, the strong band grew from 1,652 to 1,666 suggestions, and the near misses on a short, common name left it.
+- Papers listed on members' ORCID records are fetched from PubMed when the lake lacks them.
 - ORCID connector: the public records of directory members who have an ORCID iD (works with their PubMed IDs and DOIs, and employment), read without credentials, refreshed every 30 days, and part of `tessera sync`. Deprecated, locked, and missing records are kept as data. New lake tables `orcid_record`, `orcid_work`, and `orcid_employment`; a `[sources.orcid]` setting.
 
 ### Changed
@@ -17,6 +20,7 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 ### Fixed
 
 - Keyboard hints on buttons were faded below WCAG AA contrast; they are now full strength.
+- Resolving again rewrote hundreds of unchanged suggestions because tied topics were listed in a random order in their explanations; ties are now broken by name, and a second resolve changes nothing.
 
 ## 0.1.0 (2026-11-07)
 

@@ -2,7 +2,8 @@
 
 1. Fetch organization sweeps and linked records (grants, studies, PubMed sweep, linked papers).
 2. Resolve people (so they can be searched for by name).
-3. Search PubMed by person name, then fetch citation metrics and members' ORCID records.
+3. Read members' ORCID records, search PubMed by person name, fetch papers the ORCID
+   records list, then fetch citation metrics.
 4. Resolve everything: links, authorship suggestions, study officials.
 5. Rebuild the search and serving index.
 """
@@ -23,7 +24,7 @@ from tessera.jobs.build import build_search
 from tessera.jobs.ingest import RunResult, ingest_many
 
 FIRST = ("reporter", "ctgov", "pubmed", "pubmed:linked")
-SECOND = ("pubmed:people", "icite", "orcid")
+SECOND = ("orcid", "pubmed:people", "pubmed:linked", "icite")
 
 
 @dataclass

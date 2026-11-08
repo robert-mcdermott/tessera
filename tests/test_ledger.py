@@ -127,6 +127,22 @@ def _exercise(engine) -> None:  # type: ignore[no-untyped-def]
         conn.execute(
             insert(person_event).values(person_id=pid, actor="x", action="delete", at=_now())
         )
+    # 0003: identifier decisions, with their detail.
+    with engine.begin() as conn:
+        conn.execute(
+            insert(person_event).values(
+                person_id=pid,
+                actor="Operator",
+                action="identifier",
+                to_status="accepted",
+                detail={"scheme": "orcid", "value": "0000-0002-1825-0097", "action": "add"},
+                at=_now(),
+            )
+        )
+        detail = conn.execute(
+            select(person_event.c.detail).where(person_event.c.action == "identifier")
+        ).scalar()
+    assert detail["value"] == "0000-0002-1825-0097"
     migrate.downgrade(engine, "0001")
     with engine.connect() as conn:
         assert (

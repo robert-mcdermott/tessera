@@ -459,6 +459,61 @@
         }
       }
     },
+    "/api/v1/people/{person_id}/identifiers": {
+      "post": {
+        "tags": [
+          "people"
+        ],
+        "summary": "Add, confirm, reject, or remove one of a person's identifiers (logged)",
+        "description": "Confirming an ORCID iD makes it decisive evidence from the next resolve or sync, and\nits public record is read at the next sync. A rejected iD is kept so that it is never\nproposed again and counts against papers that carry it.",
+        "operationId": "decide_identifier_api_v1_people__person_id__identifiers_post",
+        "parameters": [
+          {
+            "name": "person_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Person Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdentifierDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Decide Identifier Api V1 People  Person Id  Identifiers Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/people/{person_id}": {
       "get": {
         "tags": [
@@ -2384,6 +2439,45 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "IdentifierDecision": {
+        "properties": {
+          "scheme": {
+            "type": "string",
+            "title": "Scheme",
+            "description": "orcid, email, nih_profile, or local",
+            "default": "orcid"
+          },
+          "value": {
+            "type": "string",
+            "maxLength": 320,
+            "minLength": 1,
+            "title": "Value"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action",
+            "description": "add, accept, reject, or remove"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "action"
+        ],
+        "title": "IdentifierDecision"
       },
       "ManualPublication": {
         "properties": {

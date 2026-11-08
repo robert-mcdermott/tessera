@@ -94,9 +94,9 @@ def test_ingest_all_sources(instance: Instance, engine, network: FakeApi) -> Non
         ("reporter", "org", "succeeded"),
         ("ctgov", "org", "succeeded"),
         ("pubmed", "org", "succeeded"),
+        ("orcid", "refresh", "succeeded"),
         ("pubmed", "linked", "succeeded"),
         ("icite", "refresh", "succeeded"),
-        ("orcid", "refresh", "succeeded"),
     ]
     with Lake(instance.home.lake) as lake:
         count = lambda t: lake.scalar(f'SELECT count(*) FROM "{t}"')  # noqa: E731
@@ -111,7 +111,7 @@ def test_ingest_all_sources(instance: Instance, engine, network: FakeApi) -> Non
             lake.scalar("SELECT _source_version FROM ctgov_study LIMIT 1") == "2025-11-06T09:00:00"
         )
     # Linked mode found nothing missing, because the sweep already fetched those papers.
-    assert results[3].plan.empty
+    assert results[4].plan.empty
     # Checkpoints for the organization sweeps, nothing for ID-based runs.
     for result in results[:3]:
         assert runs.get_checkpoint(engine, result.source, result.plan.scope) is not None
@@ -332,3 +332,23 @@ def test_orcid_reads_directory_members_only(instance: Instance, engine, network:
         assert lake.scalar("SELECT status FROM orcid_record") == "public"
     again = ingest(instance.config, instance.home, engine, "orcid", today=TODAY)
     assert again.plan.empty  # read recently; refreshed after the window
+
+
+def test_papers_listed_on_orcid_records_are_fetched(
+    instance: Instance, engine, network: FakeApi
+) -> None:  # type: ignore[no-untyped-def]
+    from tessera.evidence import store
+    from tessera.evidence.names import make_name
+    from tessera.jobs.ingest import linked_pmids_missing
+
+    member = "0000-0003-9000-0014"
+    record = orcid_record(member, works=({"pmid": "31000005"}, {"doi": "10.1000/no-pmid"}))
+    network.routes.update(orcid_api({member: record}).routes)
+    with engine.begin() as conn:
+        person = store.create_person(
+            conn, make_name("Example", "Avery", None), status="active", source="test"
+        )
+        store.add_identifier(conn, person, "orcid", member, source="roster")
+    ingest(instance.config, instance.home, engine, "orcid", today=TODAY)
+    assert linked_pmids_missing(instance.home, engine) == ["31000005"]
+    assert linked_pmids_missing(instance.home) == []  # without the directory, none
