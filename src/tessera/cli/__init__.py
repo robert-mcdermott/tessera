@@ -162,6 +162,12 @@ def build_parser() -> argparse.ArgumentParser:
     importer = people_actions.add_parser("import", help="import a roster CSV file")
     importer.add_argument("path", type=Path, help="CSV file with a header row")
     importer.set_defaults(handler=cmd_people_import)
+    people_public = people_actions.add_parser(
+        "public", help="give people a profile on the public site (or take it away)"
+    )
+    people_public.add_argument("groups", nargs="+", metavar="person", help="IDs (per_…)")
+    people_public.add_argument("--off", action="store_true", help="take the profiles away")
+    people_public.set_defaults(handler=cmd_public, what="person")
     lister = people_actions.add_parser("list", help="list people")
     lister.add_argument("--status", default="active", help="active | former | candidate | all")
     lister.add_argument("--limit", type=int, default=50, help="at most this many (default: 50)")
@@ -199,6 +205,12 @@ def build_parser() -> argparse.ArgumentParser:
         "attribute",
         help="suggest which papers are each group's own (also run by sync)",
     ).set_defaults(handler=cmd_groups_attribute)
+    group_public = groups_actions.add_parser(
+        "public", help="give groups a page on the public site (or take it away)"
+    )
+    group_public.add_argument("groups", nargs="+", help="addresses, codes, or IDs")
+    group_public.add_argument("--off", action="store_true", help="take the pages away")
+    group_public.set_defaults(handler=cmd_public, what="group")
     group_list = groups_actions.add_parser("list", help="list groups")
     group_list.add_argument("--kind", help="only groups of this kind")
     group_list.add_argument("--all", action="store_true", help="include archived groups")
@@ -222,6 +234,20 @@ def build_parser() -> argparse.ArgumentParser:
         "--dry-run", action="store_true", help="print the messages instead of sending them"
     )
     digest_send.set_defaults(handler=cmd_digest, send=True)
+
+    publish_cmd = commands.add_parser(
+        "publish",
+        help="write the public site: pages for the people and groups that opted in",
+        description="Write a static public site from an allowlisted projection: a page for "
+        "every person and group that opted in, with citations and links rather than "
+        "abstracts. The site is built and checked (structure, accessibility, links, and "
+        "colors) before it replaces the published one. Run it daily, after sync.",
+    )
+    publish_cmd.add_argument("--out", type=Path, help="where to write it ([publish] out)")
+    publish_cmd.add_argument(
+        "--check", action="store_true", help="build and check, but write nothing"
+    )
+    publish_cmd.set_defaults(handler=cmd_publish)
 
     users_cmd = commands.add_parser("users", help="local accounts and their roles")
     users_actions = users_cmd.add_subparsers(dest="users_command", metavar="ACTION", required=True)
@@ -403,6 +429,8 @@ def cmd_demo(args: argparse.Namespace) -> int:
         f"demo curator, {result['merged']:,} duplicate records merged."
     )
     print("Everyone and everything in it is invented.")
+    if result.get("public_site"):
+        print(f"Its public site: {result['public_site']}")
     print(f"Next: tessera --config {result['config']} serve")
     return EXIT_OK
 
@@ -895,6 +923,58 @@ def cmd_digest(args: argparse.Namespace) -> int:
         print(f"digest: sent {sent} {'message' if sent == 1 else 'messages'}")
     elif args.send and not args.dry_run:
         print("digest: nothing to send")
+    return EXIT_OK
+
+
+def cmd_publish(args: argparse.Namespace) -> int:
+    from tessera.publish import publish
+
+    config, home = _load(args)
+    engine = _engine(config)
+    try:
+        result = publish(config, home, engine, out=args.out, check_only=args.check)
+    finally:
+        engine.dispose()
+    for problem in result.problems[:30]:
+        print(f"  problem: {problem}")
+    for note in result.notes:
+        print(f"  note: {note}")
+    if result.problems:
+        print(f"publish: {len(result.problems)} problems; the published site was not changed")
+        return EXIT_ERROR
+    verb = "would write" if args.check else "wrote"
+    print(
+        f"publish: {verb} {result.pages} pages ({result.groups} groups, {result.people} people)"
+        + ("" if args.check else f" to {result.out}")
+    )
+    return EXIT_OK
+
+
+def cmd_public(args: argparse.Namespace) -> int:
+    from sqlalchemy import update
+
+    from tessera.groups import store as groups
+    from tessera.ledger.tables import person, unit
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    changed = 0
+    try:
+        with engine.begin() as conn:
+            for ref in args.groups:
+                if args.what == "group":
+                    gid = groups.resolve(conn, ref)["id"]
+                    query = update(unit).where(unit.c.id == gid)
+                else:
+                    query = update(person).where(person.c.id == ref)
+                changed += conn.execute(query.values(public=not args.off)).rowcount or 0
+    finally:
+        engine.dispose()
+    if changed < len(args.groups):
+        print(f"{args.what}: {len(args.groups) - changed} not found")
+        return EXIT_PARTIAL
+    state = "off" if args.off else "on"
+    print(f"{args.what}: public pages {state} for {changed}")
     return EXIT_OK
 
 

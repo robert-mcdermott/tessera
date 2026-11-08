@@ -226,6 +226,19 @@ usage: tessera people import [-h] path
 |---|---|
 | `path` | CSV file with a header row |
 
+### `tessera people public`
+
+Give people a profile on the public site (or take it away).
+
+```text
+usage: tessera people public [-h] [--off] person [person ...]
+```
+
+| Argument | Meaning |
+|---|---|
+| `person` | IDs (per_…) |
+| `--off` | take the profiles away |
+
 ### `tessera people list`
 
 List people.
@@ -272,6 +285,19 @@ Suggest which papers are each group's own (also run by sync).
 usage: tessera groups attribute [-h]
 ```
 
+### `tessera groups public`
+
+Give groups a page on the public site (or take it away).
+
+```text
+usage: tessera groups public [-h] [--off] groups [groups ...]
+```
+
+| Argument | Meaning |
+|---|---|
+| `groups` | addresses, codes, or IDs |
+| `--off` | take the pages away |
+
 ### `tessera groups list`
 
 List groups.
@@ -317,6 +343,21 @@ usage: tessera digest send [-h] [--account ACCOUNT] [--dry-run]
 |---|---|
 | `--account ACCOUNT` | only this account (username) |
 | `--dry-run` | print the messages instead of sending them |
+
+## `tessera publish`
+
+Write the public site: pages for the people and groups that opted in.
+
+Write a static public site from an allowlisted projection: a page for every person and group that opted in, with citations and links rather than abstracts. The site is built and checked (structure, accessibility, links, and colors) before it replaces the published one. Run it daily, after sync.
+
+```text
+usage: tessera publish [-h] [--out OUT] [--check]
+```
+
+| Argument | Meaning |
+|---|---|
+| `--out OUT` | where to write it ([publish] out) |
+| `--check` | build and check, but write nothing |
 
 ## `tessera users`
 

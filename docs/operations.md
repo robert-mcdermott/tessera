@@ -41,6 +41,12 @@ Send the weekly digest of pending work (each group's inbox, and the review queue
 0 7 * * 1 cd /srv/tessera && /usr/local/bin/uv run tessera --quiet digest send
 ```
 
+Publish the public site after each sync, so openings that closed leave it and new decisions appear (see [The public site](public-site.md)):
+
+```cron
+30 3 * * * cd /srv/tessera && /usr/local/bin/uv run tessera --quiet publish
+```
+
 `tessera digest show` prints the digests instead, and `tessera digest send --dry-run` prints the messages it would send.
 
 `uv run tessera runs` lists recent runs with their status and counts. A run that ends *partial* fetched some but not all of its batches; the next sync retries from the last complete checkpoint, so nothing is skipped.

@@ -1144,6 +1144,60 @@
         }
       }
     },
+    "/api/v1/people/{person_id}/public": {
+      "post": {
+        "tags": [
+          "people"
+        ],
+        "summary": "Give the person a public profile, or take it away",
+        "operationId": "set_public_api_v1_people__person_id__public_post",
+        "parameters": [
+          {
+            "name": "person_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Person Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Set Public Api V1 People  Person Id  Public Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/experts": {
       "get": {
         "tags": [
@@ -5291,6 +5345,60 @@
           }
         }
       }
+    },
+    "/api/v1/groups/{group_ref}/public": {
+      "post": {
+        "tags": [
+          "groups"
+        ],
+        "summary": "Give the group a public page, or take it away",
+        "operationId": "set_group_public_api_v1_groups__group_ref__public_post",
+        "parameters": [
+          {
+            "name": "group_ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group Ref"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupPublicIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Set Group Public Api V1 Groups  Group Ref  Public Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5868,6 +5976,20 @@
         ],
         "title": "GroupIn"
       },
+      "GroupPublicIn": {
+        "properties": {
+          "public": {
+            "type": "boolean",
+            "title": "Public",
+            "description": "Whether the group has a page on the public site"
+          }
+        },
+        "type": "object",
+        "required": [
+          "public"
+        ],
+        "title": "GroupPublicIn"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -6347,6 +6469,20 @@
           "action"
         ],
         "title": "PersonDecisions"
+      },
+      "PublicIn": {
+        "properties": {
+          "public": {
+            "type": "boolean",
+            "title": "Public",
+            "description": "Whether the person has a profile on the public site"
+          }
+        },
+        "type": "object",
+        "required": [
+          "public"
+        ],
+        "title": "PublicIn"
       },
       "RemovalIn": {
         "properties": {

@@ -66,6 +66,8 @@ person = Table(
     Column("created_at", UtcDateTime, nullable=False),
     Column("updated_at", UtcDateTime, nullable=False),
     Column("merged_into", ID, ForeignKey("person.id", ondelete="SET NULL")),
+    # Opted in to a page on the public site (tessera publish).
+    Column("public", Boolean, nullable=False, server_default=false()),
     CheckConstraint(_in("status", PERSON_STATUSES), name="status"),
 )
 Index(None, person.c.family_name)
@@ -126,6 +128,7 @@ unit = Table(
     Column("merged_into", ID, ForeignKey("unit.id", ondelete="SET NULL")),
     Column("source", String(40), nullable=False, server_default="manual"),
     Column("external_id", String(200)),
+    Column("public", Boolean, nullable=False, server_default=false()),  # on the public site
     Column("created_at", UtcDateTime, nullable=False),
     Column("updated_at", UtcDateTime, nullable=False),
     UniqueConstraint("source", "external_id"),

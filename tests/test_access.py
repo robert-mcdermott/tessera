@@ -203,6 +203,7 @@ HARMLESS: dict[tuple[str, str], Any] = {
     ("POST", "/api/v1/merges/{merge_id}/undo"): {},
     ("POST", "/api/v1/accounts"): {"username": "x"},
     ("POST", "/api/v1/groups"): {"name": ""},
+    ("POST", "/api/v1/people/{person_id}/public"): {"public": "maybe"},
     ("POST", "/api/v1/groups/{group_ref}/page/draft"): {"blocks": "not a list"},
     ("POST", "/api/v1/groups/{group_ref}/page/rollback"): {"revision": 0},
     ("POST", "/api/v1/groups/{group_ref}/publications/decisions"): {

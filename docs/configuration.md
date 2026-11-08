@@ -179,3 +179,14 @@ sender = "Tessera <tessera@example.edu>"
 base_url = "https://tessera.example.edu"
 ```
 
+## `[publish]`
+
+The static public site (`tessera publish`); see [The public site](public-site.md).
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `out` | path | `<data home>/public` | Where the site is written |
+| `base_url` | address | empty | Where it is served, such as `https://research.example.edu`; needed for the sitemap and canonical links |
+| `title` | text | the organization's name | The site's title |
+| `intro` | text | empty | A sentence or two for the home page (at most 1,000 characters) |
+

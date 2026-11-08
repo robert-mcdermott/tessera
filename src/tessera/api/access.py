@@ -128,6 +128,8 @@ POLICIES: dict[tuple[str, str], Level] = {
     ("GET", "/api/v1/groups/{group_ref}/inbox"): Level.MANAGE,
     ("POST", "/api/v1/groups/{group_ref}/inbox/reviewed"): Level.MANAGE,
     ("GET", "/api/v1/inbox"): Level.MANAGE,
+    ("POST", "/api/v1/groups/{group_ref}/public"): Level.MANAGE,
+    ("POST", "/api/v1/people/{person_id}/public"): Level.REVIEW,
     ("GET", "/api/v1/accounts"): Level.ADMIN,
     ("POST", "/api/v1/accounts"): Level.ADMIN,
     ("POST", "/api/v1/accounts/{account_id}"): Level.ADMIN,

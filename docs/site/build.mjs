@@ -24,7 +24,7 @@ const SITE = "https://robert-mcdermott.github.io/tessera/"; // where the site is
 // Reading order, in groups. Each guide becomes a page of the same name.
 export const MENU = [
   ["Start", [["index", "Overview"], ["getting-started", "Getting started"], ["organization-profile", "Describing your organization"]]],
-  ["Use", [["curation", "Curating"], ["discovery", "Finding experts"], ["groups", "Groups"]]],
+  ["Use", [["curation", "Curating"], ["discovery", "Finding experts"], ["groups", "Groups"], ["public-site", "The public site"]]],
   ["Run", [["configuration", "Configuration"], ["operations", "Running Tessera"]]],
   ["Reference", [["api", "The API"], ["api-reference", "API reference"], ["cli", "Command reference"], ["changelog", "Changelog"]]],
 ];

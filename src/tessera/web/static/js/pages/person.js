@@ -68,6 +68,7 @@ export function person(main, params, { samePage = false } = {}) {
           suggested ? h("a", { class: "btn", href: `/review?person=${encodeURIComponent(profile.id)}` }, icon("review", "icon icon-sm"), "Review suggestions") : null,
           h("button", { type: "button", class: "btn", onclick: () => addPublication(profile, refresh) }, icon("publication", "icon icon-sm"), "Add a publication"),
           can("curate_any") ? h("button", { type: "button", class: "btn btn-ghost", onclick: () => mergeWith(profile, refresh) }, icon("layers", "icon icon-sm"), "Merge…") : null,
+          publicToggle(`/api/v1/people/${profile.id}/public`, profile.public, "profile", refresh),
         ] : null,
       });
       const mergedNote = profile.merged_into ? h("div", { class: "callout callout-warn", role: "note" },
@@ -394,3 +395,21 @@ function showProfile(profile, concepts, areas = [], meshYear = null) {
     },
   });
 }
+
+/** A switch for whether a person or group has a page on the public site (tessera publish). */
+export function publicToggle(path, isPublic, noun, refresh) {
+  return h("label", { class: "row-sm public-toggle", title: `Whether ${noun === "profile" ? "this person has a profile" : "this group has a page"} on the public site` },
+    h("input", { type: "checkbox", checked: Boolean(isPublic), onchange: async (event) => {
+      const on = event.target.checked;
+      try {
+        await post(path, { public: on });
+      } catch (error) {
+        event.target.checked = !on;
+        toast(error.detail || "That did not work.");
+        return;
+      }
+      toast(on ? `The public site will show this ${noun} from its next publication.` : `This ${noun} leaves the public site at its next publication.`);
+      refresh?.();
+    } }), `Public ${noun}`);
+}
+

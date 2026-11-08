@@ -74,6 +74,7 @@ def _view(
         "email": row["email"],
         "website": row["website"],
         "status": row["status"],
+        "public": bool(row.get("public")),
         "source": row["source"],
         "external_id": row["external_id"],
         "parents": [{**p, "kind_label": vocabulary.kind_label(p["kind"])} for p in parents],
@@ -1015,3 +1016,21 @@ def inbox_reviewed(request: Request, group_ref: str) -> dict[str, Any]:
 @router.get("/inbox", summary="Your digest: pending work in your groups and review queues")
 def my_digest(request: Request) -> dict[str, Any]:
     return envelope(inbox.digest(engine_of(request), principal_of(request), config_of(request)))
+
+
+class GroupPublicIn(BaseModel):
+    public: bool = Field(description="Whether the group has a page on the public site")
+
+
+@router.post("/groups/{group_ref}/public", summary="Give the group a public page, or take it away")
+def set_group_public(request: Request, group_ref: str, body: GroupPublicIn) -> dict[str, Any]:
+    from sqlalchemy import update
+
+    actor = principal_of(request).name
+    with engine_of(request).begin() as conn:
+        row = _resolve(conn, group_ref)
+        _require_edit(request, row["id"])
+        if bool(row["public"]) != body.public:
+            conn.execute(update(unit).where(unit.c.id == row["id"]).values(public=body.public))
+            store._event(conn, row["id"], actor, "public_on" if body.public else "public_off")
+    return envelope({"id": row["id"], "public": body.public})

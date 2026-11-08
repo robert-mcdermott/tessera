@@ -71,6 +71,8 @@ ignore = [
 "src/tessera/demo/**" = ["S311"]
 "src/tessera/demo/content.py" = ["E501"]
 "src/tessera/demo/mesh.py" = ["E501"]
+# The public site's HTML and CSS read best a line at a time; the dashes are typography.
+"src/tessera/publish/**" = ["E501", "RUF001"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

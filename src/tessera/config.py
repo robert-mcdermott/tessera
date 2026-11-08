@@ -141,6 +141,16 @@ class DiscoveryConfig:
 
 
 @dataclass(frozen=True)
+class PublishConfig:
+    """The static public site (tessera publish)."""
+
+    out: Path | None = None  # where the site is written; <data home>/public when unset
+    base_url: str = ""  # where it is served, for the sitemap, canonical links, and previews
+    title: str = ""  # the site's title; the organization's name when empty
+    intro: str = ""  # a sentence or two for the home page
+
+
+@dataclass(frozen=True)
 class MailConfig:
     """An SMTP server for digests (CUR-08). Without a host, digests stay in the app."""
 
@@ -227,6 +237,7 @@ class Config:
     discovery: DiscoveryConfig = field(default_factory=DiscoveryConfig)
     vocabulary: VocabularyConfig = field(default_factory=VocabularyConfig)
     mail: MailConfig = field(default_factory=MailConfig)
+    publish: PublishConfig = field(default_factory=PublishConfig)
     path: Path | None = None  # the file this configuration was loaded from
 
     @property
@@ -248,9 +259,15 @@ _SECTIONS: dict[str, type] = {
     "discovery": DiscoveryConfig,
     "vocabulary": VocabularyConfig,
     "mail": MailConfig,
+    "publish": PublishConfig,
 }
 _SOURCE_NAMES = ("pubmed", "icite", "reporter", "ctgov", "orcid", "mesh")
-_PATH_FIELDS = {("data", "home"), ("branding", "logo_light"), ("branding", "logo_dark")}
+_PATH_FIELDS = {
+    ("data", "home"),
+    ("branding", "logo_light"),
+    ("branding", "logo_dark"),
+    ("publish", "out"),
+}
 
 
 def example_config_text() -> str:
@@ -510,7 +527,8 @@ def _resolve_paths(config: Config, base_dir: Path) -> Config:
         logo_light=resolve(config.branding.logo_light),
         logo_dark=resolve(config.branding.logo_dark),
     )
-    return replace(config, data=data, branding=branding)
+    publish = replace(config.publish, out=resolve(config.publish.out))
+    return replace(config, data=data, branding=branding, publish=publish)
 
 
 def validate(config: Config) -> list[str]:
@@ -598,6 +616,10 @@ def validate(config: Config) -> list[str]:
             problems.append("mail.ssl and mail.starttls are alternatives; set one")
     if mail.base_url and not re.match(r"^https?://", mail.base_url):
         problems.append("mail.base_url must start with http:// or https://")
+    if config.publish.base_url and not re.match(r"^https?://", config.publish.base_url):
+        problems.append("publish.base_url must start with http:// or https://")
+    if len(config.publish.intro) > 1000:
+        problems.append("publish.intro is at most 1,000 characters")
     return problems
 
 

@@ -317,6 +317,7 @@ def get_person(request: Request, person_id: str) -> dict[str, Any]:
             "identifiers": identifiers,
             "units": memberships,
             "merged_into": merged_into,
+            "public": bool(row.get("public")),
             "merged": [m for m in merges if m["survivor_id"] == person_id],
             "can_curate": principal_of(request).can_curate(engine, person_id),
             "counts": counts,
@@ -540,3 +541,20 @@ def person_history(
 
 
 __all__ = ["router"]
+
+
+class PublicIn(BaseModel):
+    public: bool = Field(description="Whether the person has a profile on the public site")
+
+
+@router.post("/{person_id}/public", summary="Give the person a public profile, or take it away")
+def set_public(request: Request, person_id: str, body: PublicIn) -> dict[str, Any]:
+    from sqlalchemy import update
+
+    row = _person_row(request, person_id)
+    require_curate(request, person_id)
+    if row["status"] not in ("active", "former"):
+        raise HTTPException(status_code=409, detail="Only people in the directory have profiles.")
+    with engine_of(request).begin() as conn:
+        conn.execute(update(person).where(person.c.id == person_id).values(public=body.public))
+    return envelope({"id": person_id, "public": body.public})

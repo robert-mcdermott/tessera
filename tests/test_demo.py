@@ -189,3 +189,53 @@ def test_inbox_themes_and_openings(demo) -> None:  # type: ignore[no-untyped-def
     assert client.post(f"/api/v1/groups/{lab['id']}/inbox/reviewed").status_code == 200
     again = client.get(f"/api/v1/groups/{lab['id']}/inbox").json()["data"]
     assert again["counts"]["roster"] == 0
+
+
+def test_the_public_site_shows_only_what_it_may(demo) -> None:  # type: ignore[no-untyped-def]
+    result, _ = demo
+    site = Path(result["public_site"]).parent
+    pages = {p.relative_to(site).as_posix(): p.read_text("utf-8") for p in site.rglob("*.html")}
+    assert "index.html" in pages and "groups/cancer-immunotherapy-program/index.html" in pages
+    everything = "\n".join(pages.values())
+    world = build_world(today=TODAY)
+    # Citations and links, never abstracts; no one's email address; no internal IDs.
+    assert not any(r["abstract"][:80] in everything for r in world.pubmed if r.get("abstract"))
+    assert not any(p.email in everything for p in world.people if p.email)
+    assert "per_" not in everything and "unt_" not in everything
+    assert "pubmed.ncbi.nlm.nih.gov" in everything and "doi.org/10.5555" in everything
+    program = pages["groups/cancer-immunotherapy-program/index.html"]
+    assert "Postdoctoral fellow in cell therapy" in program  # an open opening
+    assert "Engineered T cells for solid tumors" in program  # a theme
+    assert '<script type="application/ld+json">' in program and "<script>" not in program
+    assert not (site / "sitemap.xml").exists()  # no base_url, no sitemap
+
+
+def test_publishing_checks_before_replacing(demo, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
+    import dataclasses
+
+    from tessera.home import DataHome
+    from tessera.ledger.db import make_engine
+    from tessera.publish import publish
+
+    result, _ = demo
+    config = load_config(Path(result["config"]), env={})
+    engine = make_engine(config.ledger_url)
+    try:
+        out = tmp_path / "site"
+        published = dataclasses.replace(config, publish=dataclasses.replace(
+            config.publish, base_url="https://research.corvane.example"))  # fmt: skip
+        good = publish(published, DataHome(config.data.home), engine, out=out, today=TODAY)
+        assert good.written and not good.problems
+        sitemap = (out / "sitemap.xml").read_text()
+        assert "<loc>https://research.corvane.example/groups/</loc>" in sitemap
+        assert 'rel="canonical" href="https://research.corvane.example/"' in (
+            out / "index.html").read_text()  # fmt: skip
+        # Yellow links on white fail WCAG AA: the build stops and the site stays as it was.
+        before = (out / "index.html").read_text()
+        garish = dataclasses.replace(published, branding=dataclasses.replace(
+            config.branding, accent_color="#ffff00"))  # fmt: skip
+        bad = publish(garish, DataHome(config.data.home), engine, out=out, today=TODAY)
+        assert not bad.written and any("links on the page" in p for p in bad.problems)
+        assert (out / "index.html").read_text() == before
+    finally:
+        engine.dispose()

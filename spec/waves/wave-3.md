@@ -2,7 +2,7 @@
 
 **Goal:** give groups (labs, programs, divisions, centers, and others) a living home that their own representatives maintain, open a public window onto them, and deepen topics with the MeSH hierarchy.
 
-**Branch:** `wave-3` · **Target version:** `0.3.0` · **Status:** ◐ slices 1 to 5 done; slice 6 next
+**Branch:** `wave-3` · **Target version:** `0.3.0` · **Status:** ◐ slices 1 to 6 done; slice 7 next
 
 ## Exit criteria
 
@@ -79,10 +79,12 @@ Requirements delivered: LAB-01 to LAB-08, PLT-07, PLT-11, PLT-13, CUR-08, and th
 
 **Acceptance (met):** an opening disappears from its group's page the day after it closes without anyone touching it; a membership added by an import shows in the group's inbox until someone marks it reviewed; a manager's digest lists only their group and its counts; `tessera digest send` sends one message per person through the configured server with STARTTLS and a password from the environment; the demo program has two themes and two openings, one closing within two weeks.
 
-## Slice 6: The public site ☐
+## Slice 6: The public site ☑
 
-- [ ] `tessera publish` writes a static site from an allowlisted projection (PLT-07): public profiles and group pages; people and groups opt in; citations and links, not abstracts
-- [ ] Sitemap, page metadata, and accessibility checks; served by any web server
+- [x] `tessera publish` writes a static site from an allowlisted projection (PLT-07): public profiles and group pages; people and groups opt in; citations and links, not abstracts
+- [x] Sitemap, page metadata, and accessibility checks; served by any web server
+
+**Acceptance (met):** the demo publishes 31 groups and the people with confirmed papers; no abstract, person's email address, or internal ID appears in any page; every page passes the checks; a palette whose links fail AA stops the build and leaves the published site untouched; with a base URL the site has a sitemap and canonical links. See [public-site.md](../../docs/public-site.md).
 
 ## Slice 7: Brand kit ☐
 
@@ -101,6 +103,7 @@ Requirements delivered: LAB-01 to LAB-08, PLT-07, PLT-11, PLT-13, CUR-08, and th
 
 | Date | Note |
 |---|---|
+| 2026-11-09 | Slice 6 done. The public site is plain generated HTML with no scripts, so there is nothing to keep patched and nothing that can run on a reader's machine; it follows light or dark by media query rather than a switch. The projection names every field it publishes (an allowlist), and the tests search every page for abstracts, people's email addresses, and internal IDs. Only confirmed papers are published, even though the app counts strong suggestions as likely: a public claim needs a person's decision behind it. A failed check leaves the old site in place (the new one is built beside it and swapped in). Openings expire on their dates, so the site must be republished daily, documented next to the sync. |
 | 2026-11-09 | Slice 5 done. The inbox is computed, not stored: what is waiting is read from the ledger each time, and the only thing kept is when each group was last reviewed. Papers and openings stay in the inbox until decided; grants and roster changes count from the last review, so marking a week reviewed is cheap and nothing is lost. Digests use the same code in the app and by email. Email is plain text through any SMTP server, sent by a command run from cron rather than a scheduler inside the app, like sync. |
 | 2026-11-09 | Slice 4 done. Access levels gained MANAGE (below REVIEW) so that a manager reaches group routes without the review queue; each handler still checks the group. Blocks are settings, not HTML: about and news are plain paragraphs, links must be http(s), and featured papers are PubMed IDs, so a page can carry no markup into the app or the public site. Restoring a version publishes it again as a new version rather than rewinding, so the history only grows. Page drafts are per group, not per editor: two managers of one group share a draft, and the last save wins (with who and when shown), which is simple and enough for groups with one or two editors. |
 | 2026-11-09 | Slice 3 done. Attribution is a separate link because membership and authorship together are not enough: a PI's collaborations and a postdoc's earlier work are not the lab's. Every attribution is decided by a person, so the score only orders suggestions and is kept simple (additive, documented in the guide); a learned model can wait for decisions to learn from. Divisions and departments are not attributable by default, and "writes most with" lists only attributable kinds, because a division would claim, and work with, everything. The graph's collaboration communities became "clusters" so that "group" means one thing. Group contact details (email, website) went into the ledger (migration 0008) rather than page blocks, because the public site needs them as data. |

@@ -141,6 +141,10 @@ def build_demo(
         build_attribution(config, home, engine, today=today)
         _attribute(engine)
         _pages(engine, today)
+        _public(engine)
+        from tessera.publish import publish
+
+        site = publish(config, home, engine, today=today)
         people = len(store.load_people(engine))
     finally:
         engine.dispose()
@@ -153,6 +157,7 @@ def build_demo(
         "merged": merged,
         **curated,
         "concepts": built.get("concepts", 0),
+        "public_site": str(site.out / "index.html") if site.written else None,
     }
 
 
@@ -470,6 +475,24 @@ def _late_arrival(conn: Any, lab: str, today: date) -> None:
             actor="Registry import", role="affiliate", start=today.isoformat()[:7],
             source="registry",
         )  # fmt: skip
+
+
+def _public(engine: Engine) -> None:
+    """Every group opts in to the public site, and so does everyone with confirmed papers."""
+    from sqlalchemy import select, update
+
+    from tessera.ledger.tables import assertion, person, unit
+
+    with engine.begin() as conn:
+        conn.execute(update(unit).where(unit.c.status == "active").values(public=True))
+        confirmed = select(assertion.c.subject_id).where(
+            assertion.c.predicate == "authored", assertion.c.status == "accepted"
+        )
+        conn.execute(
+            update(person)
+            .where(person.c.status == "active", person.c.id.in_(confirmed))
+            .values(public=True)
+        )
 
 
 def _accounts(engine: Engine, world: World) -> None:

@@ -11,6 +11,7 @@ import { confirmAction } from "../components/drawer.js";
 import { toast } from "../components/toast.js";
 import { callout, card, emptyState, pageHeader, pill } from "../components/ui.js";
 import { show } from "./page.js";
+import { publicToggle } from "./person.js";
 
 const HELP = {
   about: "A few paragraphs about the group. Leave a blank line between paragraphs.",
@@ -232,7 +233,7 @@ function editorView(main, params, { group, page, revisions, papers }) {
       eyebrow: h("a", { href: `/groups/${group.slug}` }, group.name),
       title: "Edit the page",
       meta: status,
-      actions: [saveButton, preview, publish],
+      actions: [publicToggle(`/api/v1/groups/${group.id}/public`, group.public, "page", null), saveButton, preview, publish],
     }),
     callout("Choose the blocks the page shows and their order. Blocks marked Side column appear beside the others on wide screens. Changes stay in the draft until you publish."),
     h("div", { class: "grid-main" },
