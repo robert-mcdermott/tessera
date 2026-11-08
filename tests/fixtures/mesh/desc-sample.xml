@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<!-- A few records in the shape of NLM's MeSH descriptor file (2026 DTD), shortened. -->
+<DescriptorRecordSet LanguageCode = "eng">
+<DescriptorRecord DescriptorClass = "1">
+  <DescriptorUI>D009369</DescriptorUI>
+  <DescriptorName><String>Neoplasms</String></DescriptorName>
+  <LastUpdated><Year>2024</Year><Month>06</Month><Day>12</Day></LastUpdated>
+  <AllowableQualifiersList><AllowableQualifier><QualifierReferredTo><QualifierUI>Q000097</QualifierUI><QualifierName><String>blood</String></QualifierName></QualifierReferredTo><Abbreviation>BL</Abbreviation></AllowableQualifier></AllowableQualifiersList>
+  <TreeNumberList><TreeNumber>C04</TreeNumber></TreeNumberList>
+  <ConceptList>
+   <Concept PreferredConceptYN="Y">
+    <ConceptUI>M0014585</ConceptUI>
+    <ConceptName><String>Neoplasms</String></ConceptName>
+    <ScopeNote>New abnormal growth of tissue.
+    </ScopeNote>
+    <TermList>
+     <Term ConceptPreferredTermYN="Y" IsPermutedTermYN="N" LexicalTag="NON" RecordPreferredTermYN="Y"><TermUI>T1</TermUI><String>Neoplasms</String></Term>
+     <Term ConceptPreferredTermYN="N" IsPermutedTermYN="N" LexicalTag="NON" RecordPreferredTermYN="N"><TermUI>T2</TermUI><String>Tumors</String></Term>
+     <Term ConceptPreferredTermYN="N" IsPermutedTermYN="N" LexicalTag="NON" RecordPreferredTermYN="N"><TermUI>T3</TermUI><String>Cancer</String></Term>
+     <Term ConceptPreferredTermYN="N" IsPermutedTermYN="Y" LexicalTag="NON" RecordPreferredTermYN="N"><TermUI>T4</TermUI><String>Neoplasm, Malignant</String></Term>
+    </TermList>
+   </Concept>
+   <Concept PreferredConceptYN="N">
+    <ConceptUI>M0000002</ConceptUI>
+    <ConceptName><String>Malignancy</String></ConceptName>
+    <TermList>
+     <Term ConceptPreferredTermYN="Y" IsPermutedTermYN="N" LexicalTag="NON" RecordPreferredTermYN="N"><TermUI>T5</TermUI><String>Malignancy</String></Term>
+     <Term ConceptPreferredTermYN="N" IsPermutedTermYN="N" LexicalTag="NON" RecordPreferredTermYN="N"><TermUI>T6</TermUI><String>cancer</String></Term>
+    </TermList>
+   </Concept>
+  </ConceptList>
+</DescriptorRecord>
+<DescriptorRecord DescriptorClass = "1">
+  <DescriptorUI>D001943</DescriptorUI>
+  <DescriptorName><String>Breast Neoplasms</String></DescriptorName>
+  <TreeNumberList><TreeNumber>C04.588.180</TreeNumber><TreeNumber>C17.800.090.500</TreeNumber></TreeNumberList>
+  <ConceptList>
+   <Concept PreferredConceptYN="Y">
+    <ConceptUI>M0002765</ConceptUI>
+    <ConceptName><String>Breast Neoplasms</String></ConceptName>
+    <TermList>
+     <Term ConceptPreferredTermYN="N" IsPermutedTermYN="N" LexicalTag="NON" RecordPreferredTermYN="N"><TermUI>T7</TermUI><String>Breast Cancer</String></Term>
+     <Term ConceptPreferredTermYN="N" IsPermutedTermYN="N" LexicalTag="NON" RecordPreferredTermYN="N"><TermUI>T8</TermUI><String>4-Benzoxazolecarboxylic acid, 5-(methylamino)-2-((3,9,11-trimethyl-8-(1-methyl-2-oxo-2-(1H-pyrrol-2-yl)ethyl)-1,7-dioxaspiro(5.5)undec-2-yl)methyl)</String></Term>
+    </TermList>
+   </Concept>
+  </ConceptList>
+</DescriptorRecord>
+<DescriptorRecord DescriptorClass = "3">
+  <DescriptorUI>D006801</DescriptorUI>
+  <DescriptorName><String>Humans</String></DescriptorName>
+  <TreeNumberList><TreeNumber>B01.050.150.900.649.313.988.400.112.400.400</TreeNumber></TreeNumberList>
+  <ConceptList><Concept PreferredConceptYN="Y"><ConceptUI>M1</ConceptUI><ConceptName><String>Humans</String></ConceptName><TermList><Term ConceptPreferredTermYN="N" IsPermutedTermYN="N" LexicalTag="NON" RecordPreferredTermYN="N"><TermUI>T9</TermUI><String>Human</String></Term></TermList></Concept></ConceptList>
+</DescriptorRecord>
+</DescriptorRecordSet>

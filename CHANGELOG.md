@@ -6,6 +6,8 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 
 ### Added
 
+- MeSH, the National Library of Medicine's vocabulary, as a source: `tessera sync` reads the annual descriptor file once a year (`[sources.mesh]`). Expert search understands synonyms ("cancer" is Neoplasms, "AML" is acute myeloid leukemia), shows which synonym a concept came from, and lets a broad heading include the narrower ones beneath it; concept search finds headings by synonym; profiles show research areas rolled up the MeSH hierarchy; and the concept landscape is colored by MeSH category. NLM is credited, with the MeSH year, wherever these appear. New lake table `mesh_descriptor`; `derived/concept_vocabulary.parquet` and `derived/concept_area.parquet`.
+
 - `tessera demo [PATH]` builds a complete installation for an invented organization, the Corvane Institute for Biomedical Research: about 100 people in 22 labs, 700 publications, grants, clinical studies, ORCID records, and a curator's decisions, so every screen has something to show. Identifiers are chosen so they can never be mistaken for real ones. It is also what the documentation's screenshots are taken from.
 - Screenshots for the documentation are taken from the real app, serving the demo organization, in light and dark (`node docs/capture/capture.mjs`), and the diagrams are drawn as SVG (`node docs/capture/diagrams.mjs`).
 - A product home page for the documentation site, figures in the guides, a social preview card, and a screenshot at the top of the README.

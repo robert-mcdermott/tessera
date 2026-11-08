@@ -238,3 +238,13 @@ fieldset.field legend { font-size: var(--fs-sm); font-weight: 600; margin-bottom
 .unit-matrix .matrix-label { fill: var(--text-muted); font-size: 12px; }
 .pair-list li { align-items: flex-start; }
 .pair-list li .pill { flex: none; gap: 4px; }
+
+/* Research areas (MeSH roll-ups) */
+.area-list { display: grid; grid-template-columns: minmax(0, 1fr) 90px 3.2em; gap: 6px var(--space-3); align-items: center; font-size: var(--fs-sm); }
+.area-list li { display: contents; }
+.area-list a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.area-bar { height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+.area-bar > span { display: block; height: 100%; background: var(--ent-concept); }
+.area-list .tabular { text-align: right; }
+.chip-via { color: var(--text-subtle); font-weight: 400; }
+.drawer-subhead { font-size: var(--fs-xs); margin: var(--space-3) 0 0; color: var(--text-subtle); text-transform: uppercase; letter-spacing: .06em; }

@@ -252,6 +252,9 @@ def build_profiles(
     home.derived.mkdir(parents=True, exist_ok=True)
     _write(profile, profile_path(home))
     _write(similar, similarity_path(home))
+    from tessera.analytics.vocabulary import build_vocabulary
+
+    vocabulary = build_vocabulary(home, profile)
     people = len(set(profile.column("person_id").to_pylist())) if profile.num_rows else 0
     log.info("concept profiles for %d people; %d similar pairs", people, similar.num_rows // 2)
     return {
@@ -260,6 +263,7 @@ def build_profiles(
         "pairs": similar.num_rows // 2,
         "papers": papers.num_rows,
         "confirmed_papers": sum(papers.column("confirmed").to_pylist()),
+        **vocabulary,
     }
 
 

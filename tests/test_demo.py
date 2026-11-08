@@ -79,3 +79,30 @@ def test_an_existing_demo_is_kept_unless_forced(demo, tmp_path: Path) -> None:  
     with pytest.raises(DemoError, match="exists"):
         build_demo(tmp_path, today=TODAY, labs_per_area=1)
     build_demo(tmp_path, today=TODAY, labs_per_area=1, force=True)
+
+
+def test_mesh_synonyms_broader_headings_and_areas(demo) -> None:  # type: ignore[no-untyped-def]
+    _, client = demo
+
+    def data(path: str, **params):  # type: ignore[no-untyped-def]
+        response = client.get(path, params=params)
+        assert response.status_code == 200, (path, response.text)
+        return response.json()
+
+    cancer = data("/api/v1/experts", q="cancer")
+    first = cancer["meta"]["concepts"][0]
+    assert (first["descriptor"], first.get("via")) == ("Neoplasms", "cancer")
+    assert cancer["meta"]["mesh_year"] == TODAY.year
+    # Nobody holds "Neoplasms" itself: people are found through the narrower headings.
+    narrower = {m["descriptor"] for p in cancer["data"] for m in p["matches"]}
+    assert narrower & {"Breast Neoplasms", "Colorectal Neoplasms", "Multiple Myeloma", "Melanoma"}
+    aml = data("/api/v1/experts", q="AML")["meta"]["concepts"][0]
+    assert aml["descriptor"] == "Leukemia, Myeloid, Acute"
+    assert data("/api/v1/concepts", q="tumor")["data"][0]["descriptor"] == "Neoplasms"
+
+    person = data("/api/v1/graph/network")["data"]["nodes"][0]["id"]
+    areas = data(f"/api/v1/people/{person}/concepts")["meta"]["areas"]
+    assert areas and 0.99 <= sum(a["share"] for a in areas) <= 1.01
+    assert all(a["category"] in "ABCFG" for a in areas)  # what someone studies, not methods
+    landscape = data("/api/v1/graph/landscape")["data"]["nodes"]
+    assert landscape and all(n["category"] for n in landscape)

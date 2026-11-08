@@ -10,7 +10,7 @@ Tessera uses **free, public data sources only**. No source needs a paid subscrip
 | **ClinicalTrials.gov** (API v2) | Study registry records: status, phase, conditions, interventions, sponsors, officials, sites, references | 1 | No |
 | **ORCID** (Public API v3.0) | Researcher-confirmed identifiers, employment, and works lists | 2 | No: the public API answers without credentials (checked 2026-11-07) |
 | **Grants.gov** (Search API) | Open federal funding opportunities | 5 | No (to be confirmed when the connector is built) |
-| **MeSH** (NLM descriptor data) | Hierarchy for rolling concepts up into broader topics | 2 | No. *Candidate: needs approval as an additional source* |
+| **MeSH** (NLM descriptor data) | Synonyms, and the hierarchy for rolling concepts up into broader areas | 3 | No: one annual file (approved 2026-11-08) |
 
 ## Rules for every connector
 
@@ -74,6 +74,15 @@ Tessera uses **free, public data sources only**. No source needs a paid subscrip
 - **Access:** the public API answers without credentials. Tessera sends at most four requests a second with its contact address in the `User-Agent`, retries politely, and needs no key. If heavier use ever needs one, it will be read from the environment like `NCBI_API_KEY`.
 - **Records that cannot be read** are kept as data rather than failures: an iD that does not exist, a deprecated iD (with the iD that replaced it, which is evidence that two iDs belong to one person), and locked or deactivated records.
 - **Works** are kept once per ORCID work group, using the researcher's preferred version, with its own DOI, PubMed ID, and PMC ID. Employment keeps the organization with its ROR, Ringgold, or GRID identifier, department, role, and years.
+
+## MeSH (NLM)
+
+- **Use:** the vocabulary behind every topic: synonyms (entry terms) so that "cancer" is read as "Neoplasms", and the hierarchy (tree numbers) so that a broad heading includes narrower ones and people's topics roll up into research areas. PubMed already supplies the headings on each paper; MeSH supplies what they mean.
+- **File:** NLM's annual descriptor file, `https://nlmpubs.nlm.nih.gov/projects/mesh/MESH_FILES/xmlmesh/desc{year}.gz` (XML, about 17 MB compressed, 300 MB as XML, some 31,000 headings). NLM publishes the next year's file in November or December. The ASCII format was discontinued in 2026.
+- **Cadence:** read once a year. From November, a sync also looks for the next year's file; the checkpoint is the MeSH year loaded.
+- **Quirks:** NLM answers a file it does not have with an HTML page and a 200 status, so the connector checks that the body really is the descriptor file. Asked for gzip, the server labels the `.gz` file as gzip-encoded and HTTP clients unpack it to 300 MB; the connector asks for the file as it is (`Accept-Encoding: identity`) and keeps it compressed in the raw zone, parsing it as a stream.
+- **Kept:** each heading's identifier, name, class, tree numbers, entry terms (not permuted forms, nor systematic chemical names over 100 characters), scope note, and MeSH year, in `mesh_descriptor`.
+- **Terms:** free to use. NLM asks users to credit NLM as the source clearly, not to imply its endorsement, and to name the MeSH version when the data is redistributed. Tessera names "MeSH {year}, from the U.S. National Library of Medicine" wherever synonyms, hierarchy, or areas appear.
 
 ## Grants.gov (wave 5)
 

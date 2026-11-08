@@ -70,6 +70,7 @@ ignore = [
 # The demo organization is invented with a seeded generator, and its vocabulary is prose.
 "src/tessera/demo/**" = ["S311"]
 "src/tessera/demo/content.py" = ["E501"]
+"src/tessera/demo/mesh.py" = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

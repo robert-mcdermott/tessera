@@ -103,6 +103,7 @@ Every lake table has these bookkeeping columns: `_run_id`, `_retrieved_at`, `_co
 | `ctgov_secondary_id` | (`nct_id`, `seq`) | `id`, `type`, `core_project_num` and `ic_serial` (normalized when NIH) |
 | `orcid_record` | `orcid` | `status` (`public`, or why there is none: `not_found`, `deprecated`, `locked`, `deactivated`), `primary_orcid` (the iD that replaced a deprecated one), `given_names`, `family_name`, `credit_name`, `other_names[]`, `last_modified` |
 | `orcid_work` | (`orcid`, `put_code`) | `title`, `type`, `pub_year`, `journal`, `doi` (lowercase, no resolver prefix), `pmid`, `pmcid`, `source_name` (who added it), `versions` |
+| `mesh_descriptor` | `descriptor_ui` | `name`, `descriptor_class`, `tree_numbers[]`, `entry_terms[]` (synonyms), `scope_note`, `mesh_year`, `last_updated`; NLM's MeSH, one version a year |
 | `orcid_employment` | (`orcid`, `put_code`) | `organization`, `city`, `region`, `country`, `org_id_source` and `org_id` (ROR, Ringgold, GRID), `department`, `role`, `start_year`, `end_year` |
 
 Contact details from registry records (emails, phone numbers) are **not** stored.
@@ -137,7 +138,10 @@ Contact details from registry records (emails, phone numbers) are **not** stored
 
 | `derived/person_group.parquet` | `collaboration_edge`, `concept_profile` | One row per collaborating person: `group_id`, `group_label` (two distinctive concepts), `group_size`, `betweenness` (0 to 1), `bridge`, and `links`, the groups their collaborators belong to with how many in each. See [discovery.md](discovery.md#collaboration-signals) |
 
-All five are rewritten whole and atomically by `tessera sync` and `tessera build discovery`.
+| `derived/concept_vocabulary.parquet` | `concept_profile`, `mesh_descriptor` | The headings people hold and every heading above them: `descriptor_ui`, `name`, `tree_numbers`, `entry_terms`, `category` (the tree's letter), `people` (who hold it), `people_below` (who hold it or anything beneath it), `mesh_year`. Without MeSH data, the profiles' headings alone, with no synonyms or hierarchy |
+| `derived/concept_area.parquet` | `concept_profile`, `mesh_descriptor` | Each person's research areas: their concept weights rolled up to the top of each tree branch in anatomy, organisms, diseases, psychology, and phenomena (`area_tree`, `area_ui`, `area`, `category`), weighed by how few people share the branch, as `share`s, with the `concepts` behind each. Up to eight per person |
+
+All seven are rewritten whole and atomically by `tessera sync` and `tessera build discovery`.
 
 Later: `metric_*` tables and frozen `snapshot/<id>/` folders (wave 4).
 

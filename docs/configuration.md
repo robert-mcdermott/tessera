@@ -97,7 +97,7 @@ PostgreSQL support needs the `postgres` extra: `uv sync --extra postgres`. See [
 |---|---|---|---|
 | `contact_email` | text | `""` | Sent with requests to the public APIs, as their usage policies ask. Set it to an address that can be reached |
 
-Each source has its own table, `[sources.pubmed]`, `[sources.icite]`, `[sources.reporter]`, `[sources.ctgov]`, and `[sources.orcid]`:
+Each source has its own table, `[sources.pubmed]`, `[sources.icite]`, `[sources.reporter]`, `[sources.ctgov]`, `[sources.orcid]`, and `[sources.mesh]` (NLM's MeSH vocabulary, one 17 MB download a year):
 
 | Setting | Type | Default | Meaning |
 |---|---|---|---|

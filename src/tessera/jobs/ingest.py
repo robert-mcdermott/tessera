@@ -42,7 +42,7 @@ PUBLISH_EVERY = 25  # payloads between lake publishes, so interruptions lose lit
 ICITE_REFRESH_DAYS = 30
 ORCID_REFRESH_DAYS = 30
 # ORCID comes before "linked", so that papers listed on members' ORCID records are fetched.
-INGEST_ORDER = ("reporter", "ctgov", "pubmed", "orcid", "pubmed:linked", "icite")
+INGEST_ORDER = ("reporter", "ctgov", "pubmed", "orcid", "pubmed:linked", "icite", "mesh")
 
 
 @dataclass
@@ -349,7 +349,9 @@ def replay(config: Config, home: DataHome, engine: Engine, source: str, of_run: 
 
 def expected_days(source: str) -> int:
     """How stale a source may get before the UI warns (days)."""
-    return {"pubmed": 7, "reporter": 7, "ctgov": 7, "icite": 45, "orcid": 45}.get(source, 7)
+    return {"pubmed": 7, "reporter": 7, "ctgov": 7, "icite": 45, "orcid": 45, "mesh": 400}.get(
+        source, 7
+    )
 
 
 __all__ = ["RunResult", "expected_days", "ingest", "ingest_many", "replay"]

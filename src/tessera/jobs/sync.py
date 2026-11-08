@@ -25,7 +25,7 @@ from tessera.jobs.build import build_discovery, build_search
 from tessera.jobs.ingest import RunResult, ingest_many
 
 FIRST = ("reporter", "ctgov", "pubmed", "pubmed:linked")
-SECOND = ("orcid", "pubmed:people", "pubmed:linked", "icite")
+SECOND = ("orcid", "pubmed:people", "pubmed:linked", "icite", "mesh")
 
 
 @dataclass

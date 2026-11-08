@@ -110,6 +110,7 @@ class SourcesConfig:
     reporter: SourceConfig = field(default_factory=SourceConfig)
     ctgov: SourceConfig = field(default_factory=SourceConfig)
     orcid: SourceConfig = field(default_factory=SourceConfig)
+    mesh: SourceConfig = field(default_factory=SourceConfig)
 
 
 @dataclass(frozen=True)
@@ -170,7 +171,7 @@ _SECTIONS: dict[str, type] = {
     "evidence": EvidenceConfig,
     "discovery": DiscoveryConfig,
 }
-_SOURCE_NAMES = ("pubmed", "icite", "reporter", "ctgov", "orcid")
+_SOURCE_NAMES = ("pubmed", "icite", "reporter", "ctgov", "orcid", "mesh")
 _PATH_FIELDS = {("data", "home"), ("branding", "logo_light"), ("branding", "logo_dark")}
 
 

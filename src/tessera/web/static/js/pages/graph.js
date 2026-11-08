@@ -217,13 +217,20 @@ const LOOKS = {
   },
   landscape(nodes) {
     const top = new Set([...nodes].sort((a, b) => b.people - a.people).slice(0, 18).map((n) => n.id));
+    // Topics are colored by MeSH category (diseases, anatomy, processes, …) when MeSH is loaded.
+    const counts = new Map();
+    for (const n of nodes) if (n.category) counts.set(n.category, (counts.get(n.category) ?? 0) + 1);
+    const legend = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([label, people], i) => ({ label, people, colour: i < 6 ? `var(--series-${i})` : "var(--ent-unit)" }));
+    const colourOf = new Map(legend.map((g) => [g.label, g.colour]));
     return {
+      categories: legend,
       radius: (n) => Math.min(18, 3 + 2.6 * (n.size || 1)),
-      color: () => "var(--ent-concept)",
+      color: (n) => colourOf.get(n.category) ?? "var(--ent-concept)",
       edge: (e) => ({ color: "var(--ent-concept)", width: 0.5 + 0.8 * Math.log2(1 + e.people), alpha: 0.3 }),
       force: (e) => ({ distance: 60, strength: 0.08 + Math.min(0.5, e.people / 20) }),
       always: (n) => top.has(n.id),
-      describe: (n) => [`Among the top topics of ${number(n.people)} ${n.people === 1 ? "person" : "people"}`],
+      describe: (n) => [`Among the top topics of ${number(n.people)} ${n.people === 1 ? "person" : "people"}`, n.category],
     };
   },
 };
@@ -310,9 +317,16 @@ function overview(state, body, look) {
     ];
   }
   if (state.view === "landscape") {
+    const categories = look.categories ?? [];
     return [
       h("h2", {}, "Reading this graph"),
       h("p", { class: "muted" }, "Each circle is a topic among people's top fifteen; larger circles are shared by more people. Topics are linked when the same people hold both, so groups of circles are research areas."),
+      categories.length > 1 ? h("h3", {}, "MeSH categories") : null,
+      categories.length > 1 ? h("ul", { class: "legend" }, categories.slice(0, 12).map((g) => {
+        const swatch = h("span", { class: "legend-swatch swatch-dot", "aria-hidden": "true" });
+        swatch.style.setProperty("background", g.colour);
+        return h("li", {}, swatch, h("span", {}, `${g.label} (${number(g.people)})`));
+      })) : null,
       h("p", { class: "subtle" }, "Double-click a topic to find who works on it."),
     ];
   }

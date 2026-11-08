@@ -82,3 +82,26 @@ def test_ctgov(instance: Instance, engine: Engine) -> None:
         study = lake.rows("SELECT * FROM ctgov_study")[0]
         assert study["nct_id"] == STABLE_NCT and study["overall_status"]
         assert lake.scalar("SELECT count(*) FROM ctgov_site") > 0
+
+
+def test_mesh_descriptor_file() -> None:
+    """NLM's file is still where the connector looks, compressed, and in the expected XML."""
+    import zlib
+
+    import httpx
+
+    from tessera.connectors.mesh import MeshConnector, descriptors
+
+    year = date.today().year
+    with httpx.Client(
+        headers={"Accept-Encoding": "identity", "User-Agent": "Tessera tests"}
+    ) as client:
+        response = client.get(
+            f"{MeshConnector.base_url}desc{year}.gz", headers={"Range": "bytes=0-400000"}
+        )
+    assert response.status_code in (200, 206) and response.content[:2] == b"\x1f\x8b"
+    text = zlib.decompressobj(16 + zlib.MAX_WBITS).decompress(response.content)
+    cut = text.rfind(b"</DescriptorRecord>") + len(b"</DescriptorRecord>")
+    head = text[:cut].split(b"\n", 2)[2] + b"\n</DescriptorRecordSet>"  # drop the XML and DTD lines
+    records = list(descriptors(b'<?xml version="1.0"?>\n' + head, year))
+    assert records and records[0]["descriptor_ui"] == "D000001" and records[0]["tree_numbers"]

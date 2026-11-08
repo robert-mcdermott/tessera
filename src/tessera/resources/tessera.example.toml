@@ -88,6 +88,11 @@ enabled = true
 [sources.orcid]
 enabled = true
 
+# MeSH, the National Library of Medicine's vocabulary: synonyms and the hierarchy of headings.
+# One download a year (about 17 MB).
+[sources.mesh]
+enabled = true
+
 [sync]
 # How many years of history the first sync collects.
 window_years = 5

@@ -2,7 +2,7 @@
 
 **Every contribution, connected.**
 
-Tessera is an open research intelligence platform for academic research organizations. It assembles an organization's research footprint from public sources (PubMed, NIH RePORTER, ClinicalTrials.gov, iCite, and ORCID), connects people, publications, grants, and clinical studies, shows the evidence behind every connection, and helps people find who works on what and who should meet.
+Tessera is an open research intelligence platform for academic research organizations. It assembles an organization's research footprint from public sources (PubMed, NIH RePORTER, ClinicalTrials.gov, iCite, ORCID, and MeSH), connects people, publications, grants, and clinical studies, shows the evidence behind every connection, and helps people find who works on what and who should meet.
 
 - **Starts from public data.** No HR feeds or institutional integrations needed to get going.
 - **Evidence on every link.** Each connection records its source, method, likelihood, and review history.

@@ -14,6 +14,7 @@ from tessera.analytics.experts import (
     person_concepts,
     similar_people,
 )
+from tessera.analytics.vocabulary import mesh_year, person_areas, vocabulary_path
 from tessera.api.common import envelope, index_of, lake_of, split_values
 from tessera.api.routers.people import _person_row
 
@@ -53,7 +54,13 @@ def experts(
 ) -> dict[str, Any]:
     home = request.app.state.home
     result = find_experts(
-        lake_of(request), index_of(request), profile_path(home), q, split_values(concept), limit
+        lake_of(request),
+        index_of(request),
+        profile_path(home),
+        q,
+        split_values(concept),
+        limit,
+        vocabulary_path(home),
     )
     people = _people(request, [p["id"] for p in result["people"]])
     items = [
@@ -65,13 +72,16 @@ def experts(
         concepts=result["concepts"],
         ready=result["ready"],
         note=None if result["ready"] else NOT_BUILT,
+        mesh_year=mesh_year(home),
     )
 
 
 @router.get("/concepts", summary="Concepts by name, most widely held first")
 def concepts(request: Request, q: str = Query("", max_length=200)) -> dict[str, Any]:
     home = request.app.state.home
-    return envelope(concept_names(lake_of(request), profile_path(home), q))
+    return envelope(
+        concept_names(lake_of(request), profile_path(home), q, vocabulary=vocabulary_path(home))
+    )
 
 
 @router.get(
@@ -103,4 +113,6 @@ def concepts_of(request: Request, person_id: str) -> dict[str, Any]:
     return envelope(
         person_concepts(lake_of(request), profile_path(home), person_id),
         built=profile_path(home).is_file(),
+        areas=person_areas(lake_of(request), home, person_id),
+        mesh_year=mesh_year(home),
     )
