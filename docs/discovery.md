@@ -14,7 +14,9 @@ Tessera reads your words through the papers they find. It searches the organizat
 
 People are ranked by how well their topics match those concepts, and each result lists the concepts that matched, so you can see why they are there. The bar is relative to the first result; it is not a grade.
 
-Reading words through papers matters because MeSH uses its own names. A search for "cancer" finds papers indexed under "Neoplasms", so it finds the people who work on them, even though the two words never meet.
+Tessera also knows MeSH's synonyms, the words people write for its headings: "cancer" is "Neoplasms", "AML" is "Leukemia, Myeloid, Acute", "brain tumors" is "Brain Neoplasms". A concept found that way says so in **Understood as** ("Neoplasms · cancer"), and what you name outright leads what the papers suggest. A broad heading includes the narrower ones beneath it: asking for "Neoplasms" finds the people who work on breast, colorectal, or pancreatic neoplasms, even though nobody's papers are indexed under "Neoplasms" itself. The **Add a concept** box finds headings by synonym too.
+
+Synonyms and the hierarchy come from MeSH, the U.S. National Library of Medicine's vocabulary, which `tessera sync` reads once a year. Without it, words are still read through the papers they find.
 
 ![Expert search for memory T cells: the concepts it was understood as, and people ranked with their matching concepts](images/experts-light.webp "Find experts")
 
@@ -25,6 +27,8 @@ Each profile's **Topics** card lists the person's most distinctive concepts. **H
 - its weight, relative to their strongest concept;
 - how many of their papers carry it, and how many of those are confirmed;
 - **from keywords**, when the concept comes only from authors' keywords on papers that have no MeSH headings yet.
+
+Above the topics, **research areas** show where they fall in MeSH's hierarchy: the diseases, body systems, organisms, and processes the person studies, such as "Neoplasms 34%" or "Nervous System 21%". Areas that nearly everyone in the organization shares count for less, as topics do; molecules and methods stay topics rather than areas.
 
 A concept counts for more when it is a major topic of the paper, when the person is first or last author, and when the paper is recent: weight halves every five years. Concepts that many people in the organization share count for less, so the list shows what sets this person apart rather than what everyone has in common. Headings that describe the study rather than its subject, such as "Humans", "Female", or "Mice", are left out, as are laboratory tools such as "Green Fluorescent Proteins".
 
@@ -52,7 +56,7 @@ In the graph, hover over anyone to fade everything but them and their connection
 
 **Collaboration** shows at most 150 people by default, those with the most collaboration; the controls change the number, set how similar two people must be for a dashed line, filter by unit, or hide similarity. Every choice is in the address, so a view can be shared as a link. Each profile's **Similar people** card links to that person's focus view, and says of each similar person whether the two have worked together.
 
-People are coloured by unit when the view spans several units, and otherwise by **group**: people who work with one another more than with others, found from the network itself and named by the topics their members share most distinctively. A ring marks someone who **connects groups**: they lie on many of the shortest paths between others and work with people in more than one group. The panel beside the graph lists them by name, with the groups they work with; it is a role in the network, not a ranking.
+People are coloured by group (division, program, lab) when the view spans several, and otherwise by **cluster**: people who work with one another more than with others, found from the network itself and named by the topics their members share most distinctively. Clusters are not the organization's groups; they are how the work actually falls. A ring marks someone who **connects clusters**: they lie on many of the shortest paths between others and work with people in more than one cluster. The panel beside the graph lists them by name, with the clusters they work with; it is a role in the network, not a ranking.
 
 ![The collaboration network: people colored by division, linked by shared work, with similar interests dashed](images/network-light.webp "Collaboration")
 

@@ -32,7 +32,6 @@ from tessera.ledger.tables import (
     person_event,
     person_identifier,
     person_name,
-    unit,
 )
 
 # --- people ---------------------------------------------------------------------------------
@@ -380,27 +379,6 @@ def directory_orcids(engine: Engine, statuses: Iterable[str] = ("active", "forme
     )
     with engine.connect() as conn:
         return sorted(conn.execute(query).scalars())
-
-
-def get_or_create_unit(
-    conn: Connection, name: str, *, code: str | None = None, kind: str = "department"
-) -> str:
-    query = (
-        select(unit.c.id).where(unit.c.code == code)
-        if code
-        else select(unit.c.id).where(and_(unit.c.name == name, unit.c.code.is_(None)))
-    )
-    found = conn.execute(query).scalar()
-    if found:
-        return found
-    now = utc_now()
-    unit_id = new_id("unt")
-    conn.execute(
-        insert(unit).values(
-            id=unit_id, name=name, kind=kind, code=code, created_at=now, updated_at=now
-        )
-    )
-    return unit_id
 
 
 # --- assertions -----------------------------------------------------------------------------

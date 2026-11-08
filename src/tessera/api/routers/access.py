@@ -158,10 +158,13 @@ def change_password(request: Request, response: Response, body: PasswordChange) 
 
 
 class RoleIn(BaseModel):
-    role: str = Field(description="admin, curator, researcher, or viewer")
+    role: str = Field(description="admin, curator, manager, researcher, or viewer")
     scope: str | None = Field(
-        None, description="For curators: unit:<name, code, or ID> or person:<ID>; none for all"
+        None,
+        description="For curators: group:<name, address, code, or ID> or person:<ID>; none "
+        "for all. For managers: group:<…> (required)",
     )
+    include_below: bool = Field(False, description="A manager also manages the groups below")
 
 
 class AccountIn(BaseModel):
@@ -184,7 +187,7 @@ class AccountChange(BaseModel):
 
 def _grants(request: Request, roles: list[RoleIn]) -> list[accounts.Grant]:
     with engine_of(request).connect() as conn:
-        return [accounts.Grant(r.role, *accounts.resolve_scope(conn, r.scope)) for r in roles]
+        return [accounts.make_grant(conn, r.role, r.scope, r.include_below) for r in roles]
 
 
 def _fail(exc: TesseraError) -> HTTPException:

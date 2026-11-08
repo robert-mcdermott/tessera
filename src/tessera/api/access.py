@@ -37,10 +37,11 @@ from tessera.ledger.tables import account
 class Level(IntEnum):
     PUBLIC = 0  # anyone, signed in or not
     READ = 1  # any signed-in account
-    REVIEW = 2  # may decide for someone: a curator, or a researcher about themselves
-    CURATE_ANY = 3  # a curator for some or all people
-    CURATE_ALL = 4  # a curator for everyone
-    ADMIN = 5
+    MANAGE = 2  # may decide for some group: a manager, or anyone who may review
+    REVIEW = 3  # may decide for someone: a curator, or a researcher about themselves
+    CURATE_ANY = 4  # a curator for some or all people
+    CURATE_ALL = 5  # a curator for everyone
+    ADMIN = 6
 
 
 P, R = Level.PUBLIC, Level.READ
@@ -98,6 +99,37 @@ POLICIES: dict[tuple[str, str], Level] = {
     ("POST", "/api/v1/evidence/revert"): Level.ADMIN,
     ("POST", "/api/v1/evidence/auto-accept"): Level.ADMIN,
     ("POST", "/api/v1/evidence/auto-accept/batches/{batch_id}/undo"): Level.ADMIN,
+    ("GET", "/api/v1/groups"): R,
+    ("POST", "/api/v1/groups"): Level.ADMIN,
+    ("POST", "/api/v1/groups/import"): Level.ADMIN,
+    ("GET", "/api/v1/groups/{group_ref}"): R,
+    ("POST", "/api/v1/groups/{group_ref}"): Level.ADMIN,
+    ("POST", "/api/v1/groups/{group_ref}/merge"): Level.ADMIN,
+    ("GET", "/api/v1/groups/{group_ref}/members"): R,
+    ("POST", "/api/v1/groups/{group_ref}/members"): Level.ADMIN,
+    ("POST", "/api/v1/groups/{group_ref}/members/{membership_id}"): Level.ADMIN,
+    ("DELETE", "/api/v1/groups/{group_ref}/members/{membership_id}"): Level.ADMIN,
+    ("GET", "/api/v1/groups/{group_ref}/history"): R,
+    ("GET", "/api/v1/groups/{group_ref}/overview"): R,
+    ("GET", "/api/v1/groups/{group_ref}/publications"): R,
+    ("POST", "/api/v1/groups/{group_ref}/publications/decisions"): Level.MANAGE,
+    ("GET", "/api/v1/groups/{group_ref}/page"): R,
+    ("POST", "/api/v1/groups/{group_ref}/page/draft"): Level.MANAGE,
+    ("DELETE", "/api/v1/groups/{group_ref}/page/draft"): Level.MANAGE,
+    ("POST", "/api/v1/groups/{group_ref}/page/publish"): Level.MANAGE,
+    ("POST", "/api/v1/groups/{group_ref}/page/rollback"): Level.MANAGE,
+    ("GET", "/api/v1/groups/{group_ref}/page/revisions"): R,
+    ("GET", "/api/v1/groups/{group_ref}/openings"): R,
+    ("POST", "/api/v1/groups/{group_ref}/openings"): Level.MANAGE,
+    ("POST", "/api/v1/groups/{group_ref}/openings/{opening_id}"): Level.MANAGE,
+    ("GET", "/api/v1/groups/{group_ref}/themes"): R,
+    ("POST", "/api/v1/groups/{group_ref}/themes"): Level.MANAGE,
+    ("POST", "/api/v1/groups/{group_ref}/themes/{theme_id}"): Level.MANAGE,
+    ("GET", "/api/v1/groups/{group_ref}/inbox"): Level.MANAGE,
+    ("POST", "/api/v1/groups/{group_ref}/inbox/reviewed"): Level.MANAGE,
+    ("GET", "/api/v1/inbox"): Level.MANAGE,
+    ("POST", "/api/v1/groups/{group_ref}/public"): Level.MANAGE,
+    ("POST", "/api/v1/people/{person_id}/public"): Level.REVIEW,
     ("GET", "/api/v1/accounts"): Level.ADMIN,
     ("POST", "/api/v1/accounts"): Level.ADMIN,
     ("POST", "/api/v1/accounts/{account_id}"): Level.ADMIN,
@@ -166,6 +198,8 @@ def _principal(request: Request) -> Principal | None:
 def _allowed(principal: Principal, level: Level) -> bool:
     if level <= Level.READ:
         return True
+    if level == Level.MANAGE:
+        return principal.reviews or principal.edits_any_group
     if level == Level.REVIEW:
         return principal.reviews
     if level == Level.CURATE_ANY:

@@ -1,6 +1,6 @@
 [project]
 name = "tessera"
-version = "0.2.0"
+version = "0.3.0"
 description = "Open research intelligence: people, publications, grants, and clinical studies, connected with evidence."
 readme = "README.md"
 license = "Apache-2.0"
@@ -70,6 +70,9 @@ ignore = [
 # The demo organization is invented with a seeded generator, and its vocabulary is prose.
 "src/tessera/demo/**" = ["S311"]
 "src/tessera/demo/content.py" = ["E501"]
+"src/tessera/demo/mesh.py" = ["E501"]
+# The public site's HTML and CSS read best a line at a time; the dashes are typography.
+"src/tessera/publish/**" = ["E501", "RUF001"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

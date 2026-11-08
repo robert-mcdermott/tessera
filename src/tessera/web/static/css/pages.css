@@ -238,3 +238,66 @@ fieldset.field legend { font-size: var(--fs-sm); font-weight: 600; margin-bottom
 .unit-matrix .matrix-label { fill: var(--text-muted); font-size: 12px; }
 .pair-list li { align-items: flex-start; }
 .pair-list li .pill { flex: none; gap: 4px; }
+
+/* Research areas (MeSH roll-ups) */
+.area-list { display: grid; grid-template-columns: minmax(0, 1fr) 90px 3.2em; gap: 6px var(--space-3); align-items: center; font-size: var(--fs-sm); }
+.area-list li { display: contents; }
+.area-list a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.area-bar { height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+.area-bar > span { display: block; height: 100%; background: var(--ent-concept); }
+.area-list .tabular { text-align: right; }
+.chip-via { color: var(--text-subtle); font-weight: 400; }
+.drawer-subhead { font-size: var(--fs-xs); margin: var(--space-3) 0 0; color: var(--text-subtle); text-transform: uppercase; letter-spacing: .06em; }
+
+/* ---------- Groups (admin) ---------- */
+.picker-results:empty { display: none; }
+.picker-results { max-height: 260px; overflow-y: auto; }
+.picker-option { justify-content: flex-start; width: 100%; text-align: left; height: auto; min-height: 32px; padding-block: 6px; }
+
+/* ---------- Groups ---------- */
+.group-card { display: flex; flex-direction: column; gap: var(--space-3); color: inherit; text-decoration: none; transition: border-color var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out); }
+.group-card:hover { border-color: var(--accent-soft); transform: translateY(-1px); }
+.group-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.group-card-head { display: flex; gap: var(--space-3); align-items: flex-start; }
+.group-card-name { font-size: var(--fs-md); line-height: 1.3; }
+.group-card-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); margin-top: auto; font-size: var(--fs-sm); }
+.section-title { margin: 0; font-size: var(--fs-md); font-weight: 650; letter-spacing: 0.01em; }
+.entity-icon-lg { width: 52px; height: 52px; border-radius: var(--radius-l); }
+.entity-icon-lg .icon { width: 26px; height: 26px; }
+.lede { margin: var(--space-2) 0 0; max-width: 72ch; font-size: var(--fs-md); color: var(--text-muted); }
+.people-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--space-3) var(--space-4); }
+.leader-list { gap: var(--space-4); }
+.reasons { margin-top: var(--space-2); }
+.reasons li::before { content: "› "; color: var(--accent); }
+/* In the narrow side column, names wrap and the bars shrink. */
+.grid-main > .stack-lg:last-child .area-list { grid-template-columns: minmax(0, 1fr) 64px 2.8em; }
+.grid-main > .stack-lg:last-child .area-list a { white-space: normal; }
+.prose p { margin: 0 0 var(--space-3); max-width: 72ch; line-height: 1.6; }
+.prose p:last-child { margin-bottom: 0; }
+.news-list { gap: var(--space-4); }
+.news-list p { margin: 0; }
+
+/* ---------- Group page editor ---------- */
+.block-list { gap: var(--space-3); }
+.block-editor { gap: var(--space-3); display: flex; flex-direction: column; }
+.block-index { font-family: var(--mono); font-size: var(--fs-sm); color: var(--accent); letter-spacing: 0.08em; }
+.block-settings { padding-left: calc(var(--space-3) + 2ch); }
+.block-settings .field { display: flex; flex-direction: column; gap: 4px; }
+.input-narrow { width: 10rem; flex: none; }
+.feature-picker summary { cursor: pointer; font-weight: 550; }
+.feature-picker > div { max-height: 280px; overflow-y: auto; margin-top: var(--space-2); }
+.feature-option { align-items: flex-start; font-size: var(--fs-sm); }
+.news-item-editor { padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-m); }
+
+/* ---------- Themes, openings, and the inbox ---------- */
+.theme-list, .opening-list { gap: var(--space-5); }
+.theme-list > li + li, .opening-list > li + li { padding-top: var(--space-4); border-top: 1px solid var(--border); }
+.grid-main-left { grid-template-columns: 300px minmax(0, 1fr); }
+@media (max-width: 1080px) { .grid-main-left { grid-template-columns: minmax(0, 1fr); } }
+.inbox-groups { gap: 0; }
+.inbox-group { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-4); color: inherit; text-decoration: none; border-left: 2px solid transparent; }
+.inbox-group:hover { background: var(--surface-hover, var(--accent-softer)); }
+.inbox-group.is-current { border-left-color: var(--accent); background: var(--accent-softer); }
+.public-toggle { font-size: var(--fs-sm); color: var(--text-muted); padding: 0 var(--space-2); }
+
+ol.history, ul.history { margin: 0; padding: 0; list-style: none; }

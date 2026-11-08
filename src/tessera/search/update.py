@@ -4,7 +4,8 @@ A decision changes a few documents: the record it links (its member list and per
 facets), the person's counts, and, when a person is promoted or dismissed, whether that
 person is in the directory at all. ``apply`` rewrites just those documents from the
 ledger, using the same member rules as the full build, so lists, facets, and counts are
-right on the next request. Topics and other figures that depend on the whole population
+right on the next request; so are the person's current groups, after a membership changes
+or a group is renamed or archived. Topics and other figures that depend on the whole population
 refresh at the next full build (``tessera build search``, also run by ``sync``).
 """
 
@@ -15,6 +16,7 @@ import logging
 import sqlite3
 from collections import defaultdict
 from collections.abc import Iterable
+from datetime import date
 from typing import Any
 
 from sqlalchemy import select
@@ -22,9 +24,10 @@ from sqlalchemy.engine import Engine
 
 from tessera.config import Config
 from tessera.core.clock import isoformat, utc_now
+from tessera.evidence.memberships import is_current
 from tessera.home import DataHome
 from tessera.lake import Lake
-from tessera.ledger.tables import assertion, person, person_identifier, person_name
+from tessera.ledger.tables import assertion, person, person_identifier, person_name, unit
 from tessera.search.index import (
     ALL_KINDS,
     LINKS,
@@ -121,6 +124,21 @@ def apply(
             )
         ):
             people_rows[pid].setdefault("orcid", value)
+        units_by_person: dict[str, list[str]] = defaultdict(list)
+        if person_ids:  # current memberships of active groups, as in a full build
+            today = date.today()
+            for subject, name, qualifiers in conn.execute(
+                select(assertion.c.subject_id, unit.c.name, assertion.c.qualifiers)
+                .join(unit, unit.c.id == assertion.c.object_id)
+                .where(
+                    assertion.c.subject_id.in_(sorted(person_ids)),
+                    assertion.c.predicate == "member_of",
+                    assertion.c.status == "accepted",
+                    unit.c.status == "active",
+                )
+            ):
+                if is_current(qualifiers, today):
+                    units_by_person[subject].append(name)
         links_by_person: dict[str, list[dict[str, Any]]] = defaultdict(list)
         if person_ids:
             for row in conn.execute(
@@ -161,7 +179,14 @@ def apply(
             changed += _add_publications(config, home, engine, con, missing_pubs, member_rows)
         for person_id in person_ids:
             row = people_rows.get(person_id)
-            changed += _update_person(con, existing, person_id, row, links_by_person[person_id])
+            changed += _update_person(
+                con,
+                existing,
+                person_id,
+                row,
+                links_by_person[person_id],
+                sorted(set(units_by_person[person_id])),
+            )
         if changed:
             _refresh_meta(con)
         con.commit()
@@ -253,6 +278,7 @@ def _update_person(
     person_id: str,
     row: dict[str, Any] | None,
     links: list[dict[str, Any]],
+    units: list[str],
 ) -> int:
     changed = 0
     status = row["status"] if row else None
@@ -277,23 +303,29 @@ def _update_person(
     counts = _person_counts(links)
     if doc is not None:
         summary = json.loads(doc["summary"])
-        if summary.get("counts") != counts or summary.get("status") != status:
+        if (
+            summary.get("counts") != counts
+            or summary.get("status") != status
+            or summary.get("units") != units
+        ):
             summary["counts"] = counts
             summary["status"] = status
+            summary["units"] = units
             _set_summary(
                 con, doc["id"], summary, weight=float(counts["accepted"] + counts["suggested"])
             )
             _set_facets(con, doc["id"], "status", [status])
+            _set_facets(con, doc["id"], "unit", units)
             changed += 1
         return changed
     # Newly in the directory (promoted): a plain document until the next full build adds
-    # units and topics.
+    # topics.
     assert row is not None
     summary = {
         "id": person_id,
         "name": row["display_name"],
         "status": status,
-        "units": [],
+        "units": units,
         "orcid": row.get("orcid"),
         "counts": counts,
         "concepts": [],
@@ -312,7 +344,7 @@ def _update_person(
             weight=float(counts["accepted"] + counts["suggested"]),
             summary=summary,
             people="; ".join(row.get("variants") or [row["display_name"]]),
-            facets=[("status", status)],
+            facets=[("status", status), *(("unit", u) for u in units)],
         ),
     )
     return changed + 1

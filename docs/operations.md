@@ -35,6 +35,20 @@ A daily cron entry (Linux or macOS):
 
 A systemd timer works the same way: run `uv run tessera --quiet sync` from the folder that holds `tessera.toml`, as the user who owns the data home.
 
+Send the weekly digest of pending work (each group's inbox, and the review queues) by email once a week, after a sync. It needs a mail server under `[mail]` (see [Configuration](configuration.md#mail)); without one, digests stay in the app's **Inbox**:
+
+```cron
+0 7 * * 1 cd /srv/tessera && /usr/local/bin/uv run tessera --quiet digest send
+```
+
+Publish the public site after each sync, so openings that closed leave it and new decisions appear (see [The public site](public-site.md)):
+
+```cron
+30 3 * * * cd /srv/tessera && /usr/local/bin/uv run tessera --quiet publish
+```
+
+`tessera digest show` prints the digests instead, and `tessera digest send --dry-run` prints the messages it would send.
+
 `uv run tessera runs` lists recent runs with their status and counts. A run that ends *partial* fetched some but not all of its batches; the next sync retries from the last complete checkpoint, so nothing is skipped.
 
 ![Admin, Sources: each source's last successful fetch, the evidence engine, and the search index](images/sources-light.webp "Admin → Sources: data health")
@@ -67,11 +81,13 @@ Roles add up:
 |---|---|
 | Viewer | Read everything: people, records, evidence, search |
 | Researcher | Also review the suggestions about their own profile (the account is linked to their person) |
-| Curator | Decide for everyone, or, when the role is limited to a unit or a person, only for them; curators for everyone also handle discovered people and duplicates |
+| Manager | Keep one group's page and decide which papers are the group's (and, when granted with `+below`, the same for the groups below it). See [Groups](groups.md#managers) |
+| Curator | Decide for everyone, or, when the role is limited to a group or a person, only for them (a group's scope includes the groups below it); curators for everyone also handle discovered people and duplicates |
 | Admin | Everything, including accounts |
 
 ```bash
-uv run tessera users add cora --name "Cora Lindqvist" --role "curator=unit:Department of Medicine"
+uv run tessera users add cora --name "Cora Lindqvist" --role "curator=group:Department of Medicine"
+uv run tessera users add wren --name "Wren Castellan" --role "manager=group:okafor-lab"
 uv run tessera users add ada.okafor --role researcher --person per_01…
 uv run tessera users list
 uv run tessera users reset-password cora     # signs her out everywhere

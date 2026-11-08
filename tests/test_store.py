@@ -57,8 +57,6 @@ def test_people_identifiers_and_names(engine) -> None:  # type: ignore[no-untype
         )
         assert store.add_name(conn, pid, make_name("Okafor", "A"), kind="variant", source="test")
         assert store.find_by_identifier(conn, "orcid", "0000-0001-0000-0001") == pid
-        unit_a = store.get_or_create_unit(conn, "Medicine", code="MED")
-        assert store.get_or_create_unit(conn, "Medicine (renamed)", code="MED") == unit_a
     [record] = store.load_people(engine, ("active",))
     assert record.display_name == "Ada B Okafor"
     assert {n.given for n in record.names} == {"Ada B", "A"}

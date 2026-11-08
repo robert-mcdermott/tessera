@@ -71,6 +71,11 @@ class BrandingConfig:
     logo_light: Path | None = None
     logo_dark: Path | None = None
     show_powered_by: bool = True
+    favicon: Path | None = None  # the browser tab's icon (SVG, PNG, or ICO)
+    social_image: Path | None = None  # link previews of the public site (1200 x 630)
+    # ("day" or "night", color name, "#rrggbb") from [branding.palette.day] and .night
+    palette: tuple[tuple[str, str, str], ...] = ()
+    footer_links: tuple[tuple[str, str], ...] = ()  # (label, address)
 
 
 @dataclass(frozen=True)
@@ -110,6 +115,7 @@ class SourcesConfig:
     reporter: SourceConfig = field(default_factory=SourceConfig)
     ctgov: SourceConfig = field(default_factory=SourceConfig)
     orcid: SourceConfig = field(default_factory=SourceConfig)
+    mesh: SourceConfig = field(default_factory=SourceConfig)
 
 
 @dataclass(frozen=True)
@@ -140,6 +146,90 @@ class DiscoveryConfig:
 
 
 @dataclass(frozen=True)
+class PublishConfig:
+    """The static public site (tessera publish)."""
+
+    out: Path | None = None  # where the site is written; <data home>/public when unset
+    base_url: str = ""  # where it is served, for the sitemap, canonical links, and previews
+    title: str = ""  # the site's title; the organization's name when empty
+    intro: str = ""  # a sentence or two for the home page
+
+
+@dataclass(frozen=True)
+class MailConfig:
+    """An SMTP server for digests (CUR-08). Without a host, digests stay in the app."""
+
+    host: str = ""
+    port: int = 587
+    username: str = ""
+    password_env: str = ""  # the environment variable holding the password
+    sender: str = ""  # the From address, such as "Tessera <tessera@example.edu>"
+    starttls: bool = True
+    ssl: bool = False  # connect with TLS from the start (port 465) instead of STARTTLS
+    base_url: str = ""  # the app's address, for links in messages
+
+
+# Group kinds and membership roles: (key, label) pairs, in the order the app offers them. Keys
+# are stored with each group and membership, so rename a label freely but keep its key.
+DEFAULT_KINDS: tuple[tuple[str, str], ...] = (
+    ("division", "Division"),
+    ("department", "Department"),
+    ("program", "Program"),
+    ("center", "Center"),
+    ("institute", "Institute"),
+    ("core", "Shared resource"),
+    ("lab", "Lab"),
+    ("team", "Team"),
+)
+DEFAULT_ROLES: tuple[tuple[str, str], ...] = (
+    ("lead", "Lead"),
+    ("co_lead", "Co-lead"),
+    ("member", "Member"),
+    ("staff", "Staff"),
+    ("trainee", "Trainee"),
+    ("affiliate", "Affiliate"),
+)
+_KEY = re.compile(r"^[a-z][a-z0-9_]{0,39}$")
+
+
+@dataclass(frozen=True)
+class VocabularyConfig:
+    """What the app calls groups, their kinds, and membership roles (PLT-11)."""
+
+    group: str = "Group"
+    groups: str = "Groups"
+    kinds: tuple[tuple[str, str], ...] = DEFAULT_KINDS
+    roles: tuple[tuple[str, str], ...] = DEFAULT_ROLES
+    leader_roles: tuple[str, ...] = ("lead", "co_lead")  # shown as the group's leaders
+    default_role: str = "member"  # for memberships that name no role
+    # Kinds whose papers are suggested as the group's own (divisions would claim everything).
+    attributable_kinds: tuple[str, ...] = ("program", "center", "core", "lab", "team")
+
+    def kind_label(self, key: str) -> str:
+        return dict(self.kinds).get(key) or key.replace("_", " ").capitalize()
+
+    def role_label(self, key: str) -> str:
+        return dict(self.roles).get(key) or key.replace("_", " ").capitalize()
+
+    @property
+    def default_kind(self) -> str:
+        keys = [k for k, _ in self.kinds]
+        return "department" if "department" in keys else keys[0]
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "group": self.group,
+            "groups": self.groups,
+            "kinds": [{"id": k, "label": v} for k, v in self.kinds],
+            "roles": [
+                {"id": k, "label": v, "leader": k in self.leader_roles} for k, v in self.roles
+            ],
+            "default_role": self.default_role,
+            "attributable_kinds": list(self.attributable_kinds),
+        }
+
+
+@dataclass(frozen=True)
 class Config:
     organization: OrganizationConfig = field(default_factory=OrganizationConfig)
     branding: BrandingConfig = field(default_factory=BrandingConfig)
@@ -150,6 +240,9 @@ class Config:
     sync: SyncConfig = field(default_factory=SyncConfig)
     evidence: EvidenceConfig = field(default_factory=EvidenceConfig)
     discovery: DiscoveryConfig = field(default_factory=DiscoveryConfig)
+    vocabulary: VocabularyConfig = field(default_factory=VocabularyConfig)
+    mail: MailConfig = field(default_factory=MailConfig)
+    publish: PublishConfig = field(default_factory=PublishConfig)
     path: Path | None = None  # the file this configuration was loaded from
 
     @property
@@ -169,9 +262,19 @@ _SECTIONS: dict[str, type] = {
     "sync": SyncConfig,
     "evidence": EvidenceConfig,
     "discovery": DiscoveryConfig,
+    "vocabulary": VocabularyConfig,
+    "mail": MailConfig,
+    "publish": PublishConfig,
 }
-_SOURCE_NAMES = ("pubmed", "icite", "reporter", "ctgov", "orcid")
-_PATH_FIELDS = {("data", "home"), ("branding", "logo_light"), ("branding", "logo_dark")}
+_SOURCE_NAMES = ("pubmed", "icite", "reporter", "ctgov", "orcid", "mesh")
+_PATH_FIELDS = {
+    ("data", "home"),
+    ("branding", "logo_light"),
+    ("branding", "logo_dark"),
+    ("branding", "favicon"),
+    ("branding", "social_image"),
+    ("publish", "out"),
+}
 
 
 def example_config_text() -> str:
@@ -231,6 +334,10 @@ def parse_config(
         table = _apply_env(name, cls, table, environ, problems)
         if cls is SourcesConfig:
             sections[name] = _build_sources(table, problems)
+        elif cls is VocabularyConfig:
+            sections[name] = _build_vocabulary(table, problems)
+        elif cls is BrandingConfig:
+            sections[name] = _build_branding(table, problems)
         else:
             sections[name] = _build(cls, name, table, problems)
 
@@ -362,6 +469,114 @@ def _build_sources(table: dict[str, Any], problems: list[str]) -> SourcesConfig:
     return SourcesConfig(**kwargs)
 
 
+PALETTE_COLORS = (
+    "bg", "surface", "text", "muted", "border", "accent", "on_accent", "stripe",
+    "person", "publication", "grant", "study",
+)  # fmt: skip
+_HEX = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
+
+
+def _build_branding(table: dict[str, Any], problems: list[str]) -> BrandingConfig:
+    """[branding], with its palette table and footer links."""
+    table = dict(table)
+    palette: list[tuple[str, str, str]] = []
+    raw = table.pop("palette", None)
+    if raw is not None:
+        if not isinstance(raw, dict):
+            problems.append("[branding.palette] must be a table with day and night tables")
+            raw = {}
+        for mode, colors in raw.items():
+            if mode not in ("day", "night") or not isinstance(colors, dict):
+                problems.append(f"branding.palette.{mode}: use [branding.palette.day] or .night")
+                continue
+            for name, value in colors.items():
+                if name not in PALETTE_COLORS:
+                    problems.append(
+                        f"branding.palette.{mode}.{name}: not a palette color "
+                        f"({', '.join(PALETTE_COLORS)})"
+                    )
+                elif not isinstance(value, str) or not _HEX.match(value):
+                    problems.append(
+                        f"branding.palette.{mode}.{name} must be a hex color like #4f46e5"
+                    )
+                else:
+                    palette.append((mode, name, value.lower()))
+    links: list[tuple[str, str]] = []
+    raw_links = table.pop("footer_links", None)
+    if raw_links is not None:
+        if not isinstance(raw_links, list):
+            problems.append("branding.footer_links must be a list of {label, url} tables")
+            raw_links = []
+        for i, item in enumerate(raw_links, 1):
+            label = item.get("label") if isinstance(item, dict) else None
+            target = item.get("url") if isinstance(item, dict) else None
+            if not (isinstance(label, str) and label.strip() and len(label) <= 60):
+                problems.append(f"branding.footer_links[{i}] needs a label of 1 to 60 characters")
+            elif not (isinstance(target, str) and re.match(r"^(https?://|mailto:)\S+$", target)):
+                problems.append(
+                    f"branding.footer_links[{i}].url must start with https:// or mailto:"
+                )
+            else:
+                links.append((label.strip(), target))
+    built = _build(BrandingConfig, "branding", table, problems)
+    return replace(built, palette=tuple(palette), footer_links=tuple(links))
+
+
+def _pairs(value: Any, label: str, problems: list[str]) -> tuple[tuple[str, str], ...] | None:
+    """A ``key = "Label"`` table, in order."""
+    if not isinstance(value, dict) or not value:
+        problems.append(f'[{label}] must be a table of key = "Label" entries')
+        return None
+    pairs = []
+    for key, text in value.items():
+        if not _KEY.match(key):
+            problems.append(f"{label}.{key}: keys are lowercase letters, digits, and underscores")
+        elif not isinstance(text, str) or not text.strip() or len(text) > 60:
+            problems.append(f"{label}.{key} must be a label of 1 to 60 characters")
+        else:
+            pairs.append((key, text.strip()))
+    return tuple(pairs) or None
+
+
+def _build_vocabulary(table: dict[str, Any], problems: list[str]) -> VocabularyConfig:
+    kwargs: dict[str, Any] = {}
+    for key, value in table.items():
+        if key in ("kinds", "roles"):
+            pairs = _pairs(value, f"vocabulary.{key}", problems)
+            if pairs:
+                kwargs[key] = pairs
+        elif key in ("group", "groups", "default_role"):
+            converted = _convert(value, "str", f"vocabulary.{key}", problems)
+            if converted:
+                kwargs[key] = converted.strip()
+        elif key in ("leader_roles", "attributable_kinds"):
+            converted = _convert(value, "tuple[str, ...]", f"vocabulary.{key}", problems)
+            if converted is not None:
+                kwargs[key] = converted
+        else:
+            problems.append(f"unknown setting vocabulary.{key}")
+    vocabulary = VocabularyConfig(**kwargs)
+    roles = {k for k, _ in vocabulary.roles}
+    for role in vocabulary.leader_roles:
+        if role not in roles:
+            problems.append(f"vocabulary.leader_roles: {role!r} is not in [vocabulary.roles]")
+    kinds = {k for k, _ in vocabulary.kinds}
+    if "kinds" in table and "attributable_kinds" not in table:
+        # Custom kinds: keep the default attributable kinds that are still configured.
+        vocabulary = replace(
+            vocabulary,
+            attributable_kinds=tuple(k for k in vocabulary.attributable_kinds if k in kinds),
+        )
+    for kind in vocabulary.attributable_kinds if "attributable_kinds" in table else ():
+        if kind not in kinds:
+            problems.append(f"vocabulary.attributable_kinds: {kind!r} is not in [vocabulary.kinds]")
+    if vocabulary.default_role not in roles:
+        problems.append(
+            f"vocabulary.default_role: {vocabulary.default_role!r} is not in [vocabulary.roles]"
+        )
+    return vocabulary
+
+
 def _resolve_paths(config: Config, base_dir: Path) -> Config:
     def resolve(p: Path | None) -> Path | None:
         if p is None:
@@ -373,8 +588,11 @@ def _resolve_paths(config: Config, base_dir: Path) -> Config:
         config.branding,
         logo_light=resolve(config.branding.logo_light),
         logo_dark=resolve(config.branding.logo_dark),
+        favicon=resolve(config.branding.favicon),
+        social_image=resolve(config.branding.social_image),
     )
-    return replace(config, data=data, branding=branding)
+    publish = replace(config.publish, out=resolve(config.publish.out))
+    return replace(config, data=data, branding=branding, publish=publish)
 
 
 def validate(config: Config) -> list[str]:
@@ -404,6 +622,16 @@ def validate(config: Config) -> list[str]:
             problems.append(f"branding.{label}: file not found: {logo}")
         elif logo is not None and logo.suffix.lower() not in LOGO_TYPES:
             problems.append(f"branding.{label}: use an SVG, PNG, JPEG, or WebP image")
+    if brand.favicon is not None:
+        if not brand.favicon.is_file():
+            problems.append(f"branding.favicon: file not found: {brand.favicon}")
+        elif brand.favicon.suffix.lower() not in (".svg", ".png", ".ico"):
+            problems.append("branding.favicon: use an SVG, PNG, or ICO file")
+    if brand.social_image is not None:
+        if not brand.social_image.is_file():
+            problems.append(f"branding.social_image: file not found: {brand.social_image}")
+        elif brand.social_image.suffix.lower() not in (".png", ".jpg", ".jpeg"):
+            problems.append("branding.social_image: use a PNG or JPEG image (1200 x 630)")
 
     server = config.server
     if not 1 <= server.port <= 65535:
@@ -451,6 +679,21 @@ def validate(config: Config) -> list[str]:
         problems.append("discovery.similarity_floor must be at least 0 and below 1")
     if not 1 <= dis.similar_per_person <= 200:
         problems.append("discovery.similar_per_person must be between 1 and 200")
+    mail = config.mail
+    if mail.host:
+        if not 1 <= mail.port <= 65535:
+            problems.append("mail.port must be between 1 and 65535")
+        address = mail.sender.rsplit("<", 1)[-1].rstrip(">").strip()
+        if not _EMAIL.match(address):
+            problems.append("mail.sender must be an email address when mail.host is set")
+        if mail.ssl and mail.starttls:
+            problems.append("mail.ssl and mail.starttls are alternatives; set one")
+    if mail.base_url and not re.match(r"^https?://", mail.base_url):
+        problems.append("mail.base_url must start with http:// or https://")
+    if config.publish.base_url and not re.match(r"^https?://", config.publish.base_url):
+        problems.append("publish.base_url must start with http:// or https://")
+    if len(config.publish.intro) > 1000:
+        problems.append("publish.intro is at most 1,000 characters")
     return problems
 
 

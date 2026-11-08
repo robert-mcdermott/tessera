@@ -18,15 +18,12 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import and_, insert, select, update
-from sqlalchemy.engine import Connection, Engine
+from sqlalchemy.engine import Engine
 
-from tessera.config import Config
+from tessera.config import Config, VocabularyConfig
 from tessera.connectors.pubmed import normalize_orcid
 from tessera.connectors.reporter import fiscal_year
-from tessera.core.clock import utc_now
 from tessera.core.errors import TesseraError
-from tessera.core.ids import new_id
 from tessera.evidence import store
 from tessera.evidence.memberships import has_ended, parse_partial_date
 from tessera.evidence.names import (
@@ -38,8 +35,8 @@ from tessera.evidence.names import (
     parse_display_name,
 )
 from tessera.evidence.orgmatch import OrgMatcher, emails_in
+from tessera.groups import store as groups
 from tessera.lake import Lake
-from tessera.ledger.tables import assertion
 
 log = logging.getLogger("tessera.evidence.people")
 
@@ -130,8 +127,10 @@ ROSTER_COLUMNS = {
     "email": ("email", "email_address"),
     "orcid": ("orcid", "orcid_id"),
     "local_id": ("local_id", "id", "employee_id", "person_id"),
-    "unit": ("unit", "department", "division"),
-    "unit_code": ("unit_code", "department_code"),
+    "unit": ("unit", "group", "department", "division"),
+    "unit_code": ("unit_code", "group_code", "department_code"),
+    "unit_kind": ("unit_kind", "group_kind", "kind"),
+    "role": ("role", "group_role"),
     "title": ("title", "position"),
     "start": ("start", "start_date", "from", "since"),
     "end": ("end", "end_date", "to", "until"),
@@ -155,14 +154,22 @@ class RosterStats:
         }
 
 
-def import_roster(engine: Engine, path: Path, today: date | None = None) -> RosterStats:
+def import_roster(
+    engine: Engine,
+    path: Path,
+    today: date | None = None,
+    vocabulary: VocabularyConfig | None = None,
+) -> RosterStats:
     """Import people from a CSV file (an administrator's choice, not a live integration).
 
-    Each row may give a unit with a title and the dates the person joined and left it; a
-    person can appear on several rows for concurrent memberships. Someone whose memberships
-    have all ended is a former member; anyone else on the roster is active.
+    Each row may give a group (``unit``, with an optional code and kind) with the person's
+    role, title, and the dates they joined and left it; a person can appear on several rows for
+    concurrent memberships. Groups and memberships are recorded as coming from the roster, so
+    importing the file again updates them. Someone whose memberships have all ended is a former
+    member; anyone else on the roster is active.
     """
     today = today or date.today()
+    vocabulary = vocabulary or VocabularyConfig()
     try:
         text = path.read_text(encoding="utf-8-sig")
     except OSError as exc:
@@ -234,76 +241,36 @@ def import_roster(engine: Engine, path: Path, today: date | None = None) -> Rost
                     store.add_identifier(conn, person_id, scheme, v, source="roster")
             current = True
             if value("unit"):
-                unit_id = store.get_or_create_unit(
-                    conn, value("unit"), code=value("unit_code") or None
-                )
-                qualifiers = {
-                    k: v
-                    for k, v in (("title", value("title")), ("start", start), ("end", end))
-                    if v
-                }
-                _membership(conn, person_id, unit_id, qualifiers)
+                kind = value("unit_kind").lower() or vocabulary.default_kind
+                fields = {"name": value("unit"), "code": value("unit_code") or None, "kind": kind}
+                try:
+                    unit_id, _ = groups.upsert_group(
+                        conn,
+                        {k: v for k, v in fields.items() if v},
+                        source="roster",
+                        external_id=value("unit_code") or None,
+                        actor="roster",
+                        vocabulary=vocabulary,
+                    )
+                    groups.add_membership(
+                        conn,
+                        person_id=person_id,
+                        group_id=unit_id,
+                        vocabulary=vocabulary,
+                        actor="roster",
+                        role=value("role").lower() or None,
+                        title=value("title") or None,
+                        start=start,
+                        end=end,
+                        source="roster",
+                    )
+                except groups.GroupError as exc:
+                    stats.skipped.append(f"line {number}: {exc}")
                 current = not has_ended(end, today)
             touched[person_id] = touched.get(person_id, False) or current
         for person_id, current in touched.items():
             store.set_status(conn, person_id, "active" if current else "former")
     return stats
-
-
-def _membership(conn: Connection, person_id: str, unit_id: str, qualifiers: dict[str, Any]) -> None:
-    """One membership per person and unit; the roster is its source, so dates follow it."""
-    exists = (
-        conn.execute(
-            select(assertion.c.id, assertion.c.qualifiers).where(
-                and_(
-                    assertion.c.subject_id == person_id,
-                    assertion.c.predicate == "member_of",
-                    assertion.c.object_id == unit_id,
-                )
-            )
-        )
-        .mappings()
-        .first()
-    )
-    if exists:
-        if (exists["qualifiers"] or {}) != qualifiers:
-            conn.execute(
-                update(assertion)
-                .where(assertion.c.id == exists["id"])
-                .values(qualifiers=qualifiers, updated_at=utc_now())
-            )
-        return
-    now = utc_now()
-    conn.execute(
-        insert(assertion).values(
-            id=new_id("asr"),
-            subject_type="person",
-            subject_id=person_id,
-            predicate="member_of",
-            object_type="unit",
-            object_id=unit_id,
-            qualifier_key="",
-            qualifiers=qualifiers,
-            origin="source",
-            method="roster/v1",
-            score=None,
-            evidence=[
-                {
-                    "feature": "roster",
-                    "value": None,
-                    "weight": None,
-                    "explanation": "Listed in the imported roster file",
-                    "source_ref": "roster",
-                }
-            ],
-            status="accepted",
-            locked=False,
-            reported=True,
-            first_seen_at=now,
-            last_evaluated_at=now,
-            updated_at=now,
-        )
-    )
 
 
 # --- discovery from the affiliation sweep --------------------------------------------------

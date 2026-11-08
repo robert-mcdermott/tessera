@@ -50,7 +50,7 @@ Released as [v0.1.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0
 | 7 | Missed connections and units | Missed connections, groups and bridges, the unit matrix | ☑ |
 | 8 | Release prep | Guides, evaluation, dependency review, changelog, release | ☑ |
 
-The MeSH hierarchy waits for the source decision; until then concept profiles are flat.
+The MeSH hierarchy, approved after this release, arrived in wave 3.
 
 Released as [v0.2.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0.2.0) on 2026-11-08. Detail: [waves/wave-2.md](waves/wave-2.md)
 
@@ -78,15 +78,17 @@ It waits until the main screens have settled: once wave 2's discovery views exis
 - **Publishing:** the site is whatever is committed on the `gh-pages` branch, served by GitHub Pages. Maintainers keep a worktree of that branch beside the repository; the build writes into it only with `--publish` and refuses otherwise, so nothing is published by accident. The site states the version it describes.
 - **Each release:** retake screenshots for screens that changed, check the guides against the changelog, build and review in both themes and at phone width, then publish once the release is out. This becomes part of every release-prep slice from then on.
 
-## Wave 3: Showcase (v0.3.0) ☐
+## Wave 3: Showcase (v0.3.0) ☑
 
-**Goal:** give labs and groups a living home that maintains itself, and open a public window.
+**Goal:** give labs and groups a living home that maintains itself, and open a public window. Released as 0.3.0 on 2026-11-09: MeSH synonyms and hierarchy, groups of every kind with roles and alumni, group pages with lab attribution, managers and an editorial workflow, the weekly inbox and digests, openings and themes, a static public site, and the brand kit.
+
+Detail: [waves/wave-3.md](waves/wave-3.md)
 
 - Labs as first-class entities: roster with dates and alumni, explicit lab attribution of outputs
 - Modular page blocks; draft, preview, publish, history, rollback
 - Weekly approval inbox for lab owners
 - Research themes and projects; openings with expiry
-- Public allowlisted projection: server-rendered public profiles and lab pages; SEO and accessibility; abstract display rules
+- Public allowlisted projection: public profiles and lab pages (generated as static files, so the app stays private); SEO and accessibility; abstract display rules
 - Configurable vocabulary for unit kinds, roles, and labels
 - Brand kit (PLT-13), arriving with the public site, where an organization's own look matters most: an optional `[branding.palette]` that sets core colors by day and night (surfaces, text, accent and its text, record types, stripe), footer links, a favicon, and a social preview image. `tessera doctor` runs the same WCAG AA check used on rendered pages over every configured color pair, including a configured accent, and fails any pair below AA
 - In-app digest notifications

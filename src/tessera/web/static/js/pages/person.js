@@ -29,7 +29,7 @@ export function person(main, params, { samePage = false } = {}) {
     load: async () => {
       const [profile, concepts, similar] = await Promise.all([
         get(`/api/v1/people/${encodeURIComponent(id)}`, null, { fresh: samePage }).then((r) => r.data),
-        get(`/api/v1/people/${encodeURIComponent(id)}/concepts`).then((r) => r.data).catch(() => []),
+        get(`/api/v1/people/${encodeURIComponent(id)}/concepts`).catch(() => ({ data: [], meta: {} })),
         get(`/api/v1/people/${encodeURIComponent(id)}/similar`).then((r) => r.data).catch(() => []),
       ]);
       let list = null;
@@ -45,9 +45,9 @@ export function person(main, params, { samePage = false } = {}) {
       } else if (tab === "history") {
         list = await get(`/api/v1/people/${encodeURIComponent(id)}/history`, null, { fresh: true });
       }
-      return { profile, list, concepts, similar };
+      return { profile, list, concepts: concepts.data, areas: concepts.meta.areas ?? [], meshYear: concepts.meta.mesh_year, similar };
     },
-    view: ({ profile, list, concepts, similar }) => {
+    view: ({ profile, list, concepts, areas, meshYear, similar }) => {
       const c = profile.counts;
       const pubs = c.publications ?? {};
       const suggested = (c.suggested_by_band?.strong ?? 0) + (c.suggested_by_band?.possible ?? 0);
@@ -68,6 +68,7 @@ export function person(main, params, { samePage = false } = {}) {
           suggested ? h("a", { class: "btn", href: `/review?person=${encodeURIComponent(profile.id)}` }, icon("review", "icon icon-sm"), "Review suggestions") : null,
           h("button", { type: "button", class: "btn", onclick: () => addPublication(profile, refresh) }, icon("publication", "icon icon-sm"), "Add a publication"),
           can("curate_any") ? h("button", { type: "button", class: "btn btn-ghost", onclick: () => mergeWith(profile, refresh) }, icon("layers", "icon icon-sm"), "Merge…") : null,
+          publicToggle(`/api/v1/people/${profile.id}/public`, profile.public, "profile", refresh),
         ] : null,
       });
       const mergedNote = profile.merged_into ? h("div", { class: "callout callout-warn", role: "note" },
@@ -109,8 +110,9 @@ export function person(main, params, { samePage = false } = {}) {
 
       const side = h("div", { class: "stack-lg" },
         concepts.length ? card({ title: "Topics", pad: true, attrs: { "data-entity": "concept" },
-          action: h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => showProfile(profile, concepts) }, "How this is built"),
+          action: h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => showProfile(profile, concepts, areas, meshYear) }, "How this is built"),
           body: h("div", { class: "stack-sm" },
+            areas.length ? areaList(areas.slice(0, 4)) : null,
             h("div", { class: "chips" }, concepts.slice(0, 8).map((c) => h("a", { class: "chip", href: `/experts?concept=${c.descriptor_ui}`,
               title: `Find others who work on ${c.descriptor}` }, c.descriptor))),
             h("p", { class: "subtle" }, "The most distinctive topics of their papers; select one to find others who work on it.")) })
@@ -263,16 +265,20 @@ function addPublication(profile, refresh) {
   });
 }
 
-/** Units the person belongs to, with titles and dates; past memberships after current ones. */
+/** Groups the person belongs to, with roles, titles, and dates; past memberships last. */
 function membershipsCard(profile) {
   if (!profile.units.length) return null;
   const span = (u) => u.start && u.end ? `${u.start} – ${u.end}` : u.start ? `since ${u.start}` : u.end ? `until ${u.end}` : null;
-  return card({ title: "Memberships", pad: true, attrs: { "data-entity": "unit" },
-    body: h("ul", { class: "plain-list memberships" }, profile.units.map((u) =>
-      h("li", { class: u.current ? "" : "past" },
-        h("span", { class: u.current ? "strong" : "" }, u.unit),
-        [u.title, span(u), u.current ? null : "past"].filter(Boolean).length
-          ? h("span", { class: "subtle" }, ` · ${[u.title, span(u), u.current ? null : "past"].filter(Boolean).join(" · ")}`) : null))) });
+  const role = (u) => (u.role && u.role !== "member") || u.leader ? u.role_label : null;
+  return card({ title: "Groups", pad: true, attrs: { "data-entity": "unit" },
+    body: h("ul", { class: "plain-list memberships" }, profile.units.map((u) => {
+      const details = [u.kind_label, role(u), u.title, span(u), u.current ? null : "past"].filter(Boolean);
+      return h("li", { class: u.current ? "" : "past" },
+        u.group_slug && u.group_status !== "merged"
+          ? h("a", { class: u.current ? "strong" : "", href: `/groups/${u.group_slug}` }, u.unit)
+          : h("span", { class: u.current ? "strong" : "" }, u.unit),
+        details.length ? h("span", { class: "subtle" }, ` · ${details.join(" · ")}`) : null);
+    })) });
 }
 
 async function undoMerge(mergeId, button, refresh) {
@@ -356,7 +362,17 @@ function mergeWith(profile, refresh) {
 }
 
 /** What drives a concept profile, so its owner (and anyone) can see why it says what it says. */
-function showProfile(profile, concepts) {
+/** Broader research areas, as shares with bars (widths set through the CSSOM). */
+function areaList(areas) {
+  const list = h("ul", { class: "plain-list area-list", "aria-label": "Research areas" }, areas.map((a) => h("li", {},
+    h("a", { href: a.area_ui ? `/experts?concept=${a.area_ui}` : null, title: `Includes ${a.concepts.join(", ")}` }, a.area),
+    h("span", { class: "area-bar", role: "img", "aria-label": `${Math.round(a.share * 100)}% of their topics` }, h("span", { "data-w": String(Math.max(4, Math.round(a.share * 100))) })),
+    h("span", { class: "subtle tabular" }, `${Math.round(a.share * 100)}%`))));
+  for (const bar of list.querySelectorAll(".area-bar > span")) bar.style.setProperty("width", `${bar.dataset.w}%`);
+  return list;
+}
+
+function showProfile(profile, concepts, areas = [], meshYear = null) {
   const top = concepts[0]?.weight || 1;
   openDrawer({
     title: "How the topics are built",
@@ -369,8 +385,31 @@ function showProfile(profile, concepts) {
         h("span", { class: "subtle" }, `${number(c.papers)} ${c.papers === 1 ? "paper" : "papers"}${c.confirmed === c.papers ? "" : c.confirmed ? `, ${number(c.confirmed)} confirmed` : ", none confirmed yet"}`)));
       body.append(h("div", { class: "stack" },
         h("p", { class: "muted" }, "Each topic is a MeSH heading from their papers, counting major topics double, first and last authorship half again, and recent papers more (weight halves every five years). Papers suggested strongly but not yet confirmed count half. Topics many people share count less, so these are what set them apart."),
-        h("ol", { class: "plain-list concept-list" }, rows)));
+        areas.length ? h("h3", { class: "drawer-subhead" }, "Broader areas") : null,
+        areas.length ? h("p", { class: "subtle" }, "Their topics rolled up the MeSH hierarchy to the diseases, body systems, organisms, and processes they study; areas almost everyone shares count less.") : null,
+        areas.length ? areaList(areas) : null,
+        h("h3", { class: "drawer-subhead" }, "Topics"),
+        h("ol", { class: "plain-list concept-list" }, rows),
+        meshYear ? h("p", { class: "subtle" }, `Headings, synonyms, and hierarchy: MeSH ${meshYear}, from the U.S. National Library of Medicine.`) : null));
       for (const bar of body.querySelectorAll(".concept-bar-track > span")) bar.style.setProperty("width", `${bar.dataset.w}%`);
     },
   });
 }
+
+/** A switch for whether a person or group has a page on the public site (tessera publish). */
+export function publicToggle(path, isPublic, noun, refresh) {
+  return h("label", { class: "row-sm public-toggle", title: `Whether ${noun === "profile" ? "this person has a profile" : "this group has a page"} on the public site` },
+    h("input", { type: "checkbox", checked: Boolean(isPublic), onchange: async (event) => {
+      const on = event.target.checked;
+      try {
+        await post(path, { public: on });
+      } catch (error) {
+        event.target.checked = !on;
+        toast(error.detail || "That did not work.");
+        return;
+      }
+      toast(on ? `The public site will show this ${noun} from its next publication.` : `This ${noun} leaves the public site at its next publication.`);
+      refresh?.();
+    } }), `Public ${noun}`);
+}
+

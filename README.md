@@ -2,7 +2,7 @@
 
 **Every contribution, connected.**
 
-Tessera is an open research intelligence platform for academic research organizations. It assembles an organization's research footprint from public sources (PubMed, NIH RePORTER, ClinicalTrials.gov, iCite, and ORCID), connects people, publications, grants, and clinical studies, shows the evidence behind every connection, and helps people find who works on what and who should meet.
+Tessera is an open research intelligence platform for academic research organizations. It assembles an organization's research footprint from public sources (PubMed, NIH RePORTER, ClinicalTrials.gov, iCite, ORCID, and MeSH), connects people, publications, grants, and clinical studies, shows the evidence behind every connection, helps people find who works on what and who should meet, and gives every lab, program, and division a page its own people keep, with a public site for those who opt in.
 
 - **Starts from public data.** No HR feeds or institutional integrations needed to get going.
 - **Evidence on every link.** Each connection records its source, method, likelihood, and review history.
@@ -27,6 +27,8 @@ Tessera is an open research intelligence platform for academic research organiza
 - **Connects records:** papers to the grants they acknowledge, studies to their publications and grants, investigators to grants, and officials to studies.
 - **Lets people decide,** in a review queue, on profiles, and in bulk, with every decision logged and reversible; with accounts, each person signs in and decides what their role allows. Duplicate records of one person are proposed and merged reversibly.
 - **Finds expertise and connections:** "who works on X?" in plain words, each person's topics with what drives them, similar people, graphs of who works with whom and how research areas connect, pairs who share interests but have never worked together, and units compared by interest and collaboration.
+- **Gives every group a home:** divisions, programs, labs, and any other kind, curated by hand or imported from your own records, nested under as many parents as they span, with members' roles and dates and alumni kept as alumni. Each group has a page its managers arrange from approved blocks (about, people, featured publications, grants, studies, themes and projects, openings, news, contact) and publish with drafts, history, and rollback. Which papers are a group's own is decided by a person, from suggestions with evidence, in a weekly inbox that also gathers new grants, roster changes, and openings closing soon.
+- **Publishes a public site:** `tessera publish` writes static pages for the groups and people who opt in, with citations rather than abstracts, checked for accessibility and in the organization's own colors.
 - **Serves a fast web app and a JSON API:** search, browsable directories with facets, profiles, record pages with provenance, and data health, in light and dark versions of three color palettes.
 
 ## Quickstart
@@ -53,7 +55,7 @@ To look around first, `uv run tessera demo` builds an invented research institut
 
 The guides are published, with screenshots, at **[robert-mcdermott.github.io/tessera](https://robert-mcdermott.github.io/tessera/)**. In the repository:
 
-- [Getting started](docs/getting-started.md), [Describing your organization](docs/organization-profile.md), [Curating](docs/curation.md), and [Finding experts](docs/discovery.md)
+- [Getting started](docs/getting-started.md), [Describing your organization](docs/organization-profile.md), [Curating](docs/curation.md), [Finding experts](docs/discovery.md), [Groups](docs/groups.md), and [The public site](docs/public-site.md)
 - [Configuration](docs/configuration.md), [Running Tessera](docs/operations.md), [The API](docs/api.md), and the [Command reference](docs/cli.md)
 - [`spec/`](spec/README.md): vision, architecture, data model, evidence engine, roadmap, and design decisions
 

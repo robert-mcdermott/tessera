@@ -24,7 +24,7 @@ from tessera.demo.world import CITY, DOMAIN, ORG, ORG_SHORT, REPORTER_ORG, World
 from tessera.home import DataHome
 from tessera.jobs import runs
 from tessera.lake import LakeWriter
-from tessera.lake.schemas import CTGOV, ICITE, ORCID, PUBMED, REPORTER, REPORTER_LINKS
+from tessera.lake.schemas import CTGOV, ICITE, MESH, ORCID, PUBMED, REPORTER, REPORTER_LINKS
 from tessera.ledger import migrate
 from tessera.ledger.db import make_engine
 
@@ -84,10 +84,12 @@ def build_demo(
     labs_per_area: int = 3,
 ) -> dict[str, Any]:
     """Create ``path/tessera.toml`` and a data home at ``path/var`` for the demo organization."""
+    from tessera.demo.groups import registry
     from tessera.evidence import store
     from tessera.evidence.people import import_roster
     from tessera.evidence.resolve import resolve
-    from tessera.jobs.build import build_discovery, build_search
+    from tessera.groups.importer import import_groups
+    from tessera.jobs.build import build_attribution, build_discovery, build_search
 
     today = today or date.today()
     path = Path(path)
@@ -114,10 +116,19 @@ def build_demo(
         _record(engine, home, "pubmed", PUBMED, world.pubmed, "affiliation")
         _record(engine, home, "icite", ICITE, world.icite, "refresh")
         _record(engine, home, "orcid", ORCID, world.orcid, "refresh")
+        from tessera.demo.mesh import mesh_records
+
+        _record(engine, home, "mesh", MESH, mesh_records(today.year), "annual")
 
         roster = path / "roster.csv"
         _write_roster(world, roster)
-        import_roster(engine, roster, today=today)  # before grants, as an organization would
+        # Before grants, as an organization would.
+        import_roster(engine, roster, today=today, vocabulary=config.vocabulary)
+        # Labs, programs, and the shared resource come from the Institute's registry.
+        import_groups(
+            engine, registry(world, today), source="registry", vocabulary=config.vocabulary,
+            actor="Registry import", today=today,
+        )  # fmt: skip
         resolve(config, home, engine, today=today)
         merged = _merge_duplicates(engine, keep_open=2)
         resolve(config, home, engine, today=today)
@@ -127,6 +138,13 @@ def build_demo(
         _accounts(engine, world)
         build_search(config, home, engine)
         built = build_discovery(config, home, engine)
+        build_attribution(config, home, engine, today=today)
+        _attribute(engine)
+        _pages(engine, today)
+        _public(engine)
+        from tessera.publish import publish
+
+        site = publish(config, home, engine, today=today)
         people = len(store.load_people(engine))
     finally:
         engine.dispose()
@@ -139,6 +157,7 @@ def build_demo(
         "merged": merged,
         **curated,
         "concepts": built.get("concepts", 0),
+        "public_site": str(site.out / "index.html") if site.written else None,
     }
 
 
@@ -149,14 +168,11 @@ def _remove(directory: Path) -> None:
 
 
 def _write_roster(world: World, path: Path) -> None:
-    lines = ["family,given,email,orcid,unit,title,start"]
+    lines = ["family,given,email,orcid,unit,kind,title,start"]
     for row in world.roster:
-        lines.append(
-            ",".join(
-                f'"{row[k]}"'
-                for k in ("family", "given", "email", "orcid", "unit", "title", "start")
-            )
-        )
+        values = [row[k] for k in ("family", "given", "email", "orcid", "unit")]
+        values += ["division", row["title"], row["start"]]  # the roster's units are divisions
+        lines.append(",".join(f'"{v}"' for v in values))
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -268,6 +284,217 @@ def _evaluate(engine: Engine, config: Config) -> None:
     evaluate(engine, config, actor=CURATOR)
 
 
+def _attribute(engine: Engine) -> None:
+    """Decide group attributions as each group's people would: the papers with the strongest
+    evidence are the group's, weak ones are not, and the newest few wait for review."""
+    from sqlalchemy import select
+
+    from tessera.evidence import store
+    from tessera.ledger.tables import assertion
+
+    with engine.connect() as conn:
+        rows = conn.execute(
+            select(assertion.c.id, assertion.c.object_id, assertion.c.subject_id,
+                   assertion.c.score).where(
+                assertion.c.predicate == "attributed_to", assertion.c.status == "suggested"
+            )
+        ).all()  # fmt: skip
+    by_group: dict[str, list[Any]] = {}
+    for row in rows:
+        by_group.setdefault(row.object_id, []).append(row)
+    for items in by_group.values():
+        items.sort(key=lambda r: r.subject_id)  # PMIDs rise with time in the demo
+        waiting = {r.id for r in items[-2:]}
+        for i, r in enumerate(items):
+            if r.id in waiting:
+                continue
+            if (r.score or 0) >= 0.7:
+                store.decide(engine, r.id, "accept", CURATOR)
+            elif (r.score or 0) < 0.6 or i % 2 == 0:
+                store.decide(engine, r.id, "reject", CURATOR, "A member's work elsewhere")
+
+
+def _pages(engine: Engine, today: date) -> None:
+    """Published pages for the immunotherapy program and the lab with the most papers, as
+    their managers would write them."""
+    from sqlalchemy import func, select
+
+    from tessera.groups import pages
+    from tessera.ledger.tables import assertion, unit
+
+    with engine.begin() as conn:
+        lab = conn.execute(
+            select(unit.c.id, unit.c.name)
+            .join(assertion, assertion.c.object_id == unit.c.id)
+            .where(
+                unit.c.kind == "lab",
+                assertion.c.predicate == "attributed_to",
+                assertion.c.status == "accepted",
+            )
+            .group_by(unit.c.id, unit.c.name)
+            .order_by(func.count().desc(), unit.c.name)
+            .limit(1)
+        ).first()
+        program = conn.execute(
+            select(unit.c.id).where(unit.c.slug == "cancer-immunotherapy-program")
+        ).scalar()
+        for group_id, name in [(program, "Cancer Immunotherapy Program"), *([lab] if lab else [])]:
+            if not group_id:
+                continue
+            featured = conn.execute(
+                select(assertion.c.subject_id)
+                .where(
+                    assertion.c.predicate == "attributed_to",
+                    assertion.c.status == "accepted",
+                    assertion.c.object_id == group_id,
+                )
+                .order_by(assertion.c.score.desc(), assertion.c.subject_id.desc())
+                .limit(2)
+            ).scalars()
+            about = (
+                f"The {name} brings together people who share questions, data, and equipment. "
+                "We meet every other week to share results, and we train students and fellows "
+                "across the Institute.\n\nVisitors are welcome: write to us to arrange a visit "
+                "or a seminar."
+            )
+            blocks = [
+                {"type": "about", "text": about},
+                {"type": "people"},
+                {"type": "publications", "featured": [p.removeprefix("pub:") for p in featured]},
+                {"type": "themes"},
+                {"type": "openings"},
+                {"type": "news", "items": [
+                    {"date": today.replace(day=1).isoformat(), "title": "Welcome, new fellows",
+                     "text": "Three postdoctoral fellows joined this autumn."},
+                    {"date": f"{today.year}-05-14", "title": "Retreat at the coast",
+                     "text": "Posters, a keynote, and a long walk on the beach."},
+                ]},
+                {"type": "grants"},
+                {"type": "topics"},
+                {"type": "connections"},
+                {"type": "contact", "text": "Seminars are open to everyone at the Institute."},
+            ]  # fmt: skip
+            pages.save_draft(conn, group_id, blocks, actor=CURATOR)
+            pages.publish(conn, group_id, actor=CURATOR, note="First version")
+        if program:
+            _program_work(conn, program, today)
+        # Every inbox was reviewed when the demo was built; one roster change came after.
+        from tessera.groups import inbox
+
+        for group_id in conn.execute(select(unit.c.id)).scalars():
+            inbox.mark_reviewed(conn, group_id, actor=CURATOR)
+        if lab:
+            _late_arrival(conn, lab.id, today)
+
+
+def _program_work(conn: Any, program: str, today: date) -> None:
+    """Themes and openings for the immunotherapy program."""
+    from datetime import timedelta
+
+    from sqlalchemy import select
+
+    from tessera.groups import openings, store, themes
+    from tessera.ledger.tables import assertion
+
+    people = sorted(store.current_members(conn, [program], today))
+    grants = sorted(
+        set(
+            conn.execute(
+                select(assertion.c.object_id).where(
+                    assertion.c.predicate == "investigator_on",
+                    assertion.c.status == "accepted",
+                    assertion.c.subject_id.in_(people),
+                )
+            ).scalars()
+        )
+    )
+    papers = list(
+        conn.execute(
+            select(assertion.c.subject_id)
+            .where(
+                assertion.c.predicate == "attributed_to",
+                assertion.c.status == "accepted",
+                assertion.c.object_id == program,
+            )
+            .order_by(assertion.c.subject_id.desc())
+            .limit(6)
+        ).scalars()
+    )
+    themes.create_theme(
+        conn, program,
+        {"name": "Engineered T cells for solid tumors", "kind": "theme",
+         "summary": "Why cell therapies that work in blood cancers stall in solid tumors, and "
+         "how to change the microenvironment so they do not."},
+        actor=CURATOR, links=[*people[:3], *grants[:2], *papers[:3]],
+    )  # fmt: skip
+    themes.create_theme(
+        conn, program,
+        {"name": "A shared atlas of tumor-infiltrating lymphocytes", "kind": "project",
+         "summary": "One single-cell atlas of the T cells found in tumors across the program's "
+         "studies, open to every lab."},
+        actor=CURATOR, links=[*people[2:5], *papers[3:6]],
+    )  # fmt: skip
+    openings.create_opening(
+        conn, program,
+        {"title": "Postdoctoral fellow in cell therapy", "kind": "job",
+         "closes_on": today + timedelta(days=10),
+         "description": "Join a team building and testing engineered T cells. Experience with "
+         "flow cytometry or single-cell methods is welcome.",
+         "url": "https://www.corvane.example/careers/cell-therapy-fellow",
+         "contact": "cip@corvane.example"},
+        actor=CURATOR, today=today - timedelta(days=30),
+    )  # fmt: skip
+    openings.create_opening(
+        conn, program,
+        {"title": "Summer research internship", "kind": "training",
+         "closes_on": today + timedelta(days=75),
+         "description": "Ten weeks in a program lab for undergraduates, with a stipend.",
+         "contact": "cip@corvane.example"},
+        actor=CURATOR, today=today,
+    )  # fmt: skip
+
+
+def _late_arrival(conn: Any, lab: str, today: date) -> None:
+    """Someone joins a lab after its inbox was reviewed, so the inbox has a roster change."""
+    from sqlalchemy import select
+
+    from tessera.config import VocabularyConfig
+    from tessera.groups import store
+    from tessera.ledger.tables import person
+
+    here = store.current_members(conn, [lab], today)
+    newcomer = conn.execute(
+        select(person.c.id)
+        .where(person.c.status == "active", person.c.id.notin_(sorted(here)))
+        .order_by(person.c.family_name)
+        .limit(1)
+    ).scalar()
+    if newcomer:
+        store.add_membership(
+            conn, person_id=newcomer, group_id=lab, vocabulary=VocabularyConfig(),
+            actor="Registry import", role="affiliate", start=today.isoformat()[:7],
+            source="registry",
+        )  # fmt: skip
+
+
+def _public(engine: Engine) -> None:
+    """Every group opts in to the public site, and so does everyone with confirmed papers."""
+    from sqlalchemy import select, update
+
+    from tessera.ledger.tables import assertion, person, unit
+
+    with engine.begin() as conn:
+        conn.execute(update(unit).where(unit.c.status == "active").values(public=True))
+        confirmed = select(assertion.c.subject_id).where(
+            assertion.c.predicate == "authored", assertion.c.status == "accepted"
+        )
+        conn.execute(
+            update(person)
+            .where(person.c.status == "active", person.c.id.in_(confirmed))
+            .values(public=True)
+        )
+
+
 def _accounts(engine: Engine, world: World) -> None:
     """A few accounts with each role, so Admin → Accounts has something to show. Their
     passwords are random and never shown; reset one with ``tessera users reset-password``."""
@@ -283,6 +510,9 @@ def _accounts(engine: Engine, world: World) -> None:
         division = conn.execute(
             select(unit.c.id).where(unit.c.name == "Division of Neuroscience")
         ).scalar()
+        program = conn.execute(
+            select(unit.c.id).where(unit.c.slug == "cancer-immunotherapy-program")
+        ).scalar()
     key_of = _key_of(engine, world)
     researcher = next((pid for pid, key in sorted(key_of.items()) if key.startswith("p")), None)
     names = {p.id: p.display_name for p in store.load_people(engine)}
@@ -297,6 +527,10 @@ def _accounts(engine: Engine, world: World) -> None:
         ),
         ("viewer", "Guest viewer", [Grant("viewer")], None),
     ]
+    if program:  # the program's coordinator keeps its page and decides its papers
+        accounts.append(
+            ("cip.manager", "Wren Castellan", [Grant("manager", "unit", program, True)], None)
+        )
     if researcher:
         accounts.append(
             (

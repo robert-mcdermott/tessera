@@ -47,6 +47,14 @@ export const SCENES = [
   { name: "landscape", scroll: ".tabs", url: "/graph?view=landscape", ...WIDE, wait: "document.querySelector('.graph-canvas')", settle: 1500 },
   { name: "missed", scroll: ".tabs", url: "/graph?view=missed&min=0.15", ...WIDE, wait: "document.querySelector('.missed')" },
   { name: "units", scroll: ".tabs", url: "/graph?view=units", ...WIDE, step: STRONGEST_CELL, wait: "document.querySelector('.graph-side h2') && !document.querySelector('.graph-side').textContent.includes('Loading')" },
+  { name: "groups", url: "/groups", ...WIDE },
+  { name: "group", url: "/groups/cancer-immunotherapy-program", ...WIDE },
+  { name: "group-themes", scroll: ".theme-list", url: "/groups/cancer-immunotherapy-program", ...WIDE },
+  { name: "group-editor", url: "/groups/cancer-immunotherapy-program/edit", ...WIDE, wait: "document.querySelector('.block-editor')" },
+  { name: "inbox", url: "/inbox?group=cancer-immunotherapy-program", ...WIDE, wait: "document.querySelector('.inbox-groups')" },
+  { name: "admin-groups", url: "/admin/groups/cancer-immunotherapy-program", ...WIDE },
+  { name: "public-group", file: "groups/cancer-immunotherapy-program/index.html", ...WIDE, ready: "document.querySelector('main h1')" },
+  { name: "public-home", file: "index.html", ...WIDE, ready: "document.querySelector('main h1')" },
   { name: "duplicates", url: "/review/duplicates", ...WIDE },
   { name: "discovered", url: "/review/people", ...WIDE },
   { name: "evidence-model", url: "/admin/evidence", ...WIDE },
@@ -136,8 +144,10 @@ async function main() {
         const page = await browser.page();
         await page.viewport({ width: scene.width, height: scene.height, scale: scene.scale ?? 1.5, mobile: Boolean(scene.mobile) });
         await page.media({ "prefers-color-scheme": theme, "prefers-reduced-motion": "reduce" });
-        await page.goto(base + scene.url.replace(/\{(\w+)\}/g, (_, key) => chosen[key]));
-        await page.until(ready);
+        // The public site is files the demo published (var/public); the rest is the app.
+        await page.goto(scene.file ? `file://${join(demo, "var", "public", scene.file)}`
+          : base + scene.url.replace(/\{(\w+)\}/g, (_, key) => chosen[key]));
+        await page.until(scene.ready ?? ready);
         if (scene.step) {
           await page.evaluate(scene.step);
         }

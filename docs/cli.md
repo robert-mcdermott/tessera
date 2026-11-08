@@ -226,6 +226,19 @@ usage: tessera people import [-h] path
 |---|---|
 | `path` | CSV file with a header row |
 
+### `tessera people public`
+
+Give people a profile on the public site (or take it away).
+
+```text
+usage: tessera people public [-h] [--off] person [person ...]
+```
+
+| Argument | Meaning |
+|---|---|
+| `person` | IDs (per_…) |
+| `--off` | take the profiles away |
+
 ### `tessera people list`
 
 List people.
@@ -238,6 +251,113 @@ usage: tessera people list [-h] [--status STATUS] [--limit LIMIT]
 |---|---|
 | `--status STATUS` | active \| former \| candidate \| all |
 | `--limit LIMIT` | at most this many (default: 50) |
+
+## `tessera groups`
+
+Groups: divisions, programs, labs, and other kinds.
+
+```text
+usage: tessera groups [-h] ACTION ...
+```
+
+### `tessera groups import`
+
+Import groups or memberships from a CSV or JSON file.
+
+Import groups (a CSV file with a 'name' column) or memberships (a CSV file with a 'group' column), or both (a JSON file with 'groups' and 'memberships'). Rows carry the source's own identifiers, so importing the same source again updates what it made earlier. See docs/groups.md for the columns.
+
+```text
+usage: tessera groups import [-h] --source SOURCE [--complete] [--dry-run] path
+```
+
+| Argument | Meaning |
+|---|---|
+| `path` | CSV or JSON file |
+| `--source SOURCE` | a short name for where the file comes from, like hr |
+| `--complete` | the file is the source's whole list: archive its missing groups and end its missing current memberships today |
+| `--dry-run` | report what would change; change nothing |
+
+### `tessera groups attribute`
+
+Suggest which papers are each group's own (also run by sync).
+
+```text
+usage: tessera groups attribute [-h]
+```
+
+### `tessera groups public`
+
+Give groups a page on the public site (or take it away).
+
+```text
+usage: tessera groups public [-h] [--off] groups [groups ...]
+```
+
+| Argument | Meaning |
+|---|---|
+| `groups` | addresses, codes, or IDs |
+| `--off` | take the pages away |
+
+### `tessera groups list`
+
+List groups.
+
+```text
+usage: tessera groups list [-h] [--kind KIND] [--all]
+```
+
+| Argument | Meaning |
+|---|---|
+| `--kind KIND` | only groups of this kind |
+| `--all` | include archived groups |
+
+## `tessera digest`
+
+Pending work for each account: groups' inboxes and review queues.
+
+```text
+usage: tessera digest [-h] ACTION ...
+```
+
+### `tessera digest show`
+
+Print the digests.
+
+```text
+usage: tessera digest show [-h] [--account ACCOUNT]
+```
+
+| Argument | Meaning |
+|---|---|
+| `--account ACCOUNT` | only this account (username) |
+
+### `tessera digest send`
+
+Email each account with pending work its digest ([mail]); run it weekly.
+
+```text
+usage: tessera digest send [-h] [--account ACCOUNT] [--dry-run]
+```
+
+| Argument | Meaning |
+|---|---|
+| `--account ACCOUNT` | only this account (username) |
+| `--dry-run` | print the messages instead of sending them |
+
+## `tessera publish`
+
+Write the public site: pages for the people and groups that opted in.
+
+Write a static public site from an allowlisted projection: a page for every person and group that opted in, with citations and links rather than abstracts. The site is built and checked (structure, accessibility, links, and colors) before it replaces the published one. Run it daily, after sync.
+
+```text
+usage: tessera publish [-h] [--out OUT] [--check]
+```
+
+| Argument | Meaning |
+|---|---|
+| `--out OUT` | where to write it ([publish] out) |
+| `--check` | build and check, but write nothing |
 
 ## `tessera users`
 
@@ -261,7 +381,7 @@ usage: tessera users add [-h] [--name NAME] --role ROLE [--email EMAIL] [--perso
 |---|---|
 | `username` | lowercase letters, digits, dots, dashes, underscores |
 | `--name NAME` | the name shown and recorded on decisions |
-| `--role ROLE` | admin, curator, researcher, or viewer; a curator for some people only is curator=unit:<name or code> or curator=person:<ID> (repeatable) |
+| `--role ROLE` | admin, curator, manager, researcher, or viewer; a curator for some people only is curator=group:<name, address, or code> or curator=person:<ID>; a manager is manager=group:<…>, or manager=group:<…>+below to manage the groups below too (repeatable) |
 | `--email EMAIL` | contact address |
 | `--person ID` | the person a researcher account belongs to |
 | `--password-stdin` | read the password from standard input |
@@ -322,7 +442,7 @@ usage: tessera users roles [-h] --role ROLE username
 | Argument | Meaning |
 |---|---|
 | `username` |  |
-| `--role ROLE` | admin, curator, researcher, or viewer; a curator for some people only is curator=unit:<name or code> or curator=person:<ID> (repeatable) |
+| `--role ROLE` | admin, curator, manager, researcher, or viewer; a curator for some people only is curator=group:<name, address, or code> or curator=person:<ID>; a manager is manager=group:<…>, or manager=group:<…>+below to manage the groups below too (repeatable) |
 
 ## `tessera evidence`
 

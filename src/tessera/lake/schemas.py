@@ -419,8 +419,28 @@ ORCID = DatasetSpec(
     ),
 )
 
+# --- MeSH (NLM descriptor data) --------------------------------------------------------
+
+MESH = DatasetSpec(
+    name="mesh",
+    root=TableSpec(
+        name="mesh_descriptor",
+        key=("descriptor_ui",),
+        columns=(
+            f("descriptor_ui", STR, False),
+            f("name", STR, False),
+            f("descriptor_class", I16),  # 1 topical, 2 publication type, 3 check tag, 4 place
+            f("tree_numbers", STR_LIST),  # where it sits in the hierarchy, e.g. C04.588.180
+            f("entry_terms", STR_LIST),  # synonyms people write ("Cancer" for "Neoplasms")
+            f("scope_note", STR),
+            f("mesh_year", I16, False),
+            f("last_updated", DATE),
+        ),
+    ),
+)
+
 DATASETS: dict[str, DatasetSpec] = {
-    d.name: d for d in (PUBMED, ICITE, REPORTER, REPORTER_LINKS, CTGOV, ORCID)
+    d.name: d for d in (PUBMED, ICITE, REPORTER, REPORTER_LINKS, CTGOV, ORCID, MESH)
 }
 TABLES: dict[str, TableSpec] = {t.name: t for d in DATASETS.values() for t in d.tables}
 DATASET_OF: dict[str, DatasetSpec] = {t.name: d for d in DATASETS.values() for t in d.tables}

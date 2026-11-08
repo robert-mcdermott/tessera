@@ -55,6 +55,7 @@ def run_checks(config_path: str | None, *, online: bool = False) -> list[Check]:
     checks.append(_check_home(config))
     checks.append(_check_ledger(config))
     checks.append(_check_access(config))
+    checks += _check_brand(config)
     checks.append(_check_fts5())
     checks.append(_check_duckdb())
     index = WEB_ROOT / "index.html"
@@ -123,6 +124,24 @@ def _check_access(config: Config) -> Check:
             "accounts on but no active admin; run `tessera users add NAME --role admin`",
         )
     return Check("Access", OK, f"accounts on, {admins} active admin{'s' if admins != 1 else ''}")
+
+
+def _check_brand(config: Config) -> list[Check]:
+    """Every pair of brand colors that carries text meets WCAG AA, by day and by night."""
+    from tessera.branding import PAIRS, contrast_problems
+
+    problems = contrast_problems(config)
+    if problems:
+        return [Check("Brand colors", FAIL, p) for p in problems]
+    source = "your palette" if config.branding.palette or config.branding.accent_color else (
+        "the default palette")  # fmt: skip
+    return [
+        Check(
+            "Brand colors",
+            OK,
+            f"{len(PAIRS) * 2} color pairs of {source} meet WCAG AA, by day and by night",
+        )
+    ]
 
 
 def _check_fts5() -> Check:

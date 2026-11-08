@@ -225,6 +225,8 @@ def test_what_drives_a_profile(org: Org) -> None:
     )
     assert [r["weight"] for r in rows] == sorted((r["weight"] for r in rows), reverse=True)
     assert org.client.get("/api/v1/people/per_nobody/concepts").status_code == 404
+    # Without MeSH data there are no broader areas and nothing to credit, and nothing breaks.
+    assert body["meta"]["areas"] == [] and body["meta"]["mesh_year"] is None
 
 
 # --- the expert finder -------------------------------------------------------------------------

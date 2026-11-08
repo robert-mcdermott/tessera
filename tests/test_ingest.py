@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gzip
 import shutil
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -49,6 +50,18 @@ def world() -> FakeApi:
     studies = [ctgov_study("NCT00000001"), ctgov_study("NCT00000002", pmids=("31000003",))]
     for part in (pubmed_api(), reporter_api(projects, links), ctgov_api(studies), icite_api()):
         api.routes.update(part.routes)
+    # NLM's file server: this year's MeSH, and an HTML page (status 200) for next year's.
+    sample = gzip.compress(
+        (Path(__file__).parent / "fixtures" / "mesh" / "desc-sample.xml").read_bytes()
+    )
+    api.route(
+        ".gz",
+        lambda request: (
+            httpx.Response(200, content=sample)
+            if request.url.path.endswith("desc2026.gz")
+            else httpx.Response(200, text="<!doctype html><p>Page not found</p>")
+        ),
+    )
     return api
 
 
@@ -97,6 +110,7 @@ def test_ingest_all_sources(instance: Instance, engine, network: FakeApi) -> Non
         ("orcid", "refresh", "succeeded"),
         ("pubmed", "linked", "succeeded"),
         ("icite", "refresh", "succeeded"),
+        ("mesh", "annual", "succeeded"),
     ]
     with Lake(instance.home.lake) as lake:
         count = lambda t: lake.scalar(f'SELECT count(*) FROM "{t}"')  # noqa: E731
@@ -107,6 +121,7 @@ def test_ingest_all_sources(instance: Instance, engine, network: FakeApi) -> Non
         assert count("ctgov_reference") == 2
         assert count("pubmed_article") == 4
         assert count("icite_metrics") == 3  # iCite has nothing for one new paper
+        assert count("mesh_descriptor") == 3
         assert (
             lake.scalar("SELECT _source_version FROM ctgov_study LIMIT 1") == "2025-11-06T09:00:00"
         )
@@ -120,7 +135,14 @@ def test_ingest_all_sources(instance: Instance, engine, network: FakeApi) -> Non
     recorded = {r["id"]: r for r in runs.recent_runs(engine)}
     assert recorded[results[0].run_id]["status"] == "succeeded"
     assert recorded[results[0].run_id]["counts"]["report"]["total_found"] == 3
-    assert set(runs.last_success(engine)) == {"reporter", "ctgov", "pubmed", "icite", "orcid"}
+    assert set(runs.last_success(engine)) == {
+        "reporter",
+        "ctgov",
+        "pubmed",
+        "icite",
+        "orcid",
+        "mesh",
+    }
 
 
 def test_rerun_is_idempotent(instance: Instance, engine, network: FakeApi) -> None:  # type: ignore[no-untyped-def]

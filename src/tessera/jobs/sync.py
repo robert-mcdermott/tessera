@@ -21,11 +21,11 @@ from tessera.config import Config
 from tessera.connectors.base import IngestOptions
 from tessera.evidence.resolve import ResolveResult, resolve
 from tessera.home import DataHome
-from tessera.jobs.build import build_discovery, build_search
+from tessera.jobs.build import build_attribution, build_discovery, build_search
 from tessera.jobs.ingest import RunResult, ingest_many
 
 FIRST = ("reporter", "ctgov", "pubmed", "pubmed:linked")
-SECOND = ("orcid", "pubmed:people", "pubmed:linked", "icite")
+SECOND = ("orcid", "pubmed:people", "pubmed:linked", "icite", "mesh")
 
 
 @dataclass
@@ -65,4 +65,5 @@ def sync(
     result.resolves.append(resolve(config, home, engine, today=today))
     result.build = build_search(config, home, engine)
     result.build["discovery"] = build_discovery(config, home, engine)
+    result.build["attribution"] = build_attribution(config, home, engine, today=today)
     return result

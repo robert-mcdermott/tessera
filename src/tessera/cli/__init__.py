@@ -162,16 +162,100 @@ def build_parser() -> argparse.ArgumentParser:
     importer = people_actions.add_parser("import", help="import a roster CSV file")
     importer.add_argument("path", type=Path, help="CSV file with a header row")
     importer.set_defaults(handler=cmd_people_import)
+    people_public = people_actions.add_parser(
+        "public", help="give people a profile on the public site (or take it away)"
+    )
+    people_public.add_argument("groups", nargs="+", metavar="person", help="IDs (per_…)")
+    people_public.add_argument("--off", action="store_true", help="take the profiles away")
+    people_public.set_defaults(handler=cmd_public, what="person")
     lister = people_actions.add_parser("list", help="list people")
     lister.add_argument("--status", default="active", help="active | former | candidate | all")
     lister.add_argument("--limit", type=int, default=50, help="at most this many (default: 50)")
     lister.set_defaults(handler=cmd_people_list)
 
+    groups_cmd = commands.add_parser(
+        "groups", help="groups: divisions, programs, labs, and other kinds"
+    )
+    groups_actions = groups_cmd.add_subparsers(
+        dest="groups_command", metavar="ACTION", required=True
+    )
+    group_import = groups_actions.add_parser(
+        "import",
+        help="import groups or memberships from a CSV or JSON file",
+        description="Import groups (a CSV file with a 'name' column) or memberships (a CSV "
+        "file with a 'group' column), or both (a JSON file with 'groups' and 'memberships'). "
+        "Rows carry the source's own identifiers, so importing the same source again updates "
+        "what it made earlier. See docs/groups.md for the columns.",
+    )
+    group_import.add_argument("path", type=Path, help="CSV or JSON file")
+    group_import.add_argument(
+        "--source", required=True, help="a short name for where the file comes from, like hr"
+    )
+    group_import.add_argument(
+        "--complete",
+        action="store_true",
+        help="the file is the source's whole list: archive its missing groups and end its "
+        "missing current memberships today",
+    )
+    group_import.add_argument(
+        "--dry-run", action="store_true", help="report what would change; change nothing"
+    )
+    group_import.set_defaults(handler=cmd_groups_import)
+    groups_actions.add_parser(
+        "attribute",
+        help="suggest which papers are each group's own (also run by sync)",
+    ).set_defaults(handler=cmd_groups_attribute)
+    group_public = groups_actions.add_parser(
+        "public", help="give groups a page on the public site (or take it away)"
+    )
+    group_public.add_argument("groups", nargs="+", help="addresses, codes, or IDs")
+    group_public.add_argument("--off", action="store_true", help="take the pages away")
+    group_public.set_defaults(handler=cmd_public, what="group")
+    group_list = groups_actions.add_parser("list", help="list groups")
+    group_list.add_argument("--kind", help="only groups of this kind")
+    group_list.add_argument("--all", action="store_true", help="include archived groups")
+    group_list.set_defaults(handler=cmd_groups_list)
+
+    digest_cmd = commands.add_parser(
+        "digest", help="pending work for each account: groups' inboxes and review queues"
+    )
+    digest_actions = digest_cmd.add_subparsers(
+        dest="digest_command", metavar="ACTION", required=True
+    )
+    digest_show = digest_actions.add_parser("show", help="print the digests")
+    digest_show.add_argument("--account", help="only this account (username)")
+    digest_show.set_defaults(handler=cmd_digest, send=False, dry_run=True)
+    digest_send = digest_actions.add_parser(
+        "send",
+        help="email each account with pending work its digest ([mail]); run it weekly",
+    )
+    digest_send.add_argument("--account", help="only this account (username)")
+    digest_send.add_argument(
+        "--dry-run", action="store_true", help="print the messages instead of sending them"
+    )
+    digest_send.set_defaults(handler=cmd_digest, send=True)
+
+    publish_cmd = commands.add_parser(
+        "publish",
+        help="write the public site: pages for the people and groups that opted in",
+        description="Write a static public site from an allowlisted projection: a page for "
+        "every person and group that opted in, with citations and links rather than "
+        "abstracts. The site is built and checked (structure, accessibility, links, and "
+        "colors) before it replaces the published one. Run it daily, after sync.",
+    )
+    publish_cmd.add_argument("--out", type=Path, help="where to write it ([publish] out)")
+    publish_cmd.add_argument(
+        "--check", action="store_true", help="build and check, but write nothing"
+    )
+    publish_cmd.set_defaults(handler=cmd_publish)
+
     users_cmd = commands.add_parser("users", help="local accounts and their roles")
     users_actions = users_cmd.add_subparsers(dest="users_command", metavar="ACTION", required=True)
     role_help = (
-        "admin, curator, researcher, or viewer; a curator for some people only is "
-        "curator=unit:<name or code> or curator=person:<ID> (repeatable)"
+        "admin, curator, manager, researcher, or viewer; a curator for some people only is "
+        "curator=group:<name, address, or code> or curator=person:<ID>; a manager is "
+        "manager=group:<…>, or manager=group:<…>+below to manage the groups below too "
+        "(repeatable)"
     )
     adder = users_actions.add_parser("add", help="create an account (prompts for a password)")
     adder.add_argument("username", help="lowercase letters, digits, dots, dashes, underscores")
@@ -345,6 +429,8 @@ def cmd_demo(args: argparse.Namespace) -> int:
         f"demo curator, {result['merged']:,} duplicate records merged."
     )
     print("Everyone and everything in it is invented.")
+    if result.get("public_site"):
+        print(f"Its public site: {result['public_site']}")
     print(f"Next: tessera --config {result['config']} serve")
     return EXIT_OK
 
@@ -677,7 +763,7 @@ def cmd_people_import(args: argparse.Namespace) -> int:
     config, _ = _load(args)
     engine = _engine(config)
     try:
-        stats = import_roster(engine, args.path)
+        stats = import_roster(engine, args.path, vocabulary=config.vocabulary)
     finally:
         engine.dispose()
     print(f"roster: {stats.rows} rows, {stats.created} people created, {stats.matched} matched")
@@ -730,6 +816,202 @@ def cmd_people_list(args: argparse.Namespace) -> int:
     finally:
         engine.dispose()
     table(rows, headers=("id", "name", "status", "accepted papers", "suggested"))
+    return EXIT_OK
+
+
+def cmd_groups_import(args: argparse.Namespace) -> int:
+    from tessera.groups.importer import import_groups, read_file
+    from tessera.search import update
+
+    config, home = _load(args)
+    engine = _engine(config)
+    try:
+        stats = import_groups(
+            engine,
+            read_file(args.path),
+            source=args.source,
+            vocabulary=config.vocabulary,
+            complete=args.complete,
+            dry_run=args.dry_run,
+        )
+        if not args.dry_run and stats.people:
+            update.apply(config, home, engine, people=stats.people)
+    finally:
+        engine.dispose()
+
+    def counts(c: dict[str, int]) -> str:
+        return ", ".join(f"{n} {k}" for k, n in sorted(c.items())) or "none"
+
+    prefix = "would import" if args.dry_run else "imported"
+    print(f"{stats.source}: {prefix} groups ({counts(stats.groups)}); "
+          f"memberships ({counts(stats.memberships)})")  # fmt: skip
+    for problem in stats.skipped[:20]:
+        print(f"  skipped {problem}")
+    if len(stats.skipped) > 20:
+        print(f"  … and {len(stats.skipped) - 20} more skipped")
+    return EXIT_OK if not stats.skipped else EXIT_PARTIAL
+
+
+def cmd_groups_attribute(args: argparse.Namespace) -> int:
+    from tessera.jobs.build import build_attribution
+
+    config, home = _load(args)
+    engine = _engine(config)
+    try:
+        result = build_attribution(config, home, engine)
+    finally:
+        engine.dispose()
+    print(
+        f"attribution: {result['groups']} groups, {result['suggestions']} papers suggested "
+        f"({result['inserted']} new, {result['unreported']} no longer supported)"
+    )
+    return EXIT_OK
+
+
+def cmd_digest(args: argparse.Namespace) -> int:
+    from tessera.auth.accounts import grants_of, list_accounts
+    from tessera.auth.principal import Principal
+    from tessera.groups.inbox import digest, digest_text
+    from tessera.mail import message, send
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    outgoing = []
+    try:
+        if config.server.accounts:
+            accounts = [
+                a
+                for a in list_accounts(engine)
+                if a["status"] == "active" and (not args.account or a["username"] == args.account)
+            ]
+            if args.account and not accounts:
+                raise TesseraError(f"No active account {args.account!r}.")
+            principals = []
+            with engine.connect() as conn:
+                for a in accounts:
+                    principals.append(
+                        (
+                            a,
+                            Principal(
+                                name=a["display_name"],
+                                account_id=a["id"],
+                                username=a["username"],
+                                person_id=a["person_id"],
+                                grants=tuple(grants_of(conn, a["id"])),
+                            ),
+                        )
+                    )
+        else:
+            operator = config.server.operator
+            principals = [({"username": operator, "email": None, "display_name": operator},
+                           Principal(name=operator, single_operator=True))]  # fmt: skip
+        for account, principal in principals:
+            result = digest(engine, principal, config)
+            if not result["total"]:
+                continue
+            subject, text = digest_text(result, config, account["display_name"])
+            if args.send and not args.dry_run:
+                if account.get("email"):
+                    outgoing.append(message(config.mail, account["email"], subject, text))
+                continue
+            to = account.get("email") or "(no email address)"
+            print(f"To: {account['username']} <{to}>\nSubject: {subject}\n\n{text}")
+    finally:
+        engine.dispose()
+    if outgoing:
+        sent = send(config.mail, outgoing)
+        print(f"digest: sent {sent} {'message' if sent == 1 else 'messages'}")
+    elif args.send and not args.dry_run:
+        print("digest: nothing to send")
+    return EXIT_OK
+
+
+def cmd_publish(args: argparse.Namespace) -> int:
+    from tessera.publish import publish
+
+    config, home = _load(args)
+    engine = _engine(config)
+    try:
+        result = publish(config, home, engine, out=args.out, check_only=args.check)
+    finally:
+        engine.dispose()
+    for problem in result.problems[:30]:
+        print(f"  problem: {problem}")
+    for note in result.notes:
+        print(f"  note: {note}")
+    if result.problems:
+        print(f"publish: {len(result.problems)} problems; the published site was not changed")
+        return EXIT_ERROR
+    verb = "would write" if args.check else "wrote"
+    print(
+        f"publish: {verb} {result.pages} pages ({result.groups} groups, {result.people} people)"
+        + ("" if args.check else f" to {result.out}")
+    )
+    return EXIT_OK
+
+
+def cmd_public(args: argparse.Namespace) -> int:
+    from sqlalchemy import update
+
+    from tessera.groups import store as groups
+    from tessera.ledger.tables import person, unit
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    changed = 0
+    try:
+        with engine.begin() as conn:
+            for ref in args.groups:
+                if args.what == "group":
+                    gid = groups.resolve(conn, ref)["id"]
+                    query = update(unit).where(unit.c.id == gid)
+                else:
+                    query = update(person).where(person.c.id == ref)
+                changed += conn.execute(query.values(public=not args.off)).rowcount or 0
+    finally:
+        engine.dispose()
+    if changed < len(args.groups):
+        print(f"{args.what}: {len(args.groups) - changed} not found")
+        return EXIT_PARTIAL
+    state = "off" if args.off else "on"
+    print(f"{args.what}: public pages {state} for {changed}")
+    return EXIT_OK
+
+
+def cmd_groups_list(args: argparse.Namespace) -> int:
+    from sqlalchemy import select
+
+    from tessera.groups import store as groups
+    from tessera.ledger.tables import unit
+
+    config, _ = _load(args)
+    engine = _engine(config)
+    statuses = ("active", "archived") if args.all else ("active",)
+    query = select(unit).where(unit.c.status.in_(statuses)).order_by(unit.c.kind, unit.c.name)
+    if args.kind:
+        query = query.where(unit.c.kind == args.kind)
+    try:
+        with engine.connect() as conn:
+            rows = [dict(r) for r in conn.execute(query).mappings()]
+            counts = groups.member_counts(conn)
+            parents = groups.parents_of(conn, [r["id"] for r in rows])
+    finally:
+        engine.dispose()
+    table(
+        [
+            (
+                r["slug"],
+                r["name"],
+                config.vocabulary.kind_label(r["kind"]),
+                "; ".join(p["name"] for p in parents.get(r["id"], [])),
+                counts.get(r["id"], {}).get("current", 0),
+                r["source"] + (f":{r['external_id']}" if r["external_id"] else ""),
+                r["status"],
+            )
+            for r in rows
+        ],
+        headers=("address", "name", "kind", "within", "members", "source", "status"),
+    )
     return EXIT_OK
 
 
@@ -806,12 +1088,12 @@ def _read_password(from_stdin: bool) -> str:
 
 
 def _parse_roles(conn, specs: list[str]):  # type: ignore[no-untyped-def]
-    from tessera.auth.accounts import Grant, resolve_scope
+    from tessera.auth.accounts import make_grant
 
     grants = []
     for spec in specs:
         role, _, scope = spec.partition("=")
-        grants.append(Grant(role.strip().lower(), *resolve_scope(conn, scope.strip() or None)))
+        grants.append(make_grant(conn, role, scope.strip() or None))
     return grants
 
 
@@ -819,7 +1101,8 @@ def _describe_roles(grants, units: dict[str, str]) -> str:  # type: ignore[no-un
     out = []
     for g in grants:
         if g.scope_type == "unit":
-            out.append(f"{g.role} ({units.get(g.scope_id, g.scope_id)})")
+            below = " and below" if g.include_below else ""
+            out.append(f"{g.role} ({units.get(g.scope_id, g.scope_id)}{below})")
         elif g.scope_type == "person":
             out.append(f"{g.role} ({g.scope_id})")
         else:

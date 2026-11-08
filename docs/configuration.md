@@ -53,6 +53,9 @@ How the organization appears in public records. See [Describing your organizatio
 | `logo_light` | path | (none) | Your logo, shown in the sidebar in place of the Tessera mark and name (SVG, PNG, JPEG, or WebP) |
 | `logo_dark` | path | (none) | The logo for dark mode; the light one is used if absent |
 | `show_powered_by` | true/false | `true` | The small "Powered by Tessera" line in the sidebar |
+| `favicon` | path | (none) | The icon in browser tabs, for the app and the public site (SVG, PNG, or ICO) |
+| `social_image` | path | (none) | The picture shown when someone shares a link to the public site (PNG or JPEG, 1200 by 630 pixels) |
+| `footer_links` | list | (none) | Links for the foot of the app's sidebar and of every public page, such as privacy and accessibility statements |
 
 **Palettes.** Each palette has a light and a dark version, and every viewer can switch palettes and modes for themselves under **Appearance** in the top bar; `theme` sets what everyone sees first.
 
@@ -63,6 +66,36 @@ How the organization appears in public records. See [Describing your organizatio
 | `cassette` | Cream label paper, a red-orange accent, a thin sunset stripe | Black labels, an orange accent, the same sunset stripe |
 
 A configured `accent_color` is used as given by day and lightened for dark mode. It also colors links and labels, so choose one that reads on white at a contrast of at least 4.5:1, such as a deep blue or teal rather than a yellow. Write it as a hex value so that text on accent-colored buttons can be chosen for contrast; with other forms that text is white. Tessera and Harbor suit public and leadership views best; Cassette is playful by design. Logos look best at about 190 by 30 pixels.
+
+**Your own colors.** `[branding.palette.day]` and `[branding.palette.night]` set the organization's colors, by name, as hex values. Any you leave out keep Tessera's. They apply over the default (`tessera`) theme in the app, and to the whole public site.
+
+| Color | Used for |
+|---|---|
+| `bg`, `surface` | The page, and cards and panels on it |
+| `text`, `muted` | Text, and secondary text |
+| `border` | Lines between things |
+| `accent`, `on_accent` | Links, buttons, and highlights, and text on them |
+| `stripe` | The thin band at the top of the app and under the public site's header |
+| `person`, `publication`, `grant`, `study` | Each kind of record, as text and icons |
+
+```toml
+[branding]
+favicon = "brand/favicon.svg"
+social_image = "brand/social.png"
+footer_links = [
+  { label = "Privacy", url = "https://www.example.edu/privacy" },
+  { label = "Accessibility", url = "https://www.example.edu/accessibility" },
+]
+
+[branding.palette.day]
+accent = "#0b6e4f"
+stripe = "#1d3557"
+
+[branding.palette.night]
+accent = "#7fd6b4"
+```
+
+Every pair of colors that carries text must meet WCAG 2.2 level AA: 4.5:1 for text, links, and record colors on the page and on cards, and for text on the accent; 3:1 for the stripe against the page. `tessera doctor` checks each pair by day and by night and fails any below it, and `tessera publish` will not publish a site whose colors fail.
 
 ## `[data]`
 
@@ -97,7 +130,7 @@ PostgreSQL support needs the `postgres` extra: `uv sync --extra postgres`. See [
 |---|---|---|---|
 | `contact_email` | text | `""` | Sent with requests to the public APIs, as their usage policies ask. Set it to an address that can be reached |
 
-Each source has its own table, `[sources.pubmed]`, `[sources.icite]`, `[sources.reporter]`, `[sources.ctgov]`, and `[sources.orcid]`:
+Each source has its own table, `[sources.pubmed]`, `[sources.icite]`, `[sources.reporter]`, `[sources.ctgov]`, `[sources.orcid]`, and `[sources.mesh]` (NLM's MeSH vocabulary, one 17 MB download a year):
 
 | Setting | Type | Default | Meaning |
 |---|---|---|---|
@@ -137,3 +170,56 @@ Concept profiles and similar people. See [Finding experts](discovery.md).
 | `similar_per_person` | 1 to 200 | `25` | At most this many similar people are kept for each person |
 
 Changes take effect at the next `tessera sync` or `tessera build discovery`.
+
+## `[vocabulary]`
+
+What the app calls groups, the kinds of group it offers, and the roles people hold in them (see [Groups](groups.md)). Groups and memberships store the keys, so you can rename a label at any time; keep its key.
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `group`, `groups` | text | `Group`, `Groups` | What the app calls one group and several |
+| `leader_roles` | list of role keys | `["lead", "co_lead"]` | Roles listed as a group's leaders |
+| `default_role` | role key | `member` | The role of a membership that names none |
+| `attributable_kinds` | list of kind keys | `["program", "center", "core", "lab", "team"]` | Kinds of group whose members' papers are suggested as the group's own; see [Which papers are the group's](groups.md#which-papers-are-the-groups) |
+
+`[vocabulary.kinds]` lists the kinds of group, as `key = "Label"`, in the order the app offers them. The defaults are `division` (Division), `department` (Department), `program` (Program), `center` (Center), `institute` (Institute), `core` (Shared resource), `lab` (Lab), and `team` (Team). Roster rows that name no kind are departments, or the first kind when you have no `department`.
+
+`[vocabulary.roles]` lists the membership roles the same way. The defaults are `lead` (Lead), `co_lead` (Co-lead), `member` (Member), `staff` (Staff), `trainee` (Trainee), and `affiliate` (Affiliate).
+
+Keys are lowercase letters, digits, and underscores. Replacing a table replaces the defaults entirely, and `leader_roles` and `default_role` must name roles in it.
+
+## `[mail]`
+
+A mail server for the weekly digest of pending work (`tessera digest send`). Without a `host`, nothing is sent and digests stay in the app's **Inbox**.
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `host` | text | empty | The SMTP server |
+| `port` | number | `587` | Its port |
+| `username` | text | empty | The user to sign in as, if the server needs one |
+| `password_env` | text | empty | The name of the environment variable that holds the password; the password itself never goes in the file |
+| `sender` | address | empty | The From address, such as `Tessera <tessera@example.edu>`; required with a `host` |
+| `starttls` | true or false | `true` | Upgrade the connection with STARTTLS |
+| `ssl` | true or false | `false` | Connect with TLS from the start (usually port 465) instead of STARTTLS |
+| `base_url` | address | empty | The app's address, such as `https://tessera.example.edu`, for links in messages |
+
+```toml
+[mail]
+host = "smtp.example.edu"
+username = "tessera"
+password_env = "TESSERA_SMTP_PASSWORD"
+sender = "Tessera <tessera@example.edu>"
+base_url = "https://tessera.example.edu"
+```
+
+## `[publish]`
+
+The static public site (`tessera publish`); see [The public site](public-site.md).
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `out` | path | `<data home>/public` | Where the site is written |
+| `base_url` | address | empty | Where it is served, such as `https://research.example.edu`; needed for the sitemap and canonical links |
+| `title` | text | the organization's name | The site's title |
+| `intro` | text | empty | A sentence or two for the home page (at most 1,000 characters) |
+

@@ -376,6 +376,13 @@ def landscape(
                     "people": r["people"],
                 }
             )
+    from tessera.analytics.vocabulary import CATEGORIES, vocabulary_rows
+
+    category = {
+        v["descriptor_ui"]: CATEGORIES.get(v["category"] or "")
+        for v in vocabulary_rows(lake, home)
+        if v["descriptor_ui"] in keep
+    }
     linked = {e[end] for e in chosen for end in ("source", "target")}
     nodes = [
         {
@@ -384,6 +391,7 @@ def landscape(
             "label": c["descriptor"],
             "people": c["people"],
             "size": round(math.sqrt(c["people"]), 3),
+            "category": category.get(c["descriptor_ui"]),
         }
         for c in held
         if f"msh:{c['descriptor_ui']}" in linked  # a topic no one holds with another is noise here

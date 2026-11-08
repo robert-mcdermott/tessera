@@ -76,6 +76,10 @@ async function boot() {
   route("/experts", (_, ctx) => experts(main, ctx));
   // Loaded on first use: the graph views are larger than the rest and not needed at start.
   route("/graph", async (_, ctx) => (await import("./pages/graph.js")).graph(main, ctx));
+  const groupPages = () => import("./pages/groups.js");
+  route("/groups", async (_, ctx) => (await groupPages()).groupsDirectory(main, ctx));
+  route("/groups/:slug", async (params, ctx) => (await groupPages()).groupPage(main, params, ctx));
+  route("/groups/:slug/edit", async (params) => (await import("./pages/group-editor.js")).groupEditor(main, params));
   route("/people", (_, ctx) => browse(main, "person", ctx));
   route("/people/:id", (params, ctx) => person(main, params, ctx));
   route("/publications", (_, ctx) => browse(main, "publication", ctx));
@@ -84,12 +88,19 @@ async function boot() {
   route("/grants/:core", (params) => grant(main, params));
   route("/studies", (_, ctx) => browse(main, "study", ctx));
   route("/studies/:nct", (params) => study(main, params));
+  route("/inbox", async (_, ctx) => (await import("./pages/inbox.js")).inboxPage(main, ctx));
   route("/review", () => review(main));
   route("/review/people", (_, ctx) => candidates(main, ctx));
   route("/review/duplicates", (_, ctx) => duplicates(main, ctx));
   route("/review/log", (_, ctx) => decisions(main, ctx));
   route("/admin/sources", () => sources(main));
-  if (can("admin")) route("/admin/accounts", (_, ctx) => accounts(main, ctx));
+  if (can("admin")) {
+    route("/admin/accounts", (_, ctx) => accounts(main, ctx));
+    // Loaded on first use, like the graph views.
+    const groupsPage = () => import("./pages/groups-admin.js");
+    route("/admin/groups", async (_, ctx) => (await groupsPage()).groupsAdmin(main, ctx));
+    route("/admin/groups/:ref", async (params, ctx) => (await groupsPage()).groupAdmin(main, params, ctx));
+  }
   if (can("curate_any")) route("/admin/evidence", (_, ctx) => evidence(main, ctx));
   fallback(() => {
     setTitle("Not found");

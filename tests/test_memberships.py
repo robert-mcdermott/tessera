@@ -55,10 +55,11 @@ def memberships(engine, person_id: str) -> dict[str, dict]:  # type: ignore[no-u
 
     with engine.connect() as conn:
         units = {r.id: r.name for r in conn.execute(select(unit.c.id, unit.c.name))}
-    return {
-        units[r["object_id"]]: r["qualifiers"]
-        for r in store.assertions_for(engine, subject_id=person_id, predicate="member_of")
-    }
+    out = {}
+    for r in store.assertions_for(engine, subject_id=person_id, predicate="member_of"):
+        assert r["qualifiers"].pop("source") == "roster"  # the roster is their source
+        out[units[r["object_id"]]] = r["qualifiers"]
+    return out
 
 
 def test_roster_dates_concurrent_memberships_and_former_members(
@@ -82,8 +83,8 @@ def test_roster_dates_concurrent_memberships_and_former_members(
     ada, bo = people["Ada Okafor"], people["Bo Lindqvist"]
     assert (ada.status, bo.status) == ("active", "former")  # every membership of Bo ended
     assert memberships(engine, ada.id) == {
-        "Department of Medicine": {"title": "Professor", "start": "2015"},
-        "Cancer Biology Program": {"title": "Member", "start": "2019-07"},
+        "Department of Medicine": {"role": "member", "title": "Professor", "start": "2015"},
+        "Cancer Biology Program": {"role": "member", "title": "Member", "start": "2019-07"},
     }
     assert memberships(engine, bo.id)["Department of Pathology"]["end"] == "2018-06"
 
@@ -95,6 +96,7 @@ def test_roster_dates_concurrent_memberships_and_former_members(
     )
     import_roster(engine, roster, today=TODAY)
     assert memberships(engine, bo.id)["Department of Pathology"] == {
+        "role": "member",
         "title": "Fellow",
         "start": "2012",
     }

@@ -59,7 +59,8 @@ export function experts(main, ctx = {}) {
         : emptyState({ iconName: "people", title: "No one matches", text: "Try broader words, or remove a concept." });
       const view = h("div", { class: "stack-lg" }, header, form, refine,
         card({ title: `People (${number(body.data.length)})`, body: results }),
-        h("p", { class: "subtle" }, "Similarity reflects the topics of people's papers, weighted toward recent and confirmed work. It says nothing about quality or availability."));
+        h("p", { class: "subtle" }, "Similarity reflects the topics of people's papers, weighted toward recent and confirmed work. It says nothing about quality or availability."),
+        body.meta.mesh_year ? h("p", { class: "subtle" }, `Headings, synonyms, and hierarchy: MeSH ${body.meta.mesh_year}, from the U.S. National Library of Medicine. A broad heading includes the narrower ones beneath it.`) : null);
       // Meter widths through the CSSOM (the content security policy allows no inline styles).
       for (const bar of view.querySelectorAll(".expert-meter > span")) bar.style.setProperty("width", `${bar.dataset.w}%`);
       return view;
@@ -88,7 +89,7 @@ function conceptBar(concepts, ids) {
   return h("div", { class: "concept-bar" },
     h("span", { class: "muted" }, concepts.length ? "Understood as" : "No concepts matched"),
     h("div", { class: "chips" }, concepts.map((c) => h("span", { class: "chip", "data-entity": "concept" },
-      h("span", {}, c.descriptor),
+      h("span", { title: c.via ? `From “${c.via}”, a synonym` : null }, c.descriptor, c.via ? h("span", { class: "chip-via" }, ` · ${c.via}`) : null),
       h("button", { type: "button", class: "chip-remove", "aria-label": `Remove ${c.descriptor}`, onclick: () => remove(c.descriptor_ui) }, "×")))),
     h("div", { class: "concept-add" }, adder, options));
 }

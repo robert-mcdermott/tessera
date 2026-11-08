@@ -18,6 +18,7 @@ const NAV = [
   ] },
   { section: "Explore", items: [
     { href: "/people", label: "People", iconName: "people", match: (p) => p.startsWith("/people") },
+    { href: "/groups", label: () => groupsLabel, iconName: "unit", match: (p) => p.startsWith("/groups") },
     { href: "/experts", label: "Find experts", iconName: "compass", match: (p) => p.startsWith("/experts") },
     { href: "/graph", label: "Connections", iconName: "network", match: (p) => p.startsWith("/graph") },
     { href: "/publications", label: "Publications", iconName: "publication", match: (p) => p.startsWith("/publications") },
@@ -25,6 +26,7 @@ const NAV = [
     { href: "/studies", label: "Studies", iconName: "study", match: (p) => p.startsWith("/studies") },
   ] },
   { section: "Curate", items: [
+    { href: "/inbox", label: "Inbox", iconName: "list", badge: "inbox", when: "edit_groups", match: (p) => p.startsWith("/inbox") },
     { href: "/review", label: () => (can("curate_any") ? "Review queue" : "My suggestions"), iconName: "review", badge: "review", when: "review", match: (p) => p === "/review" },
     { href: "/review/people", label: "Discovered people", iconName: "userPlus", badge: "candidates", when: "curate_all", match: (p) => p.startsWith("/review/people") },
     { href: "/review/duplicates", label: "Possible duplicates", iconName: "layers", badge: "duplicates", when: "curate_all", match: (p) => p.startsWith("/review/duplicates") },
@@ -33,12 +35,16 @@ const NAV = [
   { section: "Admin", items: [
     { href: "/admin/sources", label: "Sources", iconName: "sources", match: (p) => p.startsWith("/admin/sources") },
     { href: "/admin/evidence", label: "Evidence", iconName: "sparkle", when: "curate_any", match: (p) => p.startsWith("/admin/evidence") },
+    { href: "/admin/groups", label: () => groupsLabel, iconName: "unit", when: "admin", match: (p) => p.startsWith("/admin/groups") },
     { href: "/admin/accounts", label: "Accounts", iconName: "people", when: "admin", match: (p) => p.startsWith("/admin/accounts") },
     { href: "/api/docs", label: "API reference", iconName: "api", match: () => false, external: true },
   ] },
 ];
 
+let groupsLabel = "Groups"; // what the organization calls groups ([vocabulary])
+
 export function mountShell(root, meta, { onSearch }) {
+  groupsLabel = meta.vocabulary?.groups ?? groupsLabel;
   const product = meta.product;
   const org = meta.organization;
   const navItems = [];
@@ -68,6 +74,8 @@ export function mountShell(root, meta, { onSearch }) {
     }),
     h("div", { class: "sidebar-footer" },
       h("span", {}, org.name),
+      (product.footer_links ?? []).length ? h("span", { class: "footer-links" }, product.footer_links.map((l, i) =>
+        [i ? " · " : "", h("a", { href: l.url, rel: "noopener", target: l.url.startsWith("mailto:") ? null : "_blank" }, l.label)])) : null,
       product.show_powered_by
         ? h("span", {}, "Powered by ", h("a", { href: "/api/docs" }, `Tessera ${product.version}`))
         : null));
@@ -125,12 +133,14 @@ export function mountShell(root, meta, { onSearch }) {
     clearTimeout(pending);
     pending = setTimeout(async () => {
       const ask = (allowed, path) => (allowed ? get(path, { limit: 1 }, { fresh: true }).catch(() => null) : null);
-      const [queue, found, pairs] = await Promise.all([
+      const [queue, found, pairs, inbox] = await Promise.all([
         ask(can("review"), "/api/v1/review"),
         ask(can("curate_all"), "/api/v1/candidates"),
         ask(can("curate_all"), "/api/v1/duplicates"),
+        ask(can("edit_groups"), "/api/v1/inbox"),
       ]);
       const counts = {
+        inbox: inbox ? inbox.data.groups.reduce((n, g) => n + g.total, 0) : null,
         review: queue ? (queue.meta.bands?.strong ?? 0) + (queue.meta.bands?.possible ?? 0) : null,
         candidates: found ? found.meta.total : null,
         duplicates: pairs ? pairs.meta.total : null,

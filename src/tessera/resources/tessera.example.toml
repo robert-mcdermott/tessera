@@ -43,6 +43,16 @@ theme = "tessera"
 # logo_light = "branding/logo-light.svg"
 # logo_dark = "branding/logo-dark.svg"
 show_powered_by = true
+# favicon = "brand/favicon.svg"        # browser tab icon, for the app and the public site
+# social_image = "brand/social.png"    # link previews of the public site (1200 x 630)
+# footer_links = [{ label = "Privacy", url = "https://www.example.edu/privacy" }]
+#
+# Your own colors, as hex values; any left out keep Tessera's. tessera doctor checks that
+# every pair that carries text meets WCAG AA, by day and by night.
+# [branding.palette.day]
+# accent = "#0b6e4f"
+# [branding.palette.night]
+# accent = "#7fd6b4"
 
 [data]
 # Where Tessera keeps raw payloads, the Parquet lake, the ledger, derived data, and logs.
@@ -88,6 +98,11 @@ enabled = true
 [sources.orcid]
 enabled = true
 
+# MeSH, the National Library of Medicine's vocabulary: synonyms and the hierarchy of headings.
+# One download a year (about 17 MB).
+[sources.mesh]
+enabled = true
+
 [sync]
 # How many years of history the first sync collects.
 window_years = 5
@@ -106,3 +121,49 @@ likely_weight = 0.5
 # Similar people: pairs less similar than this are not kept, and at most this many per person.
 similarity_floor = 0.10
 similar_per_person = 25
+
+[vocabulary]
+# What the app calls groups, the kinds of group it offers, and the roles people hold in them.
+# Keys are stored with each group and membership: rename a label freely, but keep its key.
+group = "Group"
+groups = "Groups"
+leader_roles = ["lead", "co_lead"]   # listed as a group's leaders
+default_role = "member"              # for memberships that name no role
+# Kinds whose members' papers are suggested as the group's own (always decided by a person).
+attributable_kinds = ["program", "center", "core", "lab", "team"]
+
+[vocabulary.kinds]
+division = "Division"
+department = "Department"
+program = "Program"
+center = "Center"
+institute = "Institute"
+core = "Shared resource"
+lab = "Lab"
+team = "Team"
+
+[vocabulary.roles]
+lead = "Lead"
+co_lead = "Co-lead"
+member = "Member"
+staff = "Staff"
+trainee = "Trainee"
+affiliate = "Affiliate"
+
+[mail]
+# A mail server for the weekly digest of pending work (tessera digest send). With no host,
+# digests stay in the app's Inbox.
+host = ""
+port = 587
+username = ""
+password_env = ""   # the environment variable that holds the password
+sender = ""         # for example "Tessera <tessera@example.edu>"
+starttls = true
+base_url = ""       # the app's address, for links in messages
+
+[publish]
+# The public site (tessera publish): pages for the groups and people who opt in.
+# out = "/srv/www/research"   # where to write it; <data home>/public by default
+base_url = ""                 # where it is served, for its sitemap and canonical links
+title = ""                    # the site's title; the organization's name when empty
+intro = ""                    # a sentence or two for the home page

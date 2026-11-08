@@ -10,6 +10,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Column,
+    Date,
     Float,
     ForeignKey,
     Index,
@@ -65,6 +66,8 @@ person = Table(
     Column("created_at", UtcDateTime, nullable=False),
     Column("updated_at", UtcDateTime, nullable=False),
     Column("merged_into", ID, ForeignKey("person.id", ondelete="SET NULL")),
+    # Opted in to a page on the public site (tessera publish).
+    Column("public", Boolean, nullable=False, server_default=false()),
     CheckConstraint(_in("status", PERSON_STATUSES), name="status"),
 )
 Index(None, person.c.family_name)
@@ -103,18 +106,61 @@ person_identifier = Table(
 )
 Index(None, person_identifier.c.scheme, person_identifier.c.value)
 
+# Groups: divisions, departments, programs, centers, labs, and any other kind the organization
+# configures ([vocabulary.kinds]). The table keeps its first name, ``unit``. Each group records
+# where it came from (``manual``, ``roster``, or a named feed) and its identifier there, so a
+# later import from the same source updates it instead of adding a duplicate.
+GROUP_STATUSES = ("active", "archived", "merged")
+
 unit = Table(
     "unit",
     metadata,
     Column("id", ID, primary_key=True),
     Column("name", String(300), nullable=False),
     Column("kind", String(40), nullable=False, server_default="department"),
-    Column("parent_id", ID, ForeignKey("unit.id", ondelete="SET NULL")),
     Column("code", String(80), unique=True),
+    Column("slug", String(120), unique=True),  # the group's address, /groups/<slug>
+    Column("short_name", String(80)),
+    Column("description", Text),
+    Column("email", String(320)),  # contact, shown on the group's page
+    Column("website", String(500)),
+    Column("status", String(16), nullable=False, server_default="active"),
+    Column("merged_into", ID, ForeignKey("unit.id", ondelete="SET NULL")),
+    Column("source", String(40), nullable=False, server_default="manual"),
+    Column("external_id", String(200)),
+    Column("public", Boolean, nullable=False, server_default=false()),  # on the public site
     Column("created_at", UtcDateTime, nullable=False),
     Column("updated_at", UtcDateTime, nullable=False),
+    UniqueConstraint("source", "external_id"),
+    CheckConstraint(_in("status", GROUP_STATUSES), name="status"),
 )
-Index(None, unit.c.parent_id)
+
+# A group may sit under several others (a program that spans divisions). ``source`` says who
+# made the link, so an import replaces only the links it supplied.
+unit_parent = Table(
+    "unit_parent",
+    metadata,
+    Column("child_id", ID, ForeignKey("unit.id", ondelete="CASCADE"), primary_key=True),
+    Column("parent_id", ID, ForeignKey("unit.id", ondelete="CASCADE"), primary_key=True),
+    Column("source", String(40), nullable=False, server_default="manual"),
+    Column("created_at", UtcDateTime, nullable=False),
+    CheckConstraint("child_id <> parent_id", name="not_self"),
+)
+Index(None, unit_parent.c.parent_id)
+
+# Every change to a group and its memberships, append-only: who, what, and the values before.
+unit_event = Table(
+    "unit_event",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("unit_id", ID, ForeignKey("unit.id", ondelete="CASCADE"), nullable=False),
+    Column("actor", String(200), nullable=False),
+    Column("action", String(20), nullable=False),
+    Column("detail", JsonType, nullable=False),
+    Column("at", UtcDateTime, nullable=False),
+)
+Index(None, unit_event.c.unit_id)
+Index(None, unit_event.c.at)
 
 assertion = Table(
     "assertion",
@@ -208,7 +254,7 @@ Index(None, person_merge.c.survivor_id)
 
 # --- Accounts (PLT-06) ---------------------------------------------------------------------
 
-ROLES = ("admin", "curator", "researcher", "viewer")
+ROLES = ("admin", "curator", "manager", "researcher", "viewer")
 ACCOUNT_STATUSES = ("active", "disabled")
 
 account = Table(
@@ -238,6 +284,9 @@ role_grant = Table(
     Column("role", String(16), nullable=False),
     Column("scope_type", String(16)),
     Column("scope_id", ID),
+    # A manager's group scope covers the groups below it only when this is set; a curator's
+    # group scope always does.
+    Column("include_below", Boolean, nullable=False, server_default=false()),
     Column("granted_by", String(200), nullable=False),
     Column("granted_at", UtcDateTime, nullable=False),
     CheckConstraint(_in("role", ROLES), name="role"),
@@ -248,6 +297,97 @@ role_grant = Table(
     ),
 )
 Index(None, role_grant.c.account_id)
+
+# A group's page: blocks from an approved set (spec: wave-3 slice 4), as a draft that its
+# managers edit and the published version everyone sees. ``revision`` counts publications.
+group_page = Table(
+    "group_page",
+    metadata,
+    Column("unit_id", ID, ForeignKey("unit.id", ondelete="CASCADE"), primary_key=True),
+    Column("draft", JsonType),
+    Column("draft_updated_at", UtcDateTime),
+    Column("draft_updated_by", String(200)),
+    Column("published", JsonType),
+    Column("revision", Integer, nullable=False, server_default="0"),
+    Column("published_at", UtcDateTime),
+    Column("published_by", String(200)),
+)
+
+# Every published version of every group page, so any can be looked at and restored.
+group_page_revision = Table(
+    "group_page_revision",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("unit_id", ID, ForeignKey("unit.id", ondelete="CASCADE"), nullable=False),
+    Column("number", Integer, nullable=False),
+    Column("blocks", JsonType, nullable=False),
+    Column("action", String(20), nullable=False),  # publish | rollback
+    Column("actor", String(200), nullable=False),
+    Column("note", Text),
+    Column("at", UtcDateTime, nullable=False),
+    UniqueConstraint("unit_id", "number"),
+)
+
+# A job or training opportunity a group posts (LAB-08). Open until ``closes_on`` has passed,
+# or until an editor closes it early (``closed_at``).
+OPENING_KINDS = ("job", "training", "other")
+opening = Table(
+    "opening",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("unit_id", ID, ForeignKey("unit.id", ondelete="CASCADE"), nullable=False),
+    Column("title", String(200), nullable=False),
+    Column("kind", String(20), nullable=False),
+    Column("description", Text),
+    Column("url", String(500)),
+    Column("contact", String(320)),
+    Column("posted_on", Date, nullable=False),
+    Column("closes_on", Date, nullable=False),
+    Column("closed_at", UtcDateTime),
+    Column("created_by", String(200), nullable=False),
+    Column("created_at", UtcDateTime, nullable=False),
+    Column("updated_at", UtcDateTime, nullable=False),
+    CheckConstraint(_in("kind", OPENING_KINDS), name="kind"),
+)
+Index(None, opening.c.unit_id)
+Index(None, opening.c.closes_on)
+
+# A group's research themes and projects (LAB-07), each linking people (``per_``), grants
+# (``grt:``), publications (``pub:``), and studies (``stu:``).
+theme = Table(
+    "theme",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("unit_id", ID, ForeignKey("unit.id", ondelete="CASCADE"), nullable=False),
+    Column("name", String(200), nullable=False),
+    Column("kind", String(20), nullable=False),
+    Column("summary", Text),
+    Column("status", String(16), nullable=False, server_default="active"),
+    Column("created_by", String(200), nullable=False),
+    Column("created_at", UtcDateTime, nullable=False),
+    Column("updated_at", UtcDateTime, nullable=False),
+    CheckConstraint(_in("kind", ("theme", "project")), name="kind"),
+    CheckConstraint(_in("status", ("active", "archived")), name="status"),
+)
+Index(None, theme.c.unit_id)
+
+theme_link = Table(
+    "theme_link",
+    metadata,
+    Column("theme_id", ID, ForeignKey("theme.id", ondelete="CASCADE"), primary_key=True),
+    Column("ref", ENTITY_REF, primary_key=True),
+    Column("added_by", String(200), nullable=False),
+    Column("added_at", UtcDateTime, nullable=False),
+)
+
+# When a group's editors last went through its weekly inbox (LAB-06).
+group_inbox = Table(
+    "group_inbox",
+    metadata,
+    Column("unit_id", ID, ForeignKey("unit.id", ondelete="CASCADE"), primary_key=True),
+    Column("reviewed_at", UtcDateTime, nullable=False),
+    Column("reviewed_by", String(200), nullable=False),
+)
 
 # Signed-in browsers. Only a hash of the session token is stored.
 auth_session = Table(
