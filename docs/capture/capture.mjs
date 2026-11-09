@@ -44,7 +44,7 @@ export const SCENES = [
   { name: "home", url: "/", ...WIDE },
   { name: "people", url: "/people", ...WIDE },
   { name: "profile", url: "/people/{person}", ...WIDE },
-  { name: "evidence", url: "/people/{suggested}", ...WIDE, step: "document.querySelector('button.mark-suggested, button.mark').click()", wait: "document.querySelector('.drawer')" },
+  { name: "evidence", url: "/people/{suggested}?tab=publications", ...WIDE, step: "document.querySelector('button.mark-suggested, button.mark').click()", wait: "document.querySelector('.drawer')" },
   { name: "review", url: "/review", ...WIDE, wait: "document.querySelector('.review-page')" },
   { name: "experts", url: "/experts?q=memory%20T%20cells", ...WIDE, wait: "document.querySelector('.expert')" },
   { name: "network", scroll: ".tabs", url: "/graph", ...WIDE, wait: "document.querySelector('.graph-canvas')", settle: 1500 },

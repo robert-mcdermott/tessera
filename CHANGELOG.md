@@ -7,6 +7,7 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 ### Added
 
 - Profile sections a researcher keeps (PRF-02, PRF-06): an overview, research interests, positions and appointments, education and training, honors and awards, memberships and service, teaching and mentoring, talks and presentations, links, and featured publications (their confirmed papers only, up to ten), each with its own fields and checks (migration 0019). Everyone signed in reads every profile; the person, a curator for them, and an admin change it, and every change is recorded with who made it, in what capacity, and the entry before and after. Each entry records where it came from, so an import could later find its own entries again instead of adding copies, and never touch those made by hand. `GET /people/{id}/profile` and its routes. The demo fills in a dozen lab heads' profiles.
+- Profiles open on **About** (PRF-01): the overview and research interests, positions (the group directory's, then the researcher's own), education, honors, service, teaching, talks, links, and featured publications. Those who keep the profile add, change, reorder, and remove entries in place; everyone else reads the same page, with empty sections hidden. The **History** tab lists profile changes beside curation decisions.
 
 ## 0.5.0 (2026-11-08)
 

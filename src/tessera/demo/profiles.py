@@ -252,7 +252,7 @@ def build_profiles(
     made = 0
     for pid, person in heads[:limit]:
         papers = papers_of[pid]
-        actor = f"{person.given} {person.family}"
+        actor = " ".join(x for x in (person.given, person.middle, person.family) if x)
         for section, fields in profile_for(person, papers, cited, today_year):
             store.add(engine, pid, section, fields, actor=actor, capacity="self")
             made += 1

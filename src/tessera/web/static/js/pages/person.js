@@ -17,7 +17,7 @@ const LIMIT = 20;
 
 export function person(main, params, { samePage = false } = {}) {
   const id = params.id;
-  const tab = query().get("tab") ?? "publications";
+  const asked = query().get("tab");
   const status = query().get("status") ?? "all";
   const band = query().get("band") ?? "likely";
   const sort = query().get("sort") ?? "year";
@@ -34,8 +34,17 @@ export function person(main, params, { samePage = false } = {}) {
         get(`/api/v1/people/${encodeURIComponent(id)}/similar`).then((r) => r.data).catch(() => []),
         get(`/api/v1/people/${encodeURIComponent(id)}/opportunities`).then((r) => r.data).catch(() => []),
       ]);
+      // A profile opens on About; people outside the directory have none, so they open on papers.
+      const inDirectory = profile.status === "active" || profile.status === "former";
+      const tab = asked && (asked !== "about" || inDirectory) ? asked : inDirectory ? "about" : "publications";
       let list = null;
-      if (tab === "publications") {
+      if (tab === "about") {
+        const [about, meta, P] = await Promise.all([
+          get(`/api/v1/people/${encodeURIComponent(id)}/profile`, null, { fresh: samePage }).then((r) => r.data),
+          get("/api/v1/meta").then((r) => r.data).catch(() => ({})),
+          import("../components/profile.js")]);
+        list = { about, organization: meta.organization?.name ?? null, P };
+      } else if (tab === "publications") {
         const statuses = { all: ["accepted", "suggested", "deferred"], accepted: ["accepted"], suggested: ["suggested", "deferred"], rejected: ["rejected"] }[status] ?? ["accepted", "suggested"];
         const bands = band === "all" ? ["strong", "possible", "unlikely"] : band === "unlikely" ? ["unlikely"] : ["strong", "possible"];
         list = await get(`/api/v1/people/${encodeURIComponent(id)}/publications`,
@@ -49,11 +58,16 @@ export function person(main, params, { samePage = false } = {}) {
           import("../components/thread.js")]);
         list = { ...impact, T };
       } else if (tab === "history") {
-        list = await get(`/api/v1/people/${encodeURIComponent(id)}/history`, null, { fresh: true });
+        const [decisions, changes, P] = await Promise.all([
+          get(`/api/v1/people/${encodeURIComponent(id)}/history`, null, { fresh: true }),
+          inDirectory ? get(`/api/v1/people/${encodeURIComponent(id)}/profile/history`, null, { fresh: true }).then((r) => r.data).catch(() => [])
+            : Promise.resolve([]),
+          import("../components/profile.js")]);
+        list = { ...decisions, changes, P };
       }
-      return { profile, list, concepts: concepts.data, areas: concepts.meta.areas ?? [], meshYear: concepts.meta.mesh_year, similar, opportunities };
+      return { tab, profile, list, concepts: concepts.data, areas: concepts.meta.areas ?? [], meshYear: concepts.meta.mesh_year, similar, opportunities };
     },
-    view: ({ profile, list, concepts, areas, meshYear, similar, opportunities }) => {
+    view: ({ tab, profile, list, concepts, areas, meshYear, similar, opportunities }) => {
       const c = profile.counts;
       const pubs = c.publications ?? {};
       const suggested = (c.suggested_by_band?.strong ?? 0) + (c.suggested_by_band?.possible ?? 0);
@@ -102,19 +116,21 @@ export function person(main, params, { samePage = false } = {}) {
         statTile({ kind: "study", label: "Studies", value: c.studies }));
 
       const tabBar = tabs([
+        member ? { id: "about", label: "About" } : null,
         { id: "publications", label: "Publications", count: (pubs.accepted ?? 0) + suggested },
         { id: "grants", label: "Grants", count: c.grants },
         { id: "studies", label: "Studies", count: c.studies },
         { id: "impact", label: "Impact" },
         { id: "history", label: "History" },
-      ], tab, (next) => setQuery({ tab: next, page: null, status: null, band: null, sort: null }, { replace: false }));
+      ].filter(Boolean), tab, (next) => setQuery({ tab: next, page: null, status: null, band: null, sort: null }, { replace: false }));
 
       let panel;
-      if (tab === "publications") panel = publicationsPanel(list, { status, band, sort, pageNo, refresh });
+      if (tab === "about") panel = list.P.aboutPanel({ person: profile, data: list.about, organization: list.organization, refresh });
+      else if (tab === "publications") panel = publicationsPanel(list, { status, band, sort, pageNo, refresh });
       else if (tab === "grants") panel = linkedPanel(list.data, "grant", refresh, "No grants found for this person.");
       else if (tab === "studies") panel = linkedPanel(list.data, "study", refresh, "No study roles suggested for this person.");
       else if (tab === "impact") panel = impactPanel(list.data, list.T);
-      else panel = historyPanel(list.data);
+      else panel = h("div", { class: "stack-lg" }, list.P.profileHistory(list.changes), historyPanel(list.data));
 
       const side = h("div", { class: "stack-lg" },
         concepts.length ? card({ title: "Topics", pad: true, attrs: { "data-entity": "concept" },

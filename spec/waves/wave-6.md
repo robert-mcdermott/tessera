@@ -2,7 +2,7 @@
 
 **Goal:** a full profile for every researcher: what Tessera builds from public records, beside the sections the researcher keeps (overview, interests, positions, education, honors, service, teaching, talks, links, featured papers). Every profile is open to everyone inside the organization, public only by the researcher's choice, and the source of the researcher's CVs and NIH biosketches.
 
-**Branch:** `wave-6` · **Target version:** `0.6.0` · **Status:** ◐ slice 1 done
+**Branch:** `wave-6` · **Target version:** `0.6.0` · **Status:** ◐ slices 1 and 2 done
 
 ## Exit criteria
 
@@ -65,15 +65,15 @@ Tessera follows this form; if NIH changes it, the biosketch's checks change with
 
 **Acceptance:** a researcher adds, edits, reorders, and removes entries on their own profile, and the history shows each change; a viewer and another researcher cannot change it; a featured publication must be one of the person's confirmed papers; an entry with a source identifier is found again by that identifier, not duplicated.
 
-## Slice 2: The profile page ☐
+## Slice 2: The profile page ☑
 
 **Goal:** a profile that reads well for everyone and edits in place for those who keep it (PRF-01, PRF-02).
 
-- [ ] A profile opens on **About**: the overview and interests, then positions (the group directory's and the researcher's own, together, newest first), education, honors, service, teaching, talks, and links; featured publications above the publication list
-- [ ] Those who keep the profile edit each section in place: add, edit, reorder, remove, with a link to the history; everyone else sees the same page without the controls
-- [ ] Empty sections are hidden from readers and offered to those who keep the profile
-- [ ] The **History** tab includes profile changes beside curation decisions
-- [ ] Wave 5's summary card (when the assistant is on) and the opportunities that fit them keep their places; phones and print get a clean layout
+- [x] A profile opens on **About**: the overview and interests, then positions (the group directory's first, then the researcher's own in their order), education, honors, service, teaching, talks, links, and featured publications
+- [x] Those who keep the profile edit each section in place: add, edit, reorder, remove, with a link to the history; everyone else sees the same page without the controls
+- [x] Empty sections are hidden from readers and offered to those who keep the profile
+- [x] The **History** tab includes profile changes beside curation decisions
+- [x] Wave 5's summary card (when the assistant is on) and the opportunities that fit them keep their places; phones and print get a clean layout
 
 **Acceptance:** a viewer sees a complete, read-only profile; the person sees the same page with editing controls; a screen reader announces each section and control; the app shell stays within its budget.
 
@@ -140,5 +140,6 @@ Tessera follows this form; if NIH changes it, the biosketch's checks change with
 
 | Date | Note |
 |---|---|
+| 2026-11-09 | Slice 2 done. The About tab is a module loaded when the tab first opens, like impact threads, so the app's first load is unchanged. Positions from the group directory come first, marked as such, and the researcher's own follow in their own order rather than being merged by date, so a reordering is never undone by a sort. Entries are edited in a drawer built from the section's fields, with the server's message shown in the form when a check fails; entries move with up and down buttons (keyboard and screen-reader friendly) rather than dragging. On phones each entry's buttons move below it. People outside the directory have no About tab and open on their papers. |
 | 2026-11-08 | Slice 1 done. Entries keep their fields as JSON checked by each section's rules in code, rather than a table per section, so a section can gain a field without a migration and every section shares one history. Dates are a year or a year and month (a talk may give the day); an entry cannot end before it starts. New entries go first in dated sections and last in links and featured papers; the researcher can reorder any section. Featured papers must be the person's confirmed papers; one later rejected stays on the profile for its keepers, marked, and disappears for everyone else. Someone keeps a profile as themselves (their account is linked to the person, whatever their role), as a curator whose scope covers the person, or as an admin. An import upserts by its source and its key for the entry and can never match an entry made by hand. The demo fills in the profiles of the twelve lab heads with the most confirmed papers. |
 | 2026-11-08 | Wave 6 planned. NIH's biosketch was checked against NOT-OD-26-018: since January 25, 2026 it is the Biographical Sketch Common Form and the NIH Biographical Sketch Supplement, completed and certified in SciENcv by the investigator, so Tessera prepares the content in that form, checks NIH's limits, and gives it ready to paste, rather than producing the certified PDF. Positions from the group directory stay where they are kept and are shown beside the positions a researcher adds, rather than copied into profile entries. |
