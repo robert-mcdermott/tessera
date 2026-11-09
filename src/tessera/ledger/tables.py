@@ -747,3 +747,25 @@ profile_public = Table(
     Column("updated_at", UtcDateTime, nullable=False),
     Column("updated_by", String(200), nullable=False),
 )
+
+# A person's CVs and NIH biosketches (wave 6): named versions, each a ``spec`` of which sections
+# and entries it includes, in what order, with its options; built from the profile and confirmed
+# records whenever it is shown, so it stays current. ``form`` names the NIH form a biosketch
+# was built for.
+CV_KINDS = ("cv", "nih_biosketch")
+cv_document = Table(
+    "cv_document",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("person_id", ID, ForeignKey("person.id", ondelete="CASCADE"), nullable=False),
+    Column("kind", String(20), nullable=False),
+    Column("name", String(200), nullable=False),
+    Column("spec", JsonType, nullable=False),
+    Column("form", String(60)),
+    Column("created_at", UtcDateTime, nullable=False),
+    Column("created_by", String(200), nullable=False),
+    Column("updated_at", UtcDateTime, nullable=False),
+    Column("updated_by", String(200), nullable=False),
+    CheckConstraint(_in("kind", CV_KINDS), name="kind"),
+)
+Index(None, cv_document.c.person_id)

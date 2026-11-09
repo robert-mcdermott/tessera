@@ -248,7 +248,9 @@ export function aboutPanel({ person, data, organization, refresh }) {
     : helpers.length ? h("p", { class: "subtle profile-keeper" }, icon("person", "icon icon-sm"), `Kept with help from ${helpers.join(", ")}.`) : null;
   const keepers = data.may_name && data.accounts ? keepersCard(data, personId, done) : null;
   const publicCard = keeps ? publicChoices(data, personId, done) : null;
-  return h("div", { class: "stack-lg profile-about" }, note, publicCard, cards, addMore, keepers);
+  const documents = keeps ? h("div", {}) : null;
+  if (documents) import("../pages/cv.js").then((m) => documents.replaceChildren(m.documentsCard(personId))).catch(() => {});
+  return h("div", { class: "stack-lg profile-about" }, note, publicCard, documents, cards, addMore, keepers);
 }
 
 /** Whether the profile is public, which sections the public page shows, and a preview. */
@@ -325,7 +327,8 @@ function keepersCard(data, personId, done) {
 
 const ACTIONS = { added: "added", changed: "changed", removed: "removed", reordered: "reordered",
   published: "made public", unpublished: "made internal only", sections: "sections on it changed",
-  hidden: "left off the public page", shown: "put back on the public page" };
+  hidden: "left off the public page", shown: "put back on the public page", created: "started", renamed: "renamed",
+  deleted: "deleted" };
 
 /** Profile changes, for the History tab. */
 export function profileHistory(events) {

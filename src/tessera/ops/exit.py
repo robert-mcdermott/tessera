@@ -83,6 +83,7 @@ LEDGER_NOTES = {
     "profile_event": "Every change to a profile: who, in what capacity, before and after",
     "profile_delegate": "Accounts a person named to keep their profile for them",
     "profile_public": "The sections a person leaves off their public page",
+    "cv_document": "CVs and biosketches: each version's name and what it includes",
     "auto_accept_batch": "Links accepted automatically, by batch",
     "ingest_run": "Every fetch, resolve, and build run",
     "source_checkpoint": "Where each source's incremental fetches left off",

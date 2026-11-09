@@ -6,6 +6,7 @@ from collections import defaultdict
 from typing import Any
 
 from tessera.config import Config
+from tessera.profiles import format as profile_format
 from tessera.publish.projection import Site
 from tessera.publish.render import (
     Page,
@@ -366,44 +367,18 @@ def _block(page: Page, g: dict[str, Any], b: dict[str, Any]) -> str:
 # The profile sections a researcher keeps, as their public page shows them (links go beside).
 MAIN_PROFILE = ("overview", "interests", "position", "education", "honor", "membership",
                 "teaching", "talk", "featured")  # fmt: skip
-MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-ONGOING = {"position", "membership", "teaching"}
-
-
-def _when(value: str | None) -> str:
-    if not value:
-        return ""
-    y, _, rest = value.partition("-")
-    if not rest:
-        return y
-    m, _, d = rest.partition("-")
-    return f"{f'{int(d)} ' if d else ''}{MONTHS[int(m) - 1]} {y}"
-
-
-def _span(f: dict[str, Any], section: str) -> str:
-    start = _when(f.get("start"))
-    end = _when(f.get("end")) or ("present" if section in ONGOING else "")
-    if not start:
-        return end
-    return f"{start} – {end}" if end else f"{start} –"
 
 
 def _profile_entry(section: str, f: dict[str, Any]) -> str:
-    join = lambda *xs: " · ".join(x for x in xs if x)  # noqa: E731
-    lines = {
-        "position": (f.get("title"), join(f.get("department"), f.get("organization"), f.get("location")), _span(f, section)),
-        "education": (join(f.get("degree"), f.get("field")), join(f.get("institution"), f.get("location")), _span(f, section)),
-        "honor": (f.get("title"), f.get("organization"), _when(f.get("year"))),
-        "membership": (f.get("role"), f.get("organization"), _span(f, section)),
-        "teaching": (f.get("title"), join(f.get("role"), f.get("organization")), _span(f, section)),
-        "talk": (f.get("title"), join(f.get("event"), f.get("location")), _when(f.get("date"))),
-    }[section]  # fmt: skip
-    title, meta, dates = lines
+    title, meta, dates = profile_format.lines(section, f)
     note = f.get("description")
-    return (f"<li><strong>{esc(title)}</strong>"
-            + (f'<br><span class="meta">{esc(meta)}</span>' if meta else "")
-            + (f'<br><span class="meta">{esc(dates)}</span>' if dates else "")
-            + (f"{paras(note)}" if note else "") + "</li>")  # fmt: skip
+    return (
+        f"<li><strong>{esc(title)}</strong>"
+        + (f'<br><span class="meta">{esc(meta)}</span>' if meta else "")
+        + (f'<br><span class="meta">{esc(dates)}</span>' if dates else "")
+        + (paras(note) if note else "")
+        + "</li>"
+    )
 
 
 def _profile_section(s: dict[str, Any]) -> str:

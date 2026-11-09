@@ -509,3 +509,121 @@ def test_the_researcher_chooses_what_the_public_page_shows(world: World) -> None
     world.ok("uma", "POST", f"{base}/public", {"hidden_sections": []})
     world.ok("uma", "POST", f"{base}/entries/{dropped['id']}/public", {"hidden": False})
     world.ok("uma", "DELETE", f"{base}/delegates/{named['account_id']}")
+
+
+# --- CVs ------------------------------------------------------------------------------------------
+
+
+def _ids(doc: dict[str, Any], sid: str) -> list[str]:
+    found = next((s for s in doc["sections"] if s["id"] == sid), None)
+    return [str(i["id"]) for i in found["items"]] if found else []
+
+
+def test_cvs_are_named_versions_built_from_the_profile_and_records(world: World) -> None:
+    uma = world.ids["uma"]
+    base = f"/api/v1/people/{uma}/cvs"
+    assert world.call("guest", "GET", base).status_code == 403  # working documents
+    first = world.ok("uma", "POST", base, {"name": "Promotion dossier"})
+    doc_id = first["document"]["id"]
+    titles = [s["title"] for s in first["sections"]]
+    assert titles[:2] == ["Positions and appointments", "Education and training"]
+    positions = first["sections"][0]["items"]
+    assert positions[0]["directory"] is True and "Corvane" in positions[0]["meta"]
+    pubs = next(s for s in first["sections"] if s["id"] == "publications")
+    confirmed = world.ids["confirmed"].split(",")
+    assert sorted(i["id"] for i in pubs["items"]) == sorted(confirmed) and pubs["numbered"]
+    assert any(a["self"] for i in pubs["items"] for a in i["authors"])  # her name, in bold
+    years = [i["year"] for i in pubs["items"]]
+    assert years == sorted(years, reverse=True)
+    # Choose: publications first and since a year, two honors in a chosen order.
+    honors = _ids(first, "honor")
+    spec = {
+        "sections": [
+            {"id": "publications", "mode": "since", "since": 2025, "numbered": False},
+            {"id": "honor", "pick": [honors[-1], honors[0]]},
+            {"id": "education"},
+        ]
+    }
+    changed = world.ok("uma", "POST", f"{base}/{doc_id}", {"spec": spec})
+    assert [s["id"] for s in changed["sections"]] == ["publications", "honor", "education"]
+    assert all(i["year"] >= 2025 for i in changed["sections"][0]["items"])
+    assert _ids(changed, "honor") == [honors[-1], honors[0]]
+    # A copy is its own version, kept apart.
+    copy = world.ok("uma", "POST", base, {"name": "Visiting scholar", "copy_of": doc_id})
+    world.ok(
+        "uma",
+        "POST",
+        f"{base}/{copy['document']['id']}",
+        {"spec": {"sections": [{"id": "talk"}, {"id": "publications", "mode": "all"}]}},
+    )
+    again = world.ok("uma", "GET", f"{base}/{doc_id}")
+    other = world.ok("uma", "GET", f"{base}/{copy['document']['id']}")
+    assert [s["id"] for s in again["sections"]] != [s["id"] for s in other["sections"]]
+    assert {d["name"] for d in world.ok("uma", "GET", base)} >= {
+        "Promotion dossier",
+        "Visiting scholar",
+    }
+    # Markdown, to download.
+    md = world.clients["uma"].get(f"{base}/{doc_id}/markdown")
+    assert md.status_code == 200 and md.headers["content-type"].startswith("text/markdown")
+    assert md.text.startswith("# Uma G Eriksen") and "**Eriksen UG**" in md.text
+    assert 'filename="Uma-G-Eriksen-Promotion-dossier.md"' in md.headers["content-disposition"]
+    # Bad specs are refused, and nothing is changed.
+    for bad in (
+        {"sections": [{"id": "salary"}]},
+        {"sections": [{"id": "talk"}, {"id": "talk"}]},
+        {"sections": [{"id": "publications", "mode": "since", "since": "soon"}]},
+    ):
+        assert world.call("uma", "POST", f"{base}/{doc_id}", {"spec": bad}).status_code == 400
+    assert world.call("uma", "POST", base, {"name": "  "}).status_code in (400, 422)
+    # Both are in the profile's history; deleting one leaves the other.
+    world.ok("uma", "DELETE", f"{base}/{copy['document']['id']}")
+    assert [d["id"] for d in world.ok("uma", "GET", base)] == [doc_id]
+    kept = [
+        h["action"]
+        for h in world.ok("uma", "GET", f"/api/v1/people/{uma}/profile/history?limit=8")
+        if h["section"] == "documents"
+    ]
+    assert kept[:3] == ["deleted", "changed", "created"]
+
+
+def test_a_cv_of_all_papers_follows_new_confirmations_and_a_chosen_one_does_not(
+    world: World,
+) -> None:
+    uma = world.ids["uma"]
+    confirmed = world.ids["confirmed"].split(",")
+    picked, later = confirmed[:2], confirmed[-1]
+    base = f"/api/v1/people/{uma}/cvs"
+    every = world.ok("uma", "POST", base, {"name": "Everything"})["document"]["id"]
+    chosen = world.ok("uma", "POST", base, {"name": "Chosen"})["document"]["id"]
+    world.ok(
+        "uma",
+        "POST",
+        f"{base}/{chosen}",
+        {"spec": {"sections": [{"id": "publications", "mode": "chosen", "pick": picked}]}},
+    )
+    engine = make_engine(world.config.ledger_url)
+
+    def status(value: str) -> None:
+        with engine.begin() as conn:
+            conn.execute(
+                update(assertion)
+                .where(
+                    assertion.c.subject_id == uma,
+                    assertion.c.object_id == f"pub:{later}",
+                    assertion.c.predicate == "authored",
+                )
+                .values(status=value)
+            )
+
+    try:
+        status("suggested")  # not yet confirmed: in neither
+        assert later not in _ids(world.ok("uma", "GET", f"{base}/{every}"), "publications")
+        status("accepted")  # confirmed now: in the CV of all papers, not in the chosen one
+        assert later in _ids(world.ok("uma", "GET", f"{base}/{every}"), "publications")
+        assert _ids(world.ok("uma", "GET", f"{base}/{chosen}"), "publications") == picked
+    finally:
+        status("accepted")
+        engine.dispose()
+    for doc in (every, chosen):
+        world.ok("uma", "DELETE", f"{base}/{doc}")

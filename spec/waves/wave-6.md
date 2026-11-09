@@ -2,7 +2,7 @@
 
 **Goal:** a full profile for every researcher: what Tessera builds from public records, beside the sections the researcher keeps (overview, interests, positions, education, honors, service, teaching, talks, links, featured papers). Every profile is open to everyone inside the organization, public only by the researcher's choice, and the source of the researcher's CVs and NIH biosketches.
 
-**Branch:** `wave-6` · **Target version:** `0.6.0` · **Status:** ◐ slices 1 to 4 done
+**Branch:** `wave-6` · **Target version:** `0.6.0` · **Status:** ◐ slices 1 to 5 done
 
 ## Exit criteria
 
@@ -99,15 +99,15 @@ Tessera follows this form; if NIH changes it, the biosketch's checks change with
 
 **Acceptance:** an entry hidden from the public stays on the internal profile and is absent from the built public site; turning the public profile off removes the page at the next publish; the public site's checks (accessibility, links, contrast) pass with every section shown.
 
-## Slice 5: CVs ☐
+## Slice 5: CVs ☑
 
 **Goal:** CVs built from the profile, kept as named versions (PRF-04).
 
-- [ ] CV documents (migration 0022): a person's named versions ("Promotion dossier", "Visiting scholar"), each with its sections, their order, the entries chosen in each, and options (publications: all confirmed, chosen, or since a year; numbered or not; the person's name in bold)
-- [ ] Sections from the profile and from the records: positions, education, honors, service, teaching, talks, publications (confirmed only), grants (as investigator), and studies (as official)
-- [ ] An editor with a live preview: drag to reorder sections and entries, choose entries, duplicate a version, rename, delete
-- [ ] **Print or save as PDF** through a print layout, and **Download Markdown**
-- [ ] A CV is seen by its person, those acting for them, their curators, and admins
+- [x] CV documents (migration 0022): a person's named versions ("Promotion dossier", "Visiting scholar"), each with its sections, their order, the entries chosen in each, and options (publications: all confirmed, chosen, or since a year; numbered or not; the person's name in bold)
+- [x] Sections from the profile and from the records: positions, education, honors, service, teaching, talks, publications (confirmed only), grants (as investigator), and studies (as official)
+- [x] An editor with a live preview: reorder sections and entries (with up and down buttons), choose entries, copy a version, rename, delete
+- [x] **Print or save as PDF** through a print layout, and **Download Markdown**
+- [x] A CV is seen by its person, those acting for them, their curators, and admins
 
 **Acceptance:** two versions of one person's CV differ in sections and order and both survive a restart; adding a confirmed paper to the profile appears in a CV that lists all confirmed papers, not in one that lists chosen papers; the printed PDF has no app chrome; the Markdown opens cleanly in a word processor.
 
@@ -140,6 +140,7 @@ Tessera follows this form; if NIH changes it, the biosketch's checks change with
 
 | Date | Note |
 |---|---|
+| 2026-11-09 | Slice 5 done. A CV stores only its spec (sections, order, chosen entries, options) and is built from the profile and confirmed records whenever it is shown, so it never goes stale; a section set to all entries picks up new ones, and a chosen list does not. Positions include the group directory's, with the organization's name. Publications take their full author lists and volume, issue, and pages from the lake, and are cited close to NLM's style, the person's own author position in bold (from the confirmed authorship's position). Grants show the person's role (PI, contact PI, or MPI) from RePORTER's investigators; studies their official role. Printing hides the editor and the app around the CV; the Markdown download is the same document. Reordering uses up and down buttons rather than dragging, as on the profile, for keyboards and screen readers. The public site's person page now formats entries with the same shared code. |
 | 2026-11-09 | Slice 4 done. The public choices store the sections left off rather than those shown, so a section added in a later version appears on a public page unless the person hides it, as their own sections do when first filled in. The public switch moved from curators only to everyone who keeps the profile, someone acting for the person included; each change is in the profile's history. The preview is the public page built by the same code as `tessera publish`, for that person alone (public or not yet), with the site's stylesheet served beside it, so it shows exactly what the next publish will. |
 | 2026-11-09 | Slice 3 done. Someone acting for a person is a fourth capacity for keeping a profile, beside the person, their curators, and admins; it grants nothing else, since every other decision about a person goes through the curation scope, which a delegate does not enter. Only the person, their curators, and admins name or remove delegates, and both are recorded in the profile's history. Everyone sees the names of those who keep a profile; only its keepers see their usernames. The account is chosen by username, so no list of accounts is exposed to everyone. Without accounts (single-operator mode) there is nobody to name, and the card is not shown. |
 | 2026-11-09 | Slice 2 done. The About tab is a module loaded when the tab first opens, like impact threads, so the app's first load is unchanged. Positions from the group directory come first, marked as such, and the researcher's own follow in their own order rather than being merged by date, so a reordering is never undone by a sort. Entries are edited in a drawer built from the section's fields, with the server's message shown in the form when a check fails; entries move with up and down buttons (keyboard and screen-reader friendly) rather than dragging. On phones each entry's buttons move below it. People outside the directory have no About tab and open on their papers. |

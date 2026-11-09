@@ -485,6 +485,35 @@ label.check { display: inline-flex; align-items: center; gap: var(--space-2); fo
   .profile-actions, .profile-keeper, [data-profile-section="add"], .tabs { display: none !important; }
 }
 
+/* ---------- CVs ---------- */
+.cv-layout { display: grid; grid-template-columns: minmax(280px, 380px) 1fr; gap: var(--space-6); align-items: start; }
+@media (max-width: 960px) { .cv-layout { grid-template-columns: 1fr; } }
+.cv-ed-sections { gap: var(--space-2); font-size: var(--fs-sm); }
+.cv-ed-section { border: 1px solid var(--border); border-radius: var(--radius-m); padding: var(--space-2) var(--space-3); }
+.cv-ed-section.is-on { background: var(--surface-2); }
+.cv-ed-head { display: flex; align-items: center; gap: var(--space-1); }
+.cv-ed-body { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-2); }
+.cv-ed-entries { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-height: 18rem; overflow-y: auto; }
+.cv-year { width: 7rem; }
+.cv-paper { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-l); padding: var(--space-8); max-width: 52rem; line-height: 1.5; }
+.cv-head h1 { font-size: var(--fs-2xl); margin: 0; }
+.cv-head p { margin: var(--space-1) 0 0; color: var(--text-muted); }
+.cv-section { margin-top: var(--space-6); }
+.cv-section h2 { font-size: var(--fs-lg); border-bottom: 1px solid var(--border); padding-bottom: var(--space-1); margin: 0 0 var(--space-3); }
+.cv-items, .cv-citations { margin: 0; padding-left: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.cv-items { list-style: none; }
+.cv-citations { padding-left: 1.6rem; }
+.cv-item-main { display: flex; justify-content: space-between; gap: var(--space-4); }
+.cv-dates { color: var(--text-muted); white-space: nowrap; }
+.cv-note { color: var(--text-muted); font-size: var(--fs-sm); }
+@media print {
+  .cv-layout { display: block; }
+  .cv-paper { border: 0; padding: 0; max-width: none; background: none; color: #000; }
+  .cv-paper * { color: #000 !important; }
+  .cv-section { break-inside: auto; }
+  .cv-items li, .cv-citations li { break-inside: avoid; }
+}
+
 /* ---------- Reports ---------- */
 .report-card { display: flex; flex-direction: column; gap: var(--space-2); }
 .report-card h2 { font-size: var(--fs-md); margin: 0; }

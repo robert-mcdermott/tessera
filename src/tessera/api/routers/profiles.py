@@ -40,7 +40,7 @@ CAPACITY_LABELS = {
 
 
 # History entries that are not a section.
-SPECIAL = {"delegates": "Who keeps the profile", "public": "Public page"}
+SPECIAL = {"delegates": "Who keeps the profile", "public": "Public page", "documents": "CVs"}
 
 
 class EntryIn(BaseModel):
@@ -305,3 +305,149 @@ def preview_stylesheet(request: Request) -> Response:
     from tessera.publish.style import stylesheet
 
     return Response(stylesheet(config_of(request)), media_type="text/css")
+
+
+# --- CVs ------------------------------------------------------------------------------------------
+
+
+class DocumentIn(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    copy_of: str | None = Field(None, description="Start from a copy of this CV")
+
+
+class DocumentChange(BaseModel):
+    name: str | None = Field(None, max_length=200)
+    spec: dict[str, Any] | None = None
+
+
+def _cv_context(request: Request, person_id: str, doc: dict[str, Any]) -> dict[str, Any]:
+    from datetime import date
+
+    from tessera.profiles import cv
+
+    config = config_of(request)
+    try:
+        index = index_of(request)
+    except Exception:  # the CV still builds without the search index
+        index = None
+    with engine_of(request).connect() as conn:
+        available = cv.catalogue(
+            conn, config, request.app.state.home, index, person_id, date.today()
+        )
+        head = cv.header(conn, config, person_id)
+    options = {
+        sid: [{"id": str(r["id"]), "label": _option_label(sid, r)} for r in rows]
+        for sid, rows in available.items()
+    }
+    return {
+        "document": {k: doc[k] for k in ("id", "kind", "name", "spec", "form", "updated_at",
+                                         "updated_by")},
+        "header": head,
+        "sections_available": [{"id": k, "label": v} for k, v in cv.SECTIONS.items()],
+        "options": options,
+        "sections": cv.build(doc["spec"], available),
+    }  # fmt: skip
+
+
+def _option_label(section: str, row: dict[str, Any]) -> str:
+    from tessera.profiles import format as fmt
+
+    if section == "publications":
+        return f"{row.get('year') or ''} · {row['title']}"
+    if section in ("grants", "studies"):
+        return f"{row['main']} ({row['id']})"
+    if section == "overview":
+        return row["fields"]["text"][:80]
+    title, _, dates = fmt.lines(section, row["fields"])
+    return f"{title} · {dates}" if dates else title
+
+
+@router.get(
+    "/{person_id}/cvs", summary="A person's CVs and biosketches (those who keep the profile)"
+)
+def list_documents(request: Request, person_id: str) -> dict[str, Any]:
+    from tessera.profiles import cv
+
+    person_id = _person(request, person_id)
+    _keeper(request, person_id)
+    with engine_of(request).connect() as conn:
+        return envelope(cv.documents(conn, person_id))
+
+
+@router.post("/{person_id}/cvs", status_code=201, summary="Start a CV, or a copy of one")
+def create_document(request: Request, person_id: str, body: DocumentIn) -> dict[str, Any]:
+    from tessera.profiles import cv
+
+    person_id = _person(request, person_id)
+    actor, capacity = _keeper(request, person_id)
+    try:
+        spec = None
+        if body.copy_of:
+            with engine_of(request).connect() as conn:
+                spec = cv.get(conn, person_id, body.copy_of)["spec"]
+        doc = cv.create(engine_of(request), person_id, name=body.name, spec=spec,
+                        actor=actor, capacity=capacity)  # fmt: skip
+    except ProfileError as exc:
+        raise _fail(exc) from exc
+    return envelope(_cv_context(request, person_id, doc))
+
+
+@router.get("/{person_id}/cvs/{doc_id}", summary="A CV, built from the profile and records now")
+def get_document(request: Request, person_id: str, doc_id: str) -> dict[str, Any]:
+    from tessera.profiles import cv
+
+    person_id = _person(request, person_id)
+    _keeper(request, person_id)
+    try:
+        with engine_of(request).connect() as conn:
+            doc = cv.get(conn, person_id, doc_id)
+    except ProfileError as exc:
+        raise _fail(exc) from exc
+    return envelope(_cv_context(request, person_id, doc))
+
+
+@router.post("/{person_id}/cvs/{doc_id}", summary="Rename a CV, or change what it includes")
+def change_document(request: Request, person_id: str, doc_id: str, body: DocumentChange
+                    ) -> dict[str, Any]:  # fmt: skip
+    from tessera.profiles import cv
+
+    person_id = _person(request, person_id)
+    actor, capacity = _keeper(request, person_id)
+    try:
+        doc = cv.change(engine_of(request), person_id, doc_id, name=body.name, spec=body.spec,
+                        actor=actor, capacity=capacity)  # fmt: skip
+    except ProfileError as exc:
+        raise _fail(exc) from exc
+    return envelope(_cv_context(request, person_id, doc))
+
+
+@router.delete("/{person_id}/cvs/{doc_id}", summary="Delete a CV")
+def delete_document(request: Request, person_id: str, doc_id: str) -> dict[str, Any]:
+    from tessera.profiles import cv
+
+    person_id = _person(request, person_id)
+    actor, capacity = _keeper(request, person_id)
+    try:
+        cv.remove(engine_of(request), person_id, doc_id, actor=actor, capacity=capacity)
+    except ProfileError as exc:
+        raise _fail(exc) from exc
+    return envelope({"id": doc_id, "removed": True})
+
+
+@router.get("/{person_id}/cvs/{doc_id}/markdown", summary="A CV as Markdown, to download")
+def document_markdown(request: Request, person_id: str, doc_id: str) -> Response:
+    import re
+    from datetime import date
+
+    from tessera.profiles import cv
+
+    person_id = _person(request, person_id)
+    _keeper(request, person_id)
+    context = get_document(request, person_id, doc_id)["data"]
+    text = cv.markdown(context["document"]["name"], context["header"], context["sections"],
+                       date.today())  # fmt: skip
+    stem = re.sub(
+        r"[^A-Za-z0-9]+", "-", f"{context['header']['name']} {context['document']['name']}"
+    )
+    return Response(text, media_type="text/markdown; charset=utf-8", headers={
+        "Content-Disposition": f'attachment; filename="{stem.strip("-")}.md"'})  # fmt: skip
