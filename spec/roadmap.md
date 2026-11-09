@@ -150,7 +150,7 @@ Released as [v0.5.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0
 
 Released as [v0.6.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0.6.0) on 2026-11-08. Detail: [waves/wave-6.md](waves/wave-6.md)
 
-## Wave 7: Adoption (v0.7.0) ◐
+## Wave 7: Adoption (v0.7.0) ☑
 
 **Goal:** make Tessera easy for another organization to adopt and operate.
 
@@ -171,7 +171,7 @@ Released as [v0.6.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0
 | 5 | Running it as a service | Container image, systemd units, reverse-proxy examples, health checks | ☑ |
 | 6 | Accessible and reviewed | A WCAG 2.2 AA audit and a security review, with fixes | ☑ |
 | 7 | The adopter's guide | From installation to a curated, published site | ☑ |
-| 8 | Release prep | Guides, screenshots, checks, changelog, release | ☐ |
+| 8 | Release prep | Guides, screenshots, checks, changelog, release | ☑ |
 
 Detail: [waves/wave-7.md](waves/wave-7.md)
 

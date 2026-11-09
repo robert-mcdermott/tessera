@@ -2,7 +2,15 @@
 
 All notable changes to Tessera are recorded here. Versions follow [semantic versioning](https://semver.org/); each wave of work ships as a minor release (wave 1 → 0.1.0, wave 2 → 0.2.0).
 
-## Unreleased
+## 0.7.0 (2026-11-09)
+
+Adoption. Another organization can now install Tessera, make it its own, and run it: on SQLite or PostgreSQL, behind its own single sign-on, in its colors and words, as a service on its own server, at the size of a large research institution, checked for accessibility and security, and with a guide that takes it from nothing to a curated, published site.
+
+**Highlights:** every test runs on SQLite and on PostgreSQL 16; single sign-on with OpenID Connect (Microsoft Entra ID, Okta, Google, Keycloak, and others), with roles from the provider's groups or app roles; **Admin → Branding**, with a live preview and every color pair's contrast checked, and vocabulary presets for an academic medical center, a university, and a research institute; a container image, a compose file with PostgreSQL, systemd units, and reverse-proxy examples, with health checks and `tessera doctor --production`; `tessera bench`, and the speed-ups it led to, measured at 10,000 people and a million papers; an accessibility audit of every page and a security review; and a guide, *Adopting Tessera*.
+
+**Upgrading:** run `tessera db upgrade` (migrations 0023 and 0024; 0024 builds new indexes, which takes a few minutes on a very large ledger), then `tessera build search`, or wait for the next sync: the search index now holds each document's kind, and until it is rebuilt, searching works as before. New settings, all optional: `[auth.oidc]` for single sign-on and `[vocabulary] preset`.
+
+**Checks for this release:** authorship is unchanged: on the pilot, re-resolved with this release, the ORCID works-list check gives 0.6.0's result exactly (196 listed papers from 2025 on, 94.9% found as candidates, 97.3% of those strong). The full suite passes on SQLite (913 tests) and on PostgreSQL 16 (914); migrations 0023 and 0024 were run down and back up on a copy of the pilot's ledger on both, every row kept. The accessibility audit finds nothing in any screenshot scene, by day or after dark. A fresh clone followed *Adopting Tessera*'s rehearsal to a signed-in, curated, published demo. No dependencies were added or changed, and `pip-audit` finds no known vulnerability in them.
 
 ### Added
 
