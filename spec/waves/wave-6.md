@@ -2,7 +2,7 @@
 
 **Goal:** a full profile for every researcher: what Tessera builds from public records, beside the sections the researcher keeps (overview, interests, positions, education, honors, service, teaching, talks, links, featured papers). Every profile is open to everyone inside the organization, public only by the researcher's choice, and the source of the researcher's CVs and NIH biosketches.
 
-**Branch:** `wave-6` · **Target version:** `0.6.0` · **Status:** ☐ planned
+**Branch:** `wave-6` · **Target version:** `0.6.0` · **Status:** ◐ slice 1 done
 
 ## Exit criteria
 
@@ -52,16 +52,16 @@ Tessera follows this form; if NIH changes it, the biosketch's checks change with
 
 ---
 
-## Slice 1: The sections a researcher keeps ☐
+## Slice 1: The sections a researcher keeps ☑
 
 **Goal:** the data and rules behind profile sections, with their history (PRF-02, PRF-06).
 
-- [ ] Profile entries (migration 0019): each belongs to a person and a section, with the section's fields, an order, whether it may appear publicly, and where it came from (entered by hand, or a source and that source's identifier for it, so an import can match instead of duplicating). Sections: overview and research interests (text), positions and appointments, education and training, honors and awards, memberships and service, teaching and mentoring, talks and presentations, links, and featured publications (confirmed papers only, at most 10)
-- [ ] Each section's fields are checked: required ones, dates as a year or year and month, lengths, links that are web addresses
-- [ ] Every add, change, removal, and reordering is a profile event: the actor, on whose behalf when it was someone acting for the person, the entry before and after, and when
-- [ ] API: read a person's profile (everyone signed in), and add, change, remove, and reorder entries (the person, a curator for them, an admin), with the history
-- [ ] Positions from the group directory stay as they are, shown beside the positions a researcher adds; a researcher adds what Tessera cannot know (earlier positions elsewhere, joint and adjunct appointments)
-- [ ] The demo gives a dozen people filled-in profiles (invented education, honors, service, talks) so every new screen has something to show
+- [x] Profile entries (migration 0019): each belongs to a person and a section, with the section's fields, an order, whether it may appear publicly, and where it came from (entered by hand, or a source and that source's identifier for it, so an import can match instead of duplicating). Sections: overview and research interests (text), positions and appointments, education and training, honors and awards, memberships and service, teaching and mentoring, talks and presentations, links, and featured publications (confirmed papers only, at most 10)
+- [x] Each section's fields are checked: required ones, dates as a year or year and month, lengths, links that are web addresses
+- [x] Every add, change, removal, and reordering is a profile event: the actor, on whose behalf when it was someone acting for the person, the entry before and after, and when
+- [x] API: read a person's profile (everyone signed in), and add, change, remove, and reorder entries (the person, a curator for them, an admin), with the history
+- [x] Positions from the group directory stay as they are, shown beside the positions a researcher adds; a researcher adds what Tessera cannot know (earlier positions elsewhere, joint and adjunct appointments)
+- [x] The demo gives a dozen people filled-in profiles (invented education, honors, service, talks) so every new screen has something to show
 
 **Acceptance:** a researcher adds, edits, reorders, and removes entries on their own profile, and the history shows each change; a viewer and another researcher cannot change it; a featured publication must be one of the person's confirmed papers; an entry with a source identifier is found again by that identifier, not duplicated.
 
@@ -140,4 +140,5 @@ Tessera follows this form; if NIH changes it, the biosketch's checks change with
 
 | Date | Note |
 |---|---|
+| 2026-11-08 | Slice 1 done. Entries keep their fields as JSON checked by each section's rules in code, rather than a table per section, so a section can gain a field without a migration and every section shares one history. Dates are a year or a year and month (a talk may give the day); an entry cannot end before it starts. New entries go first in dated sections and last in links and featured papers; the researcher can reorder any section. Featured papers must be the person's confirmed papers; one later rejected stays on the profile for its keepers, marked, and disappears for everyone else. Someone keeps a profile as themselves (their account is linked to the person, whatever their role), as a curator whose scope covers the person, or as an admin. An import upserts by its source and its key for the entry and can never match an entry made by hand. The demo fills in the profiles of the twelve lab heads with the most confirmed papers. |
 | 2026-11-08 | Wave 6 planned. NIH's biosketch was checked against NOT-OD-26-018: since January 25, 2026 it is the Biographical Sketch Common Form and the NIH Biographical Sketch Supplement, completed and certified in SciENcv by the investigator, so Tessera prepares the content in that form, checks NIH's limits, and gives it ready to paste, rather than producing the certified PDF. Positions from the group directory stay where they are kept and are shown beside the positions a researcher adds, rather than copied into profile entries. |

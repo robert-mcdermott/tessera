@@ -35,6 +35,7 @@ PREFIXES = {
     "tem": "team",
     "aix": "assistant exchange",
     "sum": "summary",
+    "pfe": "profile entry",
 }
 
 _CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"

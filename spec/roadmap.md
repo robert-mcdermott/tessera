@@ -140,7 +140,7 @@ Released as [v0.5.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0
 
 | Slice | Name | Delivers | Status |
 |---|---|---|---|
-| 1 | The sections a researcher keeps | Profile entries by section, with their sources, checks, and a history of every change | ☐ |
+| 1 | The sections a researcher keeps | Profile entries by section, with their sources, checks, and a history of every change | ☑ |
 | 2 | The profile page | About first, edited in place by those who keep it, read by everyone | ☐ |
 | 3 | Someone to act for them | A researcher names accounts that keep their profile, CVs, and biosketches | ☐ |
 | 4 | Public by choice | The researcher chooses whether the profile is public and which sections and entries it shows | ☐ |

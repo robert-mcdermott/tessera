@@ -236,6 +236,9 @@ def build_demo(
         _team(home, engine)
         _attribute(engine)
         _pages(engine, today)
+        from tessera.demo.profiles import build_profiles
+
+        build_profiles(engine, world, _key_of(engine, world), today.year)
         _public(engine)
         build_search(config, home, engine, today=today)  # what the steps above changed directly
         _insight(config, home, engine, today)

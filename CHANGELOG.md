@@ -2,6 +2,12 @@
 
 All notable changes to Tessera are recorded here. Versions follow [semantic versioning](https://semver.org/); each wave of work ships as a minor release (wave 1 → 0.1.0, wave 2 → 0.2.0).
 
+## Unreleased
+
+### Added
+
+- Profile sections a researcher keeps (PRF-02, PRF-06): an overview, research interests, positions and appointments, education and training, honors and awards, memberships and service, teaching and mentoring, talks and presentations, links, and featured publications (their confirmed papers only, up to ten), each with its own fields and checks (migration 0019). Everyone signed in reads every profile; the person, a curator for them, and an admin change it, and every change is recorded with who made it, in what capacity, and the entry before and after. Each entry records where it came from, so an import could later find its own entries again instead of adding copies, and never touch those made by hand. `GET /people/{id}/profile` and its routes. The demo fills in a dozen lab heads' profiles.
+
 ## 0.5.0 (2026-11-08)
 
 Impact. Tessera now follows what came after a grant or a paper, finds the funding opportunities that fit people and groups and says separately whether the organization may apply, and helps put a team together for one. For organizations that turn it on, an assistant answers questions from Tessera's own records with citations, within each person's access, and drafts plain-language summaries that someone approves before anyone sees them.

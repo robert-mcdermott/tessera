@@ -79,6 +79,8 @@ LEDGER_NOTES = {
     "ai_exchange": "Exchanges with the optional assistant: who asked, the model, the answer",
     "ai_summary": "Plain-language summaries: the draft, the approved text, who approved it",
     "summary_event": "Every change to a plain-language summary",
+    "profile_entry": "The sections of a profile a person keeps: positions, education, honors, ...",
+    "profile_event": "Every change to a profile: who, in what capacity, before and after",
     "auto_accept_batch": "Links accepted automatically, by batch",
     "ingest_run": "Every fetch, resolve, and build run",
     "source_checkpoint": "Where each source's incremental fetches left off",
