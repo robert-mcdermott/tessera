@@ -43,6 +43,7 @@ main ──●──────────────────────
 - [ ] Version bumped in `pyproject.toml`
 - [ ] `uv lock` up to date; fresh-clone install and quickstart verified
 - [ ] Private-terms check run over the whole repository
+- [ ] Upgrades from every earlier release checked (`scripts/check-upgrades.sh`): every row kept, on SQLite and PostgreSQL
 - [ ] Roadmap and wave status updated
 - [ ] Documentation site: screenshots of changed screens retaken (`node docs/capture/capture.mjs SCENE…`), diagrams redrawn if the architecture changed, the guides checked against the changelog, and the site built and reviewed in both themes and at phone width
 - [ ] After the release is published: the site published (below)

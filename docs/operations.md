@@ -314,7 +314,23 @@ uv run tessera build search    # rebuild the index with the new version
 uv run tessera build discovery # and concept profiles and the graph
 ```
 
-`tessera doctor` and the web app's health check (`/api/v1/health`) report a ledger that needs `db upgrade`. Migrations keep every row: they are tested on SQLite and PostgreSQL with a populated ledger, upgrading and downgrading. Take a backup before upgrading anyway (`tessera backup`). The [changelog](../CHANGELOG.md) notes anything that needs more than these steps.
+`tessera doctor` and the web app's health check (`/api/v1/health`) report a ledger that needs `db upgrade`. Migrations keep every row: they are tested on SQLite and PostgreSQL with a populated ledger, upgrading and downgrading. Take a backup before upgrading anyway (`tessera backup`). The [changelog](../CHANGELOG.md) notes anything that needs more than these steps, and [Compatibility](compatibility.md) says what each kind of release may change.
+
+### From any 0.x release to 1.0
+
+An installation made by any earlier release, from 0.1.0 on, upgrades in one step: there is no need to pass through the releases between. Its configuration file loads as it is, since every setting added since has a default.
+
+1. Take a backup with the release you have (`tessera backup`, from 0.4.0 on), or copy the data home and, for PostgreSQL, dump the database.
+2. Install 1.0 (`git pull` or a fresh clone, then `uv sync`).
+3. `tessera db upgrade`, then `tessera build search` and `tessera build discovery`.
+4. `tessera sync`, to fetch what sources added since your release need: from before 0.5.0, Grants.gov's opportunities (about 12 minutes the first time) and iCite's clinical citations. Until then, the pages that use them say they are empty.
+5. `tessera doctor --production`, for a server others use.
+
+What changes on the way, beyond new features, is in each release's **Upgrading** notes in the changelog: from before 0.3.0, units become groups and memberships plain members; from before 0.6.0, researchers keep their own profiles once their accounts are linked to them; from before 1.0, `[server] workers` runs several server processes.
+
+This is checked before each release by `scripts/check-upgrades.sh`, which installs every earlier release from its tag, makes an installation with it (its demonstration organization, or for 0.1.0 and 0.2.0 the synthetic organization their own tests use, with decisions made through their API), takes a backup with it where it can, and upgrades it with this release. It checks that every ledger row comes through with every column it had, except what a migration changes on purpose (each checked exactly); that the lake and raw responses are untouched, file by file; that `tessera doctor` passes and the main pages answer; and that the release's own backup restores into a new data home with the same rows. It does this on SQLite for every release, and for 0.7.0 on PostgreSQL 16, after 0.7.0 moves its own installation there.
+
+Going back is not supported: to undo an upgrade, restore the backup with the release it came from.
 
 ## PostgreSQL
 

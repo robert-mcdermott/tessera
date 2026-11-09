@@ -191,7 +191,7 @@ Detail: [waves/wave-7.md](waves/wave-7.md)
 |---|---|---|---|
 | 1 | Many people at once | A load test in `tessera bench`, each Insight figure built once, several server processes, sign-in limits in the ledger | ☑ |
 | 2 | The 1.0 promise | Stable and experimental routes, a test against breaking changes, a deprecation policy, a compatibility guide | ☑ |
-| 3 | Upgrades from every earlier release | Each 0.x release's data home upgraded to 1.0 with every record kept, on SQLite and PostgreSQL | ☐ |
+| 3 | Upgrades from every earlier release | Each 0.x release's data home upgraded to 1.0 with every record kept, on SQLite and PostgreSQL | ☑ |
 | 4 | Hardened | A soak, failure drills, a review of the code that decides or protects things, dependencies current | ☐ |
 | 5 | Release prep | Guides, screenshots, checks, changelog, release | ☐ |
 

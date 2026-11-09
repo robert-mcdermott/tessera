@@ -13,6 +13,7 @@ Toward 1.0.0 (wave 8).
 
 - **The 1.0 promise.** Every route under `/api/v1` is marked stable or experimental (`x-stability` in the OpenAPI document): stable routes change only by adding to them until a major version. A test checks every change against `tests/api_contract.json`, which records what each stable route accepts and answers with. A route on its way out will answer with `Deprecation`, `Sunset`, and `Link` headers. A new guide, *Compatibility*, says what 1.0 promises for the API, the command line, the configuration file, the data home, exports, and the public site's addresses.
 - The request bodies for adding and changing opportunities and teams, and for importing groups, are described in the OpenAPI document.
+- **Upgrades from any earlier release, checked.** `scripts/check-upgrades.sh` installs every release from 0.1.0 on, makes an installation with it, and upgrades it to this one: every ledger row comes through, the lake and raw files are untouched, `tessera doctor` passes, the pages answer, and each release's backup restores, on SQLite and, from 0.7.0, on PostgreSQL. *Running Tessera* says how to go from any 0.x release to 1.0 in one step.
 
 ### Changed
 
