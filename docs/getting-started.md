@@ -114,6 +114,7 @@ Run `sync` again afterward so the new people's papers are found.
 - [Curating](curation.md): clear the review queue and promote discovered people.
 - [Finding experts](discovery.md): expert search, similar people, and the graphs.
 - [Groups](groups.md): set up divisions, programs, and labs, their pages and managers.
+- [Profiles](profiles.md): researchers' own sections, public choices, CVs, and NIH biosketches.
 - [The public site](public-site.md): publish pages for the groups and people who opt in.
 - [Configuration](configuration.md): every setting, including palettes and your logo.
 - [Running Tessera](operations.md): scheduling syncs, backups, upgrades, and PostgreSQL.

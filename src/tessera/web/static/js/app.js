@@ -78,6 +78,7 @@ async function boot() {
   route("/groups/:slug/edit", async (params) => (await import("./pages/group-editor.js")).groupEditor(main, params));
   route("/people", (_, ctx) => browse(main, "person", ctx));
   route("/people/:id", (params, ctx) => person(main, params, ctx));
+  route("/people/:id/cvs/:cv", async (params, ctx) => (await import("./pages/cv.js")).cvPage(main, params, ctx));
   route("/publications", (_, ctx) => browse(main, "publication", ctx));
   route("/publications/:pmid", (params) => publication(main, params));
   route("/grants", (_, ctx) => browse(main, "grant", ctx));

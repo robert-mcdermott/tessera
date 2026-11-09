@@ -35,6 +35,7 @@ POLICIES = {
     ("POST", "/api/v1/ai/summaries/{subject}/draft"): Level.READ,
     ("POST", "/api/v1/ai/summaries/{summary_id}/approve"): Level.READ,
     ("POST", "/api/v1/ai/summaries/{summary_id}/reject"): Level.READ,
+    ("POST", "/api/v1/ai/biosketch/{person_id}/draft"): Level.READ,  # the profile's keepers
 }
 
 
@@ -247,3 +248,51 @@ def approve_summary(request: Request, summary_id: str, body: Decision) -> dict[s
 @router.post("/summaries/{summary_id}/reject", summary="Reject a draft")
 def reject_summary(request: Request, summary_id: str, body: Decision) -> dict[str, Any]:
     return _decide(request, summary_id, body, "reject")
+
+
+# --- first drafts for a biosketch -------------------------------------------------------
+
+
+class BiosketchDraft(BaseModel):
+    part: str = Field(description="statement, or contribution")
+    pmids: list[str] = Field(
+        min_length=1, max_length=8, description="Their confirmed papers to draw on"
+    )
+    project: str = Field(
+        "", max_length=1500, description="What the application is about (optional)"
+    )
+
+
+@router.post("/biosketch/{person_id}/draft",
+             summary="A first draft for a biosketch, to edit (not saved)")  # fmt: skip
+def biosketch_draft(request: Request, person_id: str, body: BiosketchDraft) -> dict[str, Any]:
+    from tessera.ai import drafting
+    from tessera.evidence.store import survivor_of
+    from tessera.profiles import store as profiles
+    from tessera.profiles.sections import ProfileError
+
+    engine = engine_of(request)
+    with engine.connect() as conn:
+        person_id = survivor_of(conn, person_id)
+    principal = principal_of(request)
+    if profiles.capacity(principal, engine, person_id) is None:
+        raise HTTPException(
+            status_code=403, detail="Only those who keep this profile may draft for it."
+        )
+    if not may_use(request):
+        raise HTTPException(status_code=403, detail="Your role does not include the assistant.")
+    config = config_of(request)
+    provider = make(config.ai, transport=transport_of(request))
+    try:
+        out = drafting.draft(
+            engine, config.ai, provider, Toolbox(asker_fetch(request)), person_id=person_id,
+            part=body.part, pmids=body.pmids, project=body.project, owner=owner_of(request),
+            actor=principal.name,
+        )  # fmt: skip
+    except ProviderError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except ProfileError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        provider.close()
+    return envelope(out)

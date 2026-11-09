@@ -67,6 +67,7 @@ Select several people to promote or dismiss them together. The *Promoted* and *D
 - **Identifiers** lists the person's ORCID iDs and other identifiers, described in the section on ORCID iDs below.
 - **Memberships** lists the person's units, with titles and dates, current ones first.
 - **Merge…** folds another record of the same person into this one, or this one into it; see the next section.
+- The profile opens on **About**, the sections the person keeps. A curator whose scope covers the person can keep them too, and choose what their public page shows; see [Profiles](profiles.md).
 
 ## Possible duplicates
 

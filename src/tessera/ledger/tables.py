@@ -676,3 +676,96 @@ summary_event = Table(
     Column("at", UtcDateTime, nullable=False),
 )
 Index(None, summary_event.c.summary_id)
+
+# The sections of a profile that a researcher keeps (wave 6): one row per entry, its fields as
+# the section defines them (see tessera.profiles.sections). ``source`` is "manual" for entries
+# made by hand; an import would set its own name and ``source_id``, its key for the entry, so it
+# finds the entry again instead of adding a second one.
+PROFILE_SECTIONS = (
+    "overview", "interests", "position", "education", "honor", "membership", "teaching", "talk",
+    "link", "featured",
+)  # fmt: skip
+profile_entry = Table(
+    "profile_entry",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("person_id", ID, ForeignKey("person.id", ondelete="CASCADE"), nullable=False),
+    Column("section", String(20), nullable=False),
+    Column("fields", JsonType, nullable=False),
+    Column("position", Integer, nullable=False),
+    Column("source", String(40), nullable=False, server_default="manual"),
+    Column("source_id", String(300)),
+    # Left off the public page although its section is shown there (the person's choice).
+    Column("hidden", Boolean, nullable=False, server_default=false()),
+    Column("created_at", UtcDateTime, nullable=False),
+    Column("created_by", String(200), nullable=False),
+    Column("updated_at", UtcDateTime, nullable=False),
+    Column("updated_by", String(200), nullable=False),
+    CheckConstraint(_in("section", PROFILE_SECTIONS), name="section"),
+    UniqueConstraint("person_id", "source", "source_id"),
+)
+Index(None, profile_entry.c.person_id, profile_entry.c.section)
+
+# Every change to a profile, append-only: the entry before and after, who made the change, and
+# in what capacity (the person themselves, a curator, an admin, or someone acting for them).
+profile_event = Table(
+    "profile_event",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("person_id", ID, ForeignKey("person.id", ondelete="CASCADE"), nullable=False),
+    Column("entry_id", ID),
+    Column("section", String(20), nullable=False),
+    Column("action", String(20), nullable=False),
+    Column("actor", String(200), nullable=False),
+    Column("capacity", String(20), nullable=False),
+    Column("before", JsonType),
+    Column("after", JsonType),
+    Column("at", UtcDateTime, nullable=False),
+)
+Index(None, profile_event.c.person_id, profile_event.c.at)
+
+# Accounts a person names to keep their profile, CVs, and biosketches for them (wave 6), such as
+# an assistant. Acting for someone covers only those; never their authorship or identifiers.
+profile_delegate = Table(
+    "profile_delegate",
+    metadata,
+    Column("person_id", ID, ForeignKey("person.id", ondelete="CASCADE"), primary_key=True),
+    Column("account_id", ID, ForeignKey("account.id", ondelete="CASCADE"), primary_key=True),
+    Column("granted_by", String(200), nullable=False),
+    Column("granted_at", UtcDateTime, nullable=False),
+)
+Index(None, profile_delegate.c.account_id)
+
+# What a person's public page shows: the sections they left off it (every other one is shown, so
+# a section added in a later version appears unless they hide it). Entries can be hidden one by
+# one with profile_entry.hidden.
+profile_public = Table(
+    "profile_public",
+    metadata,
+    Column("person_id", ID, ForeignKey("person.id", ondelete="CASCADE"), primary_key=True),
+    Column("hidden_sections", JsonType, nullable=False),
+    Column("updated_at", UtcDateTime, nullable=False),
+    Column("updated_by", String(200), nullable=False),
+)
+
+# A person's CVs and NIH biosketches (wave 6): named versions, each a ``spec`` of which sections
+# and entries it includes, in what order, with its options; built from the profile and confirmed
+# records whenever it is shown, so it stays current. ``form`` names the NIH form a biosketch
+# was built for.
+CV_KINDS = ("cv", "nih_biosketch")
+cv_document = Table(
+    "cv_document",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("person_id", ID, ForeignKey("person.id", ondelete="CASCADE"), nullable=False),
+    Column("kind", String(20), nullable=False),
+    Column("name", String(200), nullable=False),
+    Column("spec", JsonType, nullable=False),
+    Column("form", String(60)),
+    Column("created_at", UtcDateTime, nullable=False),
+    Column("created_by", String(200), nullable=False),
+    Column("updated_at", UtcDateTime, nullable=False),
+    Column("updated_by", String(200), nullable=False),
+    CheckConstraint(_in("kind", CV_KINDS), name="kind"),
+)
+Index(None, cv_document.c.person_id)

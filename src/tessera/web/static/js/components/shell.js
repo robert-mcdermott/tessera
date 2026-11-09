@@ -195,9 +195,15 @@ const ROLE_NAMES = { admin: "Admin", curator: "Curator", researcher: "Researcher
 /** The signed-in person's name, roles, and actions (change password, sign out). */
 function userMenu() {
   const me = session();
+  // The profiles this account keeps: its own, and those of people who named it to act for them.
+  const kept = h("div", { class: "user-menu-kept" });
+  const loadKept = () => get("/api/v1/me/profiles").then(({ data }) => kept.replaceChildren(...data.map((p) =>
+    h("a", { role: "menuitem", class: "user-menu-item", href: `/people/${p.person_id}`, onclick: () => close() },
+      icon("person", "icon icon-sm"), p.capacity === "self" ? "Your profile" : `Profile of ${p.name}`)))).catch(() => {});
   const roles = [...new Set(me.roles.map((r) => (r.scope_type ? `${ROLE_NAMES[r.role]} (limited)` : ROLE_NAMES[r.role])))].join(", ");
   const menu = h("div", { class: "user-menu", role: "menu", hidden: true },
     h("div", { class: "user-menu-who" }, h("strong", {}, me.name), h("span", { class: "subtle" }, `${me.username} · ${roles}`)),
+    kept,
     h("button", { type: "button", role: "menuitem", class: "user-menu-item", onclick: () => { close(); changePassword(); } }, icon("keyboard", "icon icon-sm"), "Change password…"),
     h("button", { type: "button", role: "menuitem", class: "user-menu-item", onclick: () => signOut() }, icon("arrowRight", "icon icon-sm"), "Sign out"));
   const button = h("button", { type: "button", class: "operator user-button", "aria-haspopup": "menu", "aria-expanded": "false",
@@ -206,6 +212,7 @@ function userMenu() {
   const onKey = (event) => { if (event.key === "Escape") { close(); button.focus(); } };
   const onClick = (event) => { if (!wrap.contains(event.target)) close(); };
   function open() {
+    loadKept();
     menu.hidden = false;
     button.setAttribute("aria-expanded", "true");
     document.addEventListener("keydown", onKey);

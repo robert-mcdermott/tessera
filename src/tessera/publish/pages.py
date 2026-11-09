@@ -6,6 +6,7 @@ from collections import defaultdict
 from typing import Any
 
 from tessera.config import Config
+from tessera.profiles import format as profile_format
 from tessera.publish.projection import Site
 from tessera.publish.render import (
     Page,
@@ -363,6 +364,36 @@ def _block(page: Page, g: dict[str, Any], b: dict[str, Any]) -> str:
     return ""
 
 
+# The profile sections a researcher keeps, as their public page shows them (links go beside).
+MAIN_PROFILE = ("overview", "interests", "position", "education", "honor", "membership",
+                "teaching", "talk", "featured")  # fmt: skip
+
+
+def _profile_entry(section: str, f: dict[str, Any]) -> str:
+    title, meta, dates = profile_format.lines(section, f)
+    note = f.get("description")
+    return (
+        f"<li><strong>{esc(title)}</strong>"
+        + (f'<br><span class="meta">{esc(meta)}</span>' if meta else "")
+        + (f'<br><span class="meta">{esc(dates)}</span>' if dates else "")
+        + (paras(note) if note else "")
+        + "</li>"
+    )
+
+
+def _profile_section(s: dict[str, Any]) -> str:
+    kind, items = s["section"], s["items"]
+    if kind in ("overview", "interests"):
+        return section(s["label"], paras(items[0]["text"]))
+    if kind == "link":
+        return section(s["label"], '<ul class="plain">' + "".join(
+            f"<li>{external(i['url'], i['label'])}</li>" for i in items) + "</ul>")  # fmt: skip
+    if kind == "featured":
+        return section(s["label"], citations([i["citation"] for i in items]))
+    return section(s["label"], '<ul class="plain records">' + "".join(
+        _profile_entry(kind, i) for i in items) + "</ul>")  # fmt: skip
+
+
 def person_page(site: Site, base: str, p: dict[str, Any]) -> str:
     path = f"people/{p['slug']}/index.html"
     data: dict[str, Any] = {
@@ -392,15 +423,22 @@ def person_page(site: Site, base: str, p: dict[str, Any]) -> str:
         + orcid
         + "</header>"
     )
+    hidden = p.get("hidden", set())
+    chosen = {s["section"]: s for s in p.get("profile", [])}
     main = (
         _summary(p.get("summary"))
-        + section("Publications", citations(p["publications"]))
-        + section("Grants", f'<ul class="plain records">{"".join(grant_item(x) for x in p["grants"])}</ul>' if p["grants"] else "")
-        + section("Studies", f'<ul class="plain records">{"".join(study_item(x) for x in p["studies"])}</ul>' if p["studies"] else "")
+        + "".join(_profile_section(chosen[k]) for k in MAIN_PROFILE if k in chosen)
+        + ("" if "publications" in hidden else section("Publications", citations(p["publications"])))
+        + ("" if "grants" in hidden or not p["grants"] else section("Grants", f'<ul class="plain records">{"".join(grant_item(x) for x in p["grants"])}</ul>'))
+        + ("" if "studies" in hidden or not p["studies"] else section("Studies", f'<ul class="plain records">{"".join(study_item(x) for x in p["studies"])}</ul>'))
     )  # fmt: skip
-    side = section(
-        "Groups", f'<ul class="plain">{memberships}</ul>' if memberships else ""
-    ) + section("Topics", area_list(p["areas"]) + chips(p["topics"]))
+    side = (
+        ("" if "groups" in hidden else section("Groups", f'<ul class="plain">{memberships}</ul>' if memberships else ""))
+        + (_profile_section(chosen["link"]) if "link" in chosen else "")
+        + ("" if "topics" in hidden else section("Topics", area_list(p["areas"]) + chips(p["topics"])))
+    )  # fmt: skip
+    if "topics" in hidden:
+        p = {**p, "topics": []}
     credits = []
     if p["topics"] and site.mesh_year:
         credits.append(

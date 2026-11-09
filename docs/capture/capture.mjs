@@ -43,8 +43,9 @@ const STRONGEST_CELL = `(() => {
 export const SCENES = [
   { name: "home", url: "/", ...WIDE },
   { name: "people", url: "/people", ...WIDE },
-  { name: "profile", url: "/people/{person}", ...WIDE },
-  { name: "evidence", url: "/people/{suggested}", ...WIDE, step: "document.querySelector('button.mark-suggested, button.mark').click()", wait: "document.querySelector('.drawer')" },
+  { name: "profile", url: "/people/{person}?tab=publications", ...WIDE },
+  { name: "about", url: "/people/{person}", ...WIDE, scroll: "[data-profile-section=overview]" },
+  { name: "evidence", url: "/people/{suggested}?tab=publications", ...WIDE, step: "document.querySelector('button.mark-suggested, button.mark').click()", wait: "document.querySelector('.drawer')" },
   { name: "review", url: "/review", ...WIDE, wait: "document.querySelector('.review-page')" },
   { name: "experts", url: "/experts?q=memory%20T%20cells", ...WIDE, wait: "document.querySelector('.expert')" },
   { name: "network", scroll: ".tabs", url: "/graph", ...WIDE, wait: "document.querySelector('.graph-canvas')", settle: 1500 },
@@ -82,6 +83,11 @@ export const SCENES = [
   { name: "opportunity", url: "/opportunities/9900101", ...WIDE, wait: "document.querySelector('.fit-heading')" },
   { name: "team", url: "/teams/{team}", ...WIDE },
   { name: "mobile", url: "/people/{person}", width: 390, height: 844, mobile: true, scale: 2 },
+  { name: "profile-edit", url: "/people/{person}", ...WIDE, step: "document.querySelector('[data-profile-section=education] button[aria-label^=\"Change\"]').click()", wait: "document.querySelector('#profile-entry-form input')" },
+  { name: "public-choices", url: "/people/{person}", ...WIDE, step: "document.querySelector('.profile-public').open = true", scroll: ".profile-public" },
+  { name: "public-profile", file: "people/{slug}/index.html", ...WIDE, ready: "document.querySelector('main h1')" },
+  { name: "cv", url: "/people/{lab}/cvs/{cv}", ...WIDE, wait: "document.querySelector('.cv-paper .cv-section')" },
+  { name: "biosketch", url: "/people/{lab}/cvs/{biosketch}", ...WIDE, wait: "document.querySelector('.bio-checks') && document.querySelector('.cv-paper .cv-section')" },
   // With --ai only: the assistant answers live, so these differ a little from run to run.
   { name: "ask", ai: true, url: "/", ...WIDE, settle: 1200,
     step: `(async () => { document.querySelector('.ask-open').click(); await new Promise((r) => { const t = setInterval(() => { if (document.querySelector('.ask-input')) { clearInterval(t); r(); } }, 50); });
@@ -90,6 +96,13 @@ export const SCENES = [
     wait: "document.querySelector('.ask-sources')", after: "document.querySelector('.drawer-body').scrollTop = 0" },
   { name: "summary", ai: true, url: "/people/{person}", ...WIDE, wait: "document.querySelector('.lay-text')", setup: approvedSummary },
   { name: "assistant-log", ai: true, url: "/admin/assistant", ...WIDE, wait: "document.querySelector('.table')" },
+  { name: "biosketch-draft", ai: true, url: "/people/{lab}/cvs/{biosketch}", ...WIDE, settle: 1200,
+    step: `(async () => { const until = (q) => new Promise((r) => { const t = setInterval(() => { const el = document.querySelector(q); if (el) { clearInterval(t); r(el); } }, 50); });
+      [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Draft with the assistant')).click();
+      await until('.drawer .cv-ed-entries input');
+      [...document.querySelectorAll('.drawer .cv-ed-entries input')].slice(0, 3).forEach((box) => box.click());
+      [...document.querySelectorAll('.drawer button')].find((b) => b.textContent.trim() === 'Draft').click(); })()`,
+    wait: "document.querySelector('.drawer .lay-draft')" },
 ];
 
 /** For the summary scene: a summary of {person}'s work, drafted and approved. */
@@ -121,20 +134,38 @@ async function waitForServer(base, timeout = 30000) {
 }
 
 /** People to show: {person}, the most connected curated person (confirmed papers, grants,
- * and studies), and {suggested}, the person with the most open suggestions. */
+ * and studies), {suggested}, the person with the most open suggestions, and {lab}, the lab head
+ * the demo began a CV ({cv}) and a biosketch ({biosketch}) for. */
 async function people(base) {
   const body = await (await fetch(`${base}/api/v1/people?limit=200`)).json();
-  const best = (rank) => [...body.data].sort((a, b) => rank(b) - rank(a))[0]?.id;
+  const best = (rank) => [...body.data].sort((a, b) => rank(b) - rank(a))[0];
   const snapshots = await (await fetch(`${base}/api/v1/insight/snapshots`)).json();
   const saved = await (await fetch(`${base}/api/v1/saved-searches`)).json();
   const teams = await (await fetch(`${base}/api/v1/teams`)).json();
-  return {
+  const person = best((p) => (p.counts.accepted || 0) + 5 * (p.counts.grants || 0) + 20 * (p.counts.studies || 0));
+  const chosen = {
     team: teams.data[0]?.id,
-    person: best((p) => (p.counts.accepted || 0) + 5 * (p.counts.grants || 0) + 20 * (p.counts.studies || 0)),
-    suggested: best((p) => p.counts.suggested || 0),
+    person: person?.id,
+    slug: slugify(person?.name ?? ""),
+    suggested: best((p) => p.counts.suggested || 0)?.id,
     snapshot: snapshots.data[0]?.id,
     saved: saved.data[0]?.id,
   };
+  for (const p of [...body.data].sort((a, b) => (b.counts.accepted || 0) - (a.counts.accepted || 0))) {
+    const docs = (await (await fetch(`${base}/api/v1/people/${p.id}/cvs`)).json()).data ?? [];
+    if (!docs.length) continue;
+    chosen.lab = p.id;
+    chosen.cv = docs.find((d) => d.kind === "cv")?.id;
+    chosen.biosketch = docs.find((d) => d.kind === "nih_biosketch")?.id;
+    break;
+  }
+  return chosen;
+}
+
+/** As the public site names a person's page (publish/projection.py slugify). */
+function slugify(text) {
+  const plain = text.normalize("NFKD").replace(/[^\x00-\x7f]/g, "").toLowerCase();
+  return plain.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80).replace(/-+$/, "") || "page";
 }
 
 /** The card shown when the site is linked: docs/capture/social.html, 1200 x 630. */
@@ -218,8 +249,8 @@ async function capture(browser, scenes, { base, chosen, demo, themeArg }) {
       await page.viewport({ width: scene.width, height: scene.height, scale: scene.scale ?? 1.5, mobile: Boolean(scene.mobile) });
       await page.media({ "prefers-color-scheme": theme, "prefers-reduced-motion": "reduce" });
       // The public site is files the demo published (var/public); the rest is the app.
-      await page.goto(scene.file ? `file://${join(demo, "var", "public", scene.file)}`
-        : base + scene.url.replace(/\{(\w+)\}/g, (_, key) => chosen[key]));
+      const fill = (text) => text.replace(/\{(\w+)\}/g, (_, key) => chosen[key]);
+      await page.goto(scene.file ? `file://${join(demo, "var", "public", fill(scene.file))}` : base + fill(scene.url));
       await page.until(scene.ready ?? ready);
       if (scene.step) {
         await page.evaluate(scene.step);

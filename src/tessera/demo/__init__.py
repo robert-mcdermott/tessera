@@ -236,6 +236,17 @@ def build_demo(
         _team(home, engine)
         _attribute(engine)
         _pages(engine, today)
+        from tessera.demo.profiles import build_profiles
+
+        build_profiles(
+            engine,
+            world,
+            _key_of(engine, world),
+            today.year,
+            documents=lambda pid, person, papers: _documents(
+                config, home, engine, today, pid, person, papers
+            ),
+        )
         _public(engine)
         build_search(config, home, engine, today=today)  # what the steps above changed directly
         _insight(config, home, engine, today)
@@ -640,6 +651,37 @@ def _team(home: DataHome, engine: Engine) -> None:
     best = sorted(read["people"], key=lambda p: -p["score"])[:3]
     for person_fit, role in zip(best, ("lead", "co_investigator", "collaborator"), strict=False):
         teams.set_member(engine, team_id, person_fit["id"], operator, role)
+
+
+def _documents(
+    config: Config,
+    home: DataHome,
+    engine: Engine,
+    today: date,
+    person_id: str,
+    person: Any,
+    papers: list[str],
+) -> None:
+    """A CV and a biosketch begun by one lab head, so the documents screens have both."""
+    from tessera.demo.profiles import biosketch_for
+    from tessera.profiles import biosketch, cv
+
+    actor = " ".join(x for x in (person.given, person.middle, person.family) if x)
+    cv.create(engine, person_id, name="Full CV", actor=actor, capacity="self")
+    with engine.connect() as conn:
+        available = cv.catalogue(conn, config, home, None, person_id, today)
+    spec = biosketch.default_spec(available, config.organization.name)
+    spec.update(biosketch_for(person, papers))
+    cv.create(
+        engine,
+        person_id,
+        name="NIH biosketch, R01 renewal",
+        kind="nih_biosketch",
+        spec=spec,
+        form=biosketch.FORM,
+        actor=actor,
+        capacity="self",
+    )
 
 
 def _public(engine: Engine) -> None:

@@ -367,7 +367,61 @@ function summaryCard(ref, { title = "Summary", aside = false } = {}) {
   return holder;
 }
 
+// --- first drafts for a biosketch --------------------------------------------------------------------
+
+function biosketchDraft({ part, personId, papers, insert }) {
+  const noun = part === "statement" ? "personal statement" : "contribution to science";
+  openDrawer({
+    title: "Draft with the assistant",
+    subtitle: `A first ${noun} from papers you choose, for you to edit. Nothing is saved until you do.`,
+    render: (body, footer, close) => {
+      const chosen = new Set();
+      const result = h("div", { class: "stack-sm" });
+      const problem = h("p", { class: "field-error", role: "alert", hidden: true });
+      const items = papers.map((p) => h("li", {}, h("label", { class: "check" }, h("input", { type: "checkbox", onchange: (event) => {
+        if (event.currentTarget.checked) chosen.add(p.id); else chosen.delete(p.id);
+      } }), p.label)));
+      const project = part === "statement" ? h("textarea", { class: "input", rows: 4, maxlength: 1500, id: "bio-project",
+        placeholder: "The aims of the application, in a few sentences (optional)" }) : null;
+      const go = h("button", { type: "button", class: "btn btn-primary" }, icon("sparkle", "icon icon-sm"), "Draft");
+      go.onclick = async () => {
+        problem.hidden = true;
+        if (!chosen.size || chosen.size > 8) {
+          problem.textContent = "Choose between one and eight of their papers.";
+          problem.hidden = false;
+          return;
+        }
+        go.disabled = true;
+        go.textContent = "Drafting… (a few seconds)";
+        try {
+          const out = (await post(`/api/v1/ai/biosketch/${encodeURIComponent(personId)}/draft`,
+            { part, pmids: [...chosen], project: project?.value ?? "" })).data;
+          result.replaceChildren(
+            h("div", { class: "lay-draft" }, h("div", { class: "bio-text" }, out.text),
+              h("p", { class: "subtle" }, `${out.characters.toLocaleString()} of ${out.limit.toLocaleString()} characters${out.over ? `, ${out.over.toLocaleString()} over` : ""}${out.citations.length ? `; it holds ${out.citations.join(", ")}, which NIH does not allow` : ""}. Drafted by ${out.model}; check every statement.`)),
+            h("div", { class: "row-sm" }, h("button", { type: "button", class: "btn btn-accept", onclick: () => { insert(out.text); close(); } }, "Use this draft")));
+        } catch (failure) {
+          problem.textContent = failure.detail || failure.message;
+          problem.hidden = false;
+        } finally {
+          go.disabled = false;
+          go.replaceChildren(icon("sparkle", "icon icon-sm"), "Draft again");
+        }
+      };
+      body.append(h("div", { class: "stack" },
+        project ? h("div", { class: "field" }, h("label", { for: "bio-project" }, "The project (optional)"), project) : null,
+        h("div", { class: "field" }, h("span", {}, "Their confirmed papers to draw on (up to 8)"), h("ul", { class: "cv-ed-entries" }, items)),
+        problem, h("div", { class: "row-sm" }, go), result));
+    },
+  });
+}
+
 function installSummaries(provide) {
+  provide("biosketch:draft", (ctx) => {
+    stylesheet();
+    return h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => biosketchDraft(ctx) },
+      icon("sparkle", "icon icon-sm"), "Draft with the assistant");
+  });
   provide("person:intro", ({ profile }) => summaryCard(profile.id));
   provide("group:summary", ({ block, group }) => summaryCard(`grp:${group.slug}`, { title: block.title || "Summary" }));
   provide("group:aside", ({ group }) => summaryCard(`grp:${group.slug}`, { aside: true }));

@@ -80,7 +80,7 @@ Roles add up:
 | Role | May |
 |---|---|
 | Viewer | Read everything: people, records, evidence, search |
-| Researcher | Also review the suggestions about their own profile (the account is linked to their person) |
+| Researcher | Also review the suggestions about their own profile, and keep its sections, public choices, CVs, and biosketches (the account is linked to their person; see [Profiles](profiles.md#keeping-a-profile)) |
 | Manager | Keep one group's page and decide which papers are the group's (and, when granted with `+below`, the same for the groups below it). See [Groups](groups.md#managers) |
 | Curator | Decide for everyone, or, when the role is limited to a group or a person, only for them (a group's scope includes the groups below it); curators for everyone also handle discovered people and duplicates |
 | Admin | Everything, including accounts |
@@ -135,7 +135,7 @@ uv run tessera --config new.toml build discovery
 uv run tessera export /mnt/exports/tessera-2026-11-08
 ```
 
-The folder has every ledger table (people, names and identifiers, groups and memberships, every link with its evidence and decision, the decision logs, pages, reports, and settings) and every lake table (the current version of each record fetched from PubMed, iCite, NIH RePORTER, ClinicalTrials.gov, ORCID, and MeSH), each as Parquet and CSV; report snapshots; `DATA-DICTIONARY.md`, describing every table and column; and a `manifest.json` with row counts and digests. Password hashes and browser sessions are left out. In CSV files, lists and objects are JSON text.
+The folder has every ledger table (people, names and identifiers, groups and memberships, every link with its evidence and decision, the decision logs, pages, reports, profile entries and their history, CVs and biosketches, and settings) and every lake table (the current version of each record fetched from PubMed, iCite, NIH RePORTER, ClinicalTrials.gov, ORCID, and MeSH), each as Parquet and CSV; report snapshots; `DATA-DICTIONARY.md`, describing every table and column; and a `manifest.json` with row counts and digests. Password hashes and browser sessions are left out. In CSV files, lists and objects are JSON text.
 
 ## Operations and alerts
 

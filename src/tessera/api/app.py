@@ -26,6 +26,7 @@ from tessera.api.routers import (
     opportunities,
     overview,
     people,
+    profiles,
     records,
     saved,
     system,
@@ -90,6 +91,7 @@ def create_app(config: Config) -> FastAPI:
         impact,
         opportunities,
         teams,
+        profiles,
         curation,
         evidence,
         groups,
@@ -98,6 +100,7 @@ def create_app(config: Config) -> FastAPI:
         operations,
     ):
         app.include_router(module.router)
+    app.include_router(profiles.me_router)
     if config.ai.enabled:  # the optional assistant: nothing of it exists unless turned on
         from tessera.ai.web import install_ai
 

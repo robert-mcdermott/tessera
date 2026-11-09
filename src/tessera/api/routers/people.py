@@ -549,12 +549,21 @@ class PublicIn(BaseModel):
 
 @router.post("/{person_id}/public", summary="Give the person a public profile, or take it away")
 def set_public(request: Request, person_id: str, body: PublicIn) -> dict[str, Any]:
-    from sqlalchemy import update
+    """The person, someone acting for them, a curator for them, or an admin (PRF-03)."""
+    from tessera.profiles import store as profiles
+    from tessera.profiles.sections import ProfileError
 
     row = _person_row(request, person_id)
-    require_curate(request, person_id)
+    principal = principal_of(request)
+    capacity = profiles.capacity(principal, engine_of(request), person_id)
+    if capacity is None:
+        raise HTTPException(status_code=403,
+                            detail="You may decide only for the people in your scope.")  # fmt: skip
     if row["status"] not in ("active", "former"):
         raise HTTPException(status_code=409, detail="Only people in the directory have profiles.")
-    with engine_of(request).begin() as conn:
-        conn.execute(update(person).where(person.c.id == person_id).values(public=body.public))
-    return envelope({"id": person_id, "public": body.public})
+    try:
+        out = profiles.set_public(engine_of(request), person_id, actor=principal.name,
+                                  capacity=capacity, public=body.public)  # fmt: skip
+    except ProfileError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return envelope({"id": person_id, "public": out["public"]})

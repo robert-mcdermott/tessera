@@ -72,6 +72,12 @@ With the assistant on, a profile or a group can have a short summary of its work
 
 ![A profile with its approved summary: two short paragraphs in plain language, labeled as drafted with AI assistance and approved by whom](images/summary-light.webp "A plain-language summary")
 
+### Drafting a biosketch
+
+In an NIH biosketch's editor, **Draft with the assistant** beside the personal statement and each contribution to science writes a first draft from up to eight of the person's confirmed papers (their titles, journals, years, and abstracts) and, for the statement, a sentence or two about the project. It is written in the first person, within NIH's limit, and without citations, as NIH requires; anything that looks like a citation is pointed out. The draft appears in the drawer first; **Use this draft** puts it in the editor for the researcher to edit. Each draft is an exchange in the log (`biosketch/v1`). See [Profiles](profiles.md#nih-biosketches) for the biosketch itself.
+
+![Draft with the assistant: three of the researcher's confirmed papers chosen, and the first personal statement written from them, in the first person and without citations](images/biosketch-draft-light.webp "Drafting a biosketch's personal statement")
+
 Turning the assistant off keeps approved summaries but shows them nowhere, the public site included; turning it back on shows them again.
 
 ## Turning it on

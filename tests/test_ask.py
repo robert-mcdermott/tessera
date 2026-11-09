@@ -526,3 +526,42 @@ def test_turning_the_assistant_off_hides_summaries_everywhere(world: World) -> N
     finally:
         _config_text(world.path)
     assert "A second draft." in site()  # on again, shown again
+
+
+def test_the_assistant_drafts_a_biosketch_statement_but_never_saves_it(world: World) -> None:
+    uma = world.ids["uma"]
+    engine = make_engine(load_config(world.path / "tessera.toml", env={}).ledger_url)
+    with engine.connect() as conn:
+        from tessera.profiles.store import confirmed_papers
+
+        papers = sorted(confirmed_papers(conn, uma))[:2]
+    engine.dispose()
+    text = "I study how engineered T cells persist in tumors (PMID: 12345678)."
+    world.model.script = [say(text)]
+    out = world.call(
+        "uma",
+        "POST",
+        f"/api/v1/ai/biosketch/{uma}/draft",
+        {"part": "statement", "pmids": papers, "project": "An R01 on CAR T cells."},
+    )
+    assert out["text"] == text and out["limit"] == 3500 and out["citations"] == ["a PubMed ID"]
+    sent = world.model.requests[-1]["messages"]
+    assert "NIH allows no citations" in sent[0]["content"] and "first person" in sent[0]["content"]
+    facts = sent[1]["content"]
+    assert "An R01 on CAR T cells." in facts and '"papers"' in facts
+    assert "@corvane.example" not in facts
+    row = world.call("boss", "GET", "/api/v1/ai/exchanges?limit=1")[0]
+    assert row["kind"] == "biosketch" and row["prompt_version"] == "biosketch/v1"
+    # Only those who keep the profile may draft for it; a paper not theirs is not used.
+    refused = world.clients["guest"].post(
+        f"/api/v1/ai/biosketch/{uma}/draft",
+        json={"part": "statement", "pmids": papers},
+        headers={"X-CSRF-Token": world.csrf["guest"]},
+    )
+    assert refused.status_code == 403
+    nothing = world.clients["uma"].post(
+        f"/api/v1/ai/biosketch/{uma}/draft",
+        json={"part": "statement", "pmids": ["1"]},
+        headers={"X-CSRF-Token": world.csrf["uma"]},
+    )
+    assert nothing.status_code == 400 and "confirmed papers" in nothing.text
