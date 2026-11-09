@@ -2,6 +2,24 @@
 
 All notable changes to Tessera are recorded here. Versions follow [semantic versioning](https://semver.org/); each wave of work ships as a minor release (wave 1 → 0.1.0, wave 2 → 0.2.0).
 
+## Unreleased
+
+Toward 1.0.0 (wave 8).
+
+### Added
+
+- **Several server processes.** `tessera serve --workers N` and `[server] workers` run the app in several processes, so one slow request never holds up the rest; the container image and the systemd unit run four, and `tessera doctor --production` warns at one. Branding saved in the app reaches every process within a second.
+- **Many people at once in `tessera bench`.** Simulated users (`--users`, 20 by default) use the app at a realistic pace and without pause, on `--workers` processes, for `--seconds` each; the report gives requests a second, the median, the slowest 5%, and the slowest of each page, with the server's processor use and memory. `--only` runs a single step on an organization already built.
+
+### Changed
+
+- **Each Insight figure is built once**, however many people ask for it at the same moment: the others wait for that result, rather than each building its own. With 20 users asking without pause, figures had waited up to 93 seconds.
+- **Failed sign-ins are counted in the ledger** (migration 0025), by a hash of the account or address, so the limit on guessing holds across server processes and restarts.
+
+### Upgrading
+
+Run `tessera db upgrade` (migration 0025). To run several processes, set `[server] workers` (see *Running Tessera*).
+
 ## 0.7.0 (2026-11-09)
 
 Adoption. Another organization can now install Tessera, make it its own, and run it: on SQLite or PostgreSQL, behind its own single sign-on, in its colors and words, as a service on its own server, at the size of a large research institution, checked for accessibility and security, and with a guide that takes it from nothing to a curated, published site.

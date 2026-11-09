@@ -50,7 +50,8 @@ Measure Tessera on this machine with a simulated organization of any size.
 
 ```text
 usage: tessera bench [-h] [--people PEOPLE] [--papers PAPERS] [--seed SEED] [--rebuild]
-                     [--samples SAMPLES]
+                     [--samples SAMPLES] [--users USERS] [--seconds SECONDS] [--workers WORKERS]
+                     [--only {nightly,pages,load}]
                      [path]
 ```
 
@@ -62,6 +63,10 @@ usage: tessera bench [-h] [--people PEOPLE] [--papers PAPERS] [--seed SEED] [--r
 | `--seed SEED` | another seed, another organization |
 | `--rebuild` | build it again even if it is there |
 | `--samples SAMPLES` | requests timed per page (default 30) |
+| `--users USERS` | simulated users at once (default 20; 0 skips) |
+| `--seconds SECONDS` | how long each run of users lasts (default 60) |
+| `--workers WORKERS` | server processes for the users (default 4) |
+| `--only ONLY` | run only this step after the build (repeat for more) |
 
 ## `tessera doctor`
 
@@ -721,11 +726,12 @@ usage: tessera runs [-h] [--source SOURCE] [--limit LIMIT]
 Run the web app and API.
 
 ```text
-usage: tessera serve [-h] [--host HOST] [--port PORT] [--reload]
+usage: tessera serve [-h] [--host HOST] [--port PORT] [--workers WORKERS] [--reload]
 ```
 
 | Argument | Meaning |
 |---|---|
 | `--host HOST` | override server.host |
 | `--port PORT` | override server.port |
+| `--workers WORKERS` | server processes (overrides server.workers; default 1) |
 | `--reload` | restart on code changes (development) |

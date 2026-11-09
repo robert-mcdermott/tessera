@@ -5,9 +5,9 @@ Reference files for a server. Copy them, change the names and paths, and read
 
 | Path | What it is |
 |---|---|
-| `container/Dockerfile` | A container image built with uv from the lock file, running as an unprivileged user, with the configuration and the data home as volumes |
+| `container/Dockerfile` | A container image built with uv from the lock file, running four server processes as an unprivileged user, with the configuration and the data home as volumes |
 | `container/compose.yaml` | Tessera with its ledger in PostgreSQL 16, its first lines the steps to start it |
-| `systemd/tessera.service` | The web app, sandboxed |
+| `systemd/tessera.service` | The web app, in four processes, sandboxed |
 | `systemd/tessera-sync.service`, `.timer` | A sync every night |
 | `systemd/tessera-backup.service`, `.timer` | A backup every night, before the sync |
 | `proxy/Caddyfile` | Caddy in front of the app and the public site, with certificates it obtains itself |

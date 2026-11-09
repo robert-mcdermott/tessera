@@ -21,6 +21,7 @@ from tessera.api.common import config_of, engine_of, envelope, index_of, lake_of
 from tessera.connectors.reporter import fiscal_year
 from tessera.core.clock import isoformat
 from tessera.core.errors import TesseraError
+from tessera.core.once import Once
 from tessera.insight import cohorts, export, metrics, reports
 from tessera.insight.figure import Period, PeriodError
 from tessera.insight.inputs import coverage
@@ -65,17 +66,25 @@ def get_figure(
     key = None if records else _figure_key(request, metric_id, cohort, start, end, options)
     if key is not None and (kept := _recall_figure(key)) is not None:
         return envelope(kept)
-    try:
-        result = make_figure(
-            engine_of(request), lake_of(request), config_of(request), metric_id,
-            cohort=cohort, start=start, end=end, options=options, search=_search(request),
-        )  # fmt: skip
-    except (TesseraError, PeriodError) as exc:
-        raise _fail(exc) from exc
-    body = result.to_json(records=records)
-    if key is not None:
-        _remember_figure(key, body)
-    return envelope(body)
+
+    def build() -> dict[str, Any]:
+        if key is not None and (kept := _recall_figure(key)) is not None:
+            return kept  # built while this request waited its turn
+        try:
+            result = make_figure(
+                engine_of(request), lake_of(request), config_of(request), metric_id,
+                cohort=cohort, start=start, end=end, options=options, search=_search(request),
+            )  # fmt: skip
+        except (TesseraError, PeriodError) as exc:
+            raise _fail(exc) from exc
+        body = result.to_json(records=records)
+        if key is not None:
+            _remember_figure(key, body)
+        return body
+
+    # Everyone asking for this figure now waits for one build of it, rather than each
+    # building it at once (with its records, each request builds its own).
+    return envelope(build() if key is None else _building.run(key, build))
 
 
 # Finished figures, as served, until the data changes (the same version as the inputs cache),
@@ -84,6 +93,7 @@ FIGURES_KEPT = 256
 FIGURE_SECONDS = 600
 _figures: OrderedDict[tuple[Any, ...], tuple[float, dict[str, Any]]] = OrderedDict()
 _figures_lock = threading.Lock()
+_building = Once()
 
 
 def _figure_key(request: Request, metric_id: str, cohort: str | None, start: int | None,

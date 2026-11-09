@@ -308,6 +308,16 @@ def _check_production(config: Config) -> list[Check]:
         add("sign-in", OK, "accounts on")
     else:
         add("sign-in", FAIL, "a server others use needs [server] accounts = true")
+    workers = config.server.workers
+    if workers > 1:
+        add("processes", OK, f"{workers} server processes")
+    else:
+        add(
+            "processes",
+            WARN,
+            "one server process: set [server] workers = 4 (or TESSERA_SERVER_WORKERS), so "
+            "one slow request never holds up the rest",
+        )
     if config.sources.contact_email:
         add("contact", OK, config.sources.contact_email)
     else:

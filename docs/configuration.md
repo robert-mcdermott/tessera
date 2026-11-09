@@ -134,6 +134,7 @@ Every pair of colors that carries text must meet WCAG 2.2 level AA: 4.5:1 for te
 | `accounts` | true/false | `false` | Require sign-in with local accounts and roles; see [Accounts and sign-in](operations.md#accounts-and-sign-in) |
 | `session_idle_hours` | number | `12` | A session ends this long after it was last used (1 to 720) |
 | `session_max_days` | number | `7` | A session never lasts longer than this from sign-in (1 to 90) |
+| `workers` | number | `1` | Server processes (1 to 64). One suits a laptop; on a server others use, run about four, so one slow request never holds up the rest. Each process takes its own memory; see [Running Tessera](operations.md#how-many-server-processes). `tessera serve --workers` overrides it |
 
 ## `[ledger]`
 

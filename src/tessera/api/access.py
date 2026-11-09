@@ -26,6 +26,7 @@ from urllib.parse import urlsplit
 from fastapi import FastAPI, HTTPException, Request, Response
 from starlette.concurrency import run_in_threadpool
 
+from tessera.api.common import follow_branding
 from tessera.api.problems import problem
 from tessera.auth.accounts import grants_of
 from tessera.auth.principal import Principal
@@ -348,6 +349,11 @@ def authorize(request: Request) -> None:
         raise HTTPException(status_code=403, detail="Your role does not allow this.")
 
 
+def _prepare(request: Request) -> None:
+    follow_branding(request.app)  # branding another server process saved
+    authenticate(request)
+
+
 def install_access(app: FastAPI) -> None:
     """Check every request before it reaches a route, static file, or the API document.
 
@@ -361,7 +367,7 @@ def install_access(app: FastAPI) -> None:
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         try:
-            await run_in_threadpool(authenticate, request)
+            await run_in_threadpool(_prepare, request)
         except HTTPException as exc:
             return problem(exc.status_code, exc.detail, instance=request.url.path)
         return await call_next(request)

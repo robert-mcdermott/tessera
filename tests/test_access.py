@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 
 from tessera.api.access import POLICIES, Level
 from tessera.api.app import create_app
@@ -25,7 +25,7 @@ from tessera.home import DataHome
 from tessera.jobs.build import build_search
 from tessera.ledger import migrate
 from tessera.ledger.db import make_engine
-from tessera.ledger.tables import auth_session, unit
+from tessera.ledger.tables import auth_session, failed_sign_in, unit
 
 from . import synthetic_org
 
@@ -416,6 +416,11 @@ def test_single_operator_mode_answers_only_locally(tmp_path: Path) -> None:
 
 
 def fresh(world: World) -> TestClient:
+    """A new app, with no failed sign-ins counted yet (they are kept in the ledger)."""
+    engine = make_engine(world.config.ledger_url)
+    with engine.begin() as conn:
+        conn.execute(delete(failed_sign_in))
+    engine.dispose()
     return TestClient(create_app(world.config), base_url=LOCAL)
 
 
@@ -443,6 +448,18 @@ def test_repeated_failures_are_throttled(world: World) -> None:
             )
         blocked = client.post("/api/v1/session", json={"username": "admin", "password": PASSWORD})
         assert blocked.status_code == 429
+    # The count is in the ledger, so another server process (here, a new app) sees it too,
+    # and only hashes of the account and address are kept.
+    other = TestClient(create_app(world.config), base_url=LOCAL)
+    with other:
+        again = other.post("/api/v1/session", json={"username": "admin", "password": PASSWORD})
+        assert again.status_code == 429
+    engine = make_engine(world.config.ledger_url)
+    with engine.connect() as conn:
+        kept = conn.execute(select(failed_sign_in.c.key_hash)).scalars().all()
+    engine.dispose()
+    assert kept and all(len(h) == 64 and "admin" not in h for h in kept)
+    fresh(world).close()  # forget them, for the tests after this one
 
 
 def test_expired_and_revoked_sessions_end(world: World) -> None:

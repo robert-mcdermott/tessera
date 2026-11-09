@@ -541,6 +541,18 @@ auth_session = Table(
 )
 Index(None, auth_session.c.account_id)
 
+# Failed sign-ins and password checks, counted per account and per address to slow guessing.
+# In the ledger, so the count holds across server processes and restarts; only a hash of each
+# key (an account or an address) is kept, and rows older than the window are removed.
+failed_sign_in = Table(
+    "failed_sign_in",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("key_hash", String(64), nullable=False),
+    Column("failed_at", UtcDateTime, nullable=False),
+)
+Index(None, failed_sign_in.c.key_hash, failed_sign_in.c.failed_at)
+
 # Links one automatic run accepted (CUR-05), so that the whole run can be undone together.
 auto_accept_batch = Table(
     "auto_accept_batch",

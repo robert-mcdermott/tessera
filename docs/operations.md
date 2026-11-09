@@ -61,6 +61,20 @@ uv run tessera serve
 
 Tessera listens on `127.0.0.1:8000` by default (`[server] host` and `port`).
 
+### How many server processes
+
+`tessera serve` runs one process unless `[server] workers` (or `--workers`) asks for more. One is right for a laptop. On a server other people use, run about four: requests then share the processor's cores, and one slow request (the first Insight figure after the data changes, say) never holds up everyone else's. The container image and the systemd unit in `deploy/` run four, and `tessera doctor --production` warns at one.
+
+With 20 simulated users on a 100,000-publication organization, measured with `tessera bench` on a 10-core laptop:
+
+| | One process | Four processes |
+|---|---|---|
+| Users clicking every 2 to 8 seconds: slowest 5% of requests, and the slowest | 174 ms, 2.4 s | 119 ms, 1.9 s |
+| Users clicking without pause: requests served a second | 24 | 73 |
+| Memory of the server, under that load | 0.9 GB | 2.8 GB |
+
+Each process takes its own memory (about 0.7 GB at 100,000 publications) and keeps its own caches; everything else they share through the ledger, including the count of failed sign-ins, so the limit on guessing holds however many there are. Branding saved in the app reaches every process within a second. More processes than cores gains nothing.
+
 ## Running it as a service
 
 The repository's `deploy/` folder has reference files for running Tessera on a server: a container image, a compose file with PostgreSQL, systemd units, and reverse-proxy configurations. Copy them and adjust the names and paths. Before people use it, run `tessera doctor --production` (see [Checks for production](#checks-for-production)).
@@ -129,7 +143,7 @@ None needs signing in, and they say nothing about the organization's data.
 
 ### Checks for production
 
-`tessera doctor --production` adds what a server other people use needs: accounts and an admin, a contact address for the public sources, an NCBI API key, HTTPS addresses for the app and the public site, a recent sync and a recent backup, room on the disk, a search index, and not running as root. Run it after installing and after each upgrade; it exits non-zero if anything fails.
+`tessera doctor --production` adds what a server other people use needs: accounts and an admin, several server processes, a contact address for the public sources, an NCBI API key, HTTPS addresses for the app and the public site, a recent sync and a recent backup, room on the disk, a search index, and not running as root. Run it after installing and after each upgrade; it exits non-zero if anything fails.
 
 ## Accounts and sign-in
 
@@ -263,7 +277,7 @@ uv run tessera --config new.toml build discovery
 uv run tessera export /mnt/exports/tessera-2026-11-08
 ```
 
-The folder has every ledger table (people, names and identifiers, groups and memberships, every link with its evidence and decision, the decision logs, pages, reports, profile entries and their history, CVs and biosketches, and settings) and every lake table (the current version of each record fetched from PubMed, iCite, NIH RePORTER, ClinicalTrials.gov, ORCID, and MeSH), each as Parquet and CSV; report snapshots; `DATA-DICTIONARY.md`, describing every table and column; and a `manifest.json` with row counts and digests. Password hashes and browser sessions are left out. In CSV files, lists and objects are JSON text.
+The folder has every ledger table (people, names and identifiers, groups and memberships, every link with its evidence and decision, the decision logs, pages, reports, profile entries and their history, CVs and biosketches, and settings) and every lake table (the current version of each record fetched from PubMed, iCite, NIH RePORTER, ClinicalTrials.gov, ORCID, and MeSH), each as Parquet and CSV; report snapshots; `DATA-DICTIONARY.md`, describing every table and column; and a `manifest.json` with row counts and digests. Password hashes, browser sessions, and the count of recent failed sign-ins are left out. In CSV files, lists and objects are JSON text.
 
 ## Operations and alerts
 
@@ -343,10 +357,10 @@ What Tessera needs grows with the number of publications more than with the numb
 | `raw/`, from real downloads (not measured) | about 0.8 GB | about 8 GB |
 | A first sync's local work, after the download | about 2 minutes | about 45 minutes |
 | A nightly sync's local work, after the download | about 2 minutes | about 36 minutes |
-| Memory of the web server | 0.6 GB | 2.0 GB |
+| Memory of one server process | 0.6 GB | 2.0 GB |
 | Memory of a sync, at its peak | 4.4 GB | 16 GB |
 
-- **Memory.** A sync runs as its own process and holds the whole organization in memory while it resolves authorship and builds concept profiles, so it, not the web server, decides the memory a server needs: 8 GB is enough at 100,000 papers, and 32 GB at a million. Up to 512 MB of the web server's memory is Insight's cache of the inputs it has gathered.
+- **Memory.** A sync runs as its own process and holds the whole organization in memory while it resolves authorship and builds concept profiles, so it decides the memory a server needs, with the server's processes beside it (four take four times the figure above): 8 GB is enough at 100,000 papers, and 32 GB at a million. Up to 512 MB of each server process's memory is Insight's cache of the inputs it has gathered.
 - **Disk.** The ledger is the largest part the benchmark measures: it keeps every link between a person and a record (about 4.3 million at a million papers) with the evidence for each, about 1.4 KB a link. Simulated papers have shorter text than real ones, so a real lake and search index are larger: real papers take about 1.5 KB each in the lake, four times the simulation's. The benchmark downloads nothing, so it leaves `raw/` empty; there, every response is kept as received, compressed, at about 8 KB a paper (8 GB a million), so that `tessera replay` can rebuild the lake without the network. Allow the totals above, `raw/`, and as much again, for backups (each `tessera backup` copies the ledger) and for the next search index, which is written beside the current one before it replaces it.
 - **Time.** The download is not included: it is bounded by the public sources (PubMed sends 200 records a request, so a million papers is 5,000 requests), and at a million papers the first one takes hours. A nightly sync's local work is resolving what is new and rebuilding the search index and the derived views; the app keeps working while it runs.
 - **Processor.** Resolving authorship uses one core; the builds use them all.
@@ -364,7 +378,14 @@ At the largest size, some things are slower than they should be; each is recorde
 uv run tessera bench /srv/bench --people 10000 --papers 1000000
 ```
 
-This builds a simulated organization in that folder; it never touches the network, your data home, or your ledger. It runs what a first sync and a nightly sync do locally, starts the app on a free port, times its main pages (the first request, the median, and the 95th percentile, against their budgets), and prints the results with each step's peak memory, the data's size, and the machine. It also saves them as `bench-<time>.json` in the folder, so results from different servers can be compared.
+This builds a simulated organization in that folder; it never touches the network, your data home, or your ledger. It runs what a first sync and a nightly sync do locally, starts the app on a free port, times its main pages one request at a time (the first request, the median, and the 95th percentile, against their budgets), and then has simulated users use it at once. It prints the results with each step's peak memory, the data's size, and the machine, and saves them as `bench-<time>.json` in the folder, so results from different servers can be compared.
+
+**Many people at once.** 20 simulated users (`--users`) use the app for a minute each way (`--seconds`), on four server processes (`--workers`), each run with a new server whose caches are empty, as after the nightly sync. Each user asks for a mix of profiles, searches, lists, the review queue, groups, grants, and Insight figures:
+
+- **at a realistic pace**, waiting 2 to 8 seconds between requests (faster than people read): the slowest 5% of requests should take under 300 ms, and none over 2 seconds;
+- **without pause**, asking again as soon as each answer comes, several times the load real people make: this shows how many requests the server can serve a second. The slowest 5% should take under a second, and none over 5 seconds.
+
+The report also gives the slowest requests after the first 30 seconds, once the caches the first requests fill are full. To run only this part on an organization already built: `tessera bench /srv/bench --people … --papers … --only load`.
 
 At the largest size it needs about 15 GB of disk and two hours; the default size (1,000 people and 50,000 papers) takes a few minutes. Run it again in the same folder to time a nightly sync and the pages without building again; `--rebuild` starts over, and `--seed` makes a different organization. To measure PostgreSQL, point `[ledger] url` in the `tessera.toml` the first run leaves in the folder at an empty PostgreSQL database, then run again with `--rebuild`.
 

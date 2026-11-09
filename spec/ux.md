@@ -136,5 +136,7 @@ Each is a small ES module that returns DOM. There is no virtual DOM and no templ
 | Profile API response (p95), 10k people, 1M publications | < 300 ms |
 | Search API response (p95) | < 200 ms |
 | Review queue: next item after a decision | < 100 ms (prefetched) |
+| 20 people at once, clicking every 2 to 8 seconds (p95; slowest) | < 300 ms; < 2 s |
+| 20 people at once, without pause, on the processes a server runs (p95; slowest) | < 1 s; < 5 s |
 
-The budgets for every page and build at that size, and the measured results, are in the [wave 7 plan](waves/wave-7.md#budgets-at-10000-people-and-1000000-publications); `tessera bench` measures them on any machine.
+The budgets for every page and build at that size, and the measured results, are in the [wave 7 plan](waves/wave-7.md#budgets-at-10000-people-and-1000000-publications), and those for many people at once in the [wave 8 plan](waves/wave-8.md); `tessera bench` measures them on any machine.

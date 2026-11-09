@@ -27,10 +27,13 @@ RUN groupadd --system --gid 10001 tessera \
  && mkdir -p /srv/tessera/config /srv/tessera/data \
  && chown -R tessera:tessera /srv/tessera
 COPY --from=build /opt/tessera /opt/tessera
+# Four server processes, so one slow request never holds up the rest (each takes its own
+# memory: about 0.7 GB at 100,000 publications). Change with -e TESSERA_SERVER_WORKERS=…
 ENV PATH=/opt/tessera/bin:$PATH \
     PYTHONUNBUFFERED=1 \
     TESSERA_CONFIG=/srv/tessera/config/tessera.toml \
-    TESSERA_DATA_HOME=/srv/tessera/data
+    TESSERA_DATA_HOME=/srv/tessera/data \
+    TESSERA_SERVER_WORKERS=4
 USER tessera
 WORKDIR /srv/tessera
 VOLUME ["/srv/tessera/config", "/srv/tessera/data"]

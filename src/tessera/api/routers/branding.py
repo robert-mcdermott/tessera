@@ -13,7 +13,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from tessera import brandkit
-from tessera.api.common import config_of, envelope
+from tessera.api.common import config_of, config_stamp, envelope
 from tessera.branding import COLOR_NAMES, DAY, NIGHT
 from tessera.config import PALETTES
 
@@ -103,6 +103,7 @@ async def save_branding(request: Request) -> Any:
         return _refused(exc)
     # Only the branding takes effect now; anything else changed in the file waits for a restart.
     request.app.state.config = replace(config, branding=saved.branding)
+    request.app.state.config_stamp = config_stamp(config)  # other processes follow the file
     return envelope(_state(request))
 
 

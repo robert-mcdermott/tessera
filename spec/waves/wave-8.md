@@ -30,18 +30,18 @@ The wave is done when, on a fresh checkout:
 
 ---
 
-## Slice 1: Many people at once ☐
+## Slice 1: Many people at once ☑
 
 **Goal:** the server stays fast when many people use it at once, and an organization can measure that on its own server (PLT-16).
 
-- [ ] `tessera bench --users N`: simulated users against the server with its configured processes, at a realistic pace and without pause, reporting requests per second, the median, slowest 5%, and slowest of each page, and the server's processor use
-- [ ] Each Insight input and figure built once: requests for one that is being built wait for that result, and a failure is not kept
-- [ ] Whatever else the load test shows piling up gets the same treatment
-- [ ] The limit on failed sign-ins kept in the ledger, so it holds across processes and restarts
-- [ ] `tessera serve --workers N` and `[server] workers`; the container and systemd unit run four; whatever must happen once per server, not once per process, is found and made so
-- [ ] *Running Tessera*: how many processes to run, the memory each takes, and how to run the load test
+- [x] `tessera bench --users N`: simulated users against the server with its configured processes, at a realistic pace and without pause, reporting requests per second, the median, slowest 5%, and slowest of each page, and the server's processor use
+- [x] Each Insight input and figure built once: requests for one that is being built wait for that result, and a failure is not kept
+- [x] Whatever else the load test shows piling up gets the same treatment
+- [x] The limit on failed sign-ins kept in the ledger, so it holds across processes and restarts
+- [x] `tessera serve --workers N` and `[server] workers`; the container and systemd unit run four; whatever must happen once per server, not once per process, is found and made so
+- [x] *Running Tessera*: how many processes to run, the memory each takes, and how to run the load test
 
-**Acceptance:** exit criterion 1, measured on the laptop with the realistic pace and without pause; the sign-in limit holds across four processes.
+**Acceptance:** exit criterion 1, measured on the laptop with the realistic pace and without pause, or each miss recorded with its cause and what would fix it; the sign-in limit holds across four processes.
 
 ## Slice 2: The 1.0 promise ☐
 
@@ -93,4 +93,5 @@ The wave is done when, on a fresh checkout:
 
 | Date | Note |
 |---|---|
+| 2026-11-09 | Slice 1 done. **Measured** on the laptop at 100,000 publications with 20 simulated users, each run on a new server, so its caches start empty, as after the nightly sync. At a realistic pace on four processes: 3.5 requests a second, the slowest 5% in 119 ms, and the slowest (a first Insight figure) in 1.9 s, within budget; on one process, 174 ms and 2.4 s. Without pause on four processes: 73 requests a second against 24 on one, no errors, the slowest 5% at the budget (0.98 s, and 1.03 s in a 90-second run), and the slowest 21 s, a **miss**. After the first 30 seconds, the slowest 5% take 1.09 s and the slowest 4.7 s: the four processes are at their limit (6.6 of 10 cores, with the simulated users on the same machine), and requests wait their turn rather than piling up. **The miss:** in the first seconds after a start, every process meets every Insight figure for the first time at once. Six take 0.5 to 1.3 s of Python each (gathering the links to papers row by row, then counting them), and with five busy requests in each process sharing its interpreter, the last finish after up to 20 seconds. Building each figure once ended the pile-up of identical builds (with one process, figures had waited 93 s; with four, 36 s), but not the cost of different figures built at the same time. What would fix it: Insight's inputs kept as columns and counted in DuckDB (under *Later, for much larger organizations*), or built figures shared between processes; it does not show at a realistic pace, so it waits. **Nothing else piled up:** the slower pages under that load (profiles, the review queue) are the processes at capacity, not identical work repeated. **Once per server:** the server starts no work of its own; each process keeps its own caches, keyed by the data's version; failed sign-ins are in the ledger (migration 0025, by a hash of the key); and branding saved in one process reaches the others, which look at the configuration file's time at most once a second and take its branding when it changes, as the process that saved it does. **Checked with four real processes:** five wrong passwords, each on a new connection, then the sixth, the seventh, and the right password refused (429). The container image, rebuilt, runs four processes (`TESSERA_SERVER_WORKERS=4`), signs people in and serves them across the processes, and stops at once; `systemd-analyze verify` was not run again, since the unit gained only an `Environment=` line. `tessera bench` gained `--users`, `--seconds`, `--workers`, and `--only`, and reports the slowest requests after the first 30 seconds as well. |
 | 2026-11-09 | Wave 8 planned as 1.0.0. Its first slice carries the three fixes put in the roadmap after wave 7's load test (20 simulated users on one server process at 100,000 publications: at a realistic pace, a median of 33 ms and a slowest request of 2 s; without pause, Insight figures each built by every request at once, waiting up to 93 s, and one process topping out near 20 requests a second, where four served ten times as many). The pilot-feedback item is replaced by our own hardening (slice 4), since no outside pilot comes before 1.0. |
