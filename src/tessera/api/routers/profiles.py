@@ -9,7 +9,9 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 
 from tessera.api.access import principal_of
 from tessera.api.common import (
@@ -21,6 +23,7 @@ from tessera.api.common import (
     publication_summaries,
 )
 from tessera.evidence.store import survivor_of
+from tessera.ledger.tables import person
 from tessera.profiles import store
 from tessera.profiles.sections import SECTIONS, ProfileError
 
@@ -36,7 +39,8 @@ CAPACITY_LABELS = {
 }
 
 
-SPECIAL = {"delegates": "Who keeps the profile"}  # history entries that are not a section
+# History entries that are not a section.
+SPECIAL = {"delegates": "Who keeps the profile", "public": "Public page"}
 
 
 class EntryIn(BaseModel):
@@ -46,6 +50,17 @@ class EntryIn(BaseModel):
 
 class DelegateIn(BaseModel):
     username: str = Field(min_length=1, max_length=64, description="The account to name")
+
+
+class PublicChoice(BaseModel):
+    public: bool | None = Field(None, description="Whether the person has a public page")
+    hidden_sections: list[str] | None = Field(
+        None, max_length=20, description="Sections the public page leaves off"
+    )
+
+
+class EntryPublic(BaseModel):
+    hidden: bool = Field(description="Leave this entry off the public page")
 
 
 class OrderIn(BaseModel):
@@ -102,6 +117,10 @@ def get_profile(request: Request, person_id: str) -> dict[str, Any]:
     with engine.connect() as conn:
         found = store.entries(conn, person_id)
         keepers = store.delegates(conn, person_id)
+        hidden = store.hidden_sections(conn, person_id)
+        is_public = bool(
+            conn.execute(select(person.c.public).where(person.c.id == person_id)).scalar()
+        )
         confirmed = store.confirmed_papers(conn, person_id) if found.get("featured") else set()
     sections = []
     for spec in SECTIONS.values():
@@ -121,6 +140,9 @@ def get_profile(request: Request, person_id: str) -> dict[str, Any]:
     return envelope({"person_id": person_id, "may_edit": capacity is not None,
                      "may_name": capacity in store.NAMERS, "delegates": named,
                      "accounts": config_of(request).server.accounts,
+                     "public": is_public, "hidden_sections": hidden,
+                     "public_sections": [{"id": s, "label": store.public_label(s)}
+                                         for s in store.PUBLIC_SECTIONS],
                      "capacity": capacity, "sections": sections})  # fmt: skip
 
 
@@ -225,3 +247,61 @@ def _namer_fail(exc: ProfileError) -> HTTPException:
 def my_profiles(request: Request) -> dict[str, Any]:
     with engine_of(request).connect() as conn:
         return envelope(store.kept_by(conn, principal_of(request)))
+
+
+@router.post("/{person_id}/profile/public",
+             summary="Turn the public page on or off; choose its sections")  # fmt: skip
+def choose_public(request: Request, person_id: str, body: PublicChoice) -> dict[str, Any]:
+    person_id = _person(request, person_id)
+    actor, capacity = _keeper(request, person_id)
+    try:
+        out = store.set_public(engine_of(request), person_id, actor=actor, capacity=capacity,
+                               public=body.public, hidden=body.hidden_sections)  # fmt: skip
+    except ProfileError as exc:
+        raise _fail(exc) from exc
+    return envelope(out)
+
+
+@router.post("/{person_id}/profile/entries/{entry_id}/public",
+             summary="Leave one entry off the public page, or put it back")  # fmt: skip
+def entry_public(request: Request, person_id: str, entry_id: str, body: EntryPublic
+                 ) -> dict[str, Any]:  # fmt: skip
+    person_id = _person(request, person_id)
+    actor, capacity = _keeper(request, person_id)
+    try:
+        entry = store.set_hidden(engine_of(request), person_id, entry_id, body.hidden,
+                                 actor=actor, capacity=capacity)  # fmt: skip
+    except ProfileError as exc:
+        raise _fail(exc) from exc
+    return envelope(entry)
+
+
+PREVIEW_CSS = "/api/v1/me/public-page.css"
+
+
+@router.get("/{person_id}/profile/public/preview", response_class=HTMLResponse,
+            summary="The public page as publishing would build it now")  # fmt: skip
+def preview_public(request: Request, person_id: str) -> HTMLResponse:
+    import re
+
+    from tessera.publish import pages as site_pages
+    from tessera.publish.projection import project
+
+    person_id = _person(request, person_id)
+    _keeper(request, person_id)
+    config = config_of(request)
+    site = project(config, request.app.state.home, engine_of(request), only_person=person_id)
+    if not site.people:
+        raise HTTPException(status_code=409, detail="Only people in the directory have profiles.")
+    html = site_pages.person_page(site, config.publish.base_url, site.people[0])
+    # The page's own stylesheet, from here; its links to other public pages work once published.
+    html = re.sub(r'href="[^"]*assets/site\.css"', f'href="{PREVIEW_CSS}"', html)
+    html = html.replace("<title>", "<title>Preview: ", 1)
+    return HTMLResponse(html, headers={"Cache-Control": "no-store"})
+
+
+@me_router.get("/public-page.css", summary="The public pages' stylesheet, for previews")
+def preview_stylesheet(request: Request) -> Response:
+    from tessera.publish.style import stylesheet
+
+    return Response(stylesheet(config_of(request)), media_type="text/css")

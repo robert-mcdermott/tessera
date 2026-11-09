@@ -2,7 +2,7 @@
 
 **Goal:** a full profile for every researcher: what Tessera builds from public records, beside the sections the researcher keeps (overview, interests, positions, education, honors, service, teaching, talks, links, featured papers). Every profile is open to everyone inside the organization, public only by the researcher's choice, and the source of the researcher's CVs and NIH biosketches.
 
-**Branch:** `wave-6` · **Target version:** `0.6.0` · **Status:** ◐ slices 1 to 3 done
+**Branch:** `wave-6` · **Target version:** `0.6.0` · **Status:** ◐ slices 1 to 4 done
 
 ## Exit criteria
 
@@ -88,14 +88,14 @@ Tessera follows this form; if NIH changes it, the biosketch's checks change with
 
 **Acceptance:** an assistant named by a researcher edits the researcher's profile and the history says "by the assistant, for the researcher"; the same assistant cannot confirm the researcher's papers; removing them takes effect at once.
 
-## Slice 4: Public by choice ☐
+## Slice 4: Public by choice ☑
 
 **Goal:** the researcher decides whether their profile is public and what it shows there (PRF-03).
 
-- [ ] The researcher, or someone acting for them, turns the public profile on and off (curators and admins still can)
-- [ ] Public choices (migration 0021): which sections appear publicly (overview, interests, positions, education, honors, service, teaching, talks, links, featured publications, publications, grants, studies, topics), and, within a section, which entries; new entries follow the section's choice
-- [ ] The public site's person page shows the chosen sections, in the profile's order, from the allowlist; nothing that is not chosen, and never contact details
-- [ ] **Preview the public page** from the profile shows exactly what `tessera publish` will build
+- [x] The researcher, or someone acting for them, turns the public profile on and off (curators and admins still can)
+- [x] Public choices (migration 0021): which sections appear publicly (overview, interests, positions, education, honors, service, teaching, talks, links, featured publications, publications, grants, studies, topics), and, within a section, which entries; new entries follow the section's choice
+- [x] The public site's person page shows the chosen sections, in the profile's order, from the allowlist; nothing that is not chosen, and never contact details
+- [x] **Preview the public page** from the profile shows exactly what `tessera publish` will build
 
 **Acceptance:** an entry hidden from the public stays on the internal profile and is absent from the built public site; turning the public profile off removes the page at the next publish; the public site's checks (accessibility, links, contrast) pass with every section shown.
 
@@ -140,6 +140,7 @@ Tessera follows this form; if NIH changes it, the biosketch's checks change with
 
 | Date | Note |
 |---|---|
+| 2026-11-09 | Slice 4 done. The public choices store the sections left off rather than those shown, so a section added in a later version appears on a public page unless the person hides it, as their own sections do when first filled in. The public switch moved from curators only to everyone who keeps the profile, someone acting for the person included; each change is in the profile's history. The preview is the public page built by the same code as `tessera publish`, for that person alone (public or not yet), with the site's stylesheet served beside it, so it shows exactly what the next publish will. |
 | 2026-11-09 | Slice 3 done. Someone acting for a person is a fourth capacity for keeping a profile, beside the person, their curators, and admins; it grants nothing else, since every other decision about a person goes through the curation scope, which a delegate does not enter. Only the person, their curators, and admins name or remove delegates, and both are recorded in the profile's history. Everyone sees the names of those who keep a profile; only its keepers see their usernames. The account is chosen by username, so no list of accounts is exposed to everyone. Without accounts (single-operator mode) there is nobody to name, and the card is not shown. |
 | 2026-11-09 | Slice 2 done. The About tab is a module loaded when the tab first opens, like impact threads, so the app's first load is unchanged. Positions from the group directory come first, marked as such, and the researcher's own follow in their own order rather than being merged by date, so a reordering is never undone by a sort. Entries are edited in a drawer built from the section's fields, with the server's message shown in the form when a check fails; entries move with up and down buttons (keyboard and screen-reader friendly) rather than dragging. On phones each entry's buttons move below it. People outside the directory have no About tab and open on their papers. |
 | 2026-11-08 | Slice 1 done. Entries keep their fields as JSON checked by each section's rules in code, rather than a table per section, so a section can gain a field without a migration and every section shares one history. Dates are a year or a year and month (a talk may give the day); an entry cannot end before it starts. New entries go first in dated sections and last in links and featured papers; the researcher can reorder any section. Featured papers must be the person's confirmed papers; one later rejected stays on the profile for its keepers, marked, and disappears for everyone else. Someone keeps a profile as themselves (their account is linked to the person, whatever their role), as a curator whose scope covers the person, or as an admin. An import upserts by its source and its key for the entry and can never match an entry made by hand. The demo fills in the profiles of the twelve lab heads with the most confirmed papers. |

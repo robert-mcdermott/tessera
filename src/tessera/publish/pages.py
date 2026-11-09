@@ -363,6 +363,62 @@ def _block(page: Page, g: dict[str, Any], b: dict[str, Any]) -> str:
     return ""
 
 
+# The profile sections a researcher keeps, as their public page shows them (links go beside).
+MAIN_PROFILE = ("overview", "interests", "position", "education", "honor", "membership",
+                "teaching", "talk", "featured")  # fmt: skip
+MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+ONGOING = {"position", "membership", "teaching"}
+
+
+def _when(value: str | None) -> str:
+    if not value:
+        return ""
+    y, _, rest = value.partition("-")
+    if not rest:
+        return y
+    m, _, d = rest.partition("-")
+    return f"{f'{int(d)} ' if d else ''}{MONTHS[int(m) - 1]} {y}"
+
+
+def _span(f: dict[str, Any], section: str) -> str:
+    start = _when(f.get("start"))
+    end = _when(f.get("end")) or ("present" if section in ONGOING else "")
+    if not start:
+        return end
+    return f"{start} – {end}" if end else f"{start} –"
+
+
+def _profile_entry(section: str, f: dict[str, Any]) -> str:
+    join = lambda *xs: " · ".join(x for x in xs if x)  # noqa: E731
+    lines = {
+        "position": (f.get("title"), join(f.get("department"), f.get("organization"), f.get("location")), _span(f, section)),
+        "education": (join(f.get("degree"), f.get("field")), join(f.get("institution"), f.get("location")), _span(f, section)),
+        "honor": (f.get("title"), f.get("organization"), _when(f.get("year"))),
+        "membership": (f.get("role"), f.get("organization"), _span(f, section)),
+        "teaching": (f.get("title"), join(f.get("role"), f.get("organization")), _span(f, section)),
+        "talk": (f.get("title"), join(f.get("event"), f.get("location")), _when(f.get("date"))),
+    }[section]  # fmt: skip
+    title, meta, dates = lines
+    note = f.get("description")
+    return (f"<li><strong>{esc(title)}</strong>"
+            + (f'<br><span class="meta">{esc(meta)}</span>' if meta else "")
+            + (f'<br><span class="meta">{esc(dates)}</span>' if dates else "")
+            + (f"{paras(note)}" if note else "") + "</li>")  # fmt: skip
+
+
+def _profile_section(s: dict[str, Any]) -> str:
+    kind, items = s["section"], s["items"]
+    if kind in ("overview", "interests"):
+        return section(s["label"], paras(items[0]["text"]))
+    if kind == "link":
+        return section(s["label"], '<ul class="plain">' + "".join(
+            f"<li>{external(i['url'], i['label'])}</li>" for i in items) + "</ul>")  # fmt: skip
+    if kind == "featured":
+        return section(s["label"], citations([i["citation"] for i in items]))
+    return section(s["label"], '<ul class="plain records">' + "".join(
+        _profile_entry(kind, i) for i in items) + "</ul>")  # fmt: skip
+
+
 def person_page(site: Site, base: str, p: dict[str, Any]) -> str:
     path = f"people/{p['slug']}/index.html"
     data: dict[str, Any] = {
@@ -392,15 +448,22 @@ def person_page(site: Site, base: str, p: dict[str, Any]) -> str:
         + orcid
         + "</header>"
     )
+    hidden = p.get("hidden", set())
+    chosen = {s["section"]: s for s in p.get("profile", [])}
     main = (
         _summary(p.get("summary"))
-        + section("Publications", citations(p["publications"]))
-        + section("Grants", f'<ul class="plain records">{"".join(grant_item(x) for x in p["grants"])}</ul>' if p["grants"] else "")
-        + section("Studies", f'<ul class="plain records">{"".join(study_item(x) for x in p["studies"])}</ul>' if p["studies"] else "")
+        + "".join(_profile_section(chosen[k]) for k in MAIN_PROFILE if k in chosen)
+        + ("" if "publications" in hidden else section("Publications", citations(p["publications"])))
+        + ("" if "grants" in hidden or not p["grants"] else section("Grants", f'<ul class="plain records">{"".join(grant_item(x) for x in p["grants"])}</ul>'))
+        + ("" if "studies" in hidden or not p["studies"] else section("Studies", f'<ul class="plain records">{"".join(study_item(x) for x in p["studies"])}</ul>'))
     )  # fmt: skip
-    side = section(
-        "Groups", f'<ul class="plain">{memberships}</ul>' if memberships else ""
-    ) + section("Topics", area_list(p["areas"]) + chips(p["topics"]))
+    side = (
+        ("" if "groups" in hidden else section("Groups", f'<ul class="plain">{memberships}</ul>' if memberships else ""))
+        + (_profile_section(chosen["link"]) if "link" in chosen else "")
+        + ("" if "topics" in hidden else section("Topics", area_list(p["areas"]) + chips(p["topics"])))
+    )  # fmt: skip
+    if "topics" in hidden:
+        p = {**p, "topics": []}
     credits = []
     if p["topics"] and site.mesh_year:
         credits.append(

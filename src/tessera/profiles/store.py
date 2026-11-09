@@ -24,6 +24,7 @@ from tessera.ledger.tables import (
     profile_delegate,
     profile_entry,
     profile_event,
+    profile_public,
 )
 from tessera.profiles.sections import SECTIONS, ProfileError, clean
 
@@ -101,6 +102,7 @@ def _view(row: Any) -> dict[str, Any]:
             "position",
             "source",
             "source_id",
+            "hidden",
             "created_at",
             "created_by",
             "updated_at",
@@ -331,6 +333,149 @@ def upsert(
     return change(engine, person_id, row.id, data, actor=actor, capacity="import")
 
 
+# The sections a public page can show, in its order: the ones a person keeps, and those Tessera
+# builds from records. Each can be left off; everything is always shown inside.
+BUILT = {
+    "groups": "Groups",
+    "publications": "Publications",
+    "grants": "Grants",
+    "studies": "Studies",
+    "topics": "Topics",
+}
+PUBLIC_SECTIONS: tuple[str, ...] = (
+    "overview",
+    "interests",
+    "groups",
+    "position",
+    "education",
+    "honor",
+    "membership",
+    "teaching",
+    "talk",
+    "link",
+    "featured",
+    "publications",
+    "grants",
+    "studies",
+    "topics",
+)
+
+
+def public_label(section: str) -> str:
+    return SECTIONS[section].label if section in SECTIONS else BUILT[section]
+
+
+def hidden_sections(conn: Connection, person_id: str) -> list[str]:
+    row = conn.execute(
+        select(profile_public.c.hidden_sections).where(profile_public.c.person_id == person_id)
+    ).first()
+    return [s for s in (row.hidden_sections if row else []) if s in PUBLIC_SECTIONS]
+
+
+def set_public(
+    engine: Engine,
+    person_id: str,
+    *,
+    actor: str,
+    capacity: str,
+    public: bool | None = None,
+    hidden: list[str] | None = None,
+) -> dict[str, Any]:
+    """Turn the public page on or off, and choose which sections it leaves off."""
+    if hidden is not None:
+        unknown = set(hidden) - set(PUBLIC_SECTIONS)
+        if unknown:
+            raise ProfileError(f"There is no public section {sorted(unknown)[0]!r}.")
+        hidden = [s for s in PUBLIC_SECTIONS if s in set(hidden)]
+    with engine.begin() as conn:
+        row = _member(conn, person_id)
+        if public is not None and bool(row["public"]) != public:
+            conn.execute(update(person).where(person.c.id == person_id).values(public=public))
+            _event(
+                conn,
+                person_id,
+                None,
+                "public",
+                "published" if public else "unpublished",
+                actor,
+                capacity,
+            )
+        before = hidden_sections(conn, person_id)
+        if hidden is not None and hidden != before:
+            now = utc_now()
+            if conn.execute(
+                select(profile_public.c.person_id).where(profile_public.c.person_id == person_id)
+            ).first():
+                conn.execute(
+                    update(profile_public)
+                    .where(profile_public.c.person_id == person_id)
+                    .values(hidden_sections=hidden, updated_at=now, updated_by=actor)
+                )
+            else:
+                conn.execute(
+                    insert(profile_public).values(
+                        person_id=person_id,
+                        hidden_sections=hidden,
+                        updated_at=now,
+                        updated_by=actor,
+                    )
+                )
+            _event(
+                conn,
+                person_id,
+                None,
+                "public",
+                "sections",
+                actor,
+                capacity,
+                before=before,
+                after=hidden,
+            )
+        current = conn.execute(select(person.c.public).where(person.c.id == person_id)).scalar()
+        return {"public": bool(current), "hidden_sections": hidden_sections(conn, person_id)}
+
+
+def set_hidden(
+    engine: Engine, person_id: str, entry_id: str, hidden: bool, *, actor: str, capacity: str
+) -> dict[str, Any]:
+    """Leave one entry off the public page, or put it back."""
+    with engine.begin() as conn:
+        before = get(conn, person_id, entry_id)
+        if before["hidden"] != hidden:
+            conn.execute(
+                update(profile_entry).where(profile_entry.c.id == entry_id).values(hidden=hidden)
+            )
+            _event(
+                conn,
+                person_id,
+                entry_id,
+                before["section"],
+                "hidden" if hidden else "shown",
+                actor,
+                capacity,
+                before=before["fields"],
+            )
+        return get(conn, person_id, entry_id)
+
+
+def public_profile(conn: Connection, person_id: str) -> dict[str, Any]:
+    """What the public page may show from the profile: the sections not left off, and in them
+    the entries not hidden (featured papers only while still confirmed)."""
+    hidden = set(hidden_sections(conn, person_id))
+    found = entries(conn, person_id)
+    confirmed = confirmed_papers(conn, person_id) if found.get("featured") else set()
+    shown: dict[str, list[dict[str, Any]]] = {}
+    for section, rows in found.items():
+        if section in hidden:
+            continue
+        rows = [r for r in rows if not r["hidden"]]
+        if section == "featured":
+            rows = [r for r in rows if r["fields"]["pmid"] in confirmed]
+        if rows:
+            shown[section] = rows
+    return {"hidden_sections": sorted(hidden), "sections": shown}
+
+
 def delegates(conn: Connection, person_id: str) -> list[dict[str, Any]]:
     """The accounts that keep this person's profile for them."""
     return [
@@ -457,6 +602,7 @@ def history(conn: Connection, person_id: str, limit: int = 200) -> list[dict[str
 __all__ = [
     "KEEPERS",
     "NAMERS",
+    "PUBLIC_SECTIONS",
     "add",
     "capacity",
     "change",
@@ -464,11 +610,16 @@ __all__ = [
     "delegates",
     "entries",
     "get",
+    "hidden_sections",
     "history",
     "kept_by",
     "name_delegate",
+    "public_label",
+    "public_profile",
     "remove",
     "remove_delegate",
     "reorder",
+    "set_hidden",
+    "set_public",
     "upsert",
 ]

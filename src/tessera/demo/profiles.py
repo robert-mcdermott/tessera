@@ -60,6 +60,11 @@ def _title(text: str) -> str:
     return text[:1].upper() + text[1:]
 
 
+def _the(name: str) -> str:
+    """'the University of Northbridge', but 'Larkspur University'."""
+    return f"the {name}" if name.startswith("University") else name
+
+
 def _heading(text: str) -> str:
     """Title case for names of events and lectures; words with capitals (TCF1) stay as written."""
     return " ".join(
@@ -90,11 +95,11 @@ def profile_for(
             {
                 "text": (
                     f"{name} leads the {person.family} Lab in the {area.division}. "
-                    f"{rng.choice(area.background)} The lab studies {processes[0]} and "
-                    f"{processes[1]} in {models[0]}, combining {method.lower()} with careful "
-                    f"work in {models[-1]}.\n\n{person.family} trained at {phd_school} and "
-                    f"{postdoc_school} before joining the institute, and mentors students and "
-                    f"fellows across the {area.division}."
+                    f"The lab asks how {processes[0]} and {processes[1]} work, and why they "
+                    f"sometimes fail, studying them in {models[0]} and {models[-1]} with "
+                    f"{method.lower()}.\n\n{person.family} trained at {_the(phd_school)} and "
+                    f"{_the(postdoc_school)} before joining the institute, and mentors "
+                    f"students and fellows across the {area.division}."
                 )
             },
         ),

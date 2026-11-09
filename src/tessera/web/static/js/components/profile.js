@@ -130,7 +130,17 @@ function entryActions({ personId, section, entries, entry, index, done }) {
   };
   const [title] = describe(section.id, entry.fields);
   const name = title || section.noun;
+  const visibility = async () => {
+    try {
+      await post(`/api/v1/people/${encodeURIComponent(personId)}/profile/entries/${entry.id}/public`, { hidden: !entry.hidden });
+      done();
+    } catch (failure) {
+      toast(failure.detail || failure.message);
+    }
+  };
   return h("div", { class: "profile-actions" },
+    iconButton(entry.hidden ? "eyeOff" : "eye", entry.hidden ? `Show ${name} on the public page` : `Leave ${name} off the public page`,
+      { onclick: visibility, "aria-pressed": String(Boolean(entry.hidden)) }),
     iconButton("edit", `Change ${name}`, { onclick: () => editEntry({ personId, section, entry, done }) }),
     entries.length > 1 ? iconButton("chevronUp", `Move ${name} up`, { disabled: index === 0, onclick: move(-1) }) : null,
     entries.length > 1 ? iconButton("chevronDown", `Move ${name} down`, { disabled: index === entries.length - 1, onclick: move(1) }) : null,
@@ -168,7 +178,8 @@ function entryRow(ctx, entry, index) {
       dates ? h("span", { class: "subtle profile-dates" }, dates) : null,
       f.description ? h("p", { class: "profile-note" }, f.description) : null);
   }
-  return h("li", { class: "profile-entry" }, h("div", { class: "grow" }, main), keeps ? entryActions({ ...ctx, entry, index }) : null);
+  const offPublic = keeps && entry.hidden ? pill("Not on the public page", "") : null;
+  return h("li", { class: "profile-entry" }, h("div", { class: "grow stack-xs" }, main, offPublic), keeps ? entryActions({ ...ctx, entry, index }) : null);
 }
 
 function prose(text) {
@@ -236,7 +247,40 @@ export function aboutPanel({ person, data, organization, refresh }) {
     NOTES[data.capacity] ?? "You may keep this profile. Changes show at once; the History tab lists every change.")
     : helpers.length ? h("p", { class: "subtle profile-keeper" }, icon("person", "icon icon-sm"), `Kept with help from ${helpers.join(", ")}.`) : null;
   const keepers = data.may_name && data.accounts ? keepersCard(data, personId, done) : null;
-  return h("div", { class: "stack-lg profile-about" }, note, cards, addMore, keepers);
+  const publicCard = keeps ? publicChoices(data, personId, done) : null;
+  return h("div", { class: "stack-lg profile-about" }, note, publicCard, cards, addMore, keepers);
+}
+
+/** Whether the profile is public, which sections the public page shows, and a preview. */
+function publicChoices(data, personId, done) {
+  const base = `/api/v1/people/${encodeURIComponent(personId)}/profile/public`;
+  const save = async (body) => {
+    try {
+      await post(base, body);
+      done();
+    } catch (failure) {
+      toast(failure.detail || failure.message);
+    }
+  };
+  const hidden = new Set(data.hidden_sections);
+  const boxes = data.public_sections.map((s) => h("label", { class: "check" },
+    h("input", { type: "checkbox", checked: !hidden.has(s.id), onchange: (event) => {
+      if (event.currentTarget.checked) hidden.delete(s.id); else hidden.add(s.id);
+      save({ hidden_sections: [...hidden] });
+    } }), s.label));
+  const preview = h("a", { class: "btn btn-sm", href: `${base}/preview`, target: "_blank", rel: "noopener" },
+    icon("external", "icon icon-sm"), "Preview the public page");
+  const toggle = h("button", { type: "button", class: data.public ? "btn btn-sm" : "btn btn-sm btn-primary",
+    onclick: () => save({ public: !data.public }) }, data.public ? "Make it internal only" : "Make it public");
+  return h("details", { class: "card profile-public" },
+    h("summary", { class: "card-header" }, h("h2", {}, "Public page"),
+      h("span", { class: "spacer" }, data.public ? h("span", { class: "pill pill-ok" }, "Public") : h("span", { class: "pill" }, "Inside only"))),
+    h("div", { class: "card-body stack" },
+      h("p", {}, data.public
+        ? "This profile has a page on the organization's public site (from the next publish). Everyone inside always sees everything here; the public page shows only what is ticked below, and leaves off any entry marked with the closed eye."
+        : "Only people inside the organization see this profile. Make it public to give it a page on the public site, showing only what is ticked below."),
+      h("div", { class: "row-sm wrap" }, toggle, preview),
+      h("fieldset", { class: "profile-public-sections" }, h("legend", {}, "Sections on the public page"), boxes)));
 }
 
 /** Who keeps the profile besides its person: for the person, their curators, and admins. */
@@ -279,7 +323,9 @@ function keepersCard(data, personId, done) {
       problem, form) });
 }
 
-const ACTIONS = { added: "added", changed: "changed", removed: "removed", reordered: "reordered" };
+const ACTIONS = { added: "added", changed: "changed", removed: "removed", reordered: "reordered",
+  published: "made public", unpublished: "made internal only", sections: "sections on it changed",
+  hidden: "left off the public page", shown: "put back on the public page" };
 
 /** Profile changes, for the History tab. */
 export function profileHistory(events) {

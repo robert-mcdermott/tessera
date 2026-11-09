@@ -32,6 +32,7 @@ from tessera.groups import openings, pages, profile, store, themes
 from tessera.home import DataHome
 from tessera.lake import Lake
 from tessera.ledger.tables import assertion, person, person_identifier, unit
+from tessera.profiles import store as profile_store
 from tessera.search.index import index_path
 from tessera.search.query import SearchIndex
 
@@ -39,6 +40,32 @@ PUBLICATIONS_PER_PAGE = 200  # newest first; older ones are a link to PubMed awa
 CITATION_FIELDS = ("pmid", "title", "authors", "journal", "year", "doi", "is_retracted")
 GRANT_FIELDS = ("core_project_num", "title", "institute", "fiscal_years", "is_active")
 STUDY_FIELDS = ("nct_id", "title", "registry_status", "phases", "conditions")
+
+
+def _profile_view(chosen: dict[str, Any], summaries: Any) -> list[dict[str, Any]]:
+    """The profile sections a public page shows, in order, each with its entries' fields;
+    featured papers carry their citations."""
+    out = []
+    papers = summaries(
+        [f"pub:{r['fields']['pmid']}" for r in chosen["sections"].get("featured", [])]
+    )
+    for section in profile_store.PUBLIC_SECTIONS:
+        rows = chosen["sections"].get(section)
+        if not rows:
+            continue
+        items = []
+        for r in rows:
+            item = dict(r["fields"])
+            if section == "featured":
+                item["citation"] = _pick(papers.get(f"pub:{item['pmid']}"), CITATION_FIELDS)
+                if not item["citation"]:
+                    continue
+            items.append(item)
+        if items:
+            out.append(
+                {"section": section, "label": profile_store.public_label(section), "items": items}
+            )
+    return out
 
 
 def _day(value: Any) -> str | None:
@@ -73,7 +100,10 @@ class Site:
     footer_links: tuple[tuple[str, str], ...] = ()
 
 
-def project(config: Config, home: DataHome, engine: Engine, today: date | None = None) -> Site:
+def project(config: Config, home: DataHome, engine: Engine, today: date | None = None,
+            only_person: str | None = None) -> Site:  # fmt: skip
+    """The site's data. With ``only_person``, just that person's page, public or not yet (for a
+    preview of what publishing it would show); no group pages."""
     today = today or date.today()
     vocab = config.vocabulary
     org = config.organization
@@ -105,14 +135,17 @@ def project(config: Config, home: DataHome, engine: Engine, today: date | None =
                 select(unit).where(unit.c.public.is_(True), unit.c.status == "active")
             ).mappings()
         }
+        chosen = person.c.id == only_person if only_person else person.c.public.is_(True)
         public_people = {
             r.id: r
             for r in conn.execute(
                 select(person.c.id, person.c.display_name, person.c.family_name).where(
-                    person.c.public.is_(True), person.c.status.in_(("active", "former"))
+                    chosen, person.c.status.in_(("active", "former"))
                 )
             )
         }
+        # What each person chose to show from their profile, and which built sections to leave off.
+        profiles = {pid: profile_store.public_profile(conn, pid) for pid in public_people}
         # Addresses: from names, in a fixed order, so they are stable between builds.
         person_slug: dict[str, str] = {}
         taken: set[str] = set()
@@ -176,7 +209,7 @@ def project(config: Config, home: DataHome, engine: Engine, today: date | None =
             ].append(obj)
 
         group_data: dict[str, dict[str, Any]] = {}
-        for gid in public_groups:
+        for gid in [] if only_person else public_groups:
             current, alumni = profile.people_of(conn, gid, config, today)
             ids = sorted({v["person_id"] for v in current})
             blocks, _ = pages.published_blocks(conn, gid)
@@ -230,6 +263,8 @@ def project(config: Config, home: DataHome, engine: Engine, today: date | None =
                         c["descriptor"] for c in person_concepts(lake, profile_path(home), pid, 10)
                     ],
                     "publications": citations,
+                    "profile": _profile_view(profiles[pid], summaries),
+                    "hidden": set(profiles[pid]["hidden_sections"]),
                     "grants": [
                         g for g in (_pick(s, GRANT_FIELDS) for s in summaries(grants.get(pid, [])).values()) if g
                     ],
@@ -240,7 +275,8 @@ def project(config: Config, home: DataHome, engine: Engine, today: date | None =
             )  # fmt: skip
 
     # --- groups ---------------------------------------------------------------------------
-    for gid, g in sorted(public_groups.items(), key=lambda kv: kv[1]["name"].lower()):
+    for gid, g in sorted([] if only_person else public_groups.items(),
+                         key=lambda kv: kv[1]["name"].lower()):  # fmt: skip
         data = group_data[gid]
         topics, areas = profile.topics_and_areas(home, data["ids"])
 

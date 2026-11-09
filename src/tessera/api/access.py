@@ -177,7 +177,7 @@ POLICIES: dict[tuple[str, str], Level] = {
     ("POST", "/api/v1/groups/{group_ref}/inbox/reviewed"): Level.MANAGE,
     ("GET", "/api/v1/inbox"): Level.MANAGE,
     ("POST", "/api/v1/groups/{group_ref}/public"): Level.MANAGE,
-    ("POST", "/api/v1/people/{person_id}/public"): Level.REVIEW,
+    ("POST", "/api/v1/people/{person_id}/public"): R,  # its keepers, decided per person
     # Profiles: everyone signed in reads them; who may change one is decided per person.
     ("GET", "/api/v1/people/{person_id}/profile"): R,
     ("POST", "/api/v1/people/{person_id}/profile/entries"): R,
@@ -188,6 +188,10 @@ POLICIES: dict[tuple[str, str], Level] = {
     ("POST", "/api/v1/people/{person_id}/profile/delegates"): R,
     ("DELETE", "/api/v1/people/{person_id}/profile/delegates/{account_id}"): R,
     ("GET", "/api/v1/me/profiles"): R,
+    ("POST", "/api/v1/people/{person_id}/profile/public"): R,
+    ("POST", "/api/v1/people/{person_id}/profile/entries/{entry_id}/public"): R,
+    ("GET", "/api/v1/people/{person_id}/profile/public/preview"): R,
+    ("GET", "/api/v1/me/public-page.css"): R,
     ("GET", "/api/v1/accounts"): Level.ADMIN,
     ("POST", "/api/v1/accounts"): Level.ADMIN,
     ("POST", "/api/v1/accounts/{account_id}"): Level.ADMIN,

@@ -420,10 +420,14 @@ def test_a_researcher_names_someone_to_keep_their_profile(world: World) -> None:
     assert (
         world.call("helper", "POST", f"{base}/delegates", {"username": "guest"}).status_code == 403
     )
-    assert (
-        world.call("helper", "POST", f"/api/v1/people/{uma}/public", {"public": True}).status_code
-        == 403
+    # (Turning the public page on and off is theirs too: see the public-choice test.)
+    decided = world.call(
+        "helper",
+        "POST",
+        f"/api/v1/people/{uma}/identifiers",
+        {"action": "add", "scheme": "orcid", "value": "0000-0002-1825-0097"},
     )
+    assert decided.status_code == 403
     # Removing them takes effect at once, and both changes are in the history.
     world.ok("helper", "DELETE", f"{base}/entries/{entry['id']}")
     world.ok("uma", "DELETE", f"{base}/delegates/{named['account_id']}")
@@ -436,3 +440,72 @@ def test_a_researcher_names_someone_to_keep_their_profile(world: World) -> None:
     ]
     assert [h["action"] for h in kept] == ["removed", "added"]
     assert kept[0]["section_label"] == "Who keeps the profile"
+
+
+# --- public by choice ----------------------------------------------------------------------------
+
+
+def _public_page(world: World, person_id: str) -> str | None:
+    from tessera.home import DataHome
+    from tessera.publish import pages as site_pages
+    from tessera.publish.projection import project
+
+    engine = make_engine(world.config.ledger_url)
+    try:
+        site = project(world.config, DataHome(world.config.data.home), engine, TODAY)
+    finally:
+        engine.dispose()
+    files = site_pages.build(site, world.config)
+    with make_engine(world.config.ledger_url).connect() as conn:
+        name = conn.execute(select(person.c.display_name).where(person.c.id == person_id)).scalar()
+    for path, html in files.items():
+        if (
+            path.startswith("people/")
+            and path.endswith("/index.html")
+            and f"<h1>{name}</h1>" in html
+        ):
+            return html
+    return None
+
+
+def test_the_researcher_chooses_what_the_public_page_shows(world: World) -> None:
+    uma = world.ids["uma"]
+    base = f"/api/v1/people/{uma}/profile"
+    mine = world.ok("uma", "GET", base)
+    assert [s["id"] for s in mine["public_sections"]][:3] == ["overview", "interests", "groups"]
+    honors = section(mine, "honor")
+    kept, dropped = honors[0], honors[-1]
+    world.ok(
+        "uma", "POST", f"{base}/public", {"public": True, "hidden_sections": ["talk", "grants"]}
+    )
+    world.ok("uma", "POST", f"{base}/entries/{dropped['id']}/public", {"hidden": True})
+    assert (
+        world.call("uma", "POST", f"{base}/public", {"hidden_sections": ["salary"]}).status_code
+        == 400
+    )
+    page = _public_page(world, uma)
+    assert page is not None
+    assert "Overview" in page and kept["fields"]["title"] in page
+    assert dropped["fields"]["title"] not in page
+    assert "Talks and presentations" not in page and ">Grants<" not in page
+    # Inside, everything stays, with the hidden entry marked for its keepers.
+    inside = section(world.ok("guest", "GET", base), "honor")
+    assert {e["id"] for e in inside} == {e["id"] for e in honors}
+    # The preview is the same page, for the profile's keepers only.
+    preview = world.clients["uma"].get(f"{base}/public/preview")
+    assert preview.status_code == 200 and preview.headers["content-type"].startswith("text/html")
+    assert dropped["fields"]["title"] not in preview.text and "Overview" in preview.text
+    assert 'href="/api/v1/me/public-page.css"' in preview.text
+    assert world.clients["uma"].get("/api/v1/me/public-page.css").status_code == 200
+    assert world.clients["guest"].get(f"{base}/public/preview").status_code == 403
+    # Someone acting for them may turn it off; then the page is gone from the next build.
+    named = world.ok("uma", "POST", f"{base}/delegates", {"username": "helper"})
+    world.ok("helper", "POST", f"/api/v1/people/{uma}/public", {"public": False})
+    assert _public_page(world, uma) is None
+    history = world.ok("guest", "GET", f"{base}/history?limit=6")
+    public_changes = [h["action"] for h in history if h["section"] == "public"]
+    assert public_changes[:2] == ["unpublished", "sections"]
+    world.ok("uma", "POST", f"/api/v1/people/{uma}/public", {"public": True})
+    world.ok("uma", "POST", f"{base}/public", {"hidden_sections": []})
+    world.ok("uma", "POST", f"{base}/entries/{dropped['id']}/public", {"hidden": False})
+    world.ok("uma", "DELETE", f"{base}/delegates/{named['account_id']}")

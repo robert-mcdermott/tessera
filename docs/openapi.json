@@ -1150,6 +1150,7 @@
           "people"
         ],
         "summary": "Give the person a public profile, or take it away",
+        "description": "The person, someone acting for them, a curator for them, or an admin (PRF-03).",
         "operationId": "set_public_api_v1_people__person_id__public_post",
         "parameters": [
           {
@@ -4820,6 +4821,165 @@
         }
       }
     },
+    "/api/v1/people/{person_id}/profile/public": {
+      "post": {
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Turn the public page on or off; choose its sections",
+        "operationId": "choose_public_api_v1_people__person_id__profile_public_post",
+        "parameters": [
+          {
+            "name": "person_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Person Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicChoice"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Choose Public Api V1 People  Person Id  Profile Public Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/people/{person_id}/profile/entries/{entry_id}/public": {
+      "post": {
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Leave one entry off the public page, or put it back",
+        "operationId": "entry_public_api_v1_people__person_id__profile_entries__entry_id__public_post",
+        "parameters": [
+          {
+            "name": "person_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Person Id"
+            }
+          },
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Entry Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntryPublic"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Entry Public Api V1 People  Person Id  Profile Entries  Entry Id  Public Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/people/{person_id}/profile/public/preview": {
+      "get": {
+        "tags": [
+          "profiles"
+        ],
+        "summary": "The public page as publishing would build it now",
+        "operationId": "preview_public_api_v1_people__person_id__profile_public_preview_get",
+        "parameters": [
+          {
+            "name": "person_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Person Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/assertions/{assertion_id}": {
       "get": {
         "tags": [
@@ -8345,6 +8505,25 @@
           }
         }
       }
+    },
+    "/api/v1/me/public-page.css": {
+      "get": {
+        "tags": [
+          "profiles"
+        ],
+        "summary": "The public pages' stylesheet, for previews",
+        "operationId": "preview_stylesheet_api_v1_me_public_page_css_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -8912,6 +9091,20 @@
           "fields"
         ],
         "title": "EntryIn"
+      },
+      "EntryPublic": {
+        "properties": {
+          "hidden": {
+            "type": "boolean",
+            "title": "Hidden",
+            "description": "Leave this entry off the public page"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hidden"
+        ],
+        "title": "EntryPublic"
       },
       "FigureIn": {
         "properties": {
@@ -9694,6 +9887,40 @@
           "action"
         ],
         "title": "PersonDecisions"
+      },
+      "PublicChoice": {
+        "properties": {
+          "public": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public",
+            "description": "Whether the person has a public page"
+          },
+          "hidden_sections": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hidden Sections",
+            "description": "Sections the public page leaves off"
+          }
+        },
+        "type": "object",
+        "title": "PublicChoice"
       },
       "PublicIn": {
         "properties": {

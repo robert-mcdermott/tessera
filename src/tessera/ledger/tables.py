@@ -695,6 +695,8 @@ profile_entry = Table(
     Column("position", Integer, nullable=False),
     Column("source", String(40), nullable=False, server_default="manual"),
     Column("source_id", String(300)),
+    # Left off the public page although its section is shown there (the person's choice).
+    Column("hidden", Boolean, nullable=False, server_default=false()),
     Column("created_at", UtcDateTime, nullable=False),
     Column("created_by", String(200), nullable=False),
     Column("updated_at", UtcDateTime, nullable=False),
@@ -733,3 +735,15 @@ profile_delegate = Table(
     Column("granted_at", UtcDateTime, nullable=False),
 )
 Index(None, profile_delegate.c.account_id)
+
+# What a person's public page shows: the sections they left off it (every other one is shown, so
+# a section added in a later version appears unless they hide it). Entries can be hidden one by
+# one with profile_entry.hidden.
+profile_public = Table(
+    "profile_public",
+    metadata,
+    Column("person_id", ID, ForeignKey("person.id", ondelete="CASCADE"), primary_key=True),
+    Column("hidden_sections", JsonType, nullable=False),
+    Column("updated_at", UtcDateTime, nullable=False),
+    Column("updated_by", String(200), nullable=False),
+)
