@@ -627,3 +627,90 @@ def test_a_cv_of_all_papers_follows_new_confirmations_and_a_chosen_one_does_not(
         engine.dispose()
     for doc in (every, chosen):
         world.ok("uma", "DELETE", f"{base}/{doc}")
+
+
+# --- NIH biosketches -------------------------------------------------------------------
+
+
+def test_a_biosketch_follows_nihs_form_and_says_what_is_over(world: World) -> None:
+    uma = world.ids["uma"]
+    base = f"/api/v1/people/{uma}/cvs"
+    made = world.ok("uma", "POST", base, {"name": "R01 renewal", "kind": "nih_biosketch"})
+    doc = made["document"]
+    assert doc["kind"] == "nih_biosketch" and doc["form"] == "nih-2026-01"
+    assert [s["id"] for s in made["sections"]] == [
+        "identity",
+        "preparation",
+        "positions",
+        "products",
+        "certification",
+        "statement",
+        "honors",
+        "contributions",
+    ]
+    assert doc["spec"]["position_title"] == "Associate Professor"  # a title, not a group role
+    assert "NOT-OD-26-018" in made["form_label"] and made["limits"]["statement"] == 3500
+    assert any("Write the personal statement" in c["message"] for c in made["checks"])
+    confirmed = world.ids["confirmed"].split(",")
+    spec = dict(doc["spec"])
+    spec.update(
+        statement="My lab studies engineered T cells. " * 103 + "See PMID: 12345678.",
+        products_related=[{"pmid": p} for p in confirmed[:5]] + [{"pmid": "1"}],
+        products_other=[{"text": "A dataset of single-cell profiles, deposited 2024."}],
+        contributions=["We found [3] that cells persist.", "x" * 2100, "a", "b", "c", "d"],
+    )
+    changed = world.ok("uma", "POST", f"{base}/{doc['id']}", {"spec": spec})
+    messages = [c["message"] for c in changed["checks"]]
+    assert any("Personal statement: 3," in m and "more than NIH's 3,500" in m for m in messages)
+    assert any("personal statement holds a PubMed ID" in m for m in messages)
+    # Five confirmed papers and one that is not: the five are within NIH's limit.
+    assert not any(m.startswith("Products closely related") for m in messages)
+    assert any("PubMed 1 is not one of their confirmed papers" in m for m in messages)
+    assert any("Contributions to science: 6, 1 more than NIH's 5" in m for m in messages)
+    assert any("Contribution 2: 2,100 characters, 100 more" in m for m in messages)
+    assert any("Contribution 1 holds a numbered reference" in m for m in messages)
+    products = next(s for s in changed["sections"] if s["id"] == "products")
+    assert len(products["related"]) == 5  # the unknown paper is left out, and said so
+    assert products["other"][0]["manual"] is True
+    # Each section as text for SciENcv, and the whole as Markdown.
+    parts = {p["id"]: p for p in changed["sciencv"]}
+    assert "certification" not in parts and parts["statement"]["text"].startswith("My lab")
+    assert parts["products"]["text"].startswith(
+        "Products closely related to the proposed project:\n1. "
+    )
+    md = world.clients["uma"].get(f"{base}/{doc['id']}/markdown").text
+    assert (
+        "## Biographical Sketch Common Form" in md and "## NIH Biographical Sketch Supplement" in md
+    )
+    assert "certify it in SciENcv" in md
+    # Working documents: keepers only. A copy keeps its kind.
+    assert world.call("guest", "GET", f"{base}/{doc['id']}").status_code == 403
+    copy = world.ok("uma", "POST", base, {"name": "Copy", "copy_of": doc["id"]})
+    assert copy["document"]["kind"] == "nih_biosketch"
+    for d in (doc["id"], copy["document"]["id"]):
+        world.ok("uma", "DELETE", f"{base}/{d}")
+
+
+def test_biosketch_checks_count_honors_and_spot_citations() -> None:
+    from tessera.profiles import biosketch
+
+    available = {
+        "honor": [
+            {"id": str(n), "fields": {"title": f"Award {n}", "year": "2020"}} for n in range(16)
+        ],
+        "publications": [],
+    }
+    spec = biosketch.clean_spec({"position_title": "Professor", "statement": "Fine."})
+    built = biosketch.build(spec, available, {"name": "A Person", "orcid": "0000-0002-1825-0097"})
+    messages = [c["message"] for c in biosketch.checks(spec, built, available)]
+    assert "Honors: 16, 1 more than NIH's 15." in messages
+    assert not any("ORCID" in m for m in messages)
+    assert biosketch.citations_in("In 2019 we enrolled 300 patients (Smith et al., 2019).") == [
+        "an “et al.” reference"
+    ]
+    assert biosketch.citations_in("doi:10.5555/abc.1 and PMC1234567") == [
+        "a PubMed Central ID",
+        "a DOI",
+    ]
+    with pytest.raises(ProfileError, match="far too long"):
+        biosketch.clean_spec({"statement": "x" * 20000})

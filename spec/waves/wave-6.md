@@ -2,7 +2,7 @@
 
 **Goal:** a full profile for every researcher: what Tessera builds from public records, beside the sections the researcher keeps (overview, interests, positions, education, honors, service, teaching, talks, links, featured papers). Every profile is open to everyone inside the organization, public only by the researcher's choice, and the source of the researcher's CVs and NIH biosketches.
 
-**Branch:** `wave-6` · **Target version:** `0.6.0` · **Status:** ◐ slices 1 to 5 done
+**Branch:** `wave-6` · **Target version:** `0.6.0` · **Status:** ◐ slices 1 to 6 done
 
 ## Exit criteria
 
@@ -111,16 +111,16 @@ Tessera follows this form; if NIH changes it, the biosketch's checks change with
 
 **Acceptance:** two versions of one person's CV differ in sections and order and both survive a restart; adding a confirmed paper to the profile appears in a CV that lists all confirmed papers, not in one that lists chosen papers; the printed PDF has no app chrome; the Markdown opens cleanly in a word processor.
 
-## Slice 6: NIH biosketches ☐
+## Slice 6: NIH biosketches ☑
 
 **Goal:** a biosketch in NIH's current form, prepared for SciENcv (PRF-04).
 
-- [ ] A biosketch is a CV document of its own kind, built for the Common Form and Supplement (the form's version stored with it)
-- [ ] Common Form: name, position title, and organization; the ORCID iD (flagged when the profile has none); professional preparation from education entries; appointments and positions from positions; products, up to 5 closely related to the project and up to 5 other significant, chosen from confirmed papers or entered by hand
-- [ ] Supplement: personal statement, honors (at most 15, chosen from the profile), and up to 5 contributions to science, each able to name the products it rests on
-- [ ] Limits checked as one types: characters left, counts, and citations flagged where NIH allows none (a PMID or DOI in a narrative)
-- [ ] Output in NIH's order: a print layout, Markdown, and **Copy for SciENcv**, each section as plain text ready to paste, with the products as citations; a note that NIH requires the investigator to complete and certify the forms in SciENcv
-- [ ] With the assistant on, **Draft with the assistant** writes a first personal statement or contribution to science from papers the researcher chooses, within the limit and without citations, into the editor as a labeled draft; with it off, nothing mentions it
+- [x] A biosketch is a CV document of its own kind, built for the Common Form and Supplement (the form's version stored with it)
+- [x] Common Form: name, position title, and organization; the ORCID iD (flagged when the profile has none); professional preparation from education entries; appointments and positions from positions; products, up to 5 closely related to the project and up to 5 other significant, chosen from confirmed papers or entered by hand
+- [x] Supplement: personal statement, honors (at most 15, chosen from the profile), and up to 5 contributions to science, each able to name the products it rests on
+- [x] Limits checked as one types: characters left, counts, and citations flagged where NIH allows none (a PMID or DOI in a narrative)
+- [x] Output in NIH's order: a print layout, Markdown, and **Copy for SciENcv**, each section as plain text ready to paste, with the products as citations; a note that NIH requires the investigator to complete and certify the forms in SciENcv
+- [x] With the assistant on, **Draft with the assistant** writes a first personal statement or contribution to science from papers the researcher chooses, within the limit and without citations, shown first in a drawer; **Use this draft** puts it in the editor for the researcher to edit; with it off, nothing mentions it
 
 **Acceptance:** a biosketch with a 3,600-character personal statement, 16 honors, or six contributions says what is over and by how much; a product must be a confirmed paper or entered by hand; Copy for SciENcv gives each section separately; with the assistant on, a drafted contribution stays a draft until the researcher saves it.
 
@@ -140,6 +140,7 @@ Tessera follows this form; if NIH changes it, the biosketch's checks change with
 
 | Date | Note |
 |---|---|
+| 2026-11-09 | Slice 6 done. A biosketch is a CV document of its own kind, so it needed no migration; its spec holds what the researcher writes and chooses, and the form is stored with it (`nih-2026-01`). NIH's limits are reported rather than refused, so a draft can be saved while it is still too long, and each check says what is over and by how much. A narrative is checked for what looks like a citation (a PubMed or PMC ID, a DOI, an "et al." reference, a numbered reference), with no false alarm on ordinary numbers and years. Dates follow NIH's MM/YYYY. The default position title is a real title from the group directory ("Associate Professor") rather than a group role ("Lead"). Copy for SciENcv gives each section as plain text in SciENcv's order, since the certified PDF can only come from SciENcv. With the assistant on, a first draft is written from the chosen confirmed papers, read through the API as the person asking; on the demo, `gemma4:31b-cloud` wrote a 1,665-character first-person statement with no citations in a few seconds. The draft goes to a drawer, never straight into the biosketch. |
 | 2026-11-09 | Slice 5 done. A CV stores only its spec (sections, order, chosen entries, options) and is built from the profile and confirmed records whenever it is shown, so it never goes stale; a section set to all entries picks up new ones, and a chosen list does not. Positions include the group directory's, with the organization's name. Publications take their full author lists and volume, issue, and pages from the lake, and are cited close to NLM's style, the person's own author position in bold (from the confirmed authorship's position). Grants show the person's role (PI, contact PI, or MPI) from RePORTER's investigators; studies their official role. Printing hides the editor and the app around the CV; the Markdown download is the same document. Reordering uses up and down buttons rather than dragging, as on the profile, for keyboards and screen readers. The public site's person page now formats entries with the same shared code. |
 | 2026-11-09 | Slice 4 done. The public choices store the sections left off rather than those shown, so a section added in a later version appears on a public page unless the person hides it, as their own sections do when first filled in. The public switch moved from curators only to everyone who keeps the profile, someone acting for the person included; each change is in the profile's history. The preview is the public page built by the same code as `tessera publish`, for that person alone (public or not yet), with the site's stylesheet served beside it, so it shows exactly what the next publish will. |
 | 2026-11-09 | Slice 3 done. Someone acting for a person is a fourth capacity for keeping a profile, beside the person, their curators, and admins; it grants nothing else, since every other decision about a person goes through the curation scope, which a delegate does not enter. Only the person, their curators, and admins name or remove delegates, and both are recorded in the profile's history. Everyone sees the names of those who keep a profile; only its keepers see their usernames. The account is chosen by username, so no list of accounts is exposed to everyone. Without accounts (single-operator mode) there is nobody to name, and the card is not shown. |

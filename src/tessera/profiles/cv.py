@@ -152,6 +152,7 @@ def _directory_positions(
                 "fields": {k: v for k, v in fields.items() if v},
                 "directory": True,
                 "current": view["current"],
+                "titled": bool(view["title"]),
             }
         )
     out.sort(key=lambda x: (not x["current"], -(int((x["fields"].get("start") or "0")[:4]))))
@@ -448,6 +449,14 @@ def get(conn: Connection, person_id: str, doc_id: str) -> dict[str, Any]:
     return dict(row)
 
 
+def _clean(kind: str, spec: Any) -> dict[str, Any]:
+    if kind == "nih_biosketch":
+        from tessera.profiles import biosketch
+
+        return biosketch.clean_spec(spec)
+    return clean_spec(spec)
+
+
 def _name(value: Any) -> str:
     text = " ".join(str(value or "").split())
     if not text:
@@ -472,7 +481,7 @@ def create(
 
     if kind not in ("cv", "nih_biosketch"):
         raise ProfileError("A document is a CV or an NIH biosketch.")
-    spec = spec if kind != "cv" else clean_spec(spec if spec is not None else default_spec())
+    spec = _clean(kind, spec if spec is not None else (default_spec() if kind == "cv" else {}))
     now = utc_now()
     doc_id = new_id("cvd")
     with engine.begin() as conn:
@@ -522,7 +531,7 @@ def change(
         if name is not None and _name(name) != before["name"]:
             values["name"] = _name(name)
         if spec is not None:
-            spec = clean_spec(spec) if before["kind"] == "cv" else spec
+            spec = _clean(before["kind"], spec)
             if spec != before["spec"]:
                 values["spec"] = spec
         if values:

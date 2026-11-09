@@ -506,6 +506,23 @@ label.check { display: inline-flex; align-items: center; gap: var(--space-2); fo
 .cv-item-main { display: flex; justify-content: space-between; gap: var(--space-4); }
 .cv-dates { color: var(--text-muted); white-space: nowrap; }
 .cv-note { color: var(--text-muted); font-size: var(--fs-sm); }
+.bio-form { font-size: var(--fs-xl); margin: var(--space-7) 0 0; }
+.bio-paper h3 { font-size: var(--fs-lg); border-bottom: 1px solid var(--border); padding-bottom: var(--space-1); margin: 0 0 var(--space-3); }
+.bio-paper h4 { font-size: var(--fs-md); margin: var(--space-3) 0 var(--space-2); }
+.bio-identity { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-4); margin: 0; }
+.bio-identity dt { color: var(--text-muted); }
+.bio-identity dd { margin: 0; }
+.bio-table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+.bio-table td { padding: var(--space-1) var(--space-2) var(--space-1) 0; vertical-align: top; border-bottom: 1px solid var(--border); }
+.bio-text { white-space: pre-wrap; }
+.bio-contributions { padding-left: 1.4rem; display: flex; flex-direction: column; gap: var(--space-3); }
+.bio-checks { margin: 0; padding-left: 1.2rem; }
+.bio-area { min-height: 8rem; line-height: 1.5; }
+.bio-count { font-size: var(--fs-sm); color: var(--text-subtle); }
+.bio-count.is-over { color: var(--danger); font-weight: 600; }
+.bio-contribution { padding-top: var(--space-2); border-top: 1px dashed var(--border); }
+.bio-copy { display: flex; flex-direction: column; gap: var(--space-1); }
+.bio-pre { white-space: pre-wrap; font-family: var(--mono); font-size: var(--fs-xs); background: var(--surface-2); border-radius: var(--radius-s); padding: var(--space-2) var(--space-3); margin: 0; max-height: 14rem; overflow: auto; }
 @media print {
   .cv-layout { display: block; }
   .cv-paper { border: 0; padding: 0; max-width: none; background: none; color: #000; }

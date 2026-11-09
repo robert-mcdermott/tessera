@@ -9419,6 +9419,12 @@
             "minLength": 1,
             "title": "Name"
           },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "cv, or nih_biosketch",
+            "default": "cv"
+          },
           "copy_of": {
             "anyOf": [
               {
@@ -9429,7 +9435,7 @@
               }
             ],
             "title": "Copy Of",
-            "description": "Start from a copy of this CV"
+            "description": "Start from a copy of this CV or biosketch"
           }
         },
         "type": "object",

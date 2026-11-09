@@ -312,7 +312,8 @@ def preview_stylesheet(request: Request) -> Response:
 
 class DocumentIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
-    copy_of: str | None = Field(None, description="Start from a copy of this CV")
+    kind: str = Field("cv", description="cv, or nih_biosketch")
+    copy_of: str | None = Field(None, description="Start from a copy of this CV or biosketch")
 
 
 class DocumentChange(BaseModel):
@@ -339,6 +340,21 @@ def _cv_context(request: Request, person_id: str, doc: dict[str, Any]) -> dict[s
         sid: [{"id": str(r["id"]), "label": _option_label(sid, r)} for r in rows]
         for sid, rows in available.items()
     }
+    if doc["kind"] == "nih_biosketch":
+        from tessera.profiles import biosketch
+
+        built = biosketch.build(doc["spec"], available, head)
+        return {
+            "document": {k: doc[k] for k in ("id", "kind", "name", "spec", "form", "updated_at",
+                                             "updated_by")},
+            "header": head,
+            "options": {k: options[k] for k in ("education", "position", "honor", "publications")},
+            "sections": built,
+            "checks": biosketch.checks(doc["spec"], built, available),
+            "sciencv": biosketch.sciencv(built),
+            "form_label": biosketch.FORM_LABEL,
+            "limits": biosketch.LIMITS,
+        }  # fmt: skip
     return {
         "document": {k: doc[k] for k in ("id", "kind", "name", "spec", "form", "updated_at",
                                          "updated_by")},
@@ -380,13 +396,26 @@ def create_document(request: Request, person_id: str, body: DocumentIn) -> dict[
 
     person_id = _person(request, person_id)
     actor, capacity = _keeper(request, person_id)
+    if body.kind not in ("cv", "nih_biosketch"):
+        raise HTTPException(status_code=400, detail="A document is a cv or an nih_biosketch.")
     try:
-        spec = None
+        spec, kind, form = None, body.kind, None
         if body.copy_of:
             with engine_of(request).connect() as conn:
-                spec = cv.get(conn, person_id, body.copy_of)["spec"]
-        doc = cv.create(engine_of(request), person_id, name=body.name, spec=spec,
-                        actor=actor, capacity=capacity)  # fmt: skip
+                source = cv.get(conn, person_id, body.copy_of)
+            spec, kind, form = source["spec"], source["kind"], source["form"]
+        elif kind == "nih_biosketch":
+            from datetime import date
+
+            from tessera.profiles import biosketch
+
+            config = config_of(request)
+            with engine_of(request).connect() as conn:
+                available = cv.catalogue(conn, config, request.app.state.home, None, person_id,
+                                         date.today())  # fmt: skip
+            spec, form = biosketch.default_spec(available, config.organization.name), biosketch.FORM
+        doc = cv.create(engine_of(request), person_id, name=body.name, kind=kind, spec=spec,
+                        form=form, actor=actor, capacity=capacity)  # fmt: skip
     except ProfileError as exc:
         raise _fail(exc) from exc
     return envelope(_cv_context(request, person_id, doc))
@@ -444,8 +473,13 @@ def document_markdown(request: Request, person_id: str, doc_id: str) -> Response
     person_id = _person(request, person_id)
     _keeper(request, person_id)
     context = get_document(request, person_id, doc_id)["data"]
-    text = cv.markdown(context["document"]["name"], context["header"], context["sections"],
-                       date.today())  # fmt: skip
+    if context["document"]["kind"] == "nih_biosketch":
+        from tessera.profiles import biosketch
+
+        text = biosketch.markdown(context["document"]["name"], context["sections"])
+    else:
+        text = cv.markdown(context["document"]["name"], context["header"], context["sections"],
+                           date.today())  # fmt: skip
     stem = re.sub(
         r"[^A-Za-z0-9]+", "-", f"{context['header']['name']} {context['document']['name']}"
     )

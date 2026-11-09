@@ -13,17 +13,18 @@ import { show } from "./page.js";
 const base = (personId) => `/api/v1/people/${encodeURIComponent(personId)}/cvs`;
 
 /** Ask for a name, then make a CV (or a copy of one) and open it. */
-export function newDocument(personId, { copyOf = null, suggested = "" } = {}) {
+export function newDocument(personId, { copyOf = null, suggested = "", kind = "cv" } = {}) {
+  const noun = kind === "nih_biosketch" ? "NIH biosketch" : "CV";
   openDrawer({
-    title: copyOf ? "Copy this CV" : "New CV",
-    subtitle: "A name for this version, such as “Promotion dossier” or “Visiting scholar”.",
+    title: copyOf ? "Copy this one" : `New ${noun}`,
+    subtitle: kind === "nih_biosketch" ? "A name for this version, such as the application it is for." : "A name for this version, such as “Promotion dossier” or “Visiting scholar”.",
     render: (body, footer, close) => {
       const problem = h("p", { class: "field-error", role: "alert", hidden: true });
       const name = h("input", { class: "input", id: "cv-name", maxlength: 200, value: suggested, required: true });
       const form = h("form", { id: "cv-new", class: "stack", onsubmit: async (event) => {
         event.preventDefault();
         try {
-          const made = (await post(base(personId), { name: name.value, copy_of: copyOf })).data;
+          const made = (await post(base(personId), { name: name.value, kind, copy_of: copyOf })).data;
           close();
           navigate(`/people/${encodeURIComponent(personId)}/cvs/${made.document.id}`);
         } catch (failure) {
@@ -140,6 +141,56 @@ function editor(data, save) {
       h("ul", { class: "plain-list cv-ed-sections" }, rows)) });
 }
 
+/** The page header shared by CVs and biosketches: print, download, rename, copy, delete. */
+export function documentHeader(data, { url, personId, docId, reload, eyebrow }) {
+  const noun = data.document.kind === "nih_biosketch" ? "biosketch" : "CV";
+  const rename = h("button", { type: "button", class: "btn btn-ghost", onclick: () => openDrawer({
+    title: `Rename this ${noun}`,
+    render: (body, footer, close) => {
+      const name = h("input", { class: "input", id: "cv-rename", maxlength: 200, value: data.document.name });
+      const form = h("form", { id: "cv-rename-form", onsubmit: async (event) => {
+        event.preventDefault();
+        try {
+          await post(url, { name: name.value });
+          close();
+          reload();
+        } catch (failure) {
+          toast(failure.detail || failure.message);
+        }
+      } }, h("div", { class: "field" }, h("label", { for: "cv-rename" }, "Name"), name));
+      body.append(form);
+      footer.replaceChildren(h("div", { class: "row wrap" },
+        h("button", { type: "submit", class: "btn btn-primary", form: "cv-rename-form" }, "Rename"),
+        h("button", { type: "button", class: "btn btn-ghost", onclick: close }, "Cancel")));
+      footer.hidden = false;
+      name.focus();
+    },
+  }) }, icon("edit", "icon icon-sm"), "Rename");
+  const actions = [
+    h("button", { type: "button", class: "btn btn-primary", onclick: () => window.print() }, icon("download", "icon icon-sm"), "Print or save as PDF"),
+    h("a", { class: "btn", href: `${url}/markdown`, download: "" }, icon("download", "icon icon-sm"), "Download Markdown"),
+    rename,
+    h("button", { type: "button", class: "btn btn-ghost", onclick: () => newDocument(personId, { copyOf: docId, suggested: `${data.document.name} (copy)` }) }, "Copy"),
+    h("button", { type: "button", class: "btn btn-ghost btn-reject", onclick: () => confirmAction({
+      title: `Delete this ${noun}?`, text: h("p", {}, `“${data.document.name}” will be deleted. The profile and its records stay as they are.`),
+      confirmLabel: "Delete", tone: "reject", run: async () => {
+        try {
+          await request("DELETE", url);
+          invalidate();
+          navigate(`/people/${encodeURIComponent(personId)}`);
+        } catch (failure) {
+          toast(failure.detail || failure.message);
+        }
+      } }) }, "Delete"),
+  ];
+  return h("div", { class: "no-print" }, pageHeader({
+    eyebrow: h("a", { href: `/people/${encodeURIComponent(personId)}` }, `${eyebrow} · ${data.header.name}`),
+    title: data.document.name,
+    meta: h("span", { class: "subtle" }, `Changed ${relative(data.document.updated_at)} by ${data.document.updated_by}`),
+    actions,
+  }));
+}
+
 export function cvPage(main, params, { samePage = false } = {}) {
   const personId = params.id;
   const docId = params.cv;
@@ -148,8 +199,15 @@ export function cvPage(main, params, { samePage = false } = {}) {
   return show(main, {
     title: (data) => `${data.document.name} · ${data.header.name}`,
     quiet: samePage,
-    load: async () => (await get(url, null, { fresh: true })).data,
+    load: async () => {
+      const data = (await get(url, null, { fresh: true })).data;
+      // A biosketch has its own editor, loaded when one is opened.
+      if (data.document.kind === "nih_biosketch") data.B = await import("./biosketch.js");
+      return data;
+    },
     view: (data) => {
+      const ctx = { url, personId, docId, reload };
+      if (data.B) return data.B.biosketchView(data, { ...ctx, header: documentHeader(data, { ...ctx, eyebrow: "NIH biosketch" }) });
       const preview = h("div", { class: "cv-preview" }, paper(data));
       const save = async (spec) => {
         try {
@@ -162,68 +220,25 @@ export function cvPage(main, params, { samePage = false } = {}) {
         }
       };
       const editorSlot = h("div", {}, editor(data, save));
-      const rename = h("button", { type: "button", class: "btn btn-ghost", onclick: () => openDrawer({
-        title: "Rename this CV",
-        render: (body, footer, close) => {
-          const name = h("input", { class: "input", id: "cv-rename", maxlength: 200, value: data.document.name });
-          const form = h("form", { id: "cv-rename-form", onsubmit: async (event) => {
-            event.preventDefault();
-            try {
-              await post(url, { name: name.value });
-              close();
-              reload();
-            } catch (failure) {
-              toast(failure.detail || failure.message);
-            }
-          } }, h("div", { class: "field" }, h("label", { for: "cv-rename" }, "Name"), name));
-          body.append(form);
-          footer.replaceChildren(h("div", { class: "row wrap" },
-            h("button", { type: "submit", class: "btn btn-primary", form: "cv-rename-form" }, "Rename"),
-            h("button", { type: "button", class: "btn btn-ghost", onclick: close }, "Cancel")));
-          footer.hidden = false;
-          name.focus();
-        },
-      }) }, icon("edit", "icon icon-sm"), "Rename");
-      const actions = [
-        h("button", { type: "button", class: "btn btn-primary", onclick: () => window.print() }, icon("download", "icon icon-sm"), "Print or save as PDF"),
-        h("a", { class: "btn", href: `${url}/markdown`, download: "" }, icon("download", "icon icon-sm"), "Download Markdown"),
-        rename,
-        h("button", { type: "button", class: "btn btn-ghost", onclick: () => newDocument(personId, { copyOf: docId, suggested: `${data.document.name} (copy)` }) }, "Copy"),
-        h("button", { type: "button", class: "btn btn-ghost btn-reject", onclick: () => confirmAction({
-          title: "Delete this CV?", text: h("p", {}, `“${data.document.name}” will be deleted. The profile and its records stay as they are.`),
-          confirmLabel: "Delete", tone: "reject", run: async () => {
-            try {
-              await request("DELETE", url);
-              invalidate();
-              navigate(`/people/${encodeURIComponent(personId)}`);
-            } catch (failure) {
-              toast(failure.detail || failure.message);
-            }
-          } }) }, "Delete"),
-      ];
-      return h("div", { class: "stack-lg" },
-        h("div", { class: "no-print" }, pageHeader({
-          eyebrow: h("a", { href: `/people/${encodeURIComponent(personId)}` }, `CV · ${data.header.name}`),
-          title: data.document.name,
-          meta: h("span", { class: "subtle" }, `Changed ${relative(data.document.updated_at)} by ${data.document.updated_by}`),
-          actions,
-        })),
+      return h("div", { class: "stack-lg" }, documentHeader(data, { ...ctx, eyebrow: "CV" }),
         h("div", { class: "cv-layout" }, editorSlot, preview));
     },
   });
 }
 
-/** The CVs card on a profile's About tab, for those who keep it. */
+/** The CVs and biosketches card on a profile's About tab, for those who keep it. */
 export function documentsCard(personId) {
   const holder = h("div", {});
   get(base(personId), null, { fresh: true }).then(({ data }) => {
-    const cvs = data.filter((d) => d.kind === "cv");
-    holder.replaceChildren(card({ title: "CVs", pad: true, attrs: { "data-profile-section": "cvs" },
-      action: h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => newDocument(personId) }, icon("plus", "icon icon-sm"), "New CV"),
-      body: cvs.length ? h("ul", { class: "plain-list profile-entries" }, cvs.map((d) => h("li", { class: "profile-entry" },
+    const label = { cv: "CV", nih_biosketch: "NIH biosketch" };
+    holder.replaceChildren(card({ title: "CVs and biosketches", pad: true, attrs: { "data-profile-section": "cvs" },
+      action: h("div", { class: "row-sm" },
+        h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => newDocument(personId) }, icon("plus", "icon icon-sm"), "New CV"),
+        h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => newDocument(personId, { kind: "nih_biosketch" }) }, icon("plus", "icon icon-sm"), "New NIH biosketch")),
+      body: data.length ? h("ul", { class: "plain-list profile-entries" }, data.map((d) => h("li", { class: "profile-entry" },
         h("div", { class: "stack-xs grow" }, h("a", { class: "strong", href: `/people/${encodeURIComponent(personId)}/cvs/${d.id}` }, d.name),
-          h("span", { class: "subtle" }, `changed ${relative(d.updated_at)} by ${d.updated_by}`)))))
-        : h("p", { class: "subtle" }, "CVs built from this profile and confirmed records: choose the sections, entries, and order, then print or save as PDF, or download as Markdown. Keep several versions.") }));
+          h("span", { class: "subtle" }, `${label[d.kind] ?? d.kind} · changed ${relative(d.updated_at)} by ${d.updated_by}`)))))
+        : h("p", { class: "subtle" }, "CVs and NIH biosketches built from this profile and confirmed records: choose what each includes, keep several versions, and print, save as PDF, or download them. A biosketch follows NIH's current form and checks its limits, ready to paste into SciENcv.") }));
   }).catch(() => holder.replaceChildren());
   return holder;
 }
