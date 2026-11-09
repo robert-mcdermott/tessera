@@ -606,12 +606,13 @@ def _insight(config: Config, home: DataHome, engine: Engine, today: date) -> Non
             conn, "Immunology and infection, with its labs",
             cohorts.parse("group:division-of-immunology-and-infection+below"),  # type: ignore[arg-type]
             actor="Demo curator", description="The division and every group beneath it.",
+            owner="operator",
         )  # fmt: skip
         report_id = reports.create_report(
             conn, name="Cancer Immunotherapy Program: annual review",
             description="What the program published, was awarded, and ran as studies.",
             cohort="group:cancer-immunotherapy-program", start=today.year - 4, end=None,
-            actor="Demo curator",
+            actor="Demo curator", owner="operator",
             figures=[
                 {"metric": "publications.count"}, {"metric": "funding.awarded"},
                 {"metric": "topics.landscape", "options": {"level": "area"}},

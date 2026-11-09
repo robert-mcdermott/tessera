@@ -22,6 +22,9 @@ def _sqlite_pragmas(dbapi_connection: Any, _record: Any) -> None:
         cursor.execute("PRAGMA synchronous=NORMAL")  # safe with WAL, much faster than FULL
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.execute("PRAGMA busy_timeout=5000")
+        # A night's resolve writes in one transaction, and the log grows to hold it (hundreds of
+        # megabytes at 100,000 papers); after a checkpoint it is cut back to this size.
+        cursor.execute("PRAGMA journal_size_limit=67108864")
         cursor.execute("PRAGMA threads=4")  # the sorter may use helpers (the queue's counts)
     finally:
         cursor.close()

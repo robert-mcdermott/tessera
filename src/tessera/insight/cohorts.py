@@ -349,8 +349,9 @@ def _name(name: str) -> str:
 
 
 def save_cohort(
-    conn: Connection, name: str, spec: CohortSpec, *, actor: str, description: str | None = None
-) -> str:
+    conn: Connection, name: str, spec: CohortSpec, *, actor: str, description: str | None = None,
+    owner: str | None = None,
+) -> str:  # fmt: skip
     if (
         conn.execute(select(cohort_table.c.id).where(cohort_table.c.name == _name(name))).first()
         is not None
@@ -362,7 +363,7 @@ def save_cohort(
         insert(cohort_table).values(
             id=cohort_id, name=_name(name), description=(description or "").strip() or None,
             definition=spec.to_json(), created_by=actor, created_at=now, updated_by=actor,
-            updated_at=now,
+            updated_at=now, owner=owner,
         )
     )  # fmt: skip
     return cohort_id

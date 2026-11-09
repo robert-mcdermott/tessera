@@ -9354,6 +9354,9 @@
      "data": [
       "object"
      ],
+     "data.can_manage": [
+      "boolean"
+     ],
      "data.can_share": [
       "boolean"
      ],

@@ -63,8 +63,8 @@ def resolve_scope(conn: Connection, scope: str | None) -> tuple[str | None, str 
     kind, _, value = scope.partition(":")
     value = value.strip().removesuffix("+below").strip()
     if kind in ("unit", "group") and value:
-        found = conn.execute(
-            select(unit.c.id).where(
+        rows = conn.execute(
+            select(unit.c.id, unit.c.slug).where(
                 or_(
                     unit.c.id == value,
                     unit.c.code == value,
@@ -73,10 +73,16 @@ def resolve_scope(conn: Connection, scope: str | None) -> tuple[str | None, str 
                 ),
                 unit.c.status != "merged",
             )
-        ).scalar()
-        if found is None:
+        ).all()
+        exact = [r.id for r in rows if value in (r.id, r.slug)]  # an ID or address is unique
+        if not rows:
             raise AccountError(f"No group {value!r}.")
-        return "unit", found
+        if len(rows) > 1 and len(exact) != 1:
+            raise AccountError(
+                f"More than one group is called {value!r}; give its address instead "
+                f"(one of: {', '.join(sorted(r.slug or r.id for r in rows))})."
+            )
+        return "unit", exact[0] if exact else rows[0].id
     if kind == "person" and value:
         if conn.execute(select(person.c.id).where(person.c.id == value)).scalar() is None:
             raise AccountError(f"No person {value!r}.")
@@ -88,9 +94,12 @@ def make_grant(
     conn: Connection, role: str, scope: str | None, include_below: bool = False
 ) -> Grant:
     """A grant from a role and a scope; ``group:<…>+below`` also covers the groups below."""
+    role = role.strip().lower()
+    if role not in ROLES:  # before anything else is asked for (a password, say)
+        raise AccountError(f"There is no role {role!r}; choose from {', '.join(ROLES)}.")
     below = include_below or bool(scope and scope.strip().endswith("+below"))
     scope_type, scope_id = resolve_scope(conn, scope)
-    return Grant(role.strip().lower(), scope_type, scope_id, below and scope_type == "unit")
+    return Grant(role, scope_type, scope_id, below and scope_type == "unit")
 
 
 def _check_grants(

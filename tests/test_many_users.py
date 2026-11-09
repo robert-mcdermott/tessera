@@ -133,6 +133,7 @@ def test_serve_runs_the_processes_asked_for(
     monkeypatch.setattr(uvicorn, "run", lambda app, **kwargs: seen.update(kwargs, app=app))
     assert main(["--config", str(instance.path), "serve", "--port", "18766", "--workers", "3"]) == 0
     assert seen["workers"] == 3 and seen["factory"] is True
+    assert seen["timeout_worker_healthcheck"] >= 30  # busy is not hung
     assert "in 3 processes" in capsys.readouterr().out
     monkeypatch.setenv("TESSERA_SERVER_WORKERS", "2")  # as the service files set it
     assert main(["--config", str(instance.path), "serve", "--port", "18766"]) == EXIT_OK

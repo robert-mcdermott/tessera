@@ -355,6 +355,12 @@ def test_roles_and_the_daily_limit(world: World) -> None:
         done = limited.ask("curious", "Hello again?")
         assert done["status"] == "limited" and "daily limit of 1 question." in done["answer"]
         assert len(world.model.requests) == asked  # the model was not called
+        # A draft is a call to the model too: the same limit, and the same roles.
+        draft = limited.clients["curious"].post(
+            f"/api/v1/ai/summaries/{world.ids['uma']}/draft",
+            headers={"X-CSRF-Token": limited.csrf["curious"]})  # fmt: skip
+        assert draft.status_code == 429, draft.text
+        assert len(world.model.requests) == asked
     finally:
         for client in limited.clients.values():
             client.__exit__(None, None, None)

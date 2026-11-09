@@ -568,10 +568,73 @@ def test_a_team_is_seen_only_by_its_owner_members_shares_and_admins(world: World
                  {"person_id": world.ids["researcher"], "role": "lead"})  # fmt: skip
     assert added.status_code == 200, added.text
     assert call(world, "researcher", "GET", f"/api/v1/teams/{other['id']}").status_code == 200
-    # Only the owner (or an admin) shares or deletes it.
+    # Only the owner (or an admin) shares or deletes it, or changes who is on it: a member
+    # adding someone would share it with them.
     shared = call(world, "researcher", "POST", f"/api/v1/teams/{other['id']}",
                   {"shared_with": [world.ids["inside"]]})  # fmt: skip
-    assert shared.status_code == 400
-    assert call(world, "researcher", "DELETE", f"/api/v1/teams/{other['id']}").status_code == 400
+    assert shared.status_code == 403
+    assert call(world, "researcher", "DELETE", f"/api/v1/teams/{other['id']}").status_code == 403
+    widened = call(world, "researcher", "POST", f"/api/v1/teams/{other['id']}/members",
+                   {"person_id": world.ids["inside"], "role": "collaborator"})  # fmt: skip
+    assert widened.status_code == 403
+    detail = call(world, "researcher", "GET", f"/api/v1/teams/{other['id']}").json()["data"]
+    assert [m["id"] for m in detail["members"]] == [world.ids["researcher"]]
+    assert detail["can_manage"] is False
+    gone = call(world, "researcher", "DELETE",
+                f"/api/v1/teams/{other['id']}/members/{world.ids['researcher']}")  # fmt: skip
+    assert gone.status_code == 403
     assert call(world, "researcher", "DELETE", path).status_code == 200
     assert call(world, "researcher", "GET", path).status_code == 404
+
+
+def test_memberships_are_not_decided_through_the_decision_routes(world: World) -> None:
+    """Who belongs to a group is the group routes' (admins'); a membership also decides whose
+    curator someone is, so a curator scoped to a group must not change it to widen their scope."""
+    engine = make_engine(world.config.ledger_url)
+    try:
+        (membership,) = [
+            r["id"]
+            for r in store.assertions_for(engine, predicate="member_of")
+            if r["subject_id"] == world.ids["inside"] and r["object_id"] == world.ids["unit"]
+        ]
+    finally:
+        engine.dispose()
+    for who in ("unitcur", "manager", "curator", "researcher"):
+        one = call(world, who, "POST", f"/api/v1/assertions/{membership}/decision",
+                   {"action": "reject"})  # fmt: skip
+        assert one.status_code == 403, (who, one.text)
+        many = call(world, who, "POST", "/api/v1/assertions/decisions",
+                    {"ids": [membership], "action": "reject"})  # fmt: skip
+        assert many.status_code == 403 or many.json()["data"]["decided"] == 0, (who, many.text)
+    view = call(world, "admin", "GET", f"/api/v1/assertions/{membership}").json()["data"]
+    assert view["status"] == "accepted"
+    assert (
+        call(world, "unitcur", "GET", f"/api/v1/assertions/{membership}").json()["data"][
+            "can_decide"
+        ]
+        is False
+    )
+
+
+def test_a_saved_cohort_belongs_to_an_account_not_a_name(world: World) -> None:
+    saved = call(world, "researcher", "POST", "/api/v1/insight/cohorts",
+                 {"name": "Mine by account", "cohort": "organization"})  # fmt: skip
+    assert saved.status_code == 200, saved.text
+    cohort_id = saved.json()["data"]["id"]
+    engine = make_engine(world.config.ledger_url)
+    cheap = passwords.SCRYPT_N
+    passwords.SCRYPT_N = 2**10
+    try:  # another account with the same display name, as single sign-on can give
+        create_account(engine, "namesake", "Researcher", PASSWORD, [Grant("researcher")],
+                       actor="test", person_id=world.ids["outside"])  # fmt: skip
+    finally:
+        passwords.SCRYPT_N = cheap
+        engine.dispose()
+    with fresh(world) as namesake:
+        signed = namesake.post("/api/v1/session", json={"username": "namesake",
+                                                        "password": PASSWORD})  # fmt: skip
+        csrf = {"X-CSRF-Token": signed.json()["data"]["csrf_token"]}
+        assert namesake.delete(f"/api/v1/insight/cohorts/{cohort_id}",
+                               headers=csrf).status_code == 403  # fmt: skip
+    assert call(world, "researcher", "DELETE",
+                f"/api/v1/insight/cohorts/{cohort_id}").status_code == 200  # fmt: skip

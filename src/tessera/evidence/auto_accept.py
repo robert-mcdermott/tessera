@@ -154,7 +154,9 @@ def run(engine: Engine, config: Config) -> dict[str, Any]:
         f"Accepted automatically: scored at least {threshold} by {model.method}, where "
         f"evaluated precision is {current['precision']:.1%} (batch {batch_id})"
     )
-    done = [store.decide(engine, r["id"], "accept", AUTO_ACTOR, note)["id"] for r in chosen]
+    # The batch is written first, with every link it may accept, so that if the run stops
+    # midway the links it did accept can still be undone together; undoing returns only those
+    # still accepted by auto-accept.
     with engine.begin() as conn:
         conn.execute(
             insert(auto_accept_batch).values(
@@ -163,8 +165,21 @@ def run(engine: Engine, config: Config) -> dict[str, Any]:
                 threshold=threshold,
                 precision=current["precision"],
                 method=model.method,
-                assertion_ids=done,
+                assertion_ids=[r["id"] for r in chosen],
             )
+        )
+    done = []
+    for r in chosen:
+        try:  # only if still a suggestion: never over a curator's decision made meanwhile
+            store.decide(engine, r["id"], "accept", AUTO_ACTOR, note, expect="suggested")
+        except store.Superseded:
+            continue
+        done.append(r["id"])
+    with engine.begin() as conn:
+        conn.execute(
+            update(auto_accept_batch)
+            .where(auto_accept_batch.c.id == batch_id)
+            .values(assertion_ids=done)
         )
     return {"enabled": True, "accepted": len(done), "batch": batch_id}
 
@@ -216,7 +231,12 @@ def undo_batch(engine: Engine, batch_id: str, actor: str) -> int:
         )
     for assertion_id in row["assertion_ids"]:
         if assertion_id in still:
-            store.decide(engine, assertion_id, "undo", actor, f"Undid auto-accept batch {batch_id}")
+            try:  # still as auto-accept left it: never undo a curator's decision made since
+                store.decide(engine, assertion_id, "undo", actor,
+                             f"Undid auto-accept batch {batch_id}", expect="accepted",
+                             expect_actor=AUTO_ACTOR)  # fmt: skip
+            except store.Superseded:
+                continue
     with engine.begin() as conn:
         conn.execute(
             update(auto_accept_batch)

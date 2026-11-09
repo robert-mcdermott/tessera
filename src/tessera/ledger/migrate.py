@@ -74,7 +74,8 @@ def upgrade(engine: Engine, revision: str = "head") -> None:
 
 
 def downgrade(engine: Engine, revision: str) -> None:
-    """Step the schema back (used by tests and by operators rolling back an upgrade)."""
+    """Step the schema back, for tests and development. Going back drops what later releases
+    added; to undo an upgrade, restore the backup taken before it."""
     _run(engine, command.downgrade, revision)
 
 

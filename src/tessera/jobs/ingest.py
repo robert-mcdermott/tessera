@@ -366,6 +366,11 @@ def ingest_many(
         except TesseraError as exc:
             log.error("%s: %s", name, exc)
             results.append(RunResult("", base, "failed", None, FetchReport(), error=str(exc)))
+        except Exception as exc:  # anything else a source sends (garbled JSON, say): its own run
+            # is recorded as failed; the other sources, and the resolve after them, go on.
+            error = f"{exc.__class__.__name__}: {exc}"
+            log.exception("%s failed: %s", name, error)
+            results.append(RunResult("", base, "failed", None, FetchReport(), error=error))
     return results
 
 

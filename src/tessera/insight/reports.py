@@ -104,6 +104,7 @@ def _clean(
 def create_report(
     conn: Connection, *, name: str, cohort: str, figures: Any, actor: str,
     description: str | None = None, start: int | None = None, end: int | None = None,
+    owner: str | None = None,
 ) -> str:  # fmt: skip
     name, cohort = _clean(conn, name, cohort, start, end)
     report_id = new_id("rpt")
@@ -112,7 +113,7 @@ def create_report(
         insert(report).values(
             id=report_id, name=name, description=(description or "").strip() or None,
             cohort=cohort, start_year=start, end_year=end, figures=clean_figures(figures),
-            created_by=actor, created_at=now, updated_by=actor, updated_at=now,
+            created_by=actor, created_at=now, updated_by=actor, updated_at=now, owner=owner,
         )
     )  # fmt: skip
     return report_id

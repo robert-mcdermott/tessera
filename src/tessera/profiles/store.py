@@ -336,6 +336,7 @@ def upsert(
 # The sections a public page can show, in its order: the ones a person keeps, and those Tessera
 # builds from records. Each can be left off; everything is always shown inside.
 BUILT = {
+    "summary": "Summary",  # the approved plain-language summary, with the assistant on
     "groups": "Groups",
     "publications": "Publications",
     "grants": "Grants",
@@ -343,6 +344,7 @@ BUILT = {
     "topics": "Topics",
 }
 PUBLIC_SECTIONS: tuple[str, ...] = (
+    "summary",
     "overview",
     "interests",
     "groups",

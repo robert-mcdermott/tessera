@@ -60,6 +60,7 @@ _assertion = sa.table(
     sa.column("method", sa.String),
     sa.column("qualifier_key", sa.String),
     sa.column("qualifiers", JSON),
+    sa.column("status", sa.String),
 )
 
 
@@ -197,7 +198,9 @@ def downgrade() -> None:
         first.setdefault(child, parent)
     for child, parent in first.items():
         conn.execute(sa.update(_unit).where(_unit.c.id == child).values(parent_id=parent))
-    # One membership per person and unit again: keep a plain membership where there is one.
+    # One membership per person and unit again: keep the one that counts most (accepted, then
+    # still open, then rejected; a plain membership before a role), and move the others'
+    # decisions to it rather than deleting their history.
     rows = conn.execute(
         sa.select(
             _assertion.c.id,
@@ -205,16 +208,27 @@ def downgrade() -> None:
             _assertion.c.object_id,
             _assertion.c.qualifier_key,
             _assertion.c.qualifiers,
+            _assertion.c.status,
         ).where(_assertion.c.predicate == "member_of")
     ).all()
+    rank = {"accepted": 0, "suggested": 1, "deferred": 1, "rejected": 2}
+    _event = sa.table("curation_event", sa.column("assertion_id", sa.String))
     kept: dict[tuple[str, str], str] = {}
-    for aid, subject, obj, _key, _ in sorted(rows, key=lambda r: (r[3] != "member", r[0])):
+    for aid, subject, obj, _key, _, _status in sorted(
+        rows, key=lambda r: (rank.get(r[5], 1), r[3] != "member", r[0])
+    ):
         if (subject, obj) in kept:
+            conn.execute(
+                sa.update(_event)
+                .where(_event.c.assertion_id == aid)
+                .values(assertion_id=kept[(subject, obj)])
+            )
             conn.execute(sa.delete(_assertion).where(_assertion.c.id == aid))
         else:
             kept[(subject, obj)] = aid
-    for aid, _, _, _, qualifiers in rows:
-        if aid not in kept.values():
+    keep = set(kept.values())
+    for aid, _, _, _, qualifiers, _ in rows:
+        if aid not in keep:
             continue
         q = {
             k: v

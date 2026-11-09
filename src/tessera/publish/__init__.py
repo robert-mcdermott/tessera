@@ -65,7 +65,7 @@ def publish(
     today: date | None = None,
 ) -> PublishResult:
     target = (out or out_dir(config, home)).resolve()
-    site = project(config, home, engine, today=today)
+    site = project(config, home, engine, today=today, keep_addresses=True)
     files = site_pages.build(site, config)
     files["assets/site.css"] = stylesheet(config)
     brand = config.branding

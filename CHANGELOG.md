@@ -20,13 +20,24 @@ Toward 1.0.0 (wave 8).
 - **Each Insight figure is built once**, however many people ask for it at the same moment: the others wait for that result, rather than each building its own. With 20 users asking without pause, figures had waited up to 93 seconds.
 - **Failed sign-ins are counted in the ledger** (migration 0025), by a hash of the account or address, so the limit on guessing holds across server processes and restarts.
 
+### Fixed
+
+Found by a review of the code that decides and protects things, and by drills of the failures an installation will meet; each has a regression test.
+
+- **Curation.** Adding a paper to someone by hand no longer makes every later resolve fail. Undoing merges out of order, or after what a merge moved has been moved again, is refused rather than putting links on the wrong person. A person's **Undo** undoes a promotion or dismissal, never a merge, and is refused while the record is merged. A decision left on a merged record no longer counts against the survivor's own. An accepted author position stays as accepted. Auto-accept, undoing its batch, and bulk decisions never overwrite a decision made while they ran, and an interrupted auto-accept run can still be undone as a batch. Importing the same roster twice no longer makes people without an identifier twice.
+- **Access.** Group memberships are decided only by admins, also on the decision routes, which a curator scoped to a group could use to widen their own scope. Only a team's owner, or an admin, changes who is on it. Saved cohorts and reports belong to the account that saved them, not a display name (migration 0026). The assistant's drafts follow `[ai] roles` and the daily limit, which now counts drafts as well as questions. A role scoped to a group by a name more than one group has is refused.
+- **The public site.** Embeds and feeds show only what the group's page shows. A section a person leaves off is left out everywhere, including the people index and their page's description; the assistant's approved summary can be left off too (the choice appears only when the assistant is on). Topics and a group's connections count confirmed links only. Names with markup can no longer break a page's structured data. A person's address is kept once published, whoever of the same name opts in later (migration 0027). An approver named by their email address is shown as "a reviewer".
+- **Sync.** A source that sends something it should not (a maintenance page for PubMed's articles, garbled JSON from NIH RePORTER or ClinicalTrials.gov) is recorded as failed against that source, rather than counting as a success with nothing in it or stopping the whole sync.
+- **Running it.** A damaged search index or derived file is answered with 503 and the command that rebuilds it, not an unexplained 500; `tessera doctor` checks that the search index, the derived files, and the lake can be read, and warns when the disk is nearly full; the command line says what to do when a data file is damaged, the disk is full, or the ledger cannot be reached, rather than showing a traceback. The API answers 503 when a PostgreSQL ledger goes away, and recovers when it returns. A server process busy with heavy requests is no longer killed by the process supervisor after 5 seconds without answering (a minute now), which cut the connections it was serving. SQLite's write-ahead log is cut back after each checkpoint rather than kept at its largest. `tessera users add` checks the role before asking for a password, and says to use `--password-stdin` when it cannot ask.
+- **Going back.** Downgrading past 0.3.0's groups keeps the membership that counts and moves the other's history to it; downgrading past single sign-on drops the provider's roles rather than making them local ones.
+
 ### Breaking
 
 - Two path parameters have new names in the OpenAPI document, to match the rest: a grant's `{core}` is `{core_project_num}`, and an opportunity's `{oid}` is `{opportunity_id}`. The addresses are unchanged; only a client generated from the document sees the new names.
 
 ### Upgrading
 
-Run `tessera db upgrade` (migration 0025). To run several processes, set `[server] workers` (see *Running Tessera*).
+Run `tessera db upgrade` (migrations 0025 to 0027), then `tessera publish` if you publish a public site, so that each published person's address is kept from then on. To run several processes, set `[server] workers` (see *Running Tessera*). Saved cohorts and reports whose saver's name matches no single account can then be changed by admins only; everyone can still read them.
 
 ## 0.7.0 (2026-11-09)
 

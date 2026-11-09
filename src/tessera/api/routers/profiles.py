@@ -142,7 +142,8 @@ def get_profile(request: Request, person_id: str) -> dict[str, Any]:
                      "accounts": config_of(request).server.accounts,
                      "public": is_public, "hidden_sections": hidden,
                      "public_sections": [{"id": s, "label": store.public_label(s)}
-                                         for s in store.PUBLIC_SECTIONS],
+                                         for s in store.PUBLIC_SECTIONS
+                                         if s != "summary" or config_of(request).ai.enabled],
                      "capacity": capacity, "sections": sections})  # fmt: skip
 
 

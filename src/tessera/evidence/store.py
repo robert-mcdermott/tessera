@@ -196,11 +196,18 @@ def decide_person(
         if current is None:
             raise TesseraError(f"No person {person_id}")
         if action == "undo":
+            if current == "merged":
+                raise TesseraError(
+                    "This record is merged into another: undo the merge first, on the page of "
+                    "the record it was merged into."
+                )
+            # Only decisions about the person: merges, unmerges, and identifier changes are
+            # undone their own ways.
             events = conn.execute(
                 select(person_event)
                 .where(
                     person_event.c.person_id == person_id,
-                    person_event.c.action != "identifier",
+                    person_event.c.action.in_((*PERSON_DECISIONS, "undo")),
                 )
                 .order_by(person_event.c.id)
             ).mappings()
@@ -413,6 +420,7 @@ class SyncStats:
     unchanged: int = 0
     unreported: int = 0
     skipped_low: int = 0
+    held: int = 0  # the link exists already, made another way (a person added it by hand)
 
     def to_json(self) -> dict[str, int]:
         return dict(vars(self))
@@ -452,6 +460,15 @@ def _canonical(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
 
 
+def _kept_qualifiers(existing: dict[str, Any], draft: Draft) -> Any:
+    """A decided authorship keeps the author position it names: a curator accepted that one,
+    and a later resolve may read the paper's authors differently. (Other links' qualifiers, such
+    as a grant's fiscal years, keep growing.)"""
+    if existing["locked"] and draft.predicate == "authored":
+        return existing["qualifiers"]
+    return draft.qualifiers
+
+
 def _same(existing: dict[str, Any], draft: Draft) -> bool:
     old, new = existing["score"], draft.score
     scores_equal = (old is None and new is None) or (
@@ -461,7 +478,7 @@ def _same(existing: dict[str, Any], draft: Draft) -> bool:
         scores_equal
         and existing["reported"]
         and _canonical(existing["evidence"]) == _canonical(draft.evidence)
-        and _canonical(existing["qualifiers"]) == _canonical(draft.qualifiers)
+        and _canonical(existing["qualifiers"]) == _canonical(_kept_qualifiers(existing, draft))
         and existing["method"] == draft.method
     )
 
@@ -510,20 +527,25 @@ def sync_assertions(
             "reported",
             "locked",
             "status",
+            "origin",
         )
     ]
     with engine.begin() as conn:
-        existing = {
-            (r["subject_id"], r["predicate"], r["object_id"], r["qualifier_key"]): dict(r)
-            for r in conn.execute(
-                select(*columns).where(
-                    and_(assertion.c.predicate == predicate, assertion.c.origin == origin)
-                )
-            ).mappings()
-        }
+        existing, held = {}, set()
+        for r in conn.execute(
+            select(*columns).where(assertion.c.predicate == predicate)
+        ).mappings():
+            key_ = (r["subject_id"], r["predicate"], r["object_id"], r["qualifier_key"])
+            if r["origin"] == origin:
+                existing[key_] = dict(r)
+            else:  # one link per key: made another way (by hand, say), it is left as it is
+                held.add(key_)
         inserts, updates = [], []
         for key_, draft in by_key.items():
             row = existing.get(key_)
+            if row is None and key_ in held:
+                stats.held += 1
+                continue
             if row is None:
                 if min_score_for_new is not None and (draft.score or 0) < min_score_for_new:
                     stats.skipped_low += 1
@@ -560,7 +582,7 @@ def sync_assertions(
                         "score": draft.score,
                         "evidence": draft.evidence,
                         "review_flags": review_flags(draft.evidence),
-                        "qualifiers": draft.qualifiers,
+                        "qualifiers": _kept_qualifiers(row, draft),
                         "method": draft.method,
                         "reported": True,
                         "last_evaluated_at": now,
@@ -605,16 +627,29 @@ def sync_assertions(
 ACTIONS = {"accept": "accepted", "reject": "rejected", "defer": "deferred"}
 
 
+class Superseded(TesseraError):
+    """The link was decided another way after it was read (a curator, while a batch ran)."""
+
+
 def decide(
-    engine: Engine, assertion_id: str, action: str, actor: str, note: str | None = None
-) -> dict[str, Any]:
-    """Apply a person's decision. ``undo`` restores the status before the latest decision."""
+    engine: Engine, assertion_id: str, action: str, actor: str, note: str | None = None,
+    *, expect: str | None = None, expect_actor: str | None = None,
+) -> dict[str, Any]:  # fmt: skip
+    """Apply a person's decision. ``undo`` restores the status before the latest decision.
+
+    With ``expect`` (and ``expect_actor``), only if the link still has that status (decided by
+    that actor): work that read many links first, such as a batch, never overwrites a decision
+    made since. Otherwise :class:`Superseded`."""
     with engine.begin() as conn:
         row = (
             conn.execute(select(assertion).where(assertion.c.id == assertion_id)).mappings().first()
         )
         if row is None:
             raise TesseraError(f"No assertion {assertion_id}")
+        if (expect is not None and row["status"] != expect) or (
+            expect_actor is not None and row["decided_by"] != expect_actor
+        ):
+            raise Superseded(f"{assertion_id} was decided another way since it was read.")
         if row["predicate"] == "same_as" and action == "accept":
             raise TesseraError("To accept a possible duplicate, merge the two records.")
         if action == "undo":
@@ -644,9 +679,14 @@ def decide(
         else:
             raise TesseraError(f"Unknown action {action!r}; use accept, reject, defer, or undo")
         now = utc_now()
-        conn.execute(
+        where = assertion.c.id == assertion_id
+        if expect is not None:  # and still so as it is written
+            where = and_(where, assertion.c.status == expect)
+        if expect_actor is not None:
+            where = and_(where, assertion.c.decided_by == expect_actor)
+        done = conn.execute(
             update(assertion)
-            .where(assertion.c.id == assertion_id)
+            .where(where)
             .values(
                 status=new_status,
                 locked=locked,
@@ -656,6 +696,8 @@ def decide(
                 updated_at=now,
             )
         )
+        if done.rowcount != 1:
+            raise Superseded(f"{assertion_id} was decided another way since it was read.")
         conn.execute(
             insert(curation_event).values(
                 assertion_id=assertion_id,

@@ -223,17 +223,24 @@ def save_cohort(request: Request, body: CohortIn) -> dict[str, Any]:
         cohorts.resolve(engine, spec, search=_search(request))  # it must resolve now
         with engine.begin() as conn:
             cohort_id = cohorts.save_cohort(
-                conn, body.name, spec, actor=principal.name, description=body.description
-            )
+                conn, body.name, spec, actor=principal.name, description=body.description,
+                owner=_owner(principal),
+            )  # fmt: skip
             row = cohorts.get_cohort(conn, cohort_id)
     except TesseraError as exc:
         raise _fail(exc) from exc
     return envelope(_saved_view(row))
 
 
+def _owner(principal: Any) -> str:
+    return principal.account_id or "operator"
+
+
 def _may_change(request: Request, row: dict[str, Any]) -> None:
+    """Whoever saved it (by account, since names are not unique), or an admin."""
     principal = principal_of(request)
-    if not (principal.is_admin or principal.single_operator or row["created_by"] == principal.name):
+    mine = row.get("owner") is not None and row["owner"] == _owner(principal)
+    if not (principal.is_admin or principal.single_operator or mine):
         raise HTTPException(
             status_code=403, detail="Only whoever saved a cohort, or an admin, may change it."
         )
@@ -374,13 +381,14 @@ def list_reports(request: Request) -> dict[str, Any]:
 
 @router.post("/reports", summary="Save a report for everyone who reads Insight")
 def create_report(request: Request, body: ReportIn) -> dict[str, Any]:
-    actor = principal_of(request).name
+    principal = principal_of(request)
+    actor = principal.name
     try:
         cohorts.resolve(engine_of(request), body.cohort, search=_search(request))  # it must resolve
         with engine_of(request).begin() as conn:
             report_id = reports.create_report(
                 conn, name=body.name, description=body.description, cohort=body.cohort,
-                start=body.start, end=body.end, actor=actor,
+                start=body.start, end=body.end, actor=actor, owner=_owner(principal),
                 figures=[f.model_dump() for f in body.figures],
             )  # fmt: skip
             row = reports.get_report(conn, report_id)

@@ -73,7 +73,7 @@ With 20 simulated users on a 100,000-publication organization, measured with `te
 | Users clicking without pause: requests served a second | 24 | 73 |
 | Memory of the server, under that load | 0.9 GB | 2.8 GB |
 
-Each process takes its own memory (about 0.7 GB at 100,000 publications) and keeps its own caches; everything else they share through the ledger, including the count of failed sign-ins, so the limit on guessing holds however many there are. Branding saved in the app reaches every process within a second. More processes than cores gains nothing.
+Each process takes its own memory (about 0.7 GB at 100,000 publications, and up to about 0.9 GB with its caches full: four took 0.8 to 3.6 GB over two hours of use, nightly syncs included) and keeps its own caches; everything else they share through the ledger, including the count of failed sign-ins, so the limit on guessing holds however many there are. Branding saved in the app reaches every process within a second. More processes than cores gains nothing.
 
 ## Running it as a service
 
@@ -314,7 +314,7 @@ uv run tessera build search    # rebuild the index with the new version
 uv run tessera build discovery # and concept profiles and the graph
 ```
 
-`tessera doctor` and the web app's health check (`/api/v1/health`) report a ledger that needs `db upgrade`. Migrations keep every row: they are tested on SQLite and PostgreSQL with a populated ledger, upgrading and downgrading. Take a backup before upgrading anyway (`tessera backup`). The [changelog](../CHANGELOG.md) notes anything that needs more than these steps, and [Compatibility](compatibility.md) says what each kind of release may change.
+`tessera doctor` and the web app's health check (`/api/v1/health`) report a ledger that needs `db upgrade`. Upgrades keep every row: they are tested on SQLite and PostgreSQL with a populated ledger, and with installations made by every earlier release. Migrations can be run backwards for development, but going back drops what later releases added, so to undo an upgrade, restore the backup taken before it. Take that backup before upgrading (`tessera backup`). The [changelog](../CHANGELOG.md) notes anything that needs more than these steps, and [Compatibility](compatibility.md) says what each kind of release may change.
 
 ### From any 0.x release to 1.0
 
@@ -417,8 +417,12 @@ uv run tessera lake gc         # delete superseded files older than 7 days
 
 ## When something goes wrong
 
-- **`tessera doctor`** checks the configuration, the data home, the ledger schema, and the database engines Tessera relies on (SQLite full-text search and DuckDB); `tessera doctor --online` also checks that each public source can be reached.
+- **`tessera doctor`** checks the configuration, the data home, the ledger schema, that the search index, the derived files, and the lake can be read, and the database engines Tessera relies on (SQLite full-text search and DuckDB); `tessera doctor --online` also checks that each public source can be reached.
 - **`tessera runs`** and the **Sources** page show failed or partial runs with the source's error.
 - **Logs** are in `<data home>/logs`. Add `-v` to any command for more detail.
 - **A source changed or was down:** run `uv run tessera sync` again; completed work is not repeated.
 - **Search looks out of date:** `uv run tessera build search` rebuilds it from the lake and ledger in seconds.
+- **A source fails during a sync** (down, slow, or sending something it should not): that source's run is recorded as failed or partial with what went wrong, its last good data stays, and the other sources, the resolve, and the builds go on. The sync exits with a non-zero status; the next one fetches what was missed.
+- **A sync or resolve was stopped** (a restart, a killed process): run it again. The stopped run is marked interrupted; each step it finished is kept, and the next run does the rest, ending exactly where an uninterrupted run would.
+- **A page says the search index cannot be read**, or a derived file cannot be: `tessera doctor` names the file and the command that rebuilds it (`tessera build search`, `tessera build discovery`, or `tessera build opportunities`). They are made from the ledger and the lake, so nothing is lost.
+- **`tessera doctor` says a lake file cannot be read:** the lake holds what was fetched, so restore the latest backup into a new data home (`tessera restore`, below *Backups*) and point the configuration at it; or, if `raw/` holds that source's responses, `tessera replay` rebuilds its lake records from them. Then run `tessera sync` to fetch what came after the backup.

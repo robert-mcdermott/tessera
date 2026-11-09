@@ -154,6 +154,31 @@ class RosterStats:
         }
 
 
+def _imported_without_identifiers(conn: Any) -> dict[tuple[str, str], list[str]]:
+    """People an earlier roster import made from a row with no ORCID iD, email, or local ID,
+    by their names from the roster. Importing the same file again matches them by name (when
+    only one has it) rather than making them twice."""
+    from sqlalchemy import select
+
+    from tessera.ledger.tables import person, person_identifier, person_name
+
+    identified = set(conn.execute(select(person_identifier.c.person_id).distinct()).scalars())
+    out: dict[tuple[str, str], list[str]] = defaultdict(list)
+    rows = conn.execute(
+        select(person_name.c.person_id, person_name.c.family, person_name.c.given)
+        .join(person, person.c.id == person_name.c.person_id)
+        .where(person_name.c.source == "roster", person.c.status.in_(("active", "former")))
+        .distinct()
+    )
+    for person_id, family, given in rows:
+        if person_id not in identified:
+            name = make_name(family, given)
+            key = (name.family_key, name.given.lower())
+            if person_id not in out[key]:
+                out[key].append(person_id)
+    return out
+
+
 def import_roster(
     engine: Engine,
     path: Path,
@@ -188,6 +213,7 @@ def import_roster(
     # person listed once per unit stays one person.
     by_name: dict[tuple[str, str], str] = {}
     with engine.begin() as conn:
+        earlier = _imported_without_identifiers(conn)
         for number, row in enumerate(reader, start=2):
             stats.rows += 1
 
@@ -228,6 +254,8 @@ def import_roster(
             anonymous = not any(v for _, v in identifiers)
             if person_id is None and anonymous:
                 person_id = by_name.get(name_key)
+                if person_id is None and len(earlier.get(name_key, ())) == 1:
+                    (person_id,) = earlier[name_key]  # imported before, from a row like this
             if person_id:
                 stats.matched += 1
                 store.add_name(conn, person_id, name, kind="variant", source="roster")

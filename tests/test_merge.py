@@ -258,3 +258,24 @@ def test_duplicates_and_merges_over_the_api(dups: Duplicates) -> None:
         log = client.get("/api/v1/decisions", params={"limit": 2}).json()["data"]
         assert [e["action"] for e in log] == ["unmerge", "merge"]
         assert log[0]["merge"]["survivor"]["id"] == grant_id
+
+
+def test_a_decision_left_on_a_merged_record_claims_no_author_position(dups: Duplicates) -> None:
+    """Both records' copies of a paper accepted, then merged: the copy left on the merged
+    record is its history, so the survivor's own accepted copy is not marked as conflicting
+    with it (wave 8's review)."""
+    roster_id, grant_id, _ = dups.pairs[0]
+    engine, s = dups.engine, dups.s
+    r_links, g_links = links(engine, roster_id), links(engine, grant_id)
+    paper = sorted(set(r_links) & set(g_links))[0]
+    store.decide(engine, r_links[paper]["id"], "accept", "Curator")
+    store.decide(engine, g_links[paper]["id"], "accept", "Curator")
+    if r_links[paper]["id"] > g_links[paper]["id"]:  # the one read last is the merged one
+        merged, survivor = roster_id, grant_id
+    else:
+        merged, survivor = grant_id, roster_id
+    merge_people(engine, merged, survivor, "Curator")
+    s.resolve()
+    kept = links(engine, survivor)[paper]
+    assert kept["status"] == "accepted"
+    assert not [f for f in kept["evidence"] if f["feature"] == "slot_conflict"]

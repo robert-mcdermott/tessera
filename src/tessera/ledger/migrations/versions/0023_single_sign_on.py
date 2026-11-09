@@ -65,6 +65,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Roles mapped from the provider are given again at each sign-in; kept without their
+    # source, they would become local grants that a change at the provider never removes.
+    op.execute("DELETE FROM role_grant WHERE source = 'provider'")
     op.drop_table("sign_in_attempt")
     with op.batch_alter_table("account_identity", schema=None) as batch_op:
         batch_op.drop_index(batch_op.f("ix_account_identity_account_id"))

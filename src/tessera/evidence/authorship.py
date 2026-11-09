@@ -827,8 +827,10 @@ def resolve_authorship(
     accepted: dict[str, set[str]] = defaultdict(set)
     rejected: dict[str, set[str]] = defaultdict(set)
     claimed_slots: dict[tuple[str, int], str] = {}
+    directory = {p.id for p in people}
     for row in decided:
-        if not row["locked"]:
+        # A decision left on a record merged into another is that one's history, not a claim.
+        if not row["locked"] or row["subject_id"] not in directory:
             continue
         pmid = row["object_id"].removeprefix("pub:")
         (accepted if row["status"] == "accepted" else rejected)[row["subject_id"]].add(pmid)
