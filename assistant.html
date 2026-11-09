@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The assistant · Tessera</title>
+<meta name="description" content="Tessera can include an assistant that answers questions from Tessera's own records, citing them. It is optional and off by default : until the configuration turns it on, nothing in the app, the API, o">
+<meta property="og:title" content="The assistant">
+<meta property="og:description" content="Tessera can include an assistant that answers questions from Tessera's own records, citing them. It is optional and off by default : until the configuration turns it on, nothing in the app, the API, o">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://robert-mcdermott.github.io/tessera/images/social-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="assets/tessera-mark.svg">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/site.css">
+<script src="assets/theme.js"></script>
+<script src="assets/site.js" defer></script>
+</head>
+<body class="page-assistant">
+<a class="skip" href="#content">Skip to content</a>
+<header class="top">
+  <button class="menu-button" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu">☰</button>
+  <a class="brand" href="index.html"><img src="assets/tessera-mark.svg" alt="" width="26" height="26"><span>Tessera</span><span class="version">v0.5.0</span></a>
+  <div class="search" role="search">
+    <input id="search" type="search" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off" spellcheck="false">
+    <kbd>/</kbd>
+    <div class="results" id="results" role="listbox" hidden></div>
+  </div>
+  <div class="theme" role="group" aria-label="Theme">
+    <button type="button" data-theme-choice="light" title="Light">☀</button><button type="button" data-theme-choice="system" title="System">◐</button><button type="button" data-theme-choice="dark" title="Dark">☾</button>
+  </div>
+  <a class="github" href="https://github.com/robert-mcdermott/tessera" rel="noopener">GitHub</a>
+</header>
+<div class="layout">
+  <nav class="menu" id="menu" aria-label="Documentation"><div class="menu-group"><div class="menu-title">Start</div><ul><li><a href="index.html">Overview</a></li><li><a href="getting-started.html">Getting started</a></li><li><a href="organization-profile.html">Describing your organization</a></li></ul></div><div class="menu-group"><div class="menu-title">Use</div><ul><li><a href="curation.html">Curating</a></li><li><a href="discovery.html">Finding experts</a></li><li><a href="groups.html">Groups</a></li><li><a href="insight.html">Insight</a></li><li><a href="opportunities.html">Opportunities</a></li><li><a href="public-site.html">The public site</a></li></ul></div><div class="menu-group"><div class="menu-title">Run</div><ul><li><a href="configuration.html">Configuration</a></li><li><a href="operations.html">Running Tessera</a></li><li><a href="assistant.html" aria-current="page">The assistant</a></li></ul></div><div class="menu-group"><div class="menu-title">Reference</div><ul><li><a href="api.html">The API</a></li><li><a href="api-reference.html">API reference</a></li><li><a href="cli.html">Command reference</a></li><li><a href="changelog.html">Changelog</a></li></ul></div></nav>
+  <main id="content" class="content">
+<h1 id="the-assistant">The assistant</h1>
+<p>Tessera can include an assistant that answers questions from Tessera's own records, citing them. It is <strong>optional and off by default</strong>: until the configuration turns it on, nothing in the app, the API, or the public site mentions it, and no model is ever called. Everything else in Tessera works the same with it off.</p>
+<h2 id="what-it-does-and-what-it-never-does">What it does, and what it never does<a class="anchor" href="#what-it-does-and-what-it-never-does" aria-label="Link to this section">#</a></h2>
+<ul><li>It answers from the records the person asking may read, through the same access policy as every page. It cannot change anything.</li><li>It cites the records it used, and declines what the records do not support.</li><li>Nothing sent to a model includes contact details (email addresses, phone numbers, postal addresses) or links nobody has accepted.</li><li>Every exchange is logged: who asked, when, the provider and model, the prompt's version, the messages and tool calls with the records they returned, the answer, its citations, tokens, and time. Admins read the log in <strong>Admin → Assistant</strong>.</li></ul>
+<figure><img src="images/assistant-log-light.webp" alt="Admin, Assistant: the provider and model, the last 30 days in exchanges and tokens, and every exchange with who asked, the question, its outcome, tool calls, citations, tokens, and time" loading="lazy" class="only-light"><img src="images/assistant-log-dark.webp" alt="Admin, Assistant: the provider and model, the last 30 days in exchanges and tokens, and every exchange with who asked, the question, its outcome, tool calls, citations, tokens, and time" loading="lazy" class="only-dark"><figcaption>Admin → Assistant</figcaption></figure>
+<h2 id="asking-a-question">Asking a question<a class="anchor" href="#asking-a-question" aria-label="Link to this section">#</a></h2>
+<p>With the assistant on, <strong>Ask</strong> appears in the top bar (and as <strong>Ask a question…</strong> in the command palette, ⌘K or Ctrl-K). It opens a side panel. Type a question and press Enter.</p>
+<ul><li>While the assistant works, the panel shows each step: &quot;Finding who works on …&quot;, &quot;Opening …&quot;, &quot;Counting …&quot;.</li><li>The answer streams in as it is written, with numbered citations. The records it cites are listed under it; open one to see the record.</li><li>Ask a follow-up in the same panel and the assistant keeps the conversation. <strong>New conversation</strong> starts over.</li><li><strong>Stop</strong> ends an answer early. A stopped answer is kept in the log, and its citations are not shown, since they were never checked.</li></ul>
+<figure><img src="images/ask-light.webp" alt="The Ask panel beside the home page: a question, the steps taken, an answer with numbered citations, and the records it cites" loading="lazy" class="only-light"><img src="images/ask-dark.webp" alt="The Ask panel beside the home page: a question, the steps taken, an answer with numbered citations, and the records it cites" loading="lazy" class="only-dark"><figcaption>Ask</figcaption></figure>
+<p>It answers questions such as:</p>
+<ul><li>Who works on a topic, and which of their papers show it</li><li>What a group studies, who leads it, and who is in it</li><li>A person's or a group's papers, grants, and studies</li><li>What followed a grant or a paper: the papers, studies, and clinical articles after it</li><li>Which open funding opportunities fit a person or a group, who fits an opportunity, and whether the organization may apply</li><li>Portfolio counts from Insight, such as papers by year for a group, counting confirmed work only</li></ul>
+<h3 id="how-answers-are-kept-honest">How answers are kept honest<a class="anchor" href="#how-answers-are-kept-honest" aria-label="Link to this section">#</a></h3>
+<p>The assistant looks things up with read-only tools. Each tool asks Tessera's own API, in the same request the person's browser would make, with their session, so it sees exactly what they may see and nothing else. The tools:</p>
+<div class="table-wrap"><table><thead><tr><th>Tool</th><th>What it reads</th></tr></thead><tbody><tr><td>search</td><td>People, papers, grants, studies, opportunities, and groups, by words</td></tr><tr><td>open record</td><td>One record's details</td></tr><tr><td>experts</td><td>Who works on a topic, and their papers on it</td></tr><tr><td>work of</td><td>A person's or group's confirmed papers, grants, and studies</td></tr><tr><td>Insight figure</td><td>A metric over a cohort and years, counting confirmed records only</td></tr><tr><td>impact thread</td><td>What followed a grant, a paper, or a person's work</td></tr><tr><td>opportunity fit</td><td>Who fits an opportunity, and whether the organization may apply</td></tr><tr><td>opportunities for</td><td>Open opportunities that fit a person or a group</td></tr></tbody></table></div>
+<p>Then the answer is checked before it is shown:</p>
+<ul><li><strong>Every citation is checked.</strong> The model cites records by their identifiers. A citation is kept only if one of the tools returned that record while answering this question (or the answer before it cited it, for a follow-up). Any other citation is shown as removed.</li><li><strong>An answer with nothing left to cite is not shown.</strong> It becomes a short decline that says what was searched: &quot;I could not find anything in Tessera's records that answers this. I looked with: …&quot;. Text the model writes is held back until it cites a record, so an answer that will be declined never appears, not even while it streams. Admins can still read what the model wrote, in the log.</li><li><strong>Records are data, not instructions.</strong> What a record says (a title, an abstract, a group's page) goes to the model only as a tool's result, and the instructions tell the model never to follow text inside one.</li><li><strong>Only what is reviewed.</strong> Suggested links nobody has accepted are left out of everything a model is sent, as are contact details, draft group pages, saved searches, and teams.</li></ul>
+<p>The instructions the model follows are versioned in the code (<code>assistant/v1</code>), and every exchange records which version it used.</p>
+<h3 id="from-the-api">From the API<a class="anchor" href="#from-the-api" aria-label="Link to this section">#</a></h3>
+<p>With the assistant on, <code>POST /api/v1/ai/ask</code> takes <code>{&quot;question&quot;: &quot;…&quot;, &quot;previous&quot;: &quot;&lt;exchange ID&gt;&quot;}</code> (<code>previous</code> is optional, for a follow-up) and answers with JSON lines as they happen: <code>{&quot;type&quot;: &quot;step&quot;, &quot;label&quot;}</code> for each lookup, <code>{&quot;type&quot;: &quot;text&quot;, &quot;text&quot;}</code> as the answer streams, <code>{&quot;type&quot;: &quot;discard&quot;}</code> when text written before a lookup is set aside, and last <code>{&quot;type&quot;: &quot;done&quot;, &quot;status&quot;, &quot;answer&quot;, &quot;citations&quot;, &quot;exchange&quot;, &quot;searched&quot;}</code>. <code>status</code> is <code>answered</code>, <code>declined</code>, <code>limited</code> (the daily limit), or <code>failed</code>; each citation has its <code>ref</code>, <code>kind</code>, <code>title</code>, <code>href</code>, and whether it was <code>removed</code>. <code>GET /api/v1/ai/status</code> says whether you may ask and how many questions are left today. Like every change, the request needs the session's <code>X-CSRF-Token</code> when accounts are on.</p>
+<h2 id="plain-language-summaries">Plain-language summaries<a class="anchor" href="#plain-language-summaries" aria-label="Link to this section">#</a></h2>
+<p>With the assistant on, a profile or a group can have a short summary of its work for a general reader: patients, donors, students, journalists. Nobody sees a summary until someone responsible for it approves it.</p>
+<ul><li><strong>Who reviews:</strong> for a profile, the person themselves (when their account is linked to it), a curator for them, or an admin; for a group, its managers and curators.</li><li><strong>Drafting:</strong> a reviewer chooses <strong>Draft a summary</strong> on the profile, or on the group's page. The facts come from confirmed records only (positions, topics, recent confirmed papers, grants, and studies; for a group, also its published page and its leaders), read with the reviewer's own access, and the model is told to use nothing else: no added results, no praise, no guessed gender.</li><li><strong>Reviewing:</strong> the draft appears only to reviewers. Edit it if you like, then <strong>Approve</strong> or <strong>Reject</strong>. An edited approval keeps both the model's draft and your edit. <strong>Draft a new summary</strong> at any time; an approved summary stays until another is approved.</li><li><strong>Where it shows:</strong> an approved summary appears on the profile for everyone who can see it; for a group, where its editors add a <strong>Summary</strong> block to the page. It is labeled &quot;Drafted with AI assistance; approved by …&quot;, and appears on the <a href="public-site.html">public site</a> too for people and groups that are public.</li><li><strong>Keeping it current:</strong> when someone's or a group's confirmed records have changed a good deal since its summary was approved (five confirmed papers more or fewer, or a fifth of them where that is more; any grant or study; for a group, two members or a quarter of them, where that is more), the group's inbox, or the person's own inbox, suggests drafting a new one.</li><li><strong>History:</strong> every draft, edit, approval, rejection, and replacement is recorded, with who did it and when, and each draft keeps the model, the instructions' version (<code>summary/v1</code>), and a digest of the facts it was given. Each draft is also an exchange in the log.</li></ul>
+<figure><img src="images/summary-light.webp" alt="A profile with its approved summary: two short paragraphs in plain language, labeled as drafted with AI assistance and approved by whom" loading="lazy" class="only-light"><img src="images/summary-dark.webp" alt="A profile with its approved summary: two short paragraphs in plain language, labeled as drafted with AI assistance and approved by whom" loading="lazy" class="only-dark"><figcaption>A plain-language summary</figcaption></figure>
+<p>Turning the assistant off keeps approved summaries but shows them nowhere, the public site included; turning it back on shows them again.</p>
+<h2 id="turning-it-on">Turning it on<a class="anchor" href="#turning-it-on" aria-label="Link to this section">#</a></h2>
+<p>Add an <code>[ai]</code> section to the configuration and restart <code>tessera serve</code>. The starting configuration that <code>tessera init</code> writes (and <a href="https://github.com/robert-mcdermott/tessera/blob/main/tessera.example.toml" rel="noopener"><code>tessera.example.toml</code></a>) ends with one, commented out, listing every setting: remove the <code># </code> before <code>[ai]</code> and each setting you need. Keys are never written in the file: the configuration names the environment variable that holds one, and a key written in the file stops Tessera from starting.</p>
+<p><code>provider</code> is the protocol the endpoint speaks:</p>
+<div class="table-wrap"><table><thead><tr><th><code>provider</code></th><th>Speaks</th><th>Works with</th></tr></thead><tbody><tr><td><code>openai</code></td><td>OpenAI's Chat Completions API</td><td>OpenAI, and any endpoint that speaks it: Ollama, vLLM, LM Studio, gateways</td></tr><tr><td><code>anthropic</code></td><td>Anthropic's Messages API</td><td>Anthropic, and any endpoint that speaks it: Ollama, gateways</td></tr><tr><td><code>bedrock</code></td><td>Amazon Bedrock's Converse API</td><td>Amazon Bedrock in your AWS account</td></tr></tbody></table></div>
+<p>A model served by Ollama on the same machine, through its OpenAI-compatible endpoint (no key needed):</p>
+<div class="code"><pre><code class="language-toml">[ai]
+enabled = true
+provider = &quot;openai&quot;
+base_url = &quot;http://127.0.0.1:11434/v1&quot;
+model = &quot;gemma4:31b-cloud&quot;</code></pre></div>
+<p>The same model through Ollama's Anthropic-compatible endpoint:</p>
+<div class="code"><pre><code class="language-toml">[ai]
+enabled = true
+provider = &quot;anthropic&quot;
+base_url = &quot;http://127.0.0.1:11434&quot;
+model = &quot;gemma4:31b-cloud&quot;</code></pre></div>
+<p>OpenAI's or Anthropic's own service: leave <code>base_url</code> empty and put the key in <code>OPENAI_API_KEY</code> or <code>ANTHROPIC_API_KEY</code> (or name another variable with <code>api_key_env</code>):</p>
+<div class="code"><pre><code class="language-toml">[ai]
+enabled = true
+provider = &quot;anthropic&quot;
+model = &quot;the model's name&quot;</code></pre></div>
+<p>Amazon Bedrock: name the region and the model (or inference profile) ID. Tessera reads an Amazon Bedrock API key from <code>AWS_BEARER_TOKEN_BEDROCK</code>, or else access keys from <code>AWS_ACCESS_KEY_ID</code>, <code>AWS_SECRET_ACCESS_KEY</code>, and <code>AWS_SESSION_TOKEN</code>, and signs its requests with them. With an AWS profile or single sign-on, <code>aws configure export-credentials --format env</code> puts them in the environment.</p>
+<div class="code"><pre><code class="language-toml">[ai]
+enabled = true
+provider = &quot;bedrock&quot;
+region = &quot;us-west-2&quot;
+model = &quot;the model or inference profile ID&quot;</code></pre></div>
+<p>Then check it:</p>
+<div class="code"><pre><code class="language-bash">tessera ai check</code></pre></div>
+<p>It sends one short question and one that needs a tool, and says how the model answered. <code>tessera doctor</code> also checks the section once it is on. Every setting is in <a href="configuration.html#ai">Configuration</a>.</p>
+<h3 id="trying-it-on-the-demo">Trying it on the demo<a class="anchor" href="#trying-it-on-the-demo" aria-label="Link to this section">#</a></h3>
+<p>The demo (see <a href="getting-started.html#try-the-demo-first-optional">Getting started</a>) is built with the assistant off. To try it there, add an <code>[ai]</code> section to the end of <code>demo/tessera.toml</code>. This one uses Ollama on the same machine, which needs no key from Tessera; Ollama must be running with the model available, and any of the providers above works the same way:</p>
+<div class="code"><pre><code class="language-toml">[ai]
+enabled = true
+provider = &quot;openai&quot;
+base_url = &quot;http://127.0.0.1:11434/v1&quot;
+model = &quot;gemma4:31b-cloud&quot;</code></pre></div>
+<p>Then check the connection and start (or restart) the demo:</p>
+<div class="code"><pre><code class="language-bash">uv run tessera --config demo/tessera.toml ai check
+uv run tessera --config demo/tessera.toml serve</code></pre></div>
+<p><strong>Ask</strong> now appears in the top bar: try &quot;Who works on CAR-T cell therapy?&quot; or &quot;How many papers has the organization published each year?&quot;, and a question the records cannot answer, such as someone's salary. On a profile, <strong>Draft a plain-language summary</strong> drafts one for you to review and approve, and <strong>Admin → Assistant</strong> shows every exchange. Rebuilding the demo with <code>--force</code> writes a new <code>tessera.toml</code>, so add the section again afterwards.</p>
+<h2 id="choosing-a-model">Choosing a model<a class="anchor" href="#choosing-a-model" aria-label="Link to this section">#</a></h2>
+<p>The assistant relies on the model to call tools and to cite what they return, so a model needs tool calling. Larger models follow the instructions more reliably. Small local models are fine for trying it out; for everyday use, choose a model your organization trusts with the records the assistant reads, since everything it is sent leaves Tessera.</p>
+    <nav class="pager" aria-label="Pages"><a class="prev" href="operations.html"><span>Previous</span>Running Tessera</a><a class="next" href="api.html"><span>Next</span>The API</a></nav>
+    <footer class="foot">Describes Tessera 0.5.0. Apache License 2.0. Screenshots show an invented organization; every person and record in them is fictional.</footer>
+  </main>
+  <aside class="toc" aria-label="On this page"><div class="menu-title">On this page</div><ul><li class="l2"><a href="#what-it-does-and-what-it-never-does">What it does, and what it never does</a></li><li class="l2"><a href="#asking-a-question">Asking a question</a></li><li class="l3"><a href="#how-answers-are-kept-honest">How answers are kept honest</a></li><li class="l3"><a href="#from-the-api">From the API</a></li><li class="l2"><a href="#plain-language-summaries">Plain-language summaries</a></li><li class="l2"><a href="#turning-it-on">Turning it on</a></li><li class="l3"><a href="#trying-it-on-the-demo">Trying it on the demo</a></li><li class="l2"><a href="#choosing-a-model">Choosing a model</a></li></ul></aside>
+</div>
+</body>
+</html>

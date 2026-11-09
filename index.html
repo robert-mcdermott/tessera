@@ -20,7 +20,7 @@
 <a class="skip" href="#content">Skip to content</a>
 <header class="top">
   <button class="menu-button" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu">☰</button>
-  <a class="brand" href="index.html"><img src="assets/tessera-mark.svg" alt="" width="26" height="26"><span>Tessera</span><span class="version">v0.4.0</span></a>
+  <a class="brand" href="index.html"><img src="assets/tessera-mark.svg" alt="" width="26" height="26"><span>Tessera</span><span class="version">v0.5.0</span></a>
   <div class="search" role="search">
     <input id="search" type="search" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off" spellcheck="false">
     <kbd>/</kbd>
@@ -32,12 +32,12 @@
   <a class="github" href="https://github.com/robert-mcdermott/tessera" rel="noopener">GitHub</a>
 </header>
 <div class="layout">
-  <nav class="menu" id="menu" aria-label="Documentation"><div class="menu-group"><div class="menu-title">Start</div><ul><li><a href="index.html" aria-current="page">Overview</a></li><li><a href="getting-started.html">Getting started</a></li><li><a href="organization-profile.html">Describing your organization</a></li></ul></div><div class="menu-group"><div class="menu-title">Use</div><ul><li><a href="curation.html">Curating</a></li><li><a href="discovery.html">Finding experts</a></li><li><a href="groups.html">Groups</a></li><li><a href="insight.html">Insight</a></li><li><a href="public-site.html">The public site</a></li></ul></div><div class="menu-group"><div class="menu-title">Run</div><ul><li><a href="configuration.html">Configuration</a></li><li><a href="operations.html">Running Tessera</a></li></ul></div><div class="menu-group"><div class="menu-title">Reference</div><ul><li><a href="api.html">The API</a></li><li><a href="api-reference.html">API reference</a></li><li><a href="cli.html">Command reference</a></li><li><a href="changelog.html">Changelog</a></li></ul></div></nav>
+  <nav class="menu" id="menu" aria-label="Documentation"><div class="menu-group"><div class="menu-title">Start</div><ul><li><a href="index.html" aria-current="page">Overview</a></li><li><a href="getting-started.html">Getting started</a></li><li><a href="organization-profile.html">Describing your organization</a></li></ul></div><div class="menu-group"><div class="menu-title">Use</div><ul><li><a href="curation.html">Curating</a></li><li><a href="discovery.html">Finding experts</a></li><li><a href="groups.html">Groups</a></li><li><a href="insight.html">Insight</a></li><li><a href="opportunities.html">Opportunities</a></li><li><a href="public-site.html">The public site</a></li></ul></div><div class="menu-group"><div class="menu-title">Run</div><ul><li><a href="configuration.html">Configuration</a></li><li><a href="operations.html">Running Tessera</a></li><li><a href="assistant.html">The assistant</a></li></ul></div><div class="menu-group"><div class="menu-title">Reference</div><ul><li><a href="api.html">The API</a></li><li><a href="api-reference.html">API reference</a></li><li><a href="cli.html">Command reference</a></li><li><a href="changelog.html">Changelog</a></li></ul></div></nav>
   <main id="content" class="content">
 <section class="hero">
   <p class="eyebrow">Open research intelligence for academic research organizations</p>
   <h1 id="tessera">Every contribution, connected.</h1>
-  <p class="lead">Tessera builds your organization's research footprint from public data: people, publications, grants, and clinical studies, linked with the evidence behind every connection. Curators confirm links in seconds, and everyone can find who works on what, and who should meet.</p>
+  <p class="lead">Tessera builds your organization's research footprint from public data: people, publications, grants, and clinical studies, linked with the evidence behind every connection. Curators confirm links in seconds, and everyone can find who works on what, who should meet, what followed the work, and which funding fits it next.</p>
   <div class="cta">
     <a class="button primary" href="getting-started.html">Get started</a>
     <a class="button" href="#try-it">Try the demo</a>
@@ -47,7 +47,7 @@
 </section>
 
 <section class="pillars">
-  <div><h3>Starts from public data</h3><p>PubMed, NIH RePORTER, ClinicalTrials.gov, iCite, ORCID, and MeSH. No HR feeds or integrations to begin.</p></div>
+  <div><h3>Starts from public data</h3><p>PubMed, NIH RePORTER, ClinicalTrials.gov, iCite, ORCID, MeSH, and Grants.gov. No HR feeds or integrations to begin.</p></div>
   <div><h3>Evidence on every link</h3><p>Each connection records its source, the evidence for and against it, and who decided.</p></div>
   <div><h3>Humans decide</h3><p>Automation suggests and curators confirm; decisions survive every refresh and can be undone.</p></div>
   <div><h3>Open and yours</h3><p>Apache 2.0, runs on a laptop or one server, keeps data in open formats, and takes your brand.</p></div>
@@ -95,7 +95,7 @@
 
 <section class="feature">
   <div class="feature-text">
-    <p class="eyebrow">Opportunities</p>
+    <p class="eyebrow">Collaboration</p>
     <h2 id="missed">Who should meet</h2>
     <p>Missed connections are people whose interests are alike but who have never worked together, with the topics they share and anyone who has worked with both. The unit matrix shows which units share interests but rarely collaborate.</p>
     <p><a href="discovery.html#missed-connections">Missed connections →</a></p>
@@ -103,7 +103,7 @@
   <figure class="shot"><img src="images/missed-light.webp" alt="Missed connections: pairs of researchers with the topics they share and a colleague who has worked with both" loading="lazy" class="only-light"><img src="images/missed-dark.webp" alt="Missed connections: pairs of researchers with the topics they share and a colleague who has worked with both" loading="lazy" class="only-dark"></figure>
 </section>
 
-<section class="feature">
+<section class="feature flip">
   <div class="feature-text">
     <p class="eyebrow">Groups</p>
     <h2 id="groups">A home for every lab and program</h2>
@@ -114,6 +114,56 @@
 </section>
 
 <section class="feature">
+  <div class="feature-text">
+    <p class="eyebrow">Portfolio</p>
+    <h2 id="insight">The portfolio, honestly</h2>
+    <p>Publications, funding, topics, and studies for the organization, a division, a program, a lab, or people you pick, over the years you choose. Every figure says exactly what it counts, with its definition and version, its cohort, and its sources; money is counted without double counting, small numbers are marked, and nothing ranks people. Freeze a report as a snapshot that verifies years later, and export any figure with the records behind it.</p>
+    <p><a href="insight.html">Insight →</a></p>
+  </div>
+  <figure class="shot"><img src="images/insight-funding-light.webp" alt="Funding for the organization: awards by fiscal year split into new awards, continuing years, and supplements, with the amount and awardee choices above" loading="lazy" class="only-light"><img src="images/insight-funding-dark.webp" alt="Funding for the organization: awards by fiscal year split into new awards, continuing years, and supplements, with the amount and awardee choices above" loading="lazy" class="only-dark"></figure>
+</section>
+
+<section class="feature flip">
+  <div class="feature-text">
+    <p class="eyebrow">Impact</p>
+    <h2 id="impact">What followed the work</h2>
+    <p>Every grant shows what came after it: the papers that acknowledge it, the registered studies that reference them, and the clinical articles that cite them, with practice guidelines marked and the years from award to first clinical citation. Each step says how it is linked and where that came from, and only confirmed links are followed. It shows association, never causation.</p>
+    <p><a href="insight.html#a-grants-thread">A grant's thread →</a></p>
+  </div>
+  <figure class="shot"><img src="images/thread-light.webp" alt="A grant's thread: the papers that acknowledge it, the studies that reference them, and the clinical articles citing them, in three columns" loading="lazy" class="only-light"><img src="images/thread-dark.webp" alt="A grant's thread: the papers that acknowledge it, the studies that reference them, and the clinical articles citing them, in three columns" loading="lazy" class="only-dark"></figure>
+</section>
+
+<section class="feature">
+  <div class="feature-text">
+    <p class="eyebrow">Funding</p>
+    <h2 id="opportunities">Funding that fits</h2>
+    <p>Federal opportunities from Grants.gov, and your own foundation calls, pilot funds, and limited submissions, each read as topics and matched to the people and groups whose confirmed work fits it, with the reasons shown. Whether your organization may apply is checked separately: applicant type, deadlines, limited submission, career stage. Start a team from an opportunity to see which topics its members cover, who could fill the gaps, and a brief to share.</p>
+    <p><a href="opportunities.html">Opportunities →</a></p>
+  </div>
+  <figure class="shot"><img src="images/opportunity-light.webp" alt="An opportunity's page: who fits it and why, the topics it was read as, and whether the organization may apply" loading="lazy" class="only-light"><img src="images/opportunity-dark.webp" alt="An opportunity's page: who fits it and why, the topics it was read as, and whether the organization may apply" loading="lazy" class="only-dark"></figure>
+</section>
+
+<section class="feature flip">
+  <div class="feature-text">
+    <p class="eyebrow">Optional assistant</p>
+    <h2 id="assistant">Ask, and see the sources</h2>
+    <p>Turn on the assistant and ask in plain words: who works on this, what followed that grant, which opportunities fit this lab. It looks things up with read-only tools, as the person asking, so it sees only what they may see, and every answer cites the records it rests on. A citation it cannot stand behind is removed, and a question the records do not answer is declined, never guessed. It works with any OpenAI-compatible or Anthropic-compatible endpoint, official, self-hosted, or a model on your own machine, and with Amazon Bedrock. It is off until you turn it on, and every exchange is logged.</p>
+    <p><a href="assistant.html">The assistant →</a></p>
+  </div>
+  <figure class="shot"><img src="images/ask-light.webp" alt="The Ask panel beside the home page: a question, an answer with numbered citations, and the records it cites" loading="lazy" class="only-light"><img src="images/ask-dark.webp" alt="The Ask panel beside the home page: a question, an answer with numbered citations, and the records it cites" loading="lazy" class="only-dark"></figure>
+</section>
+
+<section class="feature">
+  <div class="feature-text">
+    <p class="eyebrow">Plain language</p>
+    <h2 id="summaries">Summaries people approve</h2>
+    <p>With the assistant on, a profile or a group can have a short summary of its work for patients, donors, and students, drafted from confirmed records only. Nobody sees a draft but its reviewers: the person, their curators, or the group's managers, who edit, approve, or reject it. Approved summaries are labeled as drafted with AI assistance, and by whom they were approved.</p>
+    <p><a href="assistant.html#plain-language-summaries">Plain-language summaries →</a></p>
+  </div>
+  <figure class="shot"><img src="images/summary-light.webp" alt="A profile with its approved summary, labeled as drafted with AI assistance and approved by whom" loading="lazy" class="only-light"><img src="images/summary-dark.webp" alt="A profile with its approved summary, labeled as drafted with AI assistance and approved by whom" loading="lazy" class="only-dark"></figure>
+</section>
+
+<section class="feature flip">
   <div class="feature-text">
     <p class="eyebrow">Public</p>
     <h2 id="public">A public site, checked</h2>
@@ -137,7 +187,7 @@ cd tessera
 uv sync
 uv run tessera demo
 uv run tessera --config demo/tessera.toml serve</code></pre></div>
-  <p>Then open <a href="http://127.0.0.1:8000" rel="noopener">http://127.0.0.1:8000</a>. To set Tessera up for your own organization, start with <a href="getting-started.html">Getting started</a>.</p>
+  <p>Then open <a href="http://127.0.0.1:8000" rel="noopener">http://127.0.0.1:8000</a>. To try the assistant there too, see <a href="assistant.html#trying-it-on-the-demo">Trying it on the demo</a>. To set Tessera up for your own organization, start with <a href="getting-started.html">Getting started</a>.</p>
 </section>
 
 <section class="guides">
@@ -148,18 +198,21 @@ uv run tessera --config demo/tessera.toml serve</code></pre></div>
     <a href="curation.html"><strong>Curating</strong><span>Work through suggestions, discovered people, duplicates, and ORCID iDs.</span></a>
     <a href="discovery.html"><strong>Finding experts</strong><span>Expert search, similar people, the graphs, and the unit matrix.</span></a>
     <a href="groups.html"><strong>Groups</strong><span>Labs, programs, and divisions: members, pages, managers, and the inbox.</span></a>
+    <a href="insight.html"><strong>Insight</strong><span>Portfolio figures, cohorts, reports, snapshots, exports, and impact.</span></a>
+    <a href="opportunities.html"><strong>Opportunities</strong><span>Funding that fits, whether you may apply, and building a team.</span></a>
     <a href="public-site.html"><strong>The public site</strong><span>Publish pages for the groups and people who opt in.</span></a>
     <a href="configuration.html"><strong>Configuration</strong><span>Every setting, including palettes, your logo, and thresholds.</span></a>
     <a href="operations.html"><strong>Running Tessera</strong><span>Syncs, accounts, backups, upgrades, and PostgreSQL.</span></a>
+    <a href="assistant.html"><strong>The assistant</strong><span>Turn on the optional assistant: providers, what it sees, the log.</span></a>
     <a href="api.html"><strong>The API</strong><span>Build on the JSON API; every endpoint is in the API reference.</span></a>
     <a href="cli.html"><strong>Command reference</strong><span>Every command and its options.</span></a>
   </div>
 </section>
 
     <nav class="pager" aria-label="Pages"><span></span><a class="next" href="getting-started.html"><span>Next</span>Getting started</a></nav>
-    <footer class="foot">Describes Tessera 0.4.0. Apache License 2.0. Screenshots show an invented organization; every person and record in them is fictional.</footer>
+    <footer class="foot">Describes Tessera 0.5.0. Apache License 2.0. Screenshots show an invented organization; every person and record in them is fictional.</footer>
   </main>
-  <aside class="toc" aria-label="On this page"><div class="menu-title">On this page</div><ul><li class="l2"><a href="#evidence">See why, every time</a></li><li class="l2"><a href="#curate">Curate in minutes, not months</a></li><li class="l2"><a href="#experts">Who works on what</a></li><li class="l2"><a href="#connections">See the shape of your organization</a></li><li class="l2"><a href="#missed">Who should meet</a></li><li class="l2"><a href="#groups">A home for every lab and program</a></li><li class="l2"><a href="#public">A public site, checked</a></li><li class="l2"><a href="#how-it-works">How it works</a></li><li class="l2"><a href="#try">Try it in a minute</a></li><li class="l2"><a href="#guides">The guides</a></li></ul></aside>
+  <aside class="toc" aria-label="On this page"><div class="menu-title">On this page</div><ul><li class="l2"><a href="#evidence">See why, every time</a></li><li class="l2"><a href="#curate">Curate in minutes, not months</a></li><li class="l2"><a href="#experts">Who works on what</a></li><li class="l2"><a href="#connections">See the shape of your organization</a></li><li class="l2"><a href="#missed">Who should meet</a></li><li class="l2"><a href="#groups">A home for every lab and program</a></li><li class="l2"><a href="#insight">The portfolio, honestly</a></li><li class="l2"><a href="#impact">What followed the work</a></li><li class="l2"><a href="#opportunities">Funding that fits</a></li><li class="l2"><a href="#assistant">Ask, and see the sources</a></li><li class="l2"><a href="#summaries">Summaries people approve</a></li><li class="l2"><a href="#public">A public site, checked</a></li><li class="l2"><a href="#how-it-works">How it works</a></li><li class="l2"><a href="#try">Try it in a minute</a></li><li class="l2"><a href="#guides">The guides</a></li></ul></aside>
 </div>
 </body>
 </html>
