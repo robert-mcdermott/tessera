@@ -17,23 +17,42 @@ from sqlalchemy.engine import Connection, Engine
 from tessera.core.clock import utc_now
 from tessera.core.ids import new_id
 from tessera.evidence.store import survivor_of
-from tessera.ledger.tables import assertion, person, profile_entry, profile_event
+from tessera.ledger.tables import (
+    account,
+    assertion,
+    person,
+    profile_delegate,
+    profile_entry,
+    profile_event,
+)
 from tessera.profiles.sections import SECTIONS, ProfileError, clean
 
-KEEPERS = ("self", "curator", "admin")  # the capacities in which someone keeps a profile
+# The capacities in which someone keeps a profile; those who may also name someone to act for
+# the person (a delegate keeps the profile but does not choose who else does).
+KEEPERS = ("self", "curator", "admin", "delegate")
+NAMERS = ("self", "curator", "admin")
 
 
 def capacity(principal: Any, engine: Engine, person_id: str) -> str | None:
-    """How this principal may keep the person's profile ("self", "admin", "curator"), or None
-    when they may only read it."""
-    if principal.person_id:
-        with engine.connect() as conn:
-            if survivor_of(conn, principal.person_id) == person_id:
-                return "self"
-    if principal.is_admin:
-        return "admin"
-    if principal.curates_any and principal.can_curate(engine, person_id):
-        return "curator"
+    """How this principal may keep the person's profile ("self", "admin", "curator", or
+    "delegate"), or None when they may only read it."""
+    with engine.connect() as conn:
+        if principal.person_id and survivor_of(conn, principal.person_id) == person_id:
+            return "self"
+        if principal.is_admin:
+            return "admin"
+        if principal.curates_any and principal.can_curate(engine, person_id):
+            return "curator"
+        if (
+            principal.account_id
+            and conn.execute(
+                select(profile_delegate.c.account_id).where(
+                    profile_delegate.c.person_id == person_id,
+                    profile_delegate.c.account_id == principal.account_id,
+                )
+            ).first()
+        ):
+            return "delegate"
     return None
 
 
@@ -312,6 +331,117 @@ def upsert(
     return change(engine, person_id, row.id, data, actor=actor, capacity="import")
 
 
+def delegates(conn: Connection, person_id: str) -> list[dict[str, Any]]:
+    """The accounts that keep this person's profile for them."""
+    return [
+        dict(r)
+        for r in conn.execute(
+            select(
+                profile_delegate.c.account_id,
+                account.c.display_name.label("name"),
+                account.c.username,
+                account.c.status,
+                profile_delegate.c.granted_by,
+                profile_delegate.c.granted_at,
+            )
+            .join(account, account.c.id == profile_delegate.c.account_id)
+            .where(profile_delegate.c.person_id == person_id)
+            .order_by(account.c.display_name)
+        ).mappings()
+    ]
+
+
+def name_delegate(
+    engine: Engine, person_id: str, username: str, *, actor: str, capacity: str
+) -> dict[str, Any]:
+    """Let an account keep this person's profile for them; recorded in the history."""
+    if capacity not in NAMERS:
+        raise ProfileError(
+            "Only the person, a curator for them, or an admin names who acts for them."
+        )
+    key = (username or "").strip().lower()
+    with engine.begin() as conn:
+        _member(conn, person_id)
+        row = conn.execute(select(account).where(account.c.username == key)).mappings().first()
+        if row is None or row["status"] != "active":
+            raise ProfileError(f"No active account is called {username!r}.")
+        if row["person_id"] and survivor_of(conn, row["person_id"]) == person_id:
+            raise ProfileError("That is the person's own account; it keeps the profile already.")
+        if conn.execute(
+            select(profile_delegate.c.account_id).where(
+                profile_delegate.c.person_id == person_id,
+                profile_delegate.c.account_id == row["id"],
+            )
+        ).first():
+            raise ProfileError(f"{row['display_name']} already keeps this profile.")
+        conn.execute(
+            insert(profile_delegate).values(
+                person_id=person_id, account_id=row["id"], granted_by=actor, granted_at=utc_now()
+            )
+        )
+        _event(
+            conn,
+            person_id,
+            None,
+            "delegates",
+            "added",
+            actor,
+            capacity,
+            after={"name": row["display_name"], "username": row["username"]},
+        )
+        return next(d for d in delegates(conn, person_id) if d["account_id"] == row["id"])
+
+
+def remove_delegate(
+    engine: Engine, person_id: str, account_id: str, *, actor: str, capacity: str
+) -> None:
+    if capacity not in NAMERS:
+        raise ProfileError(
+            "Only the person, a curator for them, or an admin names who acts for them."
+        )
+    with engine.begin() as conn:
+        found = next((d for d in delegates(conn, person_id) if d["account_id"] == account_id), None)
+        if found is None:
+            raise ProfileError("No such account keeps this profile.")
+        conn.execute(
+            delete(profile_delegate).where(
+                profile_delegate.c.person_id == person_id,
+                profile_delegate.c.account_id == account_id,
+            )
+        )
+        _event(
+            conn,
+            person_id,
+            None,
+            "delegates",
+            "removed",
+            actor,
+            capacity,
+            before={"name": found["name"], "username": found["username"]},
+        )
+
+
+def kept_by(conn: Connection, principal: Any) -> list[dict[str, Any]]:
+    """The profiles this account keeps: its own person's, and those it acts for."""
+    out: list[dict[str, Any]] = []
+    if principal.person_id:
+        own = survivor_of(conn, principal.person_id)
+        row = conn.execute(
+            select(person.c.id, person.c.display_name).where(person.c.id == own)
+        ).first()
+        if row:
+            out.append({"person_id": row.id, "name": row.display_name, "capacity": "self"})
+    if principal.account_id:
+        for row in conn.execute(
+            select(person.c.id, person.c.display_name)
+            .join(profile_delegate, profile_delegate.c.person_id == person.c.id)
+            .where(profile_delegate.c.account_id == principal.account_id)
+            .order_by(person.c.display_name)
+        ):
+            out.append({"person_id": row.id, "name": row.display_name, "capacity": "delegate"})
+    return out
+
+
 def history(conn: Connection, person_id: str, limit: int = 200) -> list[dict[str, Any]]:
     return [
         dict(r)
@@ -326,14 +456,19 @@ def history(conn: Connection, person_id: str, limit: int = 200) -> list[dict[str
 
 __all__ = [
     "KEEPERS",
+    "NAMERS",
     "add",
     "capacity",
     "change",
     "confirmed_papers",
+    "delegates",
     "entries",
     "get",
     "history",
+    "kept_by",
+    "name_delegate",
     "remove",
+    "remove_delegate",
     "reorder",
     "upsert",
 ]

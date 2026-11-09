@@ -4713,6 +4713,113 @@
         }
       }
     },
+    "/api/v1/people/{person_id}/profile/delegates": {
+      "post": {
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Name an account that keeps this profile for the person",
+        "operationId": "name_delegate_api_v1_people__person_id__profile_delegates_post",
+        "parameters": [
+          {
+            "name": "person_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Person Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DelegateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Name Delegate Api V1 People  Person Id  Profile Delegates Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/people/{person_id}/profile/delegates/{account_id}": {
+      "delete": {
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Stop an account keeping this profile",
+        "operationId": "remove_delegate_api_v1_people__person_id__profile_delegates__account_id__delete",
+        "parameters": [
+          {
+            "name": "person_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Person Id"
+            }
+          },
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Account Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Remove Delegate Api V1 People  Person Id  Profile Delegates  Account Id  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/assertions/{assertion_id}": {
       "get": {
         "tags": [
@@ -8215,6 +8322,29 @@
           }
         }
       }
+    },
+    "/api/v1/me/profiles": {
+      "get": {
+        "tags": [
+          "profiles"
+        ],
+        "summary": "The profiles you keep: your own, and those you act for",
+        "operationId": "my_profiles_api_v1_me_profiles_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response My Profiles Api V1 Me Profiles Get"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -8745,6 +8875,22 @@
           "action"
         ],
         "title": "Decision"
+      },
+      "DelegateIn": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Username",
+            "description": "The account to name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username"
+        ],
+        "title": "DelegateIn"
       },
       "EntryIn": {
         "properties": {

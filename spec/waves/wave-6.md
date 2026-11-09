@@ -2,7 +2,7 @@
 
 **Goal:** a full profile for every researcher: what Tessera builds from public records, beside the sections the researcher keeps (overview, interests, positions, education, honors, service, teaching, talks, links, featured papers). Every profile is open to everyone inside the organization, public only by the researcher's choice, and the source of the researcher's CVs and NIH biosketches.
 
-**Branch:** `wave-6` · **Target version:** `0.6.0` · **Status:** ◐ slices 1 and 2 done
+**Branch:** `wave-6` · **Target version:** `0.6.0` · **Status:** ◐ slices 1 to 3 done
 
 ## Exit criteria
 
@@ -77,14 +77,14 @@ Tessera follows this form; if NIH changes it, the biosketch's checks change with
 
 **Acceptance:** a viewer sees a complete, read-only profile; the person sees the same page with editing controls; a screen reader announces each section and control; the app shell stays within its budget.
 
-## Slice 3: Someone to act for them ☐
+## Slice 3: Someone to act for them ☑
 
 **Goal:** a researcher names an account that keeps their profile for them (PRF-05).
 
-- [ ] A researcher (or a curator for them, or an admin) names one or more accounts that may keep their profile, CVs, and biosketches, and removes them again (migration 0020)
-- [ ] Someone acting for a person may change their profile sections, public choices, CVs, and biosketches, but not their authorship decisions, identifiers, or anything else of theirs
-- [ ] Every change made on someone's behalf records both the account that made it and the person it was for; the profile shows who keeps it
-- [ ] An account sees the profiles it keeps for others in its own menu
+- [x] A researcher (or a curator for them, or an admin) names one or more accounts that may keep their profile, CVs, and biosketches, and removes them again (migration 0020)
+- [x] Someone acting for a person may change their profile sections, public choices, CVs, and biosketches, but not their authorship decisions, identifiers, or anything else of theirs
+- [x] Every change made on someone's behalf records both the account that made it and the person it was for; the profile shows who keeps it
+- [x] An account sees the profiles it keeps for others in its own menu
 
 **Acceptance:** an assistant named by a researcher edits the researcher's profile and the history says "by the assistant, for the researcher"; the same assistant cannot confirm the researcher's papers; removing them takes effect at once.
 
@@ -140,6 +140,7 @@ Tessera follows this form; if NIH changes it, the biosketch's checks change with
 
 | Date | Note |
 |---|---|
+| 2026-11-09 | Slice 3 done. Someone acting for a person is a fourth capacity for keeping a profile, beside the person, their curators, and admins; it grants nothing else, since every other decision about a person goes through the curation scope, which a delegate does not enter. Only the person, their curators, and admins name or remove delegates, and both are recorded in the profile's history. Everyone sees the names of those who keep a profile; only its keepers see their usernames. The account is chosen by username, so no list of accounts is exposed to everyone. Without accounts (single-operator mode) there is nobody to name, and the card is not shown. |
 | 2026-11-09 | Slice 2 done. The About tab is a module loaded when the tab first opens, like impact threads, so the app's first load is unchanged. Positions from the group directory come first, marked as such, and the researcher's own follow in their own order rather than being merged by date, so a reordering is never undone by a sort. Entries are edited in a drawer built from the section's fields, with the server's message shown in the form when a check fails; entries move with up and down buttons (keyboard and screen-reader friendly) rather than dragging. On phones each entry's buttons move below it. People outside the directory have no About tab and open on their papers. |
 | 2026-11-08 | Slice 1 done. Entries keep their fields as JSON checked by each section's rules in code, rather than a table per section, so a section can gain a field without a migration and every section shares one history. Dates are a year or a year and month (a talk may give the day); an entry cannot end before it starts. New entries go first in dated sections and last in links and featured papers; the researcher can reorder any section. Featured papers must be the person's confirmed papers; one later rejected stays on the profile for its keepers, marked, and disappears for everyone else. Someone keeps a profile as themselves (their account is linked to the person, whatever their role), as a curator whose scope covers the person, or as an admin. An import upserts by its source and its key for the entry and can never match an entry made by hand. The demo fills in the profiles of the twelve lab heads with the most confirmed papers. |
 | 2026-11-08 | Wave 6 planned. NIH's biosketch was checked against NOT-OD-26-018: since January 25, 2026 it is the Biographical Sketch Common Form and the NIH Biographical Sketch Supplement, completed and certified in SciENcv by the investigator, so Tessera prepares the content in that form, checks NIH's limits, and gives it ready to paste, rather than producing the certified PDF. Positions from the group directory stay where they are kept and are shown beside the positions a researcher adds, rather than copied into profile entries. |

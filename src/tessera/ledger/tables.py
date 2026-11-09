@@ -721,3 +721,15 @@ profile_event = Table(
     Column("at", UtcDateTime, nullable=False),
 )
 Index(None, profile_event.c.person_id, profile_event.c.at)
+
+# Accounts a person names to keep their profile, CVs, and biosketches for them (wave 6), such as
+# an assistant. Acting for someone covers only those; never their authorship or identifiers.
+profile_delegate = Table(
+    "profile_delegate",
+    metadata,
+    Column("person_id", ID, ForeignKey("person.id", ondelete="CASCADE"), primary_key=True),
+    Column("account_id", ID, ForeignKey("account.id", ondelete="CASCADE"), primary_key=True),
+    Column("granted_by", String(200), nullable=False),
+    Column("granted_at", UtcDateTime, nullable=False),
+)
+Index(None, profile_delegate.c.account_id)

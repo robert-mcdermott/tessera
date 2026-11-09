@@ -227,10 +227,56 @@ export function aboutPanel({ person, data, organization, refresh }) {
       h("p", { class: "subtle" }, "Sections without entries are hidden from readers until something is added."),
       h("div", { class: "chips" }, empty.map((section) => h("button", { type: "button", class: "btn btn-sm",
         onclick: () => editEntry({ personId, section, done }) }, icon("plus", "icon icon-sm"), section.label)))) }) : null;
+  const NOTES = {
+    self: "This is your profile. Changes show at once; the History tab lists every change.",
+    delegate: "You keep this profile for them. Changes show at once, recorded as made on their behalf.",
+  };
+  const helpers = data.delegates.map((d) => d.name);
   const note = keeps ? h("p", { class: "subtle profile-keeper" }, icon("edit", "icon icon-sm"),
-    data.capacity === "self" ? "This is your profile. Changes show at once; the History tab lists every change."
-      : "You may keep this profile. Changes show at once; the History tab lists every change.") : null;
-  return h("div", { class: "stack-lg profile-about" }, note, cards, addMore);
+    NOTES[data.capacity] ?? "You may keep this profile. Changes show at once; the History tab lists every change.")
+    : helpers.length ? h("p", { class: "subtle profile-keeper" }, icon("person", "icon icon-sm"), `Kept with help from ${helpers.join(", ")}.`) : null;
+  const keepers = data.may_name && data.accounts ? keepersCard(data, personId, done) : null;
+  return h("div", { class: "stack-lg profile-about" }, note, cards, addMore, keepers);
+}
+
+/** Who keeps the profile besides its person: for the person, their curators, and admins. */
+function keepersCard(data, personId, done) {
+  const base = `/api/v1/people/${encodeURIComponent(personId)}/profile/delegates`;
+  const problem = h("p", { class: "field-error", role: "alert", hidden: true });
+  const username = h("input", { class: "input", id: "pf-delegate", autocomplete: "off", maxlength: 64,
+    placeholder: "Their username", "aria-describedby": "pf-delegate-hint" });
+  const form = h("form", { class: "row-sm wrap", onsubmit: async (event) => {
+    event.preventDefault();
+    try {
+      await post(base, { username: username.value.trim() });
+    } catch (failure) {
+      problem.textContent = failure.detail || failure.message;
+      problem.hidden = false;
+      return;
+    }
+    toast("They can now keep this profile.");
+    done();
+  } }, h("label", { for: "pf-delegate", class: "sr-only" }, "Username of the account to name"), username,
+  h("button", { type: "submit", class: "btn btn-sm" }, icon("plus", "icon icon-sm"), "Name them"));
+  return card({ title: "Who keeps this profile", pad: true, attrs: { "data-profile-section": "keepers" },
+    body: h("div", { class: "stack" },
+      h("p", { class: "subtle", id: "pf-delegate-hint" },
+        "Besides its person, their curators, and admins, anyone named here may keep this profile, and later their CVs and biosketches, on the person's behalf. They cannot decide the person's papers or identifiers."),
+      data.delegates.length ? h("ul", { class: "plain-list profile-entries" }, data.delegates.map((d) => h("li", { class: "profile-entry" },
+        h("div", { class: "stack-xs grow" }, h("span", { class: "strong" }, d.name), h("span", { class: "subtle" }, d.username)),
+        h("div", { class: "profile-actions" }, iconButton("trash", `Stop ${d.name} keeping this profile`, { onclick: () => confirmAction({
+          title: `Stop ${d.name} keeping this profile?`, text: h("p", {}, "They will no longer be able to change it."),
+          confirmLabel: "Stop", tone: "reject", run: async () => {
+            try {
+              await request("DELETE", `${base}/${d.account_id}`);
+              invalidate();
+              toast("Done.");
+              done();
+            } catch (failure) {
+              toast(failure.detail || failure.message);
+            }
+          } }) }))))) : h("p", {}, "Nobody else keeps it."),
+      problem, form) });
 }
 
 const ACTIONS = { added: "added", changed: "changed", removed: "removed", reordered: "reordered" };
@@ -240,7 +286,7 @@ export function profileHistory(events) {
   if (!events.length) return null;
   return card({ title: "Profile changes", body: h("div", { class: "items" }, events.map((e) => {
     const title = e.after?.title ?? e.before?.title ?? e.after?.role ?? e.before?.role ?? e.after?.label ?? e.before?.label
-      ?? e.after?.institution ?? e.before?.institution ?? null;
+      ?? e.after?.institution ?? e.before?.institution ?? e.after?.name ?? e.before?.name ?? null;
     return h("div", { class: "item" },
       h("span", { class: "entity-icon", "data-entity": "person" }, icon(e.action === "removed" ? "trash" : e.action === "added" ? "plus" : "edit")),
       h("div", { class: "item-main" },

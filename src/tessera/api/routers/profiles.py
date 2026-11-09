@@ -12,20 +12,40 @@ from fastapi import APIRouter, Body, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from tessera.api.access import principal_of
-from tessera.api.common import engine_of, envelope, index_of, lake_of, publication_summaries
+from tessera.api.common import (
+    config_of,
+    engine_of,
+    envelope,
+    index_of,
+    lake_of,
+    publication_summaries,
+)
 from tessera.evidence.store import survivor_of
 from tessera.profiles import store
 from tessera.profiles.sections import SECTIONS, ProfileError
 
 router = APIRouter(prefix="/api/v1/people", tags=["profiles"])
+me_router = APIRouter(prefix="/api/v1/me", tags=["profiles"])
 
-CAPACITY_LABELS = {"self": "themselves", "curator": "as curator", "admin": "as admin",
-                   "import": "by import"}  # fmt: skip
+CAPACITY_LABELS = {
+    "self": "themselves",
+    "delegate": "acting for them",
+    "curator": "as curator",
+    "admin": "as admin",
+    "import": "by import",
+}
+
+
+SPECIAL = {"delegates": "Who keeps the profile"}  # history entries that are not a section
 
 
 class EntryIn(BaseModel):
     section: str = Field(description="The section: " + ", ".join(SECTIONS))
     fields: dict[str, Any] = Field(description="The section's fields (see the profile's sections)")
+
+
+class DelegateIn(BaseModel):
+    username: str = Field(min_length=1, max_length=64, description="The account to name")
 
 
 class OrderIn(BaseModel):
@@ -54,8 +74,8 @@ def _keeper(request: Request, person_id: str) -> tuple[str, str]:
     if capacity is None:
         raise HTTPException(
             status_code=403,
-            detail="This profile is not in your scope: only the person, a curator for them, or "
-            "an admin may change it.",
+            detail="This profile is not in your scope: only the person, someone they named, a "
+            "curator for them, or an admin may change it.",
         )  # fmt: skip
     return principal.name, capacity
 
@@ -81,6 +101,7 @@ def get_profile(request: Request, person_id: str) -> dict[str, Any]:
     capacity = store.capacity(principal_of(request), engine, person_id)
     with engine.connect() as conn:
         found = store.entries(conn, person_id)
+        keepers = store.delegates(conn, person_id)
         confirmed = store.confirmed_papers(conn, person_id) if found.get("featured") else set()
     sections = []
     for spec in SECTIONS.values():
@@ -90,7 +111,16 @@ def get_profile(request: Request, person_id: str) -> dict[str, Any]:
             if capacity is None:  # a paper no longer confirmed is not shown to readers
                 rows = [r for r in rows if r["confirmed"]]
         sections.append({**spec.to_json(), "entries": rows})
+    # Everyone sees who keeps the profile for the person; its keepers also see the accounts.
+    named = [
+        {"name": d["name"]}
+        | ({"account_id": d["account_id"], "username": d["username"]} if capacity else {})
+        for d in keepers
+        if d["status"] == "active"
+    ]
     return envelope({"person_id": person_id, "may_edit": capacity is not None,
+                     "may_name": capacity in store.NAMERS, "delegates": named,
+                     "accounts": config_of(request).server.accounts,
                      "capacity": capacity, "sections": sections})  # fmt: skip
 
 
@@ -154,6 +184,44 @@ def profile_history(
         rows = store.history(conn, person_id, limit)
     for row in rows:
         spec = SECTIONS.get(row["section"])
-        row["section_label"] = spec.label if spec else row["section"]
+        row["section_label"] = spec.label if spec else SPECIAL.get(row["section"], row["section"])
         row["capacity_label"] = CAPACITY_LABELS.get(row["capacity"], row["capacity"])
     return envelope(rows)
+
+
+@router.post("/{person_id}/profile/delegates", status_code=201,
+             summary="Name an account that keeps this profile for the person")  # fmt: skip
+def name_delegate(request: Request, person_id: str, body: DelegateIn) -> dict[str, Any]:
+    person_id = _person(request, person_id)
+    actor, capacity = _keeper(request, person_id)
+    try:
+        found = store.name_delegate(engine_of(request), person_id, body.username,
+                                    actor=actor, capacity=capacity)  # fmt: skip
+    except ProfileError as exc:
+        raise _namer_fail(exc) from exc
+    return envelope(found)
+
+
+@router.delete("/{person_id}/profile/delegates/{account_id}",
+               summary="Stop an account keeping this profile")  # fmt: skip
+def remove_delegate(request: Request, person_id: str, account_id: str) -> dict[str, Any]:
+    person_id = _person(request, person_id)
+    actor, capacity = _keeper(request, person_id)
+    try:
+        store.remove_delegate(engine_of(request), person_id, account_id, actor=actor,
+                              capacity=capacity)  # fmt: skip
+    except ProfileError as exc:
+        raise _namer_fail(exc) from exc
+    return envelope({"account_id": account_id, "removed": True})
+
+
+def _namer_fail(exc: ProfileError) -> HTTPException:
+    if str(exc).startswith("Only the person"):  # someone acting for them cannot name others
+        return HTTPException(status_code=403, detail=f"Outside your scope: {exc}")
+    return _fail(exc)
+
+
+@me_router.get("/profiles", summary="The profiles you keep: your own, and those you act for")
+def my_profiles(request: Request) -> dict[str, Any]:
+    with engine_of(request).connect() as conn:
+        return envelope(store.kept_by(conn, principal_of(request)))

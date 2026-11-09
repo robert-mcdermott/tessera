@@ -86,6 +86,7 @@ def world(tmp_path_factory: pytest.TempPathFactory) -> Iterator[World]:
             ("arnaud", [Grant("researcher")], other),
             ("guest", [Grant("viewer")], None),
             ("labcurator", [Grant("curator", "unit", lab)], None),
+            ("helper", [Grant("viewer")], None),
         ):
             create_account(
                 engine, name, name.title(), PASSWORD, grants, actor="test", person_id=pid
@@ -101,7 +102,7 @@ def world(tmp_path_factory: pytest.TempPathFactory) -> Iterator[World]:
         "suggested": (suggested or "").removeprefix("pub:"),
     }
     w = World(config, ids)
-    for name in ("uma", "arnaud", "guest", "labcurator"):
+    for name in ("uma", "arnaud", "guest", "labcurator", "helper"):
         client = TestClient(create_app(config), base_url="http://localhost")
         client.__enter__()
         signed = client.post("/api/v1/session", json={"username": name, "password": PASSWORD})
@@ -383,3 +384,55 @@ def test_the_demo_fills_in_a_dozen_profiles(world: World) -> None:
         "link",
         "featured",
     }
+
+
+# --- someone to act for them ---------------------------------------------------------------------
+
+
+def test_a_researcher_names_someone_to_keep_their_profile(world: World) -> None:
+    uma = world.ids["uma"]
+    base = f"/api/v1/people/{uma}/profile"
+    honor = {"section": "honor", "fields": {"title": "Kept by a helper", "year": "2022"}}
+    assert world.call("helper", "POST", f"{base}/entries", honor).status_code == 403
+    assert (
+        world.call("guest", "POST", f"{base}/delegates", {"username": "helper"}).status_code == 403
+    )
+    for bad, message in (("nobody", "No active account"), ("uma", "own account")):
+        refused = world.call("uma", "POST", f"{base}/delegates", {"username": bad})
+        assert refused.status_code == 400 and message in refused.text
+    named = world.ok("uma", "POST", f"{base}/delegates", {"username": "Helper"})
+    assert named["name"] == "Helper" and named["username"] == "helper"
+    assert world.call("uma", "POST", f"{base}/delegates", {"username": "helper"}).status_code == 400
+    # Everyone sees who keeps it; only its keepers see the account behind the name.
+    assert world.ok("guest", "GET", base)["delegates"] == [{"name": "Helper"}]
+    assert world.ok("uma", "GET", base)["delegates"][0]["username"] == "helper"
+    # The helper keeps the profile, on Uma's behalf, and finds it in their own list.
+    mine = world.ok("helper", "GET", base)
+    assert mine["may_edit"] is True and mine["capacity"] == "delegate" and mine["may_name"] is False
+    entry = world.ok("helper", "POST", f"{base}/entries", honor)
+    change = world.ok("guest", "GET", f"{base}/history?limit=1")[0]
+    assert change["actor"] == "Helper" and change["capacity_label"] == "acting for them"
+    assert world.ok("helper", "GET", "/api/v1/me/profiles") == [
+        {"person_id": uma, "name": "Uma G Eriksen", "capacity": "delegate"}
+    ]
+    assert world.ok("uma", "GET", "/api/v1/me/profiles")[0]["capacity"] == "self"
+    # Acting for them covers the profile only: not naming others, not their papers.
+    assert (
+        world.call("helper", "POST", f"{base}/delegates", {"username": "guest"}).status_code == 403
+    )
+    assert (
+        world.call("helper", "POST", f"/api/v1/people/{uma}/public", {"public": True}).status_code
+        == 403
+    )
+    # Removing them takes effect at once, and both changes are in the history.
+    world.ok("helper", "DELETE", f"{base}/entries/{entry['id']}")
+    world.ok("uma", "DELETE", f"{base}/delegates/{named['account_id']}")
+    assert world.call("helper", "POST", f"{base}/entries", honor).status_code == 403
+    assert world.ok("helper", "GET", "/api/v1/me/profiles") == []
+    kept = [
+        h
+        for h in world.ok("guest", "GET", f"{base}/history?limit=10")
+        if h["section"] == "delegates"
+    ]
+    assert [h["action"] for h in kept] == ["removed", "added"]
+    assert kept[0]["section_label"] == "Who keeps the profile"
