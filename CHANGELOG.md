@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Tessera are recorded here. Versions follow [semantic versioning](https://semver.org/); each wave of work ships as a minor release (wave 1 → 0.1.0, wave 2 → 0.2.0).
+All notable changes to Tessera are recorded here. Versions follow [semantic versioning](https://semver.org/). Waves 1 to 7 shipped as 0.1.0 to 0.7.0, and wave 8 ships as 1.0.0; from 1.0, [Compatibility](docs/compatibility.md) says what each kind of release may change.
 
 ## Unreleased
 
@@ -11,10 +11,17 @@ Toward 1.0.0 (wave 8).
 - **Several server processes.** `tessera serve --workers N` and `[server] workers` run the app in several processes, so one slow request never holds up the rest; the container image and the systemd unit run four, and `tessera doctor --production` warns at one. Branding saved in the app reaches every process within a second.
 - **Many people at once in `tessera bench`.** Simulated users (`--users`, 20 by default) use the app at a realistic pace and without pause, on `--workers` processes, for `--seconds` each; the report gives requests a second, the median, the slowest 5%, and the slowest of each page, with the server's processor use and memory. `--only` runs a single step on an organization already built.
 
+- **The 1.0 promise.** Every route under `/api/v1` is marked stable or experimental (`x-stability` in the OpenAPI document): stable routes change only by adding to them until a major version. A test checks every change against `tests/api_contract.json`, which records what each stable route accepts and answers with. A route on its way out will answer with `Deprecation`, `Sunset`, and `Link` headers. A new guide, *Compatibility*, says what 1.0 promises for the API, the command line, the configuration file, the data home, exports, and the public site's addresses.
+- The request bodies for adding and changing opportunities and teams, and for importing groups, are described in the OpenAPI document.
+
 ### Changed
 
 - **Each Insight figure is built once**, however many people ask for it at the same moment: the others wait for that result, rather than each building its own. With 20 users asking without pause, figures had waited up to 93 seconds.
 - **Failed sign-ins are counted in the ledger** (migration 0025), by a hash of the account or address, so the limit on guessing holds across server processes and restarts.
+
+### Breaking
+
+- Two path parameters have new names in the OpenAPI document, to match the rest: a grant's `{core}` is `{core_project_num}`, and an opportunity's `{oid}` is `{opportunity_id}`. The addresses are unchanged; only a client generated from the document sees the new names.
 
 ### Upgrading
 

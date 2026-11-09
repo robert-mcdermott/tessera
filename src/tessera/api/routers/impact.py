@@ -22,11 +22,11 @@ def _sources(request: Request) -> list[dict[str, Any]]:
 
 
 @router.get(
-    "/grants/{core}/thread",
+    "/grants/{core_project_num}/thread",
     summary="What followed a grant: papers, studies, and clinical articles, with each link",
 )
-def get_grant_thread(request: Request, core: str) -> dict[str, Any]:
-    thread = grant_thread(engine_of(request), lake_of(request), core)
+def get_grant_thread(request: Request, core_project_num: str) -> dict[str, Any]:
+    thread = grant_thread(engine_of(request), lake_of(request), core_project_num)
     if thread is None:
         raise HTTPException(status_code=404, detail="No such grant.")
     return envelope({**thread, "sources": _sources(request)})

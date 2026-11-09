@@ -16,6 +16,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.engine import Connection
 
 from tessera.analytics.vocabulary import mesh_year
+from tessera.api import bodies
 from tessera.api.access import principal_of
 from tessera.api.common import (
     Page,
@@ -228,7 +229,11 @@ def create(request: Request, body: GroupIn) -> dict[str, Any]:
     return detail(request, group_id)
 
 
-@router.post("/groups/import", summary="Import groups and memberships from a source (admins)")
+@router.post(
+    "/groups/import",
+    summary="Import groups and memberships from a source (admins)",
+    openapi_extra=bodies.GROUP_IMPORT,
+)
 def import_rows(
     request: Request,
     body: dict[str, Any],

@@ -29,7 +29,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/health/ready": {
@@ -49,7 +50,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/health": {
@@ -69,7 +71,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/meta": {
@@ -92,7 +95,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/session": {
@@ -115,7 +119,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "post": {
         "tags": [
@@ -156,7 +161,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "delete": {
         "tags": [
@@ -177,7 +183,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/session/password": {
@@ -220,7 +227,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/accounts": {
@@ -243,7 +251,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "post": {
         "tags": [
@@ -284,7 +293,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/accounts/{account_id}": {
@@ -338,7 +348,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/auth/sso/start": {
@@ -380,7 +391,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/auth/sso/callback": {
@@ -454,7 +466,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/search": {
@@ -578,7 +591,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/stats": {
@@ -601,7 +615,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/sources": {
@@ -624,7 +639,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/runs": {
@@ -687,7 +703,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people": {
@@ -864,7 +881,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people/{person_id}/identifiers": {
@@ -919,7 +937,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people/{person_id}": {
@@ -963,7 +982,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people/{person_id}/publications": {
@@ -1107,7 +1127,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "post": {
         "tags": [
@@ -1159,7 +1180,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people/{person_id}/grants": {
@@ -1203,7 +1225,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people/{person_id}/studies": {
@@ -1247,7 +1270,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people/{person_id}/history": {
@@ -1303,7 +1327,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people/{person_id}/public": {
@@ -1358,7 +1383,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/experts": {
@@ -1445,7 +1471,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/concepts": {
@@ -1491,7 +1518,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people/{person_id}/similar": {
@@ -1535,7 +1563,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people/{person_id}/concepts": {
@@ -1579,7 +1608,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/graph/focus/{person_id}": {
@@ -1651,7 +1681,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "experimental"
       }
     },
     "/api/v1/graph/network": {
@@ -1741,7 +1772,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "experimental"
       }
     },
     "/api/v1/graph/missed": {
@@ -1842,7 +1874,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "experimental"
       }
     },
     "/api/v1/graph/units": {
@@ -1901,7 +1934,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "experimental"
       }
     },
     "/api/v1/graph/units/pairs": {
@@ -1956,7 +1990,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "experimental"
       }
     },
     "/api/v1/graph/landscape": {
@@ -2015,7 +2050,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "experimental"
       }
     },
     "/api/v1/candidates": {
@@ -2174,7 +2210,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/candidates/decisions": {
@@ -2217,7 +2254,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/duplicates": {
@@ -2319,7 +2357,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/merges": {
@@ -2363,7 +2402,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/merges/{merge_id}/undo": {
@@ -2424,7 +2464,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/publications": {
@@ -2655,7 +2696,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/publications/{pmid}": {
@@ -2700,7 +2742,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/grants": {
@@ -2929,25 +2972,26 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
-    "/api/v1/grants/{core}": {
+    "/api/v1/grants/{core_project_num}": {
       "get": {
         "tags": [
           "records",
           "grants"
         ],
         "summary": "A grant: fiscal-year records, investigators, publications, and studies",
-        "operationId": "get_grant_api_v1_grants__core__get",
+        "operationId": "get_grant_api_v1_grants__core_project_num__get",
         "parameters": [
           {
-            "name": "core",
+            "name": "core_project_num",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Core"
+              "title": "Core Project Num"
             }
           }
         ],
@@ -2959,7 +3003,7 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true,
-                  "title": "Response Get Grant Api V1 Grants  Core  Get"
+                  "title": "Response Get Grant Api V1 Grants  Core Project Num  Get"
                 }
               }
             }
@@ -2974,7 +3018,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/studies": {
@@ -3203,7 +3248,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/studies/{nct_id}": {
@@ -3248,24 +3294,25 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
-    "/api/v1/grants/{core}/thread": {
+    "/api/v1/grants/{core_project_num}/thread": {
       "get": {
         "tags": [
           "impact"
         ],
         "summary": "What followed a grant: papers, studies, and clinical articles, with each link",
-        "operationId": "get_grant_thread_api_v1_grants__core__thread_get",
+        "operationId": "get_grant_thread_api_v1_grants__core_project_num__thread_get",
         "parameters": [
           {
-            "name": "core",
+            "name": "core_project_num",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Core"
+              "title": "Core Project Num"
             }
           }
         ],
@@ -3277,7 +3324,7 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true,
-                  "title": "Response Get Grant Thread Api V1 Grants  Core  Thread Get"
+                  "title": "Response Get Grant Thread Api V1 Grants  Core Project Num  Thread Get"
                 }
               }
             }
@@ -3292,7 +3339,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/publications/{pmid}/thread": {
@@ -3336,7 +3384,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people/{person_id}/impact": {
@@ -3380,7 +3429,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/opportunities": {
@@ -3709,7 +3759,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "post": {
         "tags": [
@@ -3723,11 +3774,182 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "additionalProperties": true,
-                "title": "Body"
+                "additionalProperties": false,
+                "title": "OpportunityIn",
+                "properties": {
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "external_id": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "number": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 100
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "title": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 500
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "sponsor": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 300
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "url": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 1000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "description": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 20000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "eligibility_notes": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 5000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "foundation",
+                      "internal",
+                      "federal",
+                      "state",
+                      "industry",
+                      "other"
+                    ]
+                  },
+                  "posted_on": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "closes_on": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "internal_deadline": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "award_floor": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "award_ceiling": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "limited_submission": {
+                    "type": "boolean"
+                  },
+                  "applicant_types": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Grants.gov applicant type codes"
+                  }
+                },
+                "required": [
+                  "title",
+                  "source"
+                ]
               }
             }
-          }
+          },
+          "description": "The opportunity's fields."
         },
         "responses": {
           "200": {
@@ -3752,24 +3974,25 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
-    "/api/v1/opportunities/{oid}": {
+    "/api/v1/opportunities/{opportunity_id}": {
       "get": {
         "tags": [
           "opportunities"
         ],
         "summary": "An opportunity: dates, money, eligibility, and text",
-        "operationId": "get_opportunity_api_v1_opportunities__oid__get",
+        "operationId": "get_opportunity_api_v1_opportunities__opportunity_id__get",
         "parameters": [
           {
-            "name": "oid",
+            "name": "opportunity_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Oid"
+              "title": "Opportunity Id"
             }
           }
         ],
@@ -3781,7 +4004,7 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true,
-                  "title": "Response Get Opportunity Api V1 Opportunities  Oid  Get"
+                  "title": "Response Get Opportunity Api V1 Opportunities  Opportunity Id  Get"
                 }
               }
             }
@@ -3796,22 +4019,23 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "post": {
         "tags": [
           "opportunities"
         ],
         "summary": "Change one the organization tracks, or restore it",
-        "operationId": "change_opportunity_api_v1_opportunities__oid__post",
+        "operationId": "change_opportunity_api_v1_opportunities__opportunity_id__post",
         "parameters": [
           {
-            "name": "oid",
+            "name": "opportunity_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Oid"
+              "title": "Opportunity Id"
             }
           }
         ],
@@ -3821,11 +4045,183 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "additionalProperties": true,
-                "title": "Body"
+                "additionalProperties": false,
+                "title": "OpportunityChange",
+                "properties": {
+                  "source": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "external_id": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "number": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 100
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "title": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 500
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "sponsor": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 300
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "url": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 1000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "description": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 20000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "eligibility_notes": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 5000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "foundation",
+                      "internal",
+                      "federal",
+                      "state",
+                      "industry",
+                      "other"
+                    ]
+                  },
+                  "posted_on": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "closes_on": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "internal_deadline": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "award_floor": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "award_ceiling": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "limited_submission": {
+                    "type": "boolean"
+                  },
+                  "applicant_types": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Grants.gov applicant type codes"
+                  },
+                  "archived": {
+                    "type": "boolean",
+                    "description": "false restores an archived opportunity"
+                  }
+                },
+                "required": []
               }
             }
-          }
+          },
+          "description": "Only the fields to change."
         },
         "responses": {
           "200": {
@@ -3835,7 +4231,7 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true,
-                  "title": "Response Change Opportunity Api V1 Opportunities  Oid  Post"
+                  "title": "Response Change Opportunity Api V1 Opportunities  Opportunity Id  Post"
                 }
               }
             }
@@ -3850,22 +4246,23 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "delete": {
         "tags": [
           "opportunities"
         ],
         "summary": "Archive one the organization tracks",
-        "operationId": "archive_opportunity_api_v1_opportunities__oid__delete",
+        "operationId": "archive_opportunity_api_v1_opportunities__opportunity_id__delete",
         "parameters": [
           {
-            "name": "oid",
+            "name": "opportunity_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Oid"
+              "title": "Opportunity Id"
             }
           }
         ],
@@ -3877,7 +4274,7 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true,
-                  "title": "Response Archive Opportunity Api V1 Opportunities  Oid  Delete"
+                  "title": "Response Archive Opportunity Api V1 Opportunities  Opportunity Id  Delete"
                 }
               }
             }
@@ -3892,7 +4289,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/opportunities/import": {
@@ -3934,24 +4332,25 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
-    "/api/v1/opportunities/{oid}/fit": {
+    "/api/v1/opportunities/{opportunity_id}/fit": {
       "get": {
         "tags": [
           "opportunities"
         ],
         "summary": "Who fits an opportunity and why, and whether the organization may apply",
-        "operationId": "opportunity_fit_api_v1_opportunities__oid__fit_get",
+        "operationId": "opportunity_fit_api_v1_opportunities__opportunity_id__fit_get",
         "parameters": [
           {
-            "name": "oid",
+            "name": "opportunity_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Oid"
+              "title": "Opportunity Id"
             }
           },
           {
@@ -4005,7 +4404,7 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true,
-                  "title": "Response Opportunity Fit Api V1 Opportunities  Oid  Fit Get"
+                  "title": "Response Opportunity Fit Api V1 Opportunities  Opportunity Id  Fit Get"
                 }
               }
             }
@@ -4020,24 +4419,25 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "experimental"
       }
     },
-    "/api/v1/opportunities/{oid}/interest": {
+    "/api/v1/opportunities/{opportunity_id}/interest": {
       "post": {
         "tags": [
           "opportunities"
         ],
         "summary": "Watch an opportunity, or dismiss it",
-        "operationId": "opportunity_interest_api_v1_opportunities__oid__interest_post",
+        "operationId": "opportunity_interest_api_v1_opportunities__opportunity_id__interest_post",
         "parameters": [
           {
-            "name": "oid",
+            "name": "opportunity_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Oid"
+              "title": "Opportunity Id"
             }
           }
         ],
@@ -4046,7 +4446,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Body_opportunity_interest_api_v1_opportunities__oid__interest_post"
+                "$ref": "#/components/schemas/Body_opportunity_interest_api_v1_opportunities__opportunity_id__interest_post"
               }
             }
           }
@@ -4059,7 +4459,7 @@
                 "schema": {
                   "type": "object",
                   "additionalProperties": true,
-                  "title": "Response Opportunity Interest Api V1 Opportunities  Oid  Interest Post"
+                  "title": "Response Opportunity Interest Api V1 Opportunities  Opportunity Id  Interest Post"
                 }
               }
             }
@@ -4074,7 +4474,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/me/opportunities": {
@@ -4097,7 +4498,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people/{person_id}/opportunities": {
@@ -4141,7 +4543,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/groups/{group_ref}/opportunities": {
@@ -4185,7 +4588,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/teams": {
@@ -4208,7 +4612,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "post": {
         "tags": [
@@ -4217,12 +4622,82 @@
         "summary": "Start a team, for an opportunity or for topics you choose",
         "operationId": "start_team_api_v1_teams_post",
         "requestBody": {
+          "description": "A name, or an opportunity to start from.",
           "content": {
             "application/json": {
               "schema": {
+                "properties": {
+                  "name": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "purpose": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 5000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "opportunity": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 80
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "an opportunity's ID: a new team takes its name and topics from it unless given"
+                  },
+                  "notes": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 10000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "concepts": {
+                    "items": {
+                      "properties": {
+                        "descriptor_ui": {
+                          "type": "string",
+                          "description": "a MeSH descriptor ID"
+                        },
+                        "descriptor": {
+                          "type": "string"
+                        },
+                        "weight": {
+                          "type": "number"
+                        }
+                      },
+                      "type": "object",
+                      "required": [
+                        "descriptor_ui"
+                      ]
+                    },
+                    "type": "array",
+                    "description": "the topics the team needs"
+                  }
+                },
                 "additionalProperties": true,
                 "type": "object",
-                "title": "Body"
+                "title": "TeamIn"
               }
             }
           },
@@ -4251,7 +4726,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/teams/{team_id}": {
@@ -4295,7 +4771,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "post": {
         "tags": [
@@ -4321,10 +4798,87 @@
               "schema": {
                 "type": "object",
                 "additionalProperties": true,
-                "title": "Body"
+                "title": "TeamChange",
+                "properties": {
+                  "name": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "purpose": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 5000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "opportunity": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 80
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "an opportunity's ID: a new team takes its name and topics from it unless given"
+                  },
+                  "notes": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 10000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "concepts": {
+                    "type": "array",
+                    "description": "the topics the team needs",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "descriptor_ui": {
+                          "type": "string",
+                          "description": "a MeSH descriptor ID"
+                        },
+                        "descriptor": {
+                          "type": "string"
+                        },
+                        "weight": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "descriptor_ui"
+                      ]
+                    }
+                  },
+                  "shared_with": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "person IDs it is shared with (its owner, or an admin, only)"
+                  }
+                }
               }
             }
-          }
+          },
+          "description": "Only the fields to change."
         },
         "responses": {
           "200": {
@@ -4349,7 +4903,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "delete": {
         "tags": [
@@ -4391,7 +4946,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/teams/{team_id}/members": {
@@ -4445,7 +5001,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/teams/{team_id}/members/{person_id}": {
@@ -4498,7 +5055,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/teams/{team_id}/brief": {
@@ -4551,7 +5109,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people/{person_id}/profile": {
@@ -4595,7 +5154,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people/{person_id}/profile/entries": {
@@ -4649,7 +5209,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people/{person_id}/profile/entries/{entry_id}": {
@@ -4712,7 +5273,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "delete": {
         "tags": [
@@ -4763,7 +5325,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people/{person_id}/profile/order": {
@@ -4817,7 +5380,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people/{person_id}/profile/history": {
@@ -4873,7 +5437,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people/{person_id}/profile/delegates": {
@@ -4927,7 +5492,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people/{person_id}/profile/delegates/{account_id}": {
@@ -4980,7 +5546,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people/{person_id}/profile/public": {
@@ -5034,7 +5601,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people/{person_id}/profile/entries/{entry_id}/public": {
@@ -5097,7 +5665,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people/{person_id}/profile/public/preview": {
@@ -5139,7 +5708,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people/{person_id}/cvs": {
@@ -5183,7 +5753,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "post": {
         "tags": [
@@ -5235,7 +5806,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people/{person_id}/cvs/{doc_id}": {
@@ -5288,7 +5860,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "post": {
         "tags": [
@@ -5349,7 +5922,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "delete": {
         "tags": [
@@ -5400,7 +5974,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/people/{person_id}/cvs/{doc_id}/markdown": {
@@ -5449,7 +6024,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/assertions/{assertion_id}": {
@@ -5493,7 +6069,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/assertions/{assertion_id}/decision": {
@@ -5547,7 +6124,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/assertions/decisions": {
@@ -5590,7 +6168,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/review": {
@@ -5708,7 +6287,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/review/bulk": {
@@ -5751,7 +6331,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/decisions": {
@@ -5833,7 +6414,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/evidence": {
@@ -5856,7 +6438,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/evidence/evaluate": {
@@ -5879,7 +6462,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "experimental"
       }
     },
     "/api/v1/evidence/release": {
@@ -5902,7 +6486,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/evidence/revert": {
@@ -5925,7 +6510,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/evidence/auto-accept": {
@@ -5968,7 +6554,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/evidence/auto-accept/batches/{batch_id}/undo": {
@@ -6012,7 +6599,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/groups": {
@@ -6167,7 +6755,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "post": {
         "tags": [
@@ -6208,7 +6797,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/groups/import": {
@@ -6262,11 +6852,100 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "additionalProperties": true,
-                "title": "Body"
+                "additionalProperties": false,
+                "title": "GroupImport",
+                "properties": {
+                  "groups": {
+                    "type": "array",
+                    "maxItems": 50000,
+                    "description": "the groups, each with these columns (or the other names the Groups guide lists)",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "short_name": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "website": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
+                        "parents": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "memberships": {
+                    "type": "array",
+                    "maxItems": 50000,
+                    "description": "who belongs to which, each with these columns (or the other names the Groups guide lists)",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "group": {
+                          "type": "string"
+                        },
+                        "person": {
+                          "type": "string"
+                        },
+                        "orcid": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "local_id": {
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "start": {
+                          "type": "string"
+                        },
+                        "end": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "source": {
+                    "type": "string"
+                  }
+                }
               }
             }
-          }
+          },
+          "description": "Groups and memberships (a list alone is groups)."
         },
         "responses": {
           "200": {
@@ -6291,7 +6970,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/groups/{group_ref}": {
@@ -6335,7 +7015,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "post": {
         "tags": [
@@ -6387,7 +7068,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/groups/{group_ref}/merge": {
@@ -6441,7 +7123,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/groups/{group_ref}/members": {
@@ -6503,7 +7186,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "post": {
         "tags": [
@@ -6555,7 +7239,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/groups/{group_ref}/members/{membership_id}": {
@@ -6618,7 +7303,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "delete": {
         "tags": [
@@ -6686,7 +7372,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/groups/{group_ref}/history": {
@@ -6742,7 +7429,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/groups/{group_ref}/overview": {
@@ -6786,7 +7474,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/groups/{group_ref}/publications": {
@@ -6891,7 +7580,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/groups/{group_ref}/publications/decisions": {
@@ -6945,7 +7635,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/groups/{group_ref}/page": {
@@ -7002,7 +7693,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/groups/{group_ref}/page/draft": {
@@ -7056,7 +7748,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "delete": {
         "tags": [
@@ -7098,7 +7791,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/groups/{group_ref}/page/publish": {
@@ -7152,7 +7846,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/groups/{group_ref}/page/rollback": {
@@ -7206,7 +7901,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/groups/{group_ref}/page/revisions": {
@@ -7250,7 +7946,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/groups/{group_ref}/openings": {
@@ -7308,7 +8005,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "post": {
         "tags": [
@@ -7360,7 +8058,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/groups/{group_ref}/openings/{opening_id}": {
@@ -7423,7 +8122,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/groups/{group_ref}/themes": {
@@ -7481,7 +8181,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "post": {
         "tags": [
@@ -7533,7 +8234,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/groups/{group_ref}/themes/{theme_id}": {
@@ -7596,7 +8298,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/groups/{group_ref}/inbox": {
@@ -7640,7 +8343,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/groups/{group_ref}/inbox/reviewed": {
@@ -7684,7 +8388,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/inbox": {
@@ -7707,7 +8412,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/groups/{group_ref}/public": {
@@ -7761,7 +8467,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/insight/metrics": {
@@ -7784,7 +8491,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/insight/figures/{metric_id}": {
@@ -7895,7 +8603,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/insight/cohort": {
@@ -7959,7 +8668,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/insight/cohorts": {
@@ -7982,7 +8692,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "post": {
         "tags": [
@@ -8023,7 +8734,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/insight/cohorts/{cohort_id}": {
@@ -8077,7 +8789,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "delete": {
         "tags": [
@@ -8119,7 +8832,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/insight/figures/{metric_id}/export": {
@@ -8215,7 +8929,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/insight/reports": {
@@ -8238,7 +8953,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "post": {
         "tags": [
@@ -8279,7 +8995,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/insight/reports/{report_id}": {
@@ -8323,7 +9040,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "post": {
         "tags": [
@@ -8375,7 +9093,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "delete": {
         "tags": [
@@ -8417,7 +9136,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/insight/reports/{report_id}/snapshots": {
@@ -8471,7 +9191,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/insight/snapshots": {
@@ -8494,7 +9215,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/insight/snapshots/{snapshot_id}": {
@@ -8550,7 +9272,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/insight/snapshots/{snapshot_id}/verify": {
@@ -8594,7 +9317,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/insight/snapshots/{snapshot_id}/export": {
@@ -8660,7 +9384,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/insight/years": {
@@ -8683,7 +9408,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/saved-searches": {
@@ -8706,7 +9432,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "post": {
         "tags": [
@@ -8747,7 +9474,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/saved-searches/{search_id}": {
@@ -8791,7 +9519,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "post": {
         "tags": [
@@ -8843,7 +9572,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       },
       "delete": {
         "tags": [
@@ -8885,7 +9615,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/saved-searches/{search_id}/seen": {
@@ -8929,7 +9660,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/operations": {
@@ -8952,7 +9684,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "experimental"
       }
     },
     "/api/v1/admin/branding": {
@@ -8975,7 +9708,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "experimental"
       },
       "post": {
         "tags": [
@@ -8994,7 +9728,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "experimental"
       }
     },
     "/api/v1/admin/branding/check": {
@@ -9015,7 +9750,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "experimental"
       }
     },
     "/api/v1/admin/branding/images/{image}": {
@@ -9057,7 +9793,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "experimental"
       }
     },
     "/api/v1/me/profiles": {
@@ -9080,7 +9817,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "stable"
       }
     },
     "/api/v1/me/public-page.css": {
@@ -9099,7 +9837,8 @@
               }
             }
           }
-        }
+        },
+        "x-stability": "experimental"
       }
     }
   },
@@ -9457,7 +10196,7 @@
         "type": "object",
         "title": "Body_import_opportunities_api_v1_opportunities_import_post"
       },
-      "Body_opportunity_interest_api_v1_opportunities__oid__interest_post": {
+      "Body_opportunity_interest_api_v1_opportunities__opportunity_id__interest_post": {
         "properties": {
           "state": {
             "anyOf": [
@@ -9476,7 +10215,7 @@
         "required": [
           "state"
         ],
-        "title": "Body_opportunity_interest_api_v1_opportunities__oid__interest_post"
+        "title": "Body_opportunity_interest_api_v1_opportunities__opportunity_id__interest_post"
       },
       "BulkDecision": {
         "properties": {

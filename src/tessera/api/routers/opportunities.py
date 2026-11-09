@@ -11,6 +11,7 @@ from sqlalchemy import select
 from tessera.analytics.concepts import profile_path
 from tessera.analytics.experts import ConceptReader, _exists
 from tessera.analytics.vocabulary import vocabulary_path
+from tessera.api import bodies
 from tessera.api.access import principal_of
 from tessera.api.common import (
     Page,
@@ -103,14 +104,21 @@ def list_opportunities(
     )
 
 
-@router.get("/opportunities/{oid}", summary="An opportunity: dates, money, eligibility, and text")
-def get_opportunity(request: Request, oid: str) -> dict[str, Any]:
+@router.get(
+    "/opportunities/{opportunity_id}", summary="An opportunity: dates, money, eligibility, and text"
+)
+def get_opportunity(request: Request, opportunity_id: str) -> dict[str, Any]:
+    oid = opportunity_id
     found = _view(request, oid)
     stamps = source_stamps(engine_of(request), ["grants_gov"], config_of(request))
     return envelope({**found, "sources": stamps if found["source"] == catalog.FEDERAL else []})
 
 
-@router.post("/opportunities", summary="Add an opportunity the organization tracks")
+@router.post(
+    "/opportunities",
+    summary="Add an opportunity the organization tracks",
+    openapi_extra=bodies.NEW_OPPORTUNITY,
+)
 def add_opportunity(request: Request, body: Annotated[dict[str, Any], Body()]) -> dict[str, Any]:
     try:
         oid = store.create(engine_of(request), body, principal_of(request).name)
@@ -150,10 +158,15 @@ def _rebuild_local(request: Request) -> None:
     _refresh(request, refs)
 
 
-@router.post("/opportunities/{oid}", summary="Change one the organization tracks, or restore it")
+@router.post(
+    "/opportunities/{opportunity_id}",
+    summary="Change one the organization tracks, or restore it",
+    openapi_extra=bodies.OPPORTUNITY_CHANGE,
+)
 def change_opportunity(
-    request: Request, oid: str, body: Annotated[dict[str, Any], Body()]
+    request: Request, opportunity_id: str, body: Annotated[dict[str, Any], Body()]
 ) -> dict[str, Any]:
+    oid = opportunity_id
     local = _local(request, oid)
     try:
         store.change(engine_of(request), local, body, principal_of(request).name)
@@ -163,8 +176,9 @@ def change_opportunity(
     return envelope(_view(request, local))
 
 
-@router.delete("/opportunities/{oid}", summary="Archive one the organization tracks")
-def archive_opportunity(request: Request, oid: str) -> dict[str, Any]:
+@router.delete("/opportunities/{opportunity_id}", summary="Archive one the organization tracks")
+def archive_opportunity(request: Request, opportunity_id: str) -> dict[str, Any]:
+    oid = opportunity_id
     local = _local(request, oid)
     store.archive(engine_of(request), local, principal_of(request).name)
     _refresh(request, [catalog.ref_of(local)])
@@ -228,15 +242,16 @@ def _named(request: Request, found: dict[str, Any]) -> dict[str, Any]:
 
 
 @router.get(
-    "/opportunities/{oid}/fit",
+    "/opportunities/{opportunity_id}/fit",
     summary="Who fits an opportunity and why, and whether the organization may apply",
 )
 def opportunity_fit(
     request: Request,
-    oid: str,
+    opportunity_id: str,
     concept: Annotated[list[str] | None, Query(description="MeSH IDs to add")] = None,
     drop: Annotated[list[str] | None, Query(description="MeSH IDs to leave out")] = None,
 ) -> dict[str, Any]:
+    oid = opportunity_id
     found_view = _view(request, oid)
     home = request.app.state.home
     today = date.today()
@@ -258,12 +273,15 @@ def opportunity_fit(
     })  # fmt: skip
 
 
-@router.post("/opportunities/{oid}/interest", summary="Watch an opportunity, or dismiss it")
+@router.post(
+    "/opportunities/{opportunity_id}/interest", summary="Watch an opportunity, or dismiss it"
+)
 def opportunity_interest(
     request: Request,
-    oid: str,
+    opportunity_id: str,
     state: Annotated[str | None, Body(embed=True, description="watching, dismissed, or null")],
 ) -> dict[str, Any]:
+    oid = opportunity_id
     found_view = _view(request, oid)
     try:
         store.set_interest(engine_of(request), _owner(request), found_view["id"], state)

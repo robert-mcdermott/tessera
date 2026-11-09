@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI
 
 from tessera import PRODUCT_NAME, __version__
+from tessera.api import stability
 from tessera.api.access import authorize, install_access
 from tessera.api.common import config_stamp
 from tessera.api.problems import install_problem_handlers
@@ -109,6 +110,8 @@ def create_app(config: Config) -> FastAPI:
         from tessera.ai.web import install_ai
 
         install_ai(app)
+    stability.mark(app)  # each route stable or experimental, in the OpenAPI document
+    stability.install_deprecations(app)
     install_api_reference(app)
     install_theme(app)
     install_branding(app)

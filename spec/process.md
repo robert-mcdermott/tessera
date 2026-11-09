@@ -29,7 +29,7 @@ main ──●──────────────────────
 - [ ] `uv run pytest` passes with no network access
 - [ ] `uv run ruff check` and `uv run ruff format --check` are clean
 - [ ] New behavior has tests; bug fixes have regression tests
-- [ ] Public API changes are reflected in OpenAPI and the docs
+- [ ] Public API changes are reflected in OpenAPI and the docs, and the API contract test passes (new stable routes and fields recorded)
 - [ ] Lake or ledger schema changes include a migration and an update to [data-model.md](data-model.md)
 - [ ] Any new runtime dependency has an ADR
 - [ ] The private-terms check passes
@@ -69,7 +69,8 @@ The build writes into the worktree only with `--publish`, and nothing reaches th
 
 ## Versioning
 
-- Semantic versioning. While below 1.0, a minor version (a wave) may contain breaking changes, and they are called out under **Breaking** in the changelog.
+- Semantic versioning. Before 1.0, a minor version (a wave) could contain breaking changes, called out under **Breaking** in the changelog. From 1.0, what [Compatibility](../docs/compatibility.md) promises changes only in a major version: a wave is a minor release that adds, a patch release fixes, and anything to be retired is deprecated first, with a sunset at least six months and one minor release away. Changes to experimental API routes are listed under **Breaking** too.
+- The API contract (`tests/api_contract.json`) records what every stable route accepts and answers with; its test fails on a change that would break a client. New stable routes and fields are recorded with `UPDATE_CONTRACT=1 uv run pytest tests/test_api_contract.py`, which never removes anything: taking something out is an edit by hand, for a major version or a route past its sunset.
 - The ledger schema is always migrated forward by Alembic. Lake schema versions are recorded per table; readers handle the previous version or the release notes say a `tessera replay` is required.
 
 ## Commits and pull requests

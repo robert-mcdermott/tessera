@@ -21,6 +21,7 @@ Tessera assembles a research organization's footprint from public sources, conne
 | [Configuration](configuration.md) | Look up any setting, including palettes, your logo, and evidence thresholds |
 | [Running Tessera](operations.md) | Schedule syncs, back up, upgrade, use PostgreSQL, and diagnose problems |
 | [The API](api.md) | Build on Tessera's JSON API |
+| [Compatibility](compatibility.md) | Know what each release keeps working: the API, commands, configuration, data, exports, and the public site's addresses |
 | [Command reference](cli.md) | Look up any command and its options |
 
 ## Elsewhere in the repository
