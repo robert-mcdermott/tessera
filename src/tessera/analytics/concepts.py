@@ -195,30 +195,56 @@ QUALIFY row_number() OVER (PARTITION BY person_id ORDER BY tfidf DESC, ui) <= ?
 ORDER BY person_id, weight DESC
 """
 
-SIMILARITY_SQL = """
-WITH top AS (
-  SELECT person_id, descriptor_ui AS ui, descriptor AS name, weight FROM _profile
-  QUALIFY row_number() OVER (PARTITION BY person_id ORDER BY weight DESC, descriptor_ui) <= ?
-),
-shared AS (
-  SELECT a.person_id AS a, b.person_id AS b, a.ui, a.name, a.weight * b.weight AS part
-  FROM top a JOIN top b ON a.ui = b.ui AND a.person_id < b.person_id
-),
-pairs AS (
-  SELECT a, b, sum(part) AS score,
-         list_slice(
-           list({'descriptor_ui': ui, 'descriptor': name, 'contribution': part}
-                ORDER BY part DESC), 1, ?) AS shared
-  FROM shared GROUP BY a, b HAVING sum(part) >= ?
-),
-both_ways AS (
-  SELECT a AS person_id, b AS other_id, score, shared FROM pairs
-  UNION ALL SELECT b, a, score, shared FROM pairs
-)
-SELECT * FROM both_ways
-QUALIFY row_number() OVER (PARTITION BY person_id ORDER BY score DESC, other_id) <= ?
-ORDER BY person_id, score DESC
+TOP_SQL = """
+SELECT person_id, descriptor_ui AS ui, descriptor AS name, weight FROM _profile
+QUALIFY row_number() OVER (PARTITION BY person_id ORDER BY weight DESC, descriptor_ui) <= ?
 """
+
+# One batch of people against everyone. Scores first, as plain sums; the explanation (the shared
+# concepts that contribute most) only for the pairs kept. Every pair sharing a concept, each with
+# its list, is quadratic in the size of the organization and does not fit in memory at 10,000.
+SIMILARITY_SQL = """
+WITH scores AS (
+  SELECT a.person_id, b.person_id AS other_id, sum(a.weight * b.weight) AS score
+  FROM _batch JOIN _top a USING (person_id)
+  JOIN _top b ON a.ui = b.ui AND a.person_id <> b.person_id
+  GROUP BY 1, 2 HAVING sum(a.weight * b.weight) >= ?
+),
+kept AS (
+  SELECT * FROM scores
+  QUALIFY row_number() OVER (PARTITION BY person_id ORDER BY score DESC, other_id) <= ?
+)
+SELECT k.person_id, k.other_id, any_value(k.score) AS score,
+       list_slice(
+         list({'descriptor_ui': a.ui, 'descriptor': a.name, 'contribution': a.weight * b.weight}
+              ORDER BY a.weight * b.weight DESC, a.ui), 1, ?) AS shared
+FROM kept k JOIN _top a ON a.person_id = k.person_id
+JOIN _top b ON b.person_id = k.other_id AND b.ui = a.ui
+GROUP BY k.person_id, k.other_id
+ORDER BY k.person_id, score DESC, k.other_id
+"""
+SIMILARITY_BATCH = 500  # people compared with everyone in one pass
+
+
+def _similar(cur: Any, config: Config) -> pa.Table:
+    """Similar people for everyone, a batch at a time, so memory does not grow with the square."""
+    top = cur.sql(TOP_SQL, params=[SIMILARITY_CONCEPTS]).to_arrow_table()
+    cur.register("_top", top)
+    people = sorted(set(top.column("person_id").to_pylist()))
+    params = [
+        config.discovery.similarity_floor,
+        config.discovery.similar_per_person,
+        SHARED_SHOWN,
+    ]
+    parts = []
+    for start in range(0, len(people), SIMILARITY_BATCH):
+        cur.register("_batch", pa.table({"person_id": people[start : start + SIMILARITY_BATCH]}))
+        parts.append(cur.sql(SIMILARITY_SQL, params=params).to_arrow_table())
+        cur.unregister("_batch")
+    if not parts:
+        cur.register("_batch", pa.table({"person_id": pa.array([], pa.string())}))
+        parts.append(cur.sql(SIMILARITY_SQL, params=params).to_arrow_table())
+    return pa.concat_tables(parts)
 
 
 def build_profiles(
@@ -238,15 +264,7 @@ def build_profiles(
                 PROFILE_SQL, params=[year, year, half, year, year, half, TOP_CONCEPTS]
             ).to_arrow_table()
             cur.register("_profile", profile)
-            similar = cur.sql(
-                SIMILARITY_SQL,
-                params=[
-                    SIMILARITY_CONCEPTS,
-                    SHARED_SHOWN,
-                    config.discovery.similarity_floor,
-                    config.discovery.similar_per_person,
-                ],
-            ).to_arrow_table()
+            similar = _similar(cur, config)
         finally:
             cur.close()
     home.derived.mkdir(parents=True, exist_ok=True)

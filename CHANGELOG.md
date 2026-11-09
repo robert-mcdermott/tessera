@@ -10,6 +10,20 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 
 - Single sign-on with OpenID Connect (PLT-10, ADR-0011): with `[auth.oidc]`, people sign in through Microsoft Entra ID, Okta, Google, Keycloak, or any standards-based provider, by the authorization-code flow with PKCE; the ID token's RS256 signature (checked with the standard library), issuer, audience, expiry, and nonce are checked before anyone is signed in, and a sign-in must finish in the browser that began it. Accounts are found by the provider's identifier, matched by a verified email address, or created (unless turned off), and linked to the directory person with the same address. The provider's app roles or groups map to Tessera roles, group scopes included, and are replaced at every sign-in; roles given in the app stay, and the last admin is never removed. Local accounts keep working, behind **Sign in with a password**. **Admin → Accounts** shows how each account signs in and which roles came from the provider; `tessera doctor --online` checks the provider. Migration 0023. *Running Tessera* has steps for each provider.
 
+- `tessera bench` (PLT-14): measures Tessera on this machine with a simulated organization of any size (`--people`, `--papers`), shaped like a real one and written straight to the lake and ledger with no network: it times every local step of a first sync and of a nightly one, then starts the server and times the app's main requests (first, p50, p95) against their budgets, with each step's peak memory, the server's memory, the data's size on disk, and the machine it ran on, and saves the report as JSON. *Running Tessera* has sizing advice from its results. A folder built once is reused, so the nightly and app timings can be rerun.
+
+### Changed
+
+- Faster at scale, measured at 10,000 people and 1,000,000 papers:
+  - **Resolving** remembers the names and affiliations it has normalized and works out each person's topic vector once, so it takes half the time.
+  - **Similar people** are compared a batch at a time and explained only for the pairs kept, so they are built in bounded memory (at a million papers, comparing everyone at once ran out of memory) and twice as fast, with the same results.
+  - **Search** counts and ranks one kind's matches from the full-text index alone (each document's kind is now in it), counts facets from the matches, and keeps a search's facet counts until the index changes, so the next page does not count them again. A search for a name takes about a tenth of a second at a million papers. Rebuild the search index after upgrading (`tessera build search`, or the next sync); until then, searches work as before.
+  - **The review queue** is counted in the database and reads only the page it shows, in the same order as before, however many suggestions are open; the order comes from a covering index rather than every suggestion's evidence (`assertion.review_flags`, kept as evidence is written).
+  - **A group's page** counts only its own and its subgroups' members, and **a grant's thread** finds the papers that acknowledge it by an index that SQLite now prefers.
+  - **Insight** keeps the inputs it gathers and the figures it serves until the data changes (the version of every run, decision, and person or group change), the day turns, or ten minutes pass.
+  - **Lists:** unfiltered lists read facet counts stored with the search index (kept exact by triggers between builds); a person's links are read from a covering index.
+  - Migration 0024.
+
 ### Fixed
 
 - The review queue lists suggestions in the same order on PostgreSQL as on SQLite, including after a restore; before, ties came back in whatever order the database stored them.

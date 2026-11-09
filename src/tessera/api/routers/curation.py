@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from collections import Counter
+from collections import Counter, defaultdict
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, not_, or_, select
 
 from tessera.api.access import principal_of, require_curate
 from tessera.api.common import (
@@ -29,17 +29,6 @@ from tessera.evidence import store
 from tessera.ledger.tables import assertion, curation_event, person, person_event, unit
 
 router = APIRouter(prefix="/api/v1", tags=["curation"])
-
-CONFLICTS = frozenset(
-    {
-        "slot_conflict",
-        "middle_conflict",
-        "given_conflict",
-        "orcid_conflict",
-        "orcid_rejected",
-        "orcid_inconsistent",
-    }
-)
 
 
 def _label(engine, ref: str, index) -> str | None:  # type: ignore[no-untyped-def]
@@ -194,39 +183,157 @@ def _directory(engine) -> dict[str, str]:  # type: ignore[no-untyped-def]
         )
 
 
-def _count_below(engine, floor: float, person_id: str | None, scope: set[str] | None = None) -> int:  # type: ignore[no-untyped-def]
-    query = (
-        select(func.count())
-        .select_from(assertion.join(person, person.c.id == assertion.c.subject_id))
-        .where(
-            assertion.c.predicate == "authored",
-            assertion.c.status == "suggested",
-            assertion.c.reported.is_(True),
-            assertion.c.score < floor,
-            person.c.status.in_(("active", "former")),
-        )
-    )
+# The queue's groups, in the order it shows them: strong suggestions (grouped by person, for
+# quick confirmations), then possible ones with a conflict, with an ambiguous name, and the rest,
+# then unlikely ones. Within each, the highest score first.
+GROUPS = ("strong", "conflict", "ambiguous", "possible", "unlikely")
+GROUPS_OF_BAND = {"strong": (0,), "possible": (1, 2, 3), "unlikely": (4,)}
+BAND_OF_GROUP = ("strong", "possible", "possible", "possible", "unlikely")
+
+
+def _open(person_id: str | None) -> list[Any]:
+    """An open, reported authorship suggestion (for one person, when given)."""
+    where = [
+        assertion.c.predicate == "authored",
+        assertion.c.status == "suggested",
+        assertion.c.reported.is_(True),
+    ]
     if person_id:
-        query = query.where(assertion.c.subject_id == person_id)
-    elif scope is not None:
-        query = query.where(assertion.c.subject_id.in_(scope))
+        where.append(assertion.c.subject_id == person_id)
+    return where
+
+
+def _in_group(group: int, config: Any) -> Any:
+    """SQL for "in this group of the queue", from the score and the flags kept from the evidence
+    ("conflict", "ambiguous"), all read from the queue's index."""
+    score, flags = assertion.c.score, func.coalesce(assertion.c.review_flags, "")
+    strong, review = config.evidence.strong_threshold, config.evidence.review_threshold
+    if group == 0:
+        return score >= strong
+    if group == 4:
+        return or_(score.is_(None), score < review)
+    possible = and_(score >= review, score < strong)
+    if group == 1:
+        return and_(possible, flags.like("%conflict%"))
+    if group == 2:
+        return and_(possible, not_(flags.like("%conflict%")), flags.like("%ambiguous%"))
+    return and_(possible, not_(flags.like("%conflict%")), not_(flags.like("%ambiguous%")))
+
+
+def _group_counts(engine, config, person_id: str | None) -> dict[str, list[int]]:  # type: ignore[no-untyped-def]
+    """Open suggestions per person and group of the queue, counted in the database: grouped by
+    what decides the group (two score comparisons and the flags), which is cheaper than working
+    the group out row by row, and sorted into groups here."""
+    strong = (assertion.c.score >= config.evidence.strong_threshold).label("strong")
+    possible = (assertion.c.score >= config.evidence.review_threshold).label("possible")
+    inner = (
+        select(assertion.c.subject_id, strong, possible, assertion.c.review_flags)
+        .where(*_open(person_id))
+        .subquery()
+    )
+    keys = (inner.c.subject_id, inner.c.strong, inner.c.possible, inner.c.review_flags)
+    query = select(*keys, func.count()).group_by(*keys)
+    out: dict[str, list[int]] = defaultdict(lambda: [0] * len(GROUPS))
     with engine.connect() as conn:
-        return conn.execute(query).scalar() or 0
+        for subject_id, is_strong, is_possible, flags, n in conn.execute(query).all():
+            if is_strong:
+                group = 0
+            elif is_possible:
+                flags = flags or ""
+                group = 1 if "conflict" in flags else 2 if "ambiguous" in flags else 3
+            else:
+                group = 4
+            out[subject_id][group] += n
+    return out
 
 
-def _priority(row: dict[str, Any], row_band: str | None, names: dict[str, str]) -> tuple:
-    features = {e["feature"] for e in row["evidence"] or []}
-    score = -(row["score"] or 0)
-    last = row["id"]  # ties in a fixed order, whatever order the database returned them in
-    if row_band == "strong":  # quick confirmations first, grouped by person
-        return (0, names.get(row["subject_id"], ""), score, last)
-    if row_band == "possible":
-        if features & CONFLICTS:
-            return (1, score, last)
-        if "name_ambiguity" in features:
-            return (2, score, last)
-        return (3, score, last)
-    return (4, score, last)
+def _people_filter(counted: dict[str, list[int]], allowed: dict[str, str]) -> Any:
+    """SQL for "about a person the reviewer may see": nothing when that is everyone counted,
+    else the shorter of the two lists."""
+    hidden = [pid for pid in counted if pid not in allowed]
+    if not hidden:
+        return None
+    shown = [pid for pid in counted if pid in allowed]
+    if len(shown) <= len(hidden):
+        return assertion.c.subject_id.in_(shown)
+    return assertion.c.subject_id.not_in(hidden)
+
+
+def _window(engine, config, groups: list[int], counted: dict[str, list[int]],
+            names: dict[str, str], person_id: str | None, offset: int,
+            limit: int) -> list[str]:  # type: ignore[no-untyped-def]  # fmt: skip
+    """The IDs of one page of the queue, read group by group: only the page is read, however
+    many suggestions are open (millions, after a large organization's first sync)."""
+    people = {pid: c for pid, c in counted.items() if pid in names}
+    shown = _people_filter(counted, names)
+    ids: list[str] = []
+    with engine.connect() as conn:
+        for g in groups:
+            in_group = sum(c[g] for c in people.values())
+            if offset >= in_group:
+                offset -= in_group
+                continue
+            take = min(limit - len(ids), in_group - offset)
+            where = [*_open(person_id), _in_group(g, config)]
+            if g == 0:  # by person name: only the people whose suggestions reach the page
+                ids += _strong_window(conn, where, people, names, offset, take)
+            else:
+                if shown is not None:
+                    where.append(shown)
+                query = (
+                    select(assertion.c.id)
+                    .where(*where)
+                    .order_by(func.coalesce(assertion.c.score, 0).desc(), assertion.c.id)
+                    .offset(offset)
+                    .limit(take)
+                )
+                ids += [r[0] for r in conn.execute(query)]
+            offset = 0
+            if len(ids) >= limit:
+                break
+    return ids
+
+
+def _strong_window(conn, where: list[Any], people: dict[str, list[int]], names: dict[str, str],
+                   offset: int, take: int) -> list[str]:  # type: ignore[no-untyped-def]  # fmt: skip
+    """Strong suggestions are shown by person name (people who share a name together), then
+    score: walk the names in order and read only the people whose suggestions reach the page."""
+    by_name: dict[str, list[str]] = defaultdict(list)
+    for pid, c in people.items():
+        if c[0]:
+            by_name[names.get(pid, "")].append(pid)
+    needed: list[str] = []
+    skipped = 0
+    for name in sorted(by_name):
+        n = sum(people[pid][0] for pid in by_name[name])
+        if not needed and skipped + n <= offset:
+            skipped += n
+            continue
+        needed += by_name[name]
+        if skipped + sum(people[pid][0] for pid in needed) >= offset + take:
+            break
+    rows = []
+    for start in range(0, len(needed), 500):
+        chunk = needed[start : start + 500]
+        query = select(assertion.c.id, assertion.c.subject_id, assertion.c.score).where(
+            *where, assertion.c.subject_id.in_(chunk)
+        )
+        rows += conn.execute(query).all()
+    rows.sort(key=lambda r: (names.get(r[1], ""), -(r[2] or 0), r[0]))
+    begin = offset - skipped
+    return [r[0] for r in rows[begin : begin + take]]
+
+
+def _full(engine, ids: list[str]) -> list[dict[str, Any]]:  # type: ignore[no-untyped-def]
+    """These assertions in full, in the order given."""
+    if not ids:
+        return []
+    with engine.connect() as conn:
+        rows = {
+            r["id"]: dict(r)
+            for r in conn.execute(select(assertion).where(assertion.c.id.in_(ids))).mappings()
+        }
+    return [rows[i] for i in ids if i in rows]
 
 
 @router.get("/review", summary="The review queue of suggested authorships, in priority order")
@@ -247,24 +354,20 @@ def review_queue(
         names = {pid: name for pid, name in names.items() if pid in scope}
         if person_id is None and len(scope) == 1:
             person_id = next(iter(scope))
-    floor = None if "unlikely" in bands else config.evidence.review_threshold
-    rows = [
-        r
-        for r in store.assertions_for(
-            engine,
-            predicate="authored",
-            statuses=("suggested",),
-            subject_id=person_id,
-            min_score=floor,
-        )
-        if r["subject_id"] in names
-    ]
-    counts = Counter(band(r["score"], config) for r in rows)
-    if floor is not None:  # count the unlikely band without loading it
-        counts["unlikely"] = _count_below(engine, floor, person_id, scope)
-    chosen = [r for r in rows if band(r["score"], config) in bands]
-    chosen.sort(key=lambda r: _priority(r, band(r["score"], config), names))
-    window = chosen[p.offset : p.offset + p.limit]
+    # Counted in the database, and only the page read: on a large organization, loading every
+    # open suggestion to sort them was most of the time.
+    counted = _group_counts(engine, config, person_id)
+    per_group = [sum(c[g] for pid, c in counted.items() if pid in names) for g in range(5)]
+    counts: Counter[str] = Counter()
+    for g, n in enumerate(per_group):
+        if n:
+            counts[BAND_OF_GROUP[g]] += n
+    if "unlikely" not in bands:
+        counts.setdefault("unlikely", 0)  # always said, even when none
+    groups = [g for b in GROUPS_OF_BAND if b in bands for g in GROUPS_OF_BAND[b]]
+    total = sum(per_group[g] for g in groups)
+    ids = _window(engine, config, groups, counted, names, person_id, p.offset, p.limit)
+    window = _full(engine, ids)
     summaries = publication_summaries(
         index_of(request), lake_of(request), [r["object_id"].removeprefix("pub:") for r in window]
     )
@@ -280,11 +383,11 @@ def review_queue(
     ]
     return envelope(
         items,
-        total=len(chosen),
+        total=total,
         limit=p.limit,
-        next_cursor=p.next_cursor(len(chosen)),
+        next_cursor=p.next_cursor(total),
         bands=dict(counts),
-        prefetch=min(5, max(0, len(chosen) - p.offset - p.limit)),
+        prefetch=min(5, max(0, total - p.offset - p.limit)),
     )
 
 

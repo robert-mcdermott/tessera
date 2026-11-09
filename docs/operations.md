@@ -1,6 +1,6 @@
 # Running Tessera
 
-Tessera is one Python application and one folder of data. This guide covers what is in that folder, how to keep data fresh, backups, upgrades, PostgreSQL, and what to check when something goes wrong.
+Tessera is one Python application and one folder of data. This guide covers what is in that folder, how to keep data fresh, backups, upgrades, PostgreSQL, how large a server to choose, and what to check when something goes wrong.
 
 ## The data home
 
@@ -260,6 +260,43 @@ Then create an empty database, set `[ledger] url = "postgresql+psycopg://tessera
 4. Start the server with the new configuration and check **Admin → Operations**. Keep the old data home until you are satisfied.
 
 The same steps, the other way round, move an installation back to SQLite.
+
+## Sizing a server
+
+What Tessera needs grows with the number of publications more than with the number of people. These figures come from `tessera bench` (see [Measuring your own server](#measuring-your-own-server)) on a laptop: a 10-core Apple M4 with 32 GB of memory and an SSD, with the ledger in SQLite. Treat them as a guide, and measure on your own server.
+
+| | 1,000 people, 100,000 papers | 10,000 people, 1,000,000 papers |
+|---|---|---|
+| Ledger | 0.9 GB | 8.2 GB |
+| Lake | 0.04 GB | 0.4 GB |
+| Search index and other derived files | 0.3 GB | 3.0 GB |
+| `raw/`, from real downloads (not measured) | about 0.8 GB | about 8 GB |
+| A first sync's local work, after the download | about 2 minutes | about 45 minutes |
+| A nightly sync's local work, after the download | about 2 minutes | about 36 minutes |
+| Memory of the web server | 0.6 GB | 2.0 GB |
+| Memory of a sync, at its peak | 4.4 GB | 16 GB |
+
+- **Memory.** A sync runs as its own process and holds the whole organization in memory while it resolves authorship and builds concept profiles, so it, not the web server, decides the memory a server needs: 8 GB is enough at 100,000 papers, and 32 GB at a million. Up to 512 MB of the web server's memory is Insight's cache of the inputs it has gathered.
+- **Disk.** The ledger is the largest part the benchmark measures: it keeps every link between a person and a record (about 4.3 million at a million papers) with the evidence for each, about 1.4 KB a link. Simulated papers have shorter text than real ones, so a real lake and search index are larger: real papers take about 1.5 KB each in the lake, four times the simulation's. The benchmark downloads nothing, so it leaves `raw/` empty; there, every response is kept as received, compressed, at about 8 KB a paper (8 GB a million), so that `tessera replay` can rebuild the lake without the network. Allow the totals above, `raw/`, and as much again, for backups (each `tessera backup` copies the ledger) and for the next search index, which is written beside the current one before it replaces it.
+- **Time.** The download is not included: it is bounded by the public sources (PubMed sends 200 records a request, so a million papers is 5,000 requests), and at a million papers the first one takes hours. A nightly sync's local work is resolving what is new and rebuilding the search index and the derived views; the app keeps working while it runs.
+- **Processor.** Resolving authorship uses one core; the builds use them all.
+
+At the largest size, some things are slower than they should be; each is recorded in the project's plans with what would fix it:
+
+- **The nightly resolve** recomputes every suggestion, not just what changed: about 15 minutes at a million papers, and 45 seconds at 100,000.
+- **An Insight figure, the first time after the data changes** (a sync or a decision), takes 7 to 21 seconds at a million papers, and about a second at 100,000. After that it is served from the cache in milliseconds.
+- **A search for a common topic word**, one in a quarter of all papers, takes about half a second at a million papers (a second to search everything), and up to 2.3 seconds the first time, while its facets are counted; a search for a name takes a few hundredths of a second.
+- **The review queue** counts every open suggestion on each request: about half a second with 450,000 open. It loads the next items ahead, so a curator rarely waits.
+
+### Measuring your own server
+
+```bash
+uv run tessera bench /srv/bench --people 10000 --papers 1000000
+```
+
+This builds a simulated organization in that folder; it never touches the network, your data home, or your ledger. It runs what a first sync and a nightly sync do locally, starts the app on a free port, times its main pages (the first request, the median, and the 95th percentile, against their budgets), and prints the results with each step's peak memory, the data's size, and the machine. It also saves them as `bench-<time>.json` in the folder, so results from different servers can be compared.
+
+At the largest size it needs about 15 GB of disk and two hours; the default size (1,000 people and 50,000 papers) takes a few minutes. Run it again in the same folder to time a nightly sync and the pages without building again; `--rebuild` starts over, and `--seed` makes a different organization. To measure PostgreSQL, point `[ledger] url` in the `tessera.toml` the first run leaves in the folder at an empty PostgreSQL database, then run again with `--rebuild`.
 
 ## Lake maintenance
 

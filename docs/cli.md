@@ -44,6 +44,25 @@ usage: tessera demo [-h] [--force] [--seed SEED] [path]
 | `--force` | replace a demo already there |
 | `--seed SEED` | another seed, other people |
 
+## `tessera bench`
+
+Measure Tessera on this machine with a simulated organization of any size.
+
+```text
+usage: tessera bench [-h] [--people PEOPLE] [--papers PAPERS] [--seed SEED] [--rebuild]
+                     [--samples SAMPLES]
+                     [path]
+```
+
+| Argument | Meaning |
+|---|---|
+| `path` | where to build it, or reuse (default: ./bench) |
+| `--people PEOPLE` | people (default 1,000) |
+| `--papers PAPERS` | papers (default 50,000) |
+| `--seed SEED` | another seed, another organization |
+| `--rebuild` | build it again even if it is there |
+| `--samples SAMPLES` | requests timed per page (default 30) |
+
 ## `tessera doctor`
 
 Check that this installation is ready.

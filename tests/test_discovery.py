@@ -202,6 +202,37 @@ def test_similar_people_are_symmetric_explained_and_mostly_in_the_same_field(org
     assert same / len(rows) >= 0.9
 
 
+def test_similar_people_do_not_depend_on_how_many_are_compared_at_once(
+    org: Org, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tessera.analytics import concepts
+    from tessera.lake import Lake
+
+    profile = pq.read_table(profile_path(org.home))
+
+    def similar(batch: int) -> dict[tuple[str, str], tuple[float, list[str]]]:
+        monkeypatch.setattr(concepts, "SIMILARITY_BATCH", batch)
+        with Lake(org.home.lake) as lake:
+            cur = lake.cursor()
+            try:
+                cur.register("_profile", profile)
+                rows = concepts._similar(cur, org.config).to_pylist()
+            finally:
+                cur.close()
+        return {
+            (r["person_id"], r["other_id"]): (r["score"], [c["descriptor_ui"] for c in r["shared"]])
+            for r in rows
+        }
+
+    stored = similar(10_000)
+    kept = pq.read_table(similarity_path(org.home)).to_pylist()
+    assert stored and set(stored) == {(r["person_id"], r["other_id"]) for r in kept}
+    small = similar(3)
+    assert set(small) == set(stored)
+    for pair, (score, shared) in stored.items():
+        assert small[pair][0] == pytest.approx(score) and small[pair][1] == shared
+
+
 def test_similar_people_endpoint(org: Org) -> None:
     person = next(iter(profiles(org)))
     body = ok(org.client.get(f"/api/v1/people/{person}/similar"))

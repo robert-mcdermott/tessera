@@ -260,7 +260,7 @@ def detail(request: Request, group_ref: str) -> dict[str, Any]:
         row = _resolve(conn, group_ref)
         parents = store.parents_of(conn, [row["id"]]).get(row["id"], [])
         children = store.children_of(conn, row["id"])
-        counts = store.member_counts(conn)
+        counts = store.member_counts(conn, group_ids=[row["id"], *(c["id"] for c in children)])
         merged = [
             {"id": r.id, "name": r.name}
             for r in conn.execute(

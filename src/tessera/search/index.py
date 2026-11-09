@@ -4,7 +4,8 @@ One SQLite file with:
 
 * ``doc``: one row per organization-relevant person, publication, grant, and study, with
   display fields and a JSON summary, so lists render without touching the lake;
-* ``doc_fts``: an FTS5 full-text index over titles, people, terms, and body text;
+* ``doc_fts``: an FTS5 full-text index over titles, people, terms, and body text, with each
+  document's kind, so a search of one kind is answered from the full-text index alone;
 * ``facet``: (doc, name, value) rows for faceted filtering and counts.
 
 It also holds ``candidate`` documents: people discovered in the data who await a curator's
@@ -54,7 +55,7 @@ from tessera.ledger.tables import unit
 log = logging.getLogger("tessera.search")
 
 INDEX_NAME = "search.db"
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 4  # 3: facet_total; 4: the kind in the full-text index
 KINDS = ("person", "publication", "grant", "study", "opportunity")  # "everything" search
 ALL_KINDS = (*KINDS, "candidate")
 
@@ -81,12 +82,37 @@ CREATE TABLE doc (
 );
 CREATE INDEX ix_doc_kind_sort ON doc (kind, sort_key);
 CREATE INDEX ix_doc_kind_year ON doc (kind, year);
+CREATE INDEX ix_doc_kind ON doc (id, kind);
 CREATE TABLE facet (doc_id INTEGER NOT NULL, name TEXT NOT NULL, value TEXT NOT NULL);
 CREATE INDEX ix_facet_name_value ON facet (name, value, doc_id);
-CREATE INDEX ix_facet_doc ON facet (doc_id);
+CREATE INDEX ix_facet_doc ON facet (doc_id, name, value);
 CREATE VIRTUAL TABLE doc_fts USING fts5(
-    title, people, terms, body, tokenize = 'porter unicode61 remove_diacritics 2'
+    title, people, terms, body, kind, tokenize = 'porter unicode61 remove_diacritics 2'
 );
+"""
+
+# Facet counts over a whole kind, the same on every visit to an unfiltered list until the next
+# change: worked out once when the index is written, then kept exact by triggers as the index is
+# updated between builds (a decision moves a paper's people facet, for example).
+FACET_TOTALS = """
+CREATE TABLE facet_total (
+    kind TEXT NOT NULL, name TEXT NOT NULL, value TEXT NOT NULL, n INTEGER NOT NULL,
+    PRIMARY KEY (kind, name, value)
+) WITHOUT ROWID;
+INSERT INTO facet_total
+    SELECT d.kind, f.name, f.value, count(*) FROM facet f JOIN doc d ON d.id = f.doc_id
+    GROUP BY d.kind, f.name, f.value;
+CREATE TRIGGER facet_total_add AFTER INSERT ON facet BEGIN
+    INSERT INTO facet_total (kind, name, value, n)
+        SELECT kind, NEW.name, NEW.value, 1 FROM doc WHERE id = NEW.doc_id
+        ON CONFLICT (kind, name, value) DO UPDATE SET n = n + 1;
+END;
+CREATE TRIGGER facet_total_remove AFTER DELETE ON facet BEGIN
+    UPDATE facet_total SET n = n - 1
+        WHERE kind = (SELECT kind FROM doc WHERE id = OLD.doc_id)
+        AND name = OLD.name AND value = OLD.value;
+    DELETE FROM facet_total WHERE name = OLD.name AND value = OLD.value AND n <= 0;
+END;
 """
 
 
@@ -153,7 +179,24 @@ def sort_members(predicate: str, entries: list[dict[str, Any]]) -> list[dict[str
     return entries
 
 
-def insert_doc(con: sqlite3.Connection, doc_id: int, doc: Doc) -> None:
+def kind_token(kind: str) -> str:
+    """The word that marks a document's kind in the full-text index: one no text contains, so
+    a search of one kind needs no column filter (which reads every match's word positions, and
+    the kinds' own words, such as "study", are in most abstracts)."""
+    return f"tesserakind{kind}"
+
+
+def has_kind_column(con: sqlite3.Connection) -> bool:
+    """Whether the full-text index has each document's kind (indexes built from 0.7.0 on)."""
+    return any(r[1] == "kind" for r in con.execute("PRAGMA table_info(doc_fts)"))
+
+
+def insert_doc(
+    con: sqlite3.Connection, doc_id: int, doc: Doc, kind_column: bool | None = None
+) -> None:
+    """``kind_column``: whether the index has one (asked of the index when not said)."""
+    if kind_column is None:
+        kind_column = has_kind_column(con)
     con.execute(
         "INSERT INTO doc VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
@@ -168,10 +211,17 @@ def insert_doc(con: sqlite3.Connection, doc_id: int, doc: Doc) -> None:
             json.dumps(doc.summary, default=str),
         ),
     )
-    con.execute(
-        "INSERT INTO doc_fts (rowid, title, people, terms, body) VALUES (?, ?, ?, ?, ?)",
-        (doc_id, doc.title, doc.people, doc.terms, doc.body),
-    )
+    if kind_column:
+        con.execute(
+            "INSERT INTO doc_fts (rowid, title, people, terms, body, kind) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (doc_id, doc.title, doc.people, doc.terms, doc.body, kind_token(doc.kind)),
+        )
+    else:
+        con.execute(
+            "INSERT INTO doc_fts (rowid, title, people, terms, body) VALUES (?, ?, ?, ?, ?)",
+            (doc_id, doc.title, doc.people, doc.terms, doc.body),
+        )
     if doc.facets:
         con.executemany(
             "INSERT INTO facet VALUES (?, ?, ?)",
@@ -740,7 +790,8 @@ class _Builder:
             con = sqlite3.connect(tmp)
             con.executescript(SCHEMA)
             for doc_id, doc in enumerate(self.docs, start=1):
-                insert_doc(con, doc_id, doc)
+                insert_doc(con, doc_id, doc, kind_column=True)
+            con.executescript(FACET_TOTALS)
             counts = Counter(d.kind for d in self.docs)
             con.executemany(
                 "INSERT INTO meta VALUES (?, ?)",

@@ -69,6 +69,7 @@ ignore = [
 "tests/**" = ["S105", "S106", "S108", "S311", "S314", "S608"]
 # The demo organization is invented with a seeded generator, and its vocabulary is prose.
 "src/tessera/demo/**" = ["S311"]
+"src/tessera/bench/**" = ["S311"]  # a simulation, random by design
 "src/tessera/demo/content.py" = ["E501"]
 "src/tessera/demo/mesh.py" = ["E501"]
 # The public site's HTML and CSS read best a line at a time; the dashes are typography.

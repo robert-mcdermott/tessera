@@ -189,14 +189,49 @@ assertion = Table(
     Column("first_seen_at", UtcDateTime, nullable=False),
     Column("last_evaluated_at", UtcDateTime, nullable=False),
     Column("updated_at", UtcDateTime, nullable=False),
+    # "conflict" and "ambiguous", from the evidence when it is written: what the review queue
+    # orders by besides the score, so it never reads the evidence (wave 7).
+    Column("review_flags", String(40)),
     UniqueConstraint("subject_id", "predicate", "object_id", "qualifier_key"),
     CheckConstraint(_in("status", ASSERTION_STATUSES), name="status"),
     CheckConstraint(_in("origin", ASSERTION_ORIGINS), name="origin"),
     CheckConstraint("score IS NULL OR (score >= 0 AND score <= 1)", name="score_range"),
 )
-Index(None, assertion.c.subject_id, assertion.c.predicate)
-Index(None, assertion.c.object_id, assertion.c.predicate)
-Index(None, assertion.c.predicate, assertion.c.status)
+# A person's links, with everything lists and figures filter and show, so those queries never
+# read the table: its evidence column, before status and score, spills each row into overflow
+# pages, which made reading a large organization's links slow (wave 7).
+Index(
+    "ix_assertion_links",
+    assertion.c.subject_id,
+    assertion.c.predicate,
+    assertion.c.status,
+    assertion.c.reported,
+    assertion.c.score,
+    assertion.c.object_id,
+    assertion.c.id,
+)
+# A record's links (who wrote this paper, which papers acknowledge this grant). Status and reported
+# are in it so that, with no statistics, SQLite prefers it to the queue's index for these lookups.
+Index(
+    "ix_assertion_objects",
+    assertion.c.object_id,
+    assertion.c.predicate,
+    assertion.c.status,
+    assertion.c.reported,
+    assertion.c.subject_id,
+    assertion.c.id,
+)
+# The review queue's open suggestions by band, with what orders them, likewise without the table.
+Index(
+    "ix_assertion_queue",
+    assertion.c.predicate,
+    assertion.c.status,
+    assertion.c.reported,
+    assertion.c.score,
+    assertion.c.subject_id,
+    assertion.c.review_flags,
+    assertion.c.id,
+)
 
 curation_event = Table(
     "curation_event",

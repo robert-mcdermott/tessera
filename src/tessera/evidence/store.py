@@ -418,6 +418,36 @@ class SyncStats:
         return dict(vars(self))
 
 
+# What the review queue orders by besides the score, kept with each suggestion when its evidence
+# is written, so the queue never reads the evidence itself (wave 7).
+REVIEW_CONFLICTS = frozenset(
+    {
+        "slot_conflict",
+        "middle_conflict",
+        "given_conflict",
+        "orcid_conflict",
+        "orcid_rejected",
+        "orcid_inconsistent",
+    }
+)
+
+
+def review_flags(evidence: Any) -> str | None:
+    """ "conflict" and "ambiguous", as the evidence warrants, or None."""
+    if not isinstance(evidence, list):
+        return None
+    features = {e.get("feature") for e in evidence if isinstance(e, dict)}
+    flags = [
+        flag
+        for flag, present in (
+            ("conflict", bool(features & REVIEW_CONFLICTS)),
+            ("ambiguous", "name_ambiguity" in features),
+        )
+        if present
+    ]
+    return " ".join(flags) or None
+
+
 def _canonical(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
 
@@ -512,6 +542,7 @@ def sync_assertions(
                         "method": draft.method,
                         "score": draft.score,
                         "evidence": draft.evidence,
+                        "review_flags": review_flags(draft.evidence),
                         "status": draft.status,
                         "locked": False,
                         "reported": True,
@@ -528,6 +559,7 @@ def sync_assertions(
                         "_id": row["id"],
                         "score": draft.score,
                         "evidence": draft.evidence,
+                        "review_flags": review_flags(draft.evidence),
                         "qualifiers": draft.qualifiers,
                         "method": draft.method,
                         "reported": True,
@@ -550,6 +582,7 @@ def sync_assertions(
                 .values(
                     score=bindparam("score"),
                     evidence=bindparam("evidence"),
+                    review_flags=bindparam("review_flags"),
                     qualifiers=bindparam("qualifiers"),
                     method=bindparam("method"),
                     reported=bindparam("reported"),

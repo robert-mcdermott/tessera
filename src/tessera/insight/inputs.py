@@ -10,13 +10,17 @@ years their work counts.
 
 from __future__ import annotations
 
+import hashlib
+import threading
+import time
+from collections import OrderedDict
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
 import pyarrow as pa
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.engine import Engine
 
 from tessera.config import Config
@@ -27,7 +31,13 @@ from tessera.evidence.orgmatch import OrgMatcher
 from tessera.insight.cohorts import Cohort
 from tessera.jobs.runs import last_success
 from tessera.lake import Lake
-from tessera.ledger.tables import assertion, ingest_run
+from tessera.ledger.tables import (
+    assertion,
+    curation_event,
+    ingest_run,
+    person_event,
+    unit_event,
+)
 
 CHUNK = 500
 
@@ -151,22 +161,24 @@ def _links(ctx: Context, predicate: str) -> list[dict[str, Any]]:
     """Accepted links of the cohort's people, and strong suggestions not yet decided."""
     strong = ctx.config.evidence.strong_threshold
     people = sorted(ctx.cohort.members)
+    columns = ("id", "subject_id", "object_id", "status", "score")
     out: list[dict[str, Any]] = []
     with ctx.engine.connect() as conn:
         for i in range(0, len(people), CHUNK):
+            # All at once (fetchall), and only what counts: row by row, a large organization's
+            # links took most of a figure's time.
             rows = conn.execute(
-                select(assertion.c.id, assertion.c.subject_id, assertion.c.object_id,
-                       assertion.c.status, assertion.c.score)
-                .where(
+                select(*(assertion.c[c] for c in columns)).where(
                     assertion.c.predicate == predicate,
                     assertion.c.subject_id.in_(people[i : i + CHUNK]),
-                    assertion.c.status.in_(("accepted", "suggested")),
                     assertion.c.reported.is_(True),
+                    or_(
+                        assertion.c.status == "accepted",
+                        and_(assertion.c.status == "suggested", assertion.c.score >= strong),
+                    ),
                 )
-            ).mappings()  # fmt: skip
-            for r in rows:
-                if r["status"] == "accepted" or (r["score"] or 0) >= strong:
-                    out.append(dict(r))
+            ).all()
+            out.extend(dict(zip(columns, r, strict=True)) for r in rows)
     return out
 
 
@@ -545,12 +557,89 @@ def source_stamps(
     return out
 
 
+# --- remembering inputs ---------------------------------------------------------------------
+#
+# Every figure on a page gathers the same inputs for the same cohort, and they change only when
+# the data does. Gathered tables are kept, keyed by what they were gathered from: the ledger and
+# lake, the cohort (its members and their dates), and the data's version, which moves with every
+# run (fetch, resolve, build), decision, and change to a person or group. Bounded by size; the
+# least recently used go first.
+
+CACHE_BYTES = 512 * 2**20
+CACHE_SECONDS = 600  # and never older than this, whatever the logs say
+_cache: OrderedDict[tuple[Any, ...], tuple[float, pa.Table]] = OrderedDict()
+_cache_lock = threading.Lock()
+
+
+def data_version(engine: Engine) -> tuple[Any, ...]:
+    """What the gathered inputs depend on, cheaply: the newest row of each log."""
+    with engine.connect() as conn:
+        return tuple(
+            conn.execute(select(func.max(column))).scalar()
+            for column in (ingest_run.c.id, curation_event.c.id, person_event.c.id, unit_event.c.id)
+        )
+
+
+def _cohort_digest(members: pa.Table) -> str:
+    digest = hashlib.sha256()
+    for column in members.columns:
+        digest.update(repr(column.to_pylist()).encode())
+    return digest.hexdigest()
+
+
+def clear_cache() -> None:
+    with _cache_lock:
+        _cache.clear()
+
+
+def _remember(key: tuple[Any, ...], table: pa.Table) -> None:
+    with _cache_lock:
+        _cache[key] = (time.monotonic(), table)
+        _cache.move_to_end(key)
+        while sum(t.nbytes for _, t in _cache.values()) > CACHE_BYTES and len(_cache) > 1:
+            _cache.popitem(last=False)
+
+
+def _recall(key: tuple[Any, ...]) -> pa.Table | None:
+    with _cache_lock:
+        found = _cache.get(key)
+        if found is None:
+            return None
+        if time.monotonic() - found[0] > CACHE_SECONDS:
+            del _cache[key]
+            return None
+        _cache.move_to_end(key)
+        return found[1]
+
+
 def gather(ctx: Context, needs: Iterable[str]) -> Inputs:
     tables: dict[str, pa.Table] = {"members": ctx.cohort.table()}
+    base = (
+        str(ctx.engine.url),
+        str(ctx.lake.root),
+        ctx.config.evidence.strong_threshold,
+        _cohort_digest(tables["members"]),
+        data_version(ctx.engine),
+    )
     for name in _ordered(needs):
-        tables[name] = GATHERERS[name](ctx, tables)
+        key = (*base, name)
+        found = _recall(key)
+        if found is None:
+            found = GATHERERS[name](ctx, tables)
+            _remember(key, found)
+        tables[name] = found
     sources = {s for name in tables for s in TABLE_SOURCES.get(name, ())}
     return Inputs(tables, source_stamps(ctx.engine, sources, ctx.config), utc_now())
 
 
-__all__ = ["GATHERERS", "SCHEMAS", "Context", "Inputs", "coverage", "gather", "source_stamps"]
+__all__ = [
+    "GATHERERS",
+    "SCHEMAS",
+    "Context",
+    "Inputs",
+    "clear_cache",
+    "coverage",
+    "data_version",
+    "gather",
+    "source_stamps",
+]

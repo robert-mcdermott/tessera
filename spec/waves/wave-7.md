@@ -2,7 +2,7 @@
 
 **Goal:** make Tessera easy for another organization to adopt and run: on PostgreSQL, behind its own single sign-on, in its own colors and words, as a service on its own server, at the size of a large research institution, accessible, reviewed for security, and with a guide that takes an adopter from nothing to a curated, published installation.
 
-**Branch:** `wave-7` · **Target version:** `0.7.0` · **Status:** ◐ slices 1 and 2 done
+**Branch:** `wave-7` · **Target version:** `0.7.0` · **Status:** ◐ slices 1 to 3 done
 
 ## Exit criteria
 
@@ -23,6 +23,8 @@ Requirements: PLT-09, PLT-10, PLT-14, PLT-15, UX-06; PLT-05, PLT-11, and PLT-13 
 - **Sign-in** (2026-11-08, before wave 4): local accounts stay the default, and may be all a small organization needs. Single sign-on is optional, through OpenID Connect with any standards-based provider (Microsoft Entra ID is the example). Roles may optionally map from the provider's groups.
 - **Scale** (2026-11-08): the 10,000 people and 1,000,000 publications are simulated, not downloaded. Benchmarks run on the maintainer's laptop (a 10-core M4 with an SSD) to show how Tessera performs and scales; production runs on a different server, so the benchmark must be easy to rerun there.
 
+- **Incremental resolve** (2026-11-08): the nightly resolve recomputes every suggestion, so at 1,000,000 publications it misses its budget. The miss is recorded in slice 3, with what was made faster; resolving only what changed is its own slice later (under v1.0.0 in the roadmap), with its own design and tests, rather than part of this wave.
+
 ### Defaults taken (either can change)
 
 - **OpenID Connect only.** SAML 2.0 is left out unless an adopter's identity team requires it; every provider named supports OpenID Connect for new applications.
@@ -33,17 +35,19 @@ Requirements: PLT-09, PLT-10, PLT-14, PLT-15, UX-06; PLT-05, PLT-11, and PLT-13 
 
 ## Budgets at 10,000 people and 1,000,000 publications
 
-| Measure | Budget |
-|---|---|
-| A profile (p95) | < 300 ms |
-| Search, people and publications (p95) | < 200 ms |
-| Directory and record lists with facets (p95) | < 300 ms |
-| The review queue's next item (p95) | < 100 ms |
-| An Insight figure for the organization (p95) | < 1 s |
-| Resolving one day's new papers (about 300) | < 1 min |
-| Rebuilding the search index | < 15 min |
-| Rebuilding the concept profiles, similar people, and the graph | < 30 min |
-| Memory of the server process | < 2 GB |
+| Measure | Budget | Measured: 1,000 people, 100,000 papers | Measured: 10,000 people, 1,000,000 papers |
+|---|---|---|---|
+| A profile (p95) | < 300 ms | 64 ms | 303 ms; 108 ms median ✗ |
+| Search, people and publications (p95) | < 200 ms | 129 to 195 ms | a name: 30 ms; people: 174 ms; papers with a topic word: 568 ms median, 2.3 s the first time ✗ |
+| Directory and record lists with facets (p95) | < 300 ms | 2 to 8 ms | 3 to 71 ms |
+| The review queue's next item (p95) | < 100 ms | 44 ms | 588 ms ✗ |
+| An Insight figure for the organization (p95) | < 1 s | 2 ms; the first after a change, 0.5 to 1.1 s | 3 ms; the first after a change, 7 to 21 s ✗ |
+| Resolving one day's new papers (about 300) | < 1 min | 45 s | 15 min ✗ |
+| Rebuilding the search index | < 15 min | 25 s | 12 min |
+| Rebuilding the concept profiles, similar people, and the graph | < 30 min | 19 s | 8 min |
+| Memory of the server process | < 2 GB | 0.55 GB | 1.97 GB |
+
+Measured with `tessera bench` on the laptop (a 10-core M4 with 32 GB and an SSD; SQLite), 20 samples of each request. ✗ is a miss; each is recorded in the log with its cause and what would fix it.
 
 ---
 
@@ -72,14 +76,14 @@ Requirements: PLT-09, PLT-10, PLT-14, PLT-15, UX-06; PLT-05, PLT-11, and PLT-13 
 
 **Acceptance:** tests sign in through a scripted provider and refuse a bad signature, a wrong audience, an expired token, a replayed state, and a wrong nonce; a sign-in through a Keycloak running locally creates an account with the mapped role, and a role removed at the provider is removed at the next sign-in; a local admin signs in with single sign-on turned on.
 
-## Slice 3: At scale ☐
+## Slice 3: At scale ☑
 
 **Goal:** know how Tessera performs at 10,000 people and 1,000,000 publications, and make it meet the budgets (PLT-14).
 
-- [ ] A simulated organization of any size, shaped like a real one (papers per person, authors per paper, MeSH headings, grants, studies, groups), written straight to the lake and ledger with no network
-- [ ] A benchmark command that times the sync's local steps, the derived builds, and the app's main pages and reports p50 and p95 with the machine it ran on
-- [ ] The slow parts found and fixed; the results at 10,000 and 1,000,000 recorded beside smaller sizes, so the scaling is visible
-- [ ] *Running Tessera* gains sizing advice: memory, disk, and how long a first sync and a nightly sync take
+- [x] A simulated organization of any size, shaped like a real one (papers per person, authors per paper, MeSH headings, grants, studies, groups), written straight to the lake and ledger with no network
+- [x] A benchmark command that times the sync's local steps, the derived builds, and the app's main pages and reports p50 and p95 with the machine it ran on
+- [x] The slow parts found and fixed; the results at 10,000 and 1,000,000 recorded beside smaller sizes, so the scaling is visible
+- [x] *Running Tessera* gains sizing advice: memory, disk, and how long a first sync and a nightly sync take
 
 **Acceptance:** the budgets above are met on the laptop, or each miss is recorded with its cause and what would fix it; the benchmark runs on another machine with one command.
 
@@ -138,6 +142,7 @@ Requirements: PLT-09, PLT-10, PLT-14, PLT-15, UX-06; PLT-05, PLT-11, and PLT-13 
 
 | Date | Note |
 |---|---|
+| 2026-11-09 | Slice 3 done. `tessera bench` simulates an organization of any size straight into the lake and ledger: surnames that repeat as real ones do, labs, grants, studies, MeSH headings, and about 3.4 authorship candidates a paper. It times a first sync's local steps, a nightly one, and the app's main requests, with each step's peak memory, and saves the report as JSON. On the laptop at 1,000 people and 100,000 papers, everything meets its budget except the first Insight figure after a change (1.1 s), and a nightly sync's local work takes 1 min 40 s. At 10,000 people and 1,000,000 papers, a first sync's local work takes about 45 min and a nightly one 36 min; the ledger is 8.2 GB, a sync's peak memory 16 GB, and the server's 1.98 GB. Fixed on the way: similar people ran out of memory at a million papers (every pair sharing a concept was built, each with its explanation, before most were dropped; now a batch at a time, explained only for the pairs kept, with the same pairs and explanations); search joined every match to its document to check its kind, ran the full-text query again for the count, the page, and the facets, and marked a partial word by merging every word that begins so (now each document's kind is a word in the index that no text contains, the matches are found once into a temporary table, facet counts are kept per search, and partial words are marked only in indexes up to 200,000 documents); the review queue loaded and sorted every open suggestion (now counted in SQL and only the page read, in the same order); a group's page loaded every membership in the organization; and migration 0024's queue index made SQLite, which has no statistics, prefer it to the record index for a grant's thread, so the record index carries the status too. Misses, each with its cause and what would fix it: **the nightly resolve** recomputes every suggestion (15 min; resolve only what changed, a later slice under v1.0.0, the maintainer's choice); **the first Insight figure after a change** gathers 2.6 million links through Python rows (7 to 21 s; keep the inputs columnar and computed in DuckDB, or have the nightly build write a snapshot with the day's decisions applied on top); **a topic word in a quarter of the papers** is ranked by scoring every match, which FTS5 cannot prune, and its facets are counted over all of them (about half a second, up to 2.3 s while its facets are first counted, and a second to search everything; a name takes 30 ms; facet counts from a columnar copy of the facets held in memory would take most of it); **the review queue** counts 450,000 open suggestions on each request (0.59 s; counts kept by triggers); **a profile** of the most prolific simulated people, with up to 7,000 papers, takes up to half a second the first time. Noted for later: the ledger is the largest part (8.2 GB at a million papers, against a 0.4 GB lake), because it keeps every link with its evidence (1.4 KB of JSON for an authorship, uncompressed); storing each feature's code and numbers, with the explanation written when shown, would make it several times smaller. The simulation's text comes from templates, so its lake (0.4 GB at a million papers) and search index are smaller than real ones; *Running Tessera* says to allow three times the disk. |
 | 2026-11-08 | Slice 2 done. Single sign-on is OpenID Connect's authorization-code flow with PKCE (S256), a state, and a nonce; the attempt is kept in the ledger by a hash of its state (migration 0023), used once, and bound to the browser by a Lax cookie, since the provider's redirect back is cross-site. The ID token's RS256 signature is verified with the standard library (one modular exponentiation and a comparison with the PKCS #1 v1.5 encoding), checked against a signature OpenSSL made, and a key the provider rotates is read again. Roles from the provider are stored as such and replaced at each sign-in, so an admin's own grants are untouched and the edit form shows the provider's as read-only. Accounts made at sign-in have the password hash `!`, which matches nothing. 28 tests sign in through a scripted provider that checks PKCE and the client secret as a real one does, and refuse eight kinds of forged or wrong token. End to end against Keycloak 26 in a container: the first sign-in created an account with the Curator role from Keycloak's realm roles, and after Keycloak swapped it for Admin, the next sign-in (with no prompt, through Keycloak's own session) took Curator away and gave Admin; a local admin signed in with a password throughout. |
 | 2026-11-08 | Slice 1 done. With `TESSERA_TEST_LEDGER=postgres`, each data home a test creates gets its own empty PostgreSQL database (a migration takes 0.12 s there, so no template is needed and every test means exactly what it does on SQLite); the switch lives in the tests alone and changes nothing in Tessera. The whole suite then failed three tests: two were about the default SQLite file (one now says so and is skipped on PostgreSQL; the other checks the file only on SQLite), and one was a real difference: the review queue's ties came back in storage order, which on PostgreSQL changes after a restore. Assertions are now read in ID order, and the queue's sort ends with the ID. `scripts/test-both.sh` runs both: 827 tests on SQLite in 3.6 minutes and 828 on PostgreSQL 16 in 11 minutes, on the laptop. |
 | 2026-11-08 | Wave 7 planned. Single sign-on is OpenID Connect only, with the authorization-code flow and PKCE, the ID token's signature checked against the provider's keys with the standard library, and app roles recommended for Entra ID because of its group limit. The scale target is simulated; the budgets extend the ones in [ux.md](../ux.md) from 5,000 people and 300,000 publications to 10,000 and 1,000,000, and add the sync's and builds' times. |

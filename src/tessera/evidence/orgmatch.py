@@ -46,11 +46,23 @@ class OrgMatcher:
         self._patterns = [(p, _phrase_pattern(p)) for p in org.affiliation_patterns if p.strip()]
         self._exclusions = [_phrase_pattern(e) for e in org.exclusions if e.strip()]
         self._domains = tuple(d.lower().lstrip("@") for d in org.email_domains)
+        self._seen: dict[str, OrgMatch | None] = {}
 
     def match(self, text: str | None) -> OrgMatch | None:
         """The first configured name found in ``text``, unless an exclusion covers it."""
         if not text:
             return None
+        # Affiliations repeat across a lake's papers: remember the answers (a bounded number).
+        try:
+            return self._seen[text]
+        except KeyError:
+            pass
+        if len(self._seen) > 1 << 18:
+            self._seen.clear()
+        found = self._seen[text] = self._match(text)
+        return found
+
+    def _match(self, text: str) -> OrgMatch | None:
         for domain in self._email_domains(text):
             return OrgMatch(domain, "email")
         normalized = _normalize(text)

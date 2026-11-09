@@ -65,6 +65,22 @@ def build_parser() -> argparse.ArgumentParser:
     demo.add_argument("--seed", type=int, default=7, help="another seed, other people")
     demo.set_defaults(handler=cmd_demo)
 
+    bench = commands.add_parser(
+        "bench",
+        help="measure Tessera on this machine with a simulated organization of any size",
+    )
+    bench.add_argument(
+        "path", nargs="?", default="bench", help="where to build it, or reuse (default: ./bench)"
+    )
+    bench.add_argument("--people", type=int, default=1000, help="people (default 1,000)")
+    bench.add_argument("--papers", type=int, default=50_000, help="papers (default 50,000)")
+    bench.add_argument("--seed", type=int, default=7, help="another seed, another organization")
+    bench.add_argument("--rebuild", action="store_true", help="build it again even if it is there")
+    bench.add_argument(
+        "--samples", type=int, default=30, help="requests timed per page (default 30)"
+    )
+    bench.set_defaults(handler=cmd_bench)
+
     doctor = commands.add_parser("doctor", help="check that this installation is ready")
     doctor.add_argument("--online", action="store_true", help="also test public API reachability")
     doctor.set_defaults(handler=cmd_doctor)
@@ -536,6 +552,18 @@ def _print_result(result) -> None:  # type: ignore[no-untyped-def]
 
 
 # --- commands -------------------------------------------------------------------------
+
+
+def cmd_bench(args: argparse.Namespace) -> int:
+    from tessera.bench.run import run
+
+    if args.people < 10 or args.papers < 100:
+        print("Use at least 10 people and 100 papers.", file=sys.stderr)
+        return EXIT_ERROR
+    run(Path(args.path), people=args.people, papers=args.papers, seed=args.seed,
+        rebuild=args.rebuild, samples=args.samples,
+        say=lambda line: print(line, flush=True))  # fmt: skip
+    return EXIT_OK
 
 
 def cmd_demo(args: argparse.Namespace) -> int:

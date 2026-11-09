@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from datetime import date
+from pathlib import Path
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -402,3 +404,235 @@ def test_highlight_markers_are_not_html(client: TestClient) -> None:
     items = ok(client.get("/api/v1/search", params={"q": "Study", "type": "publication"}))["data"]
     title = items[0]["highlights"]["title"]
     assert MARK_START in title and MARK_END in title and "<mark>" not in title
+
+
+def test_an_index_from_before_kinds_were_indexed_answers_the_same(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """From 0.7.0 each document's kind is in the full-text index, so a search of one kind is
+    counted and ranked from it alone. An index built before then answers the same, and a word
+    that names a kind matches only the documents that contain it, never every one of that kind."""
+    import shutil
+    import sqlite3
+
+    from tessera.search.index import index_path
+    from tessera.search.query import SearchIndex
+
+    home = client.app.state.home  # type: ignore[attr-defined]
+    shutil.copy(index_path(home), tmp_path / "search.db")
+    con = sqlite3.connect(tmp_path / "search.db")
+    rows = con.execute("SELECT rowid, title, people, terms, body FROM doc_fts").fetchall()
+    con.executescript(
+        "DROP TABLE doc_fts; CREATE VIRTUAL TABLE doc_fts USING fts5(title, people, terms, body, "
+        "tokenize = 'porter unicode61 remove_diacritics 2');"
+    )
+    con.executemany(
+        "INSERT INTO doc_fts (rowid, title, people, terms, body) VALUES (?, ?, ?, ?, ?)", rows
+    )
+    con.commit()
+    con.close()
+    new, old = SearchIndex(index_path(home)), SearchIndex(tmp_path / "search.db")
+
+    year = new.search("publication", "Immunotherapy").facets["year"][0]["value"]
+    for kind, q, filters in [
+        ("publication", "Immunotherapy", {}),
+        ("publication", "Immunotherapy", {"year": [year]}),
+        ("publication", "publication", {}),
+        ("person", "Immunotherapy", {}),
+        ("grant", "Immunotherapy", {}),
+    ]:
+        a = new.search(kind, q, filters, sort=None, limit=500)
+        b = old.search(kind, q, filters, sort=None, limit=500)
+        assert a.total == b.total and a.facets == b.facets, (kind, q, filters)
+        assert {i["ref"] for i in a.items} == {i["ref"] for i in b.items}
+        if kind in ("publication", "grant"):  # and in the same order, in a fixed sort
+            by_year = [new.search(kind, q, filters, sort="year", limit=500), old.search(
+                kind, q, filters, sort="year", limit=500)]  # fmt: skip
+            assert [i["ref"] for i in by_year[0].items] == [i["ref"] for i in by_year[1].items]
+    assert new.search("publication", "publication").total < new.counts()["publication"]
+    grouped_new, grouped_old = new.grouped("Immunotherapy"), old.grouped("Immunotherapy")
+    assert {k: r.total for k, r in grouped_new.items()} == {
+        k: r.total for k, r in grouped_old.items()
+    }
+    titled = new.grouped("Study")["publication"].items  # a word in the titles: marked there
+    assert titled and all(MARK_START in i["highlights"]["title"] for i in titled)
+
+
+def test_a_searchs_facet_counts_are_kept_until_the_index_changes(
+    client: TestClient, tmp_path: Path
+) -> None:
+    import shutil
+    import sqlite3
+
+    from tessera.search.index import index_path
+    from tessera.search.query import SearchIndex
+
+    home = client.app.state.home  # type: ignore[attr-defined]
+    shutil.copy(index_path(home), tmp_path / "search.db")
+    index = SearchIndex(tmp_path / "search.db")
+    first = index.search("publication", "Immunotherapy", limit=1)
+    years = {v["value"]: v["count"] for v in first.facets["year"]}
+    again = index.search("publication", "Immunotherapy", limit=1, offset=1)
+    assert again.facets == first.facets and again.items != first.items
+    con = sqlite3.connect(tmp_path / "search.db")
+    doc_id, year = con.execute(
+        "SELECT d.id, f.value FROM doc d JOIN facet f ON f.doc_id = d.id "
+        "WHERE d.ref = ? AND f.name = 'year'",
+        [first.items[0]["ref"]],
+    ).fetchone()
+    con.execute("DELETE FROM facet WHERE doc_id = ? AND name = 'year'", [doc_id])
+    con.commit()
+    con.close()
+    after = index.search("publication", "Immunotherapy", limit=1)
+    counted = {v["value"]: v["count"] for v in after.facets["year"]}
+    assert counted.get(year, 0) == years[year] - 1
+
+
+def test_stored_facet_totals_stay_equal_to_live_counts(
+    client: TestClient, world: synthetic_org.World
+) -> None:
+    """Unfiltered lists read facet totals stored with the index; triggers keep them exact as
+    decisions rewrite documents between builds."""
+    import sqlite3
+
+    from tessera.search.index import index_path
+
+    home = client.app.state.home  # type: ignore[attr-defined]
+
+    def stored_and_live() -> tuple[dict, dict]:
+        con = sqlite3.connect(index_path(home))
+        try:
+            stored = {(k, n, v): c for k, n, v, c in con.execute("SELECT * FROM facet_total")}
+            live = {
+                (k, n, v): c
+                for k, n, v, c in con.execute(
+                    "SELECT d.kind, f.name, f.value, count(*) FROM facet f "
+                    "JOIN doc d ON d.id = f.doc_id GROUP BY 1, 2, 3"
+                )
+            }
+        finally:
+            con.close()
+        return stored, live
+
+    stored, live = stored_and_live()
+    assert stored == live and stored
+    pid = person_id(client, world.insiders[7].family)
+    for item in ok(client.get(f"/api/v1/people/{pid}/publications"))["data"][:3]:
+        aid = item["assertion"]["id"]
+        ok(client.post(f"/api/v1/assertions/{aid}/decision", json={"action": "accept"}))
+    stored, live = stored_and_live()
+    assert stored == live
+    listed = ok(client.get("/api/v1/publications", params={"limit": 5}))["meta"]["facets"]
+    years = {v["value"]: v["count"] for v in listed["year"]}
+    assert all(live[("publication", "year", y)] == n for y, n in years.items())
+
+
+def test_the_queue_orders_by_flags_kept_from_the_evidence(
+    client: TestClient, world: synthetic_org.World
+) -> None:
+    """Possible suggestions with a conflict come first, then ambiguous names, then the rest, as
+    their evidence says; the flags the queue reads are kept in step with the evidence."""
+    from sqlalchemy import select
+
+    from tessera.evidence.store import REVIEW_CONFLICTS, review_flags
+    from tessera.ledger.tables import assertion
+
+    engine = make_engine(client.app.state.config.ledger_url)  # type: ignore[attr-defined]
+    try:
+        with engine.connect() as conn:
+            rows = conn.execute(
+                select(assertion.c.evidence, assertion.c.review_flags).where(
+                    assertion.c.predicate == "authored"
+                )
+            ).all()
+    finally:
+        engine.dispose()
+    assert rows and all(review_flags(r[0]) == r[1] for r in rows)
+    items = ok(client.get("/api/v1/review", params={"band": "possible", "limit": 200}))["data"]
+
+    def rank(item: dict) -> int:
+        features = {e["feature"] for e in item["assertion"]["evidence"]}
+        return 1 if features & REVIEW_CONFLICTS else 2 if "name_ambiguity" in features else 3
+
+    ranks = [rank(i) for i in items]
+    assert ranks == sorted(ranks)
+
+
+def test_the_queue_reads_one_page_in_the_order_it_always_had(
+    client: TestClient, world: synthetic_org.World
+) -> None:
+    """The queue is counted in the database and only the page is read. Paged a few at a time, it
+    is the same, item for item, as every open suggestion sorted in memory the way it was before:
+    strong ones by person name, then possible ones with a conflict, an ambiguous name, and the
+    rest, then unlikely ones; within each, the highest score first, then the ID."""
+    from sqlalchemy import select
+
+    from tessera.evidence.authorship import band
+    from tessera.ledger.tables import assertion, person
+
+    config = client.app.state.config  # type: ignore[attr-defined]
+    engine = make_engine(config.ledger_url)
+    try:
+        with engine.connect() as conn:
+            names = dict(
+                conn.execute(
+                    select(person.c.id, person.c.display_name).where(
+                        person.c.status.in_(("active", "former"))
+                    )
+                ).all()
+            )
+            rows = conn.execute(
+                select(
+                    assertion.c.id,
+                    assertion.c.subject_id,
+                    assertion.c.score,
+                    assertion.c.review_flags,
+                ).where(
+                    assertion.c.predicate == "authored",
+                    assertion.c.status == "suggested",
+                    assertion.c.reported.is_(True),
+                )
+            ).all()
+    finally:
+        engine.dispose()
+
+    def key(r: Any) -> tuple:
+        b, flags, score = band(r.score, config), r.review_flags or "", -(r.score or 0)
+        if b == "strong":
+            return (0, names.get(r.subject_id, ""), score, r.id)
+        if b == "possible":
+            return (1 if "conflict" in flags else 2 if "ambiguous" in flags else 3, score, r.id)
+        return (4, score, r.id)
+
+    shown = [r for r in rows if r.subject_id in names]
+    assert {band(r.score, config) for r in shown} == {"strong", "possible", "unlikely"}
+    assert len({r.subject_id for r in shown if band(r.score, config) == "strong"}) > 1
+    pid = person_id(client, world.insiders[3].family)
+    for bands, who in [
+        (["strong", "possible"], None),
+        (["strong", "possible", "unlikely"], None),
+        (["possible"], None),
+        (["unlikely"], None),
+        (["strong", "possible", "unlikely"], pid),
+    ]:
+        expected = sorted(
+            (r for r in rows if r.subject_id in names and band(r.score, config) in bands
+             and (who is None or r.subject_id == who)), key=key)  # fmt: skip
+        assert expected, bands
+        params: dict[str, Any] = {"band": bands, "limit": 7}
+        if who:
+            params["person"] = who
+        seen, offset = [], 0
+        while True:
+            page = ok(client.get("/api/v1/review", params={**params, "offset": offset}))
+            seen += [i["assertion"]["id"] for i in page["data"]]
+            if not page["data"]:
+                break
+            offset += 7
+        assert seen == [r.id for r in expected], (bands, who)
+        assert page["meta"]["total"] == len(expected)
+        counted = page["meta"]["bands"]
+        for b in bands:
+            n = sum(1 for r in rows if r.subject_id in names and band(r.score, config) == b
+                    and (who is None or r.subject_id == who))  # fmt: skip
+            assert counted.get(b, 0) == n, (b, counted)

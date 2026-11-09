@@ -11,6 +11,7 @@ import re
 import unicodedata
 from dataclasses import dataclass
 from enum import Enum
+from functools import lru_cache
 
 # Letters that Unicode decomposition does not reduce to ASCII.
 _TRANSLATE = str.maketrans(
@@ -27,22 +28,35 @@ CREDENTIALS = frozenset(
 )  # fmt: skip
 
 
+# The same names and affiliations come up again and again across a large lake, so these pure
+# functions remember their answers (a few hundred thousand of them).
+CACHE = 1 << 18
+
+
+@lru_cache(maxsize=CACHE)
 def fold(text: str) -> str:
     """Lowercase ASCII with accents and special letters folded: "Sørensen-Ölz" -> "sorensen-olz"."""
+    if text.isascii():
+        return text.lower()
     decomposed = unicodedata.normalize("NFKD", text.translate(_TRANSLATE))
     stripped = "".join(c for c in decomposed if not unicodedata.combining(c))
     return stripped.encode("ascii", "ignore").decode().lower()
 
 
+_NOT_LETTER = re.compile(r"[^a-z]")
+
+
+@lru_cache(maxsize=CACHE)
 def key(text: str | None) -> str:
     """A comparison key: folded letters only. "van der Berg" -> "vanderberg"."""
-    return re.sub(r"[^a-z]", "", fold(text or ""))
+    return _NOT_LETTER.sub("", fold(text or ""))
 
 
-def family_keys(family: str | None) -> set[str]:
+@lru_cache(maxsize=CACHE)
+def family_keys(family: str | None) -> frozenset[str]:
     """Keys a family name may appear under: whole, without particles, and each hyphen part."""
     if not family:
-        return set()
+        return frozenset()
     words = re.split(r"[\s]+", fold(family).strip())
     keys = {key(family)}
     core = [w for w in words if w not in PARTICLES]
@@ -52,7 +66,7 @@ def family_keys(family: str | None) -> set[str]:
         if len(key(part)) >= 3 and "-" in family:
             keys.add(key(part))
     keys.discard("")
-    return keys
+    return frozenset(keys)
 
 
 @dataclass(frozen=True)
@@ -87,6 +101,7 @@ class Name:
         return f"{self.given} {self.family}".strip()
 
 
+@lru_cache(maxsize=CACHE)
 def initials_of(given: str | None) -> str:
     """ "Ada Beth" -> "AB"; "A.B." -> "AB"; "Jean-Luc" -> "JL"; "AB" (already initials) -> "AB"."""
     if not given:
@@ -95,6 +110,7 @@ def initials_of(given: str | None) -> str:
     return "".join(t[0] for t in tokens).upper()
 
 
+@lru_cache(maxsize=CACHE)
 def make_name(
     family: str | None, given: str | None = None, initials: str | None = None
 ) -> Name | None:

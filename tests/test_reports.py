@@ -13,14 +13,14 @@ from pathlib import Path
 import pyarrow.parquet as pq
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select, update
+from sqlalchemy import insert, select, update
 
 from tessera.api.app import create_app
 from tessera.config import load_config
 from tessera.core.clock import utc_now
 from tessera.demo import build_demo
 from tessera.ledger.db import make_engine
-from tessera.ledger.tables import assertion, saved_search
+from tessera.ledger.tables import assertion, curation_event, saved_search
 
 TODAY = date(2026, 11, 7)
 PROGRAM = "group:cancer-immunotherapy-program"
@@ -138,9 +138,11 @@ def test_a_snapshot_keeps_its_numbers_after_the_data_changes_and_verifies(demo) 
         if r["status"] == "confirmed" and len(r["links"]) == 1)  # fmt: skip
     engine = make_engine(config.ledger_url)
     try:
-        with engine.begin() as conn:
+        with engine.begin() as conn:  # a decision, logged as every decision is
             conn.execute(update(assertion).where(assertion.c.id == record["links"][0])
                          .values(status="rejected", decided_at=utc_now()))  # fmt: skip
+            conn.execute(insert(curation_event).values(assertion_id=record["links"][0],
+                         actor="Test", action="reject", at=utc_now()))  # fmt: skip
     finally:
         engine.dispose()
     live = ok(client.get("/api/v1/insight/figures/publications.count",
