@@ -1,0 +1,48 @@
+# One sync: fetch what changed from the public sources, resolve, and rebuild the derived views.
+# Started by tessera-sync.timer; run by hand with: systemctl start tessera-sync.service
+
+[Unit]
+Description=Tessera sync
+Documentation=https://robert-mcdermott.github.io/tessera/operations.html#keeping-data-fresh
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=tessera
+Group=tessera
+WorkingDirectory=/srv/tessera
+Environment=TESSERA_CONFIG=/srv/tessera/tessera.toml
+# Secrets (NCBI_API_KEY, PGPASSWORD, TESSERA_OIDC_CLIENT_SECRET, …), readable only by root.
+EnvironmentFile=-/etc/tessera/tessera.env
+ExecStart=/srv/tessera/app/.venv/bin/tessera --quiet sync
+# Publish the public site after each sync, if you use it:
+# ExecStartPost=/srv/tessera/app/.venv/bin/tessera --quiet publish
+# A first sync of a large organization takes hours; a nightly one, minutes.
+TimeoutStartSec=12h
+Nice=5
+IOSchedulingClass=idle
+
+# Sandboxing: Tessera needs its own folder, outbound HTTPS (the sync), and its port.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/srv/tessera
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0027

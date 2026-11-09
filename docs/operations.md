@@ -61,6 +61,76 @@ uv run tessera serve
 
 Tessera listens on `127.0.0.1:8000` by default (`[server] host` and `port`).
 
+## Running it as a service
+
+The repository's `deploy/` folder has reference files for running Tessera on a server: a container image, a compose file with PostgreSQL, systemd units, and reverse-proxy configurations. Copy them and adjust the names and paths. Before people use it, run `tessera doctor --production` (see [Checks for production](#checks-for-production)).
+
+Whichever way it runs, Tessera listens on the machine itself, behind a reverse proxy that serves HTTPS. It needs `[server] accounts = true`; without accounts it refuses to listen anywhere but on this machine.
+
+### On a server, with systemd
+
+1. Create a user and a folder for Tessera, and install it there:
+
+   ```bash
+   sudo useradd --system --home-dir /srv/tessera --shell /usr/sbin/nologin tessera
+   sudo mkdir -p /srv/tessera && sudo chown tessera:tessera /srv/tessera
+   sudo -u tessera git clone https://github.com/robert-mcdermott/tessera.git /srv/tessera/app
+   cd /srv/tessera/app && sudo -u tessera uv sync --frozen --no-dev   # --extra postgres for PostgreSQL
+   ```
+
+2. Write the configuration and the data home: `sudo -u tessera env TESSERA_CONFIG=/srv/tessera/tessera.toml /srv/tessera/app/.venv/bin/tessera init`. Set `[data] home = "/srv/tessera/var"` and `[server] accounts = true` in it, describe your organization, and add an admin (`tessera users add NAME --role admin`).
+3. Put secrets (`NCBI_API_KEY`, `PGPASSWORD`, `TESSERA_OIDC_CLIENT_SECRET`, …) in `/etc/tessera/tessera.env`, one `NAME=value` a line, owned by root and readable by no one else.
+4. Copy the units in `deploy/systemd/` to `/etc/systemd/system/`, then:
+
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now tessera.service tessera-sync.timer tessera-backup.timer
+   ```
+
+| Unit | What it does |
+|---|---|
+| `tessera.service` | The web app, restarted if it stops |
+| `tessera-sync.service`, `.timer` | A sync every night at 02:30 (a few minutes' spread); uncomment its `ExecStartPost` line to publish the public site after each |
+| `tessera-backup.service`, `.timer` | A backup every night at 00:30, well before the sync, since only one data job runs at a time; old archives stay unless you uncomment the line that keeps 30 days |
+
+Each service may write only `/srv/tessera`, has no privileges, and is limited to the system calls a service needs (`systemd-analyze security` rates the web app's exposure 1.9, "OK"). Logs go to the journal (`journalctl -u tessera`) as well as to `<data home>/logs`. To upgrade: `git pull` and `uv sync --frozen --no-dev` in `/srv/tessera/app`, `tessera db upgrade`, then `systemctl restart tessera` (see [Upgrading](#upgrading)).
+
+### In a container
+
+`deploy/container/Dockerfile` builds an image with uv from the lock file. It runs as an unprivileged user (uid 10001), with two volumes: `/srv/tessera/config`, which holds `tessera.toml` and branding images, and `/srv/tessera/data`, the data home. The image holds no state, so an upgrade is a new image and `tessera db upgrade`.
+
+```bash
+podman build --format docker -f deploy/container/Dockerfile -t tessera:0.7.0 .   # or docker build
+```
+
+(`--format docker` keeps the image's health check, which podman's default format drops.)
+
+`deploy/container/compose.yaml` runs it with its ledger in PostgreSQL 16. Its first lines list the steps: a password for the database in `.env`, `tessera init` to write `config/tessera.toml`, the schema, an admin, then `docker compose up -d` and the first sync. The `config` folder must be writable by uid 10001 (`sudo chown 10001 config`, or with rootless podman `podman unshare chown 10001 config`), since **Admin → Branding** writes there. Run the sync and backups from the host's scheduler, for example `docker compose run --rm tessera tessera sync`.
+
+### Behind a reverse proxy
+
+`deploy/proxy/` has a `Caddyfile` (which obtains and renews certificates itself) and an `nginx.conf`. Each serves the app over HTTPS and the public site from `<data home>/public` as plain files. Whichever you use, the proxy must:
+
+- send `X-Forwarded-Proto` and `X-Forwarded-Host`: Tessera reads them to mark its session cookie Secure, to refuse requests from other sites, and to build the single sign-on address;
+- accept request bodies up to 4 MB, for branding images;
+- wait up to two minutes for a response, since a first Insight figure at a million papers can take most of a minute.
+
+Tessera sets its own security headers (a content security policy with no third-party sources, and others); the examples add HSTS.
+
+### Health checks
+
+| Address | Answers | For |
+|---|---|---|
+| `/api/v1/health/live` | `200` whenever the process answers | Container and process supervisors: restart it if this fails |
+| `/api/v1/health/ready` | `200` when the ledger (at the current schema) and the lake can be read, `503` otherwise, with each check's state | Load balancers: send traffic only when it is ready |
+| `/api/v1/health` | The same as `ready` | Earlier installations |
+
+None needs signing in, and they say nothing about the organization's data.
+
+### Checks for production
+
+`tessera doctor --production` adds what a server other people use needs: accounts and an admin, a contact address for the public sources, an NCBI API key, HTTPS addresses for the app and the public site, a recent sync and a recent backup, room on the disk, a search index, and not running as root. Run it after installing and after each upgrade; it exits non-zero if anything fails.
+
 ## Accounts and sign-in
 
 Out of the box Tessera runs in *single-operator mode*: no sign-in, answering only on this machine, with every decision recorded under `[server] operator`. That suits one curator on a laptop. For several people, or for a server others reach, turn on accounts:

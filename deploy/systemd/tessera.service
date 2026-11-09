@@ -1,0 +1,52 @@
+# The Tessera web app. Install to /etc/systemd/system/, then:
+#   systemctl daemon-reload && systemctl enable --now tessera.service
+# Assumes Tessera in /srv/tessera/app (uv sync --frozen --no-dev), owned by the user tessera,
+# with its configuration at /srv/tessera/tessera.toml. See docs/operations.md.
+
+[Unit]
+Description=Tessera web app
+Documentation=https://robert-mcdermott.github.io/tessera/operations.html
+After=network-online.target
+Wants=network-online.target
+# With the ledger in PostgreSQL on this machine, also:
+# After=postgresql.service
+
+[Service]
+Type=exec
+User=tessera
+Group=tessera
+WorkingDirectory=/srv/tessera
+Environment=TESSERA_CONFIG=/srv/tessera/tessera.toml
+# Secrets (NCBI_API_KEY, PGPASSWORD, TESSERA_OIDC_CLIENT_SECRET, …), readable only by root.
+EnvironmentFile=-/etc/tessera/tessera.env
+ExecStart=/srv/tessera/app/.venv/bin/tessera serve
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30s
+
+# Sandboxing: Tessera needs its own folder, outbound HTTPS (the sync), and its port.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/srv/tessera
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

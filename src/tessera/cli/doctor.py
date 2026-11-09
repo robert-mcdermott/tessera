@@ -37,7 +37,9 @@ class Check:
     detail: str
 
 
-def run_checks(config_path: str | None, *, online: bool = False) -> list[Check]:
+def run_checks(
+    config_path: str | None, *, online: bool = False, production: bool = False
+) -> list[Check]:
     checks: list[Check] = []
     version_ok = sys.version_info >= (3, 12)
     checks.append(
@@ -73,6 +75,8 @@ def run_checks(config_path: str | None, *, online: bool = False) -> list[Check]:
         checks += _check_sso(config, online=online)
     if online:
         checks += _check_sources(config)
+    if production:
+        checks += _check_production(config)
     return checks
 
 
@@ -277,3 +281,82 @@ def exit_code(checks: list[Check]) -> int:
 
 
 __all__ = ["Check", "Path", "exit_code", "print_checks", "run_checks"]
+
+
+# --- production ----------------------------------------------------------------------------------
+
+SYNC_DAYS = 2  # a nightly sync older than this has stopped running
+FREE_GB = 5  # at least this much free on the data home's disk, and twice the ledger and indexes
+
+
+def _check_production(config: Config) -> list[Check]:
+    """What a server other people use needs beyond what every installation does
+    (``tessera doctor --production``)."""
+    import shutil
+    from datetime import UTC, timedelta
+
+    from tessera.core.clock import utc_now
+    from tessera.jobs import runs
+    from tessera.search.index import index_path
+
+    checks: list[Check] = []
+
+    def add(what: str, state: str, detail: str) -> None:
+        checks.append(Check(f"Production: {what}", state, detail))
+
+    if config.server.accounts:
+        add("sign-in", OK, "accounts on")
+    else:
+        add("sign-in", FAIL, "a server others use needs [server] accounts = true")
+    if config.sources.contact_email:
+        add("contact", OK, config.sources.contact_email)
+    else:
+        add("contact", WARN, "set [sources] contact_email: NCBI and others ask who is calling")
+    key = config.sources.pubmed.api_key_env
+    if key and os.environ.get(key):
+        add("NCBI key", OK, f"{key} is set")
+    else:
+        where = key or "[sources.pubmed] api_key_env"
+        add(
+            "NCBI key",
+            WARN,
+            f"no NCBI API key in {where}: PubMed allows 3 requests a second, 10 with one",
+        )
+    for name, url in (("app", config.mail.base_url), ("public site", config.publish.base_url)):
+        if url and not url.startswith("https://"):
+            add("HTTPS", WARN, f"the {name}'s address {url} is not HTTPS")
+    home = DataHome(config.data.home)
+    if home.is_initialized():
+        if index_path(home).is_file():
+            add("search", OK, "the search index is built")
+        else:
+            add("search", WARN, "no search index: run the first sync or `tessera build search`")
+        used = sum(p.stat().st_size for p in (home.ledger_file, index_path(home)) if p.is_file())
+        free = shutil.disk_usage(home.root).free
+        need = max(FREE_GB * 2**30, 2 * used)
+        detail = f"{free / 2**30:.1f} GB free beside the data home"
+        if free >= need:
+            add("disk", OK, detail)
+        else:
+            add("disk", WARN, f"{detail}; keep at least {need / 2**30:.0f} GB")
+        try:
+            engine = make_engine(config.ledger_url)
+            try:
+                last = runs.last_success(engine) if migrate.is_current(engine) else {}
+            finally:
+                engine.dispose()
+        except Exception:
+            last = {}
+        newest = max(last.values(), default=None)
+        if newest is None:
+            add("sync", WARN, "no sync has succeeded yet")
+        else:
+            newest = newest if newest.tzinfo else newest.replace(tzinfo=UTC)
+            when = newest.isoformat()[:16].replace("T", " ")
+            if utc_now() - newest > timedelta(days=SYNC_DAYS):
+                add("sync", WARN, f"last success {when} UTC: is the nightly sync scheduled?")
+            else:
+                add("sync", OK, f"last success {when} UTC")
+    if hasattr(os, "geteuid") and os.geteuid() == 0:
+        add("user", WARN, "running as root: run Tessera as its own unprivileged user")
+    return checks

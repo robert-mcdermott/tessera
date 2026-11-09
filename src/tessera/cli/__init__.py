@@ -83,6 +83,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     doctor = commands.add_parser("doctor", help="check that this installation is ready")
     doctor.add_argument("--online", action="store_true", help="also test public API reachability")
+    doctor.add_argument(
+        "--production", action="store_true", help="also check what a server others use needs"
+    )
     doctor.set_defaults(handler=cmd_doctor)
 
     db = commands.add_parser("db", help="ledger database maintenance")
@@ -619,7 +622,7 @@ def cmd_init(args: argparse.Namespace) -> int:
 def cmd_doctor(args: argparse.Namespace) -> int:
     from .doctor import exit_code, print_checks, run_checks
 
-    checks = run_checks(args.config, online=args.online)
+    checks = run_checks(args.config, online=args.online, production=args.production)
     print_checks(checks)
     return exit_code(checks)
 

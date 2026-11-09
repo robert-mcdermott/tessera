@@ -59,6 +59,37 @@ def test_doctor_healthy(instance: Instance, capsys: pytest.CaptureFixture[str]) 
         assert name in out
 
 
+def test_doctor_checks_what_a_production_server_needs(
+    instance: Instance, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("NCBI_API_KEY", raising=False)
+    code, out = run(capsys, "--config", str(instance.path), "doctor")
+    assert "Production" not in out  # only when asked
+    code, out = run(capsys, "--config", str(instance.path), "doctor", "--production")
+    assert code == EXIT_ERROR, out  # no accounts: a server others use needs them
+    lines = {
+        line.split("  ")[0][2:].strip(): line for line in out.splitlines() if "Production" in line
+    }
+    assert lines["Production: sign-in"].startswith("✗")
+    assert lines["Production: NCBI key"].startswith("!")
+    assert "Production: disk" in lines and "Production: sync" in lines
+    monkeypatch.setenv("NCBI_API_KEY", "a-test-key")
+    config = instance.path.read_text().replace("accounts = false", "accounts = true")
+    instance.path.write_text(config)
+    from tessera.auth.accounts import Grant, create_account
+    from tessera.config import load_config
+    from tessera.ledger.db import make_engine
+
+    engine = make_engine(load_config(instance.path).ledger_url)
+    try:
+        create_account(engine, "admin", "Admin", "a-long-test-passphrase-9",
+                       [Grant("admin", None, None, False)], actor="test")  # fmt: skip
+    finally:
+        engine.dispose()
+    code, out = run(capsys, "--config", str(instance.path), "doctor", "--production")
+    assert "✓ Production: sign-in" in out and "✓ Production: NCBI key" in out
+
+
 def test_doctor_reports_missing_config(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     code, out = run(capsys, "--config", str(tmp_path / "absent.toml"), "doctor")
     assert code == EXIT_ERROR

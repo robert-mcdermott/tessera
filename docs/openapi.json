@@ -6,12 +6,58 @@
     "version": "0.6.0"
   },
   "paths": {
+    "/api/v1/health/live": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Alive: the process answers",
+        "description": "For a supervisor deciding whether to restart the process: it depends on nothing else.",
+        "operationId": "health_live_api_v1_health_live_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Live Api V1 Health Live Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health/ready": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Ready: the ledger, at the current schema, and the lake",
+        "description": "For a load balancer deciding whether to send traffic: ``200`` when the ledger and lake\nare usable, ``503`` otherwise, with each check's state.",
+        "operationId": "health_ready_api_v1_health_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/health": {
       "get": {
         "tags": [
           "system"
         ],
-        "summary": "Liveness and readiness",
+        "summary": "Liveness and readiness (as /health/ready)",
         "description": "``200`` when the ledger and lake are usable, ``503`` otherwise, with per-check detail.",
         "operationId": "health_api_v1_health_get",
         "responses": {

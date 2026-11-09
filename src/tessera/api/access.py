@@ -47,6 +47,8 @@ class Level(IntEnum):
 P, R = Level.PUBLIC, Level.READ
 POLICIES: dict[tuple[str, str], Level] = {
     ("GET", "/api/v1/health"): P,
+    ("GET", "/api/v1/health/live"): P,
+    ("GET", "/api/v1/health/ready"): P,
     ("GET", "/api/v1/meta"): P,
     ("GET", "/api/v1/session"): P,
     ("POST", "/api/v1/session"): P,

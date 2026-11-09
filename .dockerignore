@@ -1,0 +1,10 @@
+# The image needs only the package and its lock file (deploy/container/Dockerfile).
+*
+!pyproject.toml
+!uv.lock
+!README.md
+!LICENSE
+!NOTICE
+!src/
+**/__pycache__
+**/*.py[cod]

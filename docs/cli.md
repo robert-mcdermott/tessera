@@ -68,12 +68,13 @@ usage: tessera bench [-h] [--people PEOPLE] [--papers PAPERS] [--seed SEED] [--r
 Check that this installation is ready.
 
 ```text
-usage: tessera doctor [-h] [--online]
+usage: tessera doctor [-h] [--online] [--production]
 ```
 
 | Argument | Meaning |
 |---|---|
 | `--online` | also test public API reachability |
+| `--production` | also check what a server others use needs |
 
 ## `tessera db`
 

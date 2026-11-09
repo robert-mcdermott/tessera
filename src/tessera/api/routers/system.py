@@ -24,7 +24,20 @@ def _config(request: Request) -> Config:
     return request.app.state.config
 
 
-@router.get("/health", summary="Liveness and readiness")
+@router.get("/health/live", summary="Alive: the process answers")
+def health_live() -> dict[str, str]:
+    """For a supervisor deciding whether to restart the process: it depends on nothing else."""
+    return {"status": "ok"}
+
+
+@router.get("/health/ready", summary="Ready: the ledger, at the current schema, and the lake")
+def health_ready(request: Request) -> JSONResponse:
+    """For a load balancer deciding whether to send traffic: ``200`` when the ledger and lake
+    are usable, ``503`` otherwise, with each check's state."""
+    return health(request)
+
+
+@router.get("/health", summary="Liveness and readiness (as /health/ready)")
 def health(request: Request) -> JSONResponse:
     """``200`` when the ledger and lake are usable, ``503`` otherwise, with per-check detail."""
     checks: dict[str, Any] = {}

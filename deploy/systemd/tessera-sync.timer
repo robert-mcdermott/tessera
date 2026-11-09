@@ -1,0 +1,13 @@
+# Sync every night. Enable with: systemctl enable --now tessera-sync.timer
+
+[Unit]
+Description=Nightly Tessera sync
+
+[Timer]
+OnCalendar=*-*-* 02:30
+RandomizedDelaySec=15m
+# Run at boot if the machine was off at the time.
+Persistent=true
+
+[Install]
+WantedBy=timers.target
