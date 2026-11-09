@@ -275,8 +275,8 @@ function themesBlock(b, { group, page, reload }) {
   return card({
     title: b.title ?? "Themes and projects",
     attrs: { "data-entity": "concept" },
-    action: editor ? h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => themeDrawer(group, null, reload) },
-      icon("plus", "icon icon-sm"), "Add") : null,
+    action: editor ? h("button", { type: "button", class: "btn btn-sm btn-ghost", "aria-label": "Add a theme or project",
+      onclick: () => themeDrawer(group, null, reload) }, icon("plus", "icon icon-sm"), "Add") : null,
     pad: true,
     body: group.themes.length ? h("ul", { class: "plain-list theme-list" }, group.themes.map((t) => h("li", { class: "stack-sm" },
       h("div", { class: "row-sm" }, h("strong", { class: "grow" }, t.name), pill(t.kind_label, t.kind === "project" ? "info" : ""),

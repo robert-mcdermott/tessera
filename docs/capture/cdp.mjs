@@ -114,6 +114,15 @@ export async function launch() {
       async close() {
         await send("Target.closeTarget", { targetId });
       },
+      /** Any DevTools Protocol command, for what the methods above do not cover. */
+      cdp: call,
+      /** Press a key, as the keyboard would (``Tab``; ``shift`` for Shift+Tab). */
+      async key(key, { shift = false } = {}) {
+        const codes = { Tab: 9, Enter: 13, Escape: 27 };
+        const base = { key, code: key, windowsVirtualKeyCode: codes[key] ?? 0, modifiers: shift ? 8 : 0 };
+        await call("Input.dispatchKeyEvent", { type: "keyDown", ...base });
+        await call("Input.dispatchKeyEvent", { type: "keyUp", ...base });
+      },
     };
   }
 

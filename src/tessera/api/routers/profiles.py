@@ -297,7 +297,14 @@ def preview_public(request: Request, person_id: str) -> HTMLResponse:
     # The page's own stylesheet, from here; its links to other public pages work once published.
     html = re.sub(r'href="[^"]*assets/site\.css"', f'href="{PREVIEW_CSS}"', html)
     html = html.replace("<title>", "<title>Preview: ", 1)
-    return HTMLResponse(html, headers={"Cache-Control": "no-store"})
+    # Built only from escaped values, and allowed no scripts at all: stricter than the app.
+    policy = (
+        "default-src 'none'; style-src 'self'; img-src 'self' data:; "
+        "base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    )
+    return HTMLResponse(
+        html, headers={"Cache-Control": "no-store", "Content-Security-Policy": policy}
+    )
 
 
 @me_router.get("/public-page.css", summary="The public pages' stylesheet, for previews")

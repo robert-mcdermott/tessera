@@ -18,6 +18,10 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 
 - Health checks for supervisors and load balancers: `/api/v1/health/live` answers whenever the process does, and `/api/v1/health/ready` when the ledger (at the current schema) and the lake can be read. `tessera doctor --production` checks what a server other people use needs: accounts, a contact address and an NCBI API key for the sources, HTTPS addresses, a recent sync, room on the disk, a search index, and not running as root.
 
+- An accessibility audit of every page in both themes (UX-06): `node docs/capture/capture.mjs --audit` checks each documentation scene against WCAG 2.2 AA as it takes the screenshot, from accessible names in Chrome's own accessibility tree to the contrast of rendered text, target sizes, and a real walk with the Tab key for visible, unhidden focus and keyboard traps, and fails on any finding.
+
+- A security review (PLT-15): the threat model and a review against OWASP ASVS 4.0.3 at level 1 are in `spec/security.md`, with every finding fixed or recorded, and `SECURITY.md` says how to report a vulnerability privately.
+
 - Vocabulary presets (PLT-11): `[vocabulary] preset = "academic_medical_center"`, `"university"`, or `"research_institute"` names groups, their kinds, and roles as that kind of organization does; settings beside it adjust the preset.
 
 ### Changed
@@ -33,6 +37,10 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
   - Migration 0024.
 
 ### Fixed
+
+- Accessibility, from the audit and a pass with the keyboard alone over curating, searching, editing a group page, keeping a profile, and building a CV: the sidebar scrolls on short screens, so its last items (Admin) can be seen and reached; with the command palette open, the keyboard stays in it and the page behind is out of reach; topic chips' remove buttons and profiles' research-area links meet contrast and target size; every *Add* button says what it adds; a group page's blocks say which block each button moves or removes, moves and removals are announced, and focus stays in the list; the biosketch's personal statement and the palette's results are named; and branding images are uploaded from a button one can see focused.
+
+- Security: the public-page preview, which is served from the app's own address, allows no scripts at all; the nginx example limits sign-in attempts from one address, which the app cannot count behind a proxy.
 
 - The review queue lists suggestions in the same order on PostgreSQL as on SQLite, including after a restore; before, ties came back in whatever order the database stored them.
 

@@ -56,6 +56,17 @@ User guides live in [`docs/`](docs/README.md) as plain Markdown that reads well 
 UPDATE_DOCS=1 uv run pytest tests/test_docs.py
 ```
 
+### Screenshots and the accessibility audit
+
+The guides' screenshots are taken from the real app serving the demo organization, in light and dark, by `node docs/capture/capture.mjs` (Node.js 22 and Chrome; its options are described at the top of the file). The same tool audits every scene for WCAG 2.2 AA: accessible names from Chrome's accessibility tree, landmarks and headings, the contrast of rendered text, target sizes, and a real Tab walk for visible, unhidden focus and keyboard traps (`docs/capture/audit.mjs`). Run it after changing the web app; it exits non-zero on any finding:
+
+```bash
+node docs/capture/capture.mjs --audit-only        # audit every scene, write no screenshots
+node docs/capture/capture.mjs --audit             # take the screenshots and audit them
+```
+
+What a machine cannot judge, such as whether a name is meaningful or how a screen reader announces a change, needs a pass by hand with the keyboard and a screen reader.
+
 ### Live API tests
 
 Tests that call public APIs are marked `network` and are skipped by default. Run them deliberately with `uv run pytest -m network`.

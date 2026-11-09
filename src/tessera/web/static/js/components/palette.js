@@ -32,6 +32,7 @@ export function closePalette() {
   if (!state) return;
   state.backdrop.remove();
   state.dialog.remove();
+  for (const el of state.inerted) el.inert = false;
   document.removeEventListener("keydown", state.onKey, true);
   state.returnFocus?.focus?.();
   state = null;
@@ -42,7 +43,7 @@ export function openPalette({ actions = [] } = {}) {
   const input = h("input", { class: "palette-input", type: "text", placeholder: "Search people, papers, grants, studies…",
     "aria-label": "Search or jump to", autocomplete: "off", spellcheck: "false", role: "combobox",
     "aria-expanded": "true", "aria-controls": "palette-results" });
-  const results = h("div", { class: "palette-results", id: "palette-results", role: "listbox" });
+  const results = h("div", { class: "palette-results", id: "palette-results", role: "listbox", "aria-label": "Results" });
   const dialog = h("div", { class: "palette", role: "dialog", "aria-modal": "true", "aria-label": "Command palette" },
     h("div", { class: "palette-input-row" }, icon("search", "icon icon-lg"), input, h("kbd", {}, "esc")),
     results,
@@ -62,6 +63,9 @@ export function openPalette({ actions = [] } = {}) {
   };
   document.addEventListener("keydown", state.onKey, true);
   input.addEventListener("input", debounce(() => update(input.value), 120));
+  // A modal: everything behind it is out of reach (Tab stays in the palette) until it closes.
+  state.inerted = [...document.body.children].filter((el) => !el.inert);
+  for (const el of state.inerted) el.inert = true;
   document.body.append(backdrop, dialog);
   input.focus();
   update("");

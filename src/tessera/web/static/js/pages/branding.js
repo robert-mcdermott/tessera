@@ -168,7 +168,8 @@ export function branding(main) {
         showThumb(settings.preview[image]);
         const remove = h("button", { type: "button", class: "btn btn-ghost btn-sm", hidden: !settings.images[image],
           onclick: () => { settings.images[image] = null; settings.preview[image] = null; showThumb(null); remove.hidden = true; check(); } }, "Remove");
-        const file = h("input", { type: "file", class: "sr-only", id: `brand-file-${image}`,
+        // Hidden, and opened by a visible button: keyboard focus lands on something one can see.
+        const file = h("input", { type: "file", hidden: true, tabindex: "-1", "aria-hidden": "true",
           accept: image === "social_image" ? "image/png,image/jpeg" : image === "favicon" ? "image/svg+xml,image/png,.ico" : "image/svg+xml,image/png,image/jpeg,image/webp",
           onchange: async () => {
             const chosen = file.files?.[0];
@@ -187,7 +188,8 @@ export function branding(main) {
           } });
         return h("div", { class: "brand-image" }, thumb,
           h("div", { class: "stack-sm" }, h("strong", {}, label), h("span", { class: "subtle" }, hint),
-            h("div", { class: "row-sm" }, file, h("label", { class: "btn btn-sm", for: `brand-file-${image}` }, settings.images[image] ? "Replace" : "Upload"), remove)));
+            h("div", { class: "row-sm" }, file, h("button", { type: "button", class: "btn btn-sm", onclick: () => file.click(),
+              "aria-label": `${settings.images[image] ? "Replace" : "Upload"} the ${label.toLowerCase()}` }, settings.images[image] ? "Replace" : "Upload"), remove)));
       });
 
       const linksList = h("div", { class: "stack-sm" });

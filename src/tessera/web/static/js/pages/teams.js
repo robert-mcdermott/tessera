@@ -83,7 +83,7 @@ function coverageTable(t) {
 }
 
 function addPersonButton(t, person, reload, label = "Add") {
-  return h("button", { type: "button", class: "btn btn-sm", onclick: async () => {
+  return h("button", { type: "button", class: "btn btn-sm", "aria-label": `${label} ${person.name} to the team`, onclick: async () => {
     await post(api(t.id, "/members"), { person_id: person.id, role: "collaborator" });
     invalidate();
     toast(`Added ${person.name}.`);

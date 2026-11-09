@@ -245,7 +245,7 @@ fieldset.field legend { font-size: var(--fs-sm); font-weight: 600; margin-bottom
 /* Research areas (MeSH roll-ups) */
 .area-list { display: grid; grid-template-columns: minmax(0, 1fr) 90px 3.2em; gap: 6px var(--space-3); align-items: center; font-size: var(--fs-sm); }
 .area-list li { display: contents; }
-.area-list a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.area-list a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-block-size: 24px; line-height: 24px; }
 .area-bar { height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
 .area-bar > span { display: block; height: 100%; background: var(--ent-concept); }
 .area-list .tabular { text-align: right; }
@@ -442,8 +442,8 @@ label.check { display: inline-flex; align-items: center; gap: var(--space-2); fo
 .eligibility-mark.tone-ok { background: color-mix(in oklch, var(--ok) 18%, transparent); color: var(--ok); }
 .eligibility-mark.tone-warn { background: color-mix(in oklch, var(--warn) 18%, transparent); color: var(--warn); }
 .eligibility-mark.tone-danger { background: color-mix(in oklch, var(--danger) 18%, transparent); color: var(--danger); }
-.chip-remove { display: inline-flex; margin-left: 2px; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; opacity: 0.7; }
-.chip-remove:hover { opacity: 1; }
+.chip-remove { display: inline-flex; margin-left: 2px; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; }
+.chip-remove:hover { background: color-mix(in oklch, currentColor 14%, transparent); }
 
 /* ---------- Teams ---------- */
 .coverage-table th[scope="row"] { font-weight: 500; }

@@ -16,6 +16,7 @@ This folder is Tessera's public planning space: the product vision, the architec
 | [evidence-engine.md](evidence-engine.md) | How Tessera finds people and decides who wrote what, and how it explains itself |
 | [discovery.md](discovery.md) | Concept profiles, similarity, and the collaboration graph |
 | [ux.md](ux.md) | Design principles, design system, information architecture, and key screens |
+| [security.md](security.md) | The threat model, the controls for each threat, and the review against OWASP ASVS level 1 |
 | [roadmap.md](roadmap.md) | Waves (releases) and their slices, from v0.1.0 to v1.0.0 |
 | [waves/](waves/) | Detailed slice plans and status for each wave |
 | [process.md](process.md) | How we work: waves and slices, branches, releases, and the definition of done |
