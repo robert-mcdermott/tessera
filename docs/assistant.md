@@ -133,6 +133,27 @@ tessera ai check
 
 It sends one short question and one that needs a tool, and says how the model answered. `tessera doctor` also checks the section once it is on. Every setting is in [Configuration](configuration.md#ai).
 
+### Trying it on the demo
+
+The demo (see [Getting started](getting-started.md#try-the-demo-first-optional)) is built with the assistant off. To try it there, add an `[ai]` section to the end of `demo/tessera.toml`. This one uses Ollama on the same machine, which needs no key from Tessera; Ollama must be running with the model available, and any of the providers above works the same way:
+
+```toml
+[ai]
+enabled = true
+provider = "openai"
+base_url = "http://127.0.0.1:11434/v1"
+model = "gemma4:31b-cloud"
+```
+
+Then check the connection and start (or restart) the demo:
+
+```bash
+uv run tessera --config demo/tessera.toml ai check
+uv run tessera --config demo/tessera.toml serve
+```
+
+**Ask** now appears in the top bar: try "Who works on CAR-T cell therapy?" or "How many papers has the organization published each year?", and a question the records cannot answer, such as someone's salary. On a profile, **Draft a plain-language summary** drafts one for you to review and approve, and **Admin → Assistant** shows every exchange. Rebuilding the demo with `--force` writes a new `tessera.toml`, so add the section again afterwards.
+
 ## Choosing a model
 
 The assistant relies on the model to call tools and to cite what they return, so a model needs tool calling. Larger models follow the instructions more reliably. Small local models are fine for trying it out; for everyday use, choose a model your organization trusts with the records the assistant reads, since everything it is sent leaves Tessera.

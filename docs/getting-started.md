@@ -35,7 +35,9 @@ uv run tessera demo                       # builds ./demo in a few seconds
 uv run tessera --config demo/tessera.toml serve
 ```
 
-Everyone and everything in it is invented. Delete the `demo` folder when you are done; it is separate from your own installation.
+Everyone and everything in it is invented. Delete the `demo` folder when you are done; it is separate from your own installation. It runs without sign-in; add `--port 9000` (or another port) to `serve` if 8000 is taken.
+
+The demo is built with the optional assistant off. [Trying it on the demo](assistant.md#trying-it-on-the-demo) shows the few lines that turn it on there.
 
 ## Describe your organization
 
