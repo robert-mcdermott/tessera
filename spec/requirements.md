@@ -120,6 +120,8 @@ The capability catalog. IDs are stable: code, tests, and changelog entries can c
 | PLT-11 | S | Configurable vocabulary | Unit kinds, role names, and labels are configurable | 3 |
 | PLT-12 | S | Operational visibility | Job metrics, run history, and failure alerts in the admin area | 4 |
 | PLT-13 | S | Brand kit | An organization's own palette (core colors by day and night), footer links, favicon, and social preview image are configuration; `tessera doctor` fails any configured color pair below WCAG AA | 3 |
+| PLT-14 | M | Runs at the size of a large institution | At 10,000 people and 1,000,000 publications, pages and builds meet the budgets in the wave 7 plan, measured with a benchmark any adopter can run | 7 |
+| PLT-15 | M | Security review | A threat model and a review against OWASP ASVS level 1 before adoption, with every finding fixed or recorded | 7 |
 
 ## User experience (UX)
 
