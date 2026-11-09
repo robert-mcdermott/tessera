@@ -504,3 +504,158 @@ ELSEWHERE = (
     ("Coral Reefs", "Ecosystem", "Climate Change", "Biodiversity"),
 )
 ELSEWHERE_JOURNALS = ("Plant Systems Biology", "Materials Interfaces", "Marine Ecology Letters")
+
+# Clinical articles that cite the organization's papers (grant-to-impact threads). Journals are
+# invented, and identifiers are drawn from a range no real PubMed record can have.
+CLINICAL_TOPICS = {
+    "Leukemia, Myeloid, Acute": "acute myeloid leukemia",
+    "Breast Neoplasms": "breast cancer",
+    "Multiple Myeloma": "multiple myeloma",
+    "Lymphoma, Large B-Cell, Diffuse": "diffuse large B-cell lymphoma",
+    "Melanoma": "melanoma",
+    "HIV Infections": "HIV infection",
+    "Cytomegalovirus Infections": "cytomegalovirus infection",
+    "Influenza, Human": "influenza",
+    "Colorectal Neoplasms": "colorectal cancer",
+    "Obesity": "obesity",
+}
+# For areas whose studies name no condition, what their clinical citers write about.
+CLINICAL_FALLBACK = {
+    "immunology": ("autoimmune disease", "primary immunodeficiency"),
+    "neuroscience": ("Parkinson disease", "chronic pain"),
+    "structural": ("antimicrobial resistance", "cystic fibrosis"),
+    "computational": ("cancer screening", "sepsis"),
+}
+CLINICAL_TITLES = {
+    "guideline": (
+        "Management of {c}: clinical practice guideline",
+        "Consensus recommendations for the diagnosis and treatment of {c}",
+        "Guideline update on the care of adults with {c}",
+    ),
+    "trial": (
+        "A randomized trial of early combination therapy in {c}",
+        "Phase 2 study of a targeted regimen for {c}",
+        "Adapted dosing versus standard care in {c}: a randomized trial",
+    ),
+    "meta_analysis": (
+        "Outcomes in {c}: a systematic review and meta-analysis",
+        "Biomarkers of treatment response in {c}: a meta-analysis",
+    ),
+    "review": (
+        "Advances in the clinical management of {c}",
+        "From mechanism to clinic: emerging approaches to {c}",
+    ),
+    "clinical": (
+        "Real-world outcomes of patients with {c}",
+        "Clinical features and outcomes of {c} in a multicenter cohort",
+    ),
+}
+CLINICAL_TYPES = {
+    "guideline": ("Practice Guideline", "Journal Article"),
+    "trial": ("Clinical Trial, Phase II", "Randomized Controlled Trial", "Journal Article"),
+    "meta_analysis": ("Meta-Analysis", "Systematic Review", "Journal Article"),
+    "review": ("Review", "Journal Article"),
+    "clinical": ("Multicenter Study", "Journal Article"),
+}
+CLINICAL_WEIGHTS = {"guideline": 8, "trial": 30, "meta_analysis": 15, "review": 20, "clinical": 27}
+CLINICAL_JOURNALS = (
+    "Northbridge Medical Review",
+    "Practice Guidance Bulletin",
+    "Ward and Clinic Reports",
+    "Corbel Journal of Clinical Evidence",
+    "Trials in Medicine Today",
+)
+
+# Funding opportunities (wave 5). Federal ones are written as Grants.gov records with IDs and
+# notice numbers no real opportunity has; "opens" and "closes" are days from the demo's today.
+NIH_TYPES = ("06", "20", "12", "13", "22", "23", "00", "01", "02", "07", "11", "25")
+OPPORTUNITIES = (
+    {"number": "RFA-CA-27-991", "agency": "National Institutes of Health", "code": "HHS-NIH11",
+     "title": "Next-Generation Cellular Immunotherapies for Hematologic Malignancies "
+              "(R01 Clinical Trial Optional)",
+     "text": "This notice invites research on chimeric antigen receptor (CAR) T cells for multiple "
+             "myeloma and diffuse large B-cell lymphoma: antigen escape, cytokine support such as "
+             "interleukin-15, T cell persistence and exhaustion, and early-phase studies that "
+             "test them.", "opens": -30, "closes": 45, "ceiling": 750_000, "floor": 250_000},
+    {"number": "RFA-AI-27-992", "agency": "National Institutes of Health", "code": "HHS-NIH11",
+     "title": "Germline-Targeting Strategies for HIV Vaccine Development "
+              "(U01 Clinical Trial Not Allowed)",
+     "text": "Applications should develop germline-targeting immunogens and boosting regimens "
+             "that elicit broadly neutralizing antibodies against HIV-1, including studies of B "
+             "cell responses in germinal centers.", "opens": -20, "closes": 80,
+     "ceiling": 1_200_000},
+    {"number": "PAR-26-993", "agency": "National Institutes of Health", "code": "HHS-NIH11",
+     "title": "Single-Cell Atlases of Clonal Hematopoiesis and Leukemia Evolution "
+              "(R21 Clinical Trial Not Allowed)",
+     "text": "Supports single-cell multiomics of clonal hematopoiesis and acute myeloid leukemia: "
+             "how somatic mutations shape stem cell fitness, measurable residual disease, and "
+             "relapse.", "opens": -60, "closes": 120, "ceiling": 275_000},
+    {"number": "PAR-26-994", "agency": "National Institutes of Health", "code": "HHS-NIH11",
+     "title": "Circuit Mechanisms of Chronic Pain (R01 Clinical Trial Not Allowed)",
+     "text": "Seeks studies of the neural circuits and synaptic plasticity that sustain chronic "
+             "pain, in animal models and human tissue, including neuroimmune interactions.",
+     "opens": -90, "closes": 25, "ceiling": 500_000},
+    {"number": "26-599", "agency": "National Science Foundation", "code": "NSF",
+     "title": "Molecular Foundations of Membrane Fusion",
+     "text": "Supports structural and biophysical research on the protein machinery of membrane "
+             "fusion, including cryo-electron microscopy of viral fusion proteins.",
+     "opens": -40, "closes": 65, "ceiling": 900_000, "types": ("06", "20", "12")},
+    {"number": "RFA-CA-27-995", "agency": "National Institutes of Health", "code": "HHS-NIH11",
+     "title": "Community Interventions to Increase Colorectal Cancer Screening "
+              "(R01 Clinical Trial Required)",
+     "text": "Invites trials of outreach to raise colorectal cancer screening in communities "
+             "with low uptake, such as text-message reminders and mailed tests, with attention to "
+             "obesity and other risk factors.", "opens": -15, "closes": 60,
+     "ceiling": 650_000},
+    {"number": "RFA-CA-27-996", "agency": "National Institutes of Health", "code": "HHS-NIH11",
+     "title": "Machine Learning Methods for Integrating Multi-omic Cancer Data "
+              "(U01 Clinical Trial Not Allowed)",
+     "text": "Supports statistical and machine learning methods that integrate genomic, "
+             "transcriptomic, and imaging data to predict cancer outcomes, with open software.",
+     "opens": -10, "closes": 100, "ceiling": 800_000},
+    {"number": "PAR-26-997", "agency": "National Institutes of Health", "code": "HHS-NIH11",
+     "title": "Tissue-Resident Memory T Cells in Barrier Immunity "
+              "(R01 Clinical Trial Not Allowed)",
+     "text": "A forecast of a notice on tissue-resident memory T cells at mucosal barriers and "
+             "how they protect against reinfection.", "forecast": True, "opens": 40,
+     "closes": 150, "ceiling": 500_000},
+    {"number": "PA-26-998", "agency": "National Institutes of Health", "code": "HHS-NIH11",
+     "title": "Small Business Innovation in Cell Therapy Manufacturing "
+              "(R43/R44 Clinical Trial Not Allowed)",
+     "text": "Small businesses may propose technologies that make CAR T cell manufacturing "
+             "faster, cheaper, and more consistent.", "opens": -45, "closes": 55,
+     "ceiling": 300_000, "types": ("23",)},
+    {"number": "PA-26-999", "agency": "National Institutes of Health", "code": "HHS-NIH11",
+     "title": "Pathway to Independence Award in Cancer Immunology "
+              "(K99/R00 Independent Clinical Trial Not Allowed)",
+     "text": "Helps postdoctoral researchers in cancer immunology move to independent positions. "
+             "Eligibility depends on the candidate's years of postdoctoral experience.",
+     "opens": -50, "closes": 70, "ceiling": 250_000},
+    {"number": "RFA-AI-26-990", "agency": "National Institutes of Health", "code": "HHS-NIH11",
+     "title": "Infection Biology Pilot Projects (R21 Clinical Trial Not Allowed)",
+     "text": "Pilot projects on cytomegalovirus and influenza infection in transplant "
+             "recipients.", "opens": -150, "closes": -20, "ceiling": 275_000, "closed": True},
+    {"number": "HS-27-990", "agency": "Agency for Healthcare Research and Quality",
+     "code": "HHS-AHRQ", "title": "Patient Safety Learning Laboratories (R18)",
+     "text": "Supports teams that redesign care processes to prevent harm in hospitals and "
+             "clinics.", "opens": -25, "closes": 90, "ceiling": 1_000_000},
+)  # fmt: skip
+LOCAL_OPPORTUNITIES = (
+    {"source": "Corvane Institute Office of Research", "kind": "internal",
+     "title": "Translational Pilot Awards",
+     "description": "One-year pilot projects that carry laboratory discoveries toward clinical "
+                    "studies, especially in cellular immunotherapy, infection, and leukemia.",
+     "posted_on": -20, "closes_on": 35, "award_ceiling": 100_000},
+    {"source": "Hollis Family Foundation", "kind": "foundation",
+     "title": "Early Investigator Awards in Neuroscience",
+     "description": "Three-year awards for early-career investigators studying pain, synaptic "
+                    "plasticity, and neurodegeneration.",
+     "posted_on": -30, "closes_on": 75, "award_ceiling": 250_000,
+     "applicant_types": "06; 20; 12"},
+    {"source": "Bellweather Trust", "kind": "foundation",
+     "title": "Bellweather Scholars in Biomedical Sciences",
+     "description": "Five-year support for early-career scientists in any biomedical field. One "
+                    "nominee per institution, chosen by an internal competition.",
+     "posted_on": -10, "closes_on": 95, "internal_deadline": 20, "award_ceiling": 500_000,
+     "limited_submission": True},
+)  # fmt: skip

@@ -75,7 +75,7 @@ class Metric:
     id: str
     version: int
     name: str
-    area: str  # where it sits in Insight: Publications, Funding, Topics, Studies
+    area: str  # where it sits in Insight: Publications, Funding, Topics, Studies, Impact
     definition: str  # what it is, in a sentence or two
     counting: str  # exactly what is counted, and how
     unit: str  # papers, grants, dollars, studies
@@ -124,7 +124,7 @@ class Metric:
 
 
 REGISTRY: dict[str, Metric] = {}
-AREAS = ("Publications", "Funding", "Topics", "Studies")
+AREAS = ("Publications", "Funding", "Topics", "Studies", "Impact")
 
 
 def register(metric: Metric) -> Metric:
@@ -138,7 +138,7 @@ def register(metric: Metric) -> Metric:
 
 def _load() -> None:
     """Import the modules that define metrics (they register themselves)."""
-    from tessera.insight import funding, publications, studies, topics  # noqa: F401
+    from tessera.insight import funding, impact, publications, studies, topics  # noqa: F401
 
 
 def get(metric_id: str) -> Metric:

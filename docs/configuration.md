@@ -40,8 +40,27 @@ How the organization appears in public records. See [Describing your organizatio
 | `ctgov_org_names` | list | `[]` | Sponsor, collaborator, and site names in ClinicalTrials.gov (falls back to `aliases`) |
 | `email_domains` | list | `[]` | Domains whose addresses count as evidence of membership |
 | `exclusions` | list | `[]` | Look-alike organizations that contain one of the aliases |
+| `applicant_types` | list | `[]` | Who the organization is when it applies for funding, in Grants.gov's applicant type codes, so that [Opportunities](opportunities.md) can say whether it may apply. Leave empty to have every opportunity's applicant types checked by hand |
 
 `name` and at least one of `aliases`, `affiliation_patterns`, or `reporter_org_names` are required, so Tessera can recognize the organization.
+
+Grants.gov's applicant type codes, for `applicant_types`:
+
+| Code | Applicant |
+|---|---|
+| `00`, `01`, `02`, `04` | State, county, city or township, and special district governments |
+| `05` | Independent school districts |
+| `06` | Public and state-controlled institutions of higher education |
+| `07`, `11` | Federally recognized Native American tribal governments; other Native American tribal organizations |
+| `08` | Public and Indian housing authorities |
+| `12` | Nonprofits with 501(c)(3) status, other than institutions of higher education |
+| `13` | Nonprofits without 501(c)(3) status, other than institutions of higher education |
+| `20` | Private institutions of higher education |
+| `21` | Individuals |
+| `22`, `23` | For-profit organizations other than small businesses; small businesses |
+| `25`, `99` | Others named in the eligibility notes; unrestricted |
+
+A private university is usually `["20"]`; an independent nonprofit research institute, `["12"]`.
 
 ## `[branding]`
 
@@ -130,7 +149,7 @@ PostgreSQL support needs the `postgres` extra: `uv sync --extra postgres`. See [
 |---|---|---|---|
 | `contact_email` | text | `""` | Sent with requests to the public APIs, as their usage policies ask. Set it to an address that can be reached |
 
-Each source has its own table, `[sources.pubmed]`, `[sources.icite]`, `[sources.reporter]`, `[sources.ctgov]`, `[sources.orcid]`, and `[sources.mesh]` (NLM's MeSH vocabulary, one 17 MB download a year):
+Each source has its own table, `[sources.pubmed]`, `[sources.icite]`, `[sources.reporter]`, `[sources.ctgov]`, `[sources.orcid]`, `[sources.mesh]` (NLM's MeSH vocabulary, one 17 MB download a year), and `[sources.grants_gov]` (federal funding opportunities):
 
 | Setting | Type | Default | Meaning |
 |---|---|---|---|
@@ -138,6 +157,15 @@ Each source has its own table, `[sources.pubmed]`, `[sources.icite]`, `[sources.
 | `api_key_env` | text | `"NCBI_API_KEY"` for PubMed, else `""` | The environment variable holding an optional API key |
 
 An NCBI API key (created under *API Key Management* in your NCBI account settings) raises PubMed's request limit from three to ten per second, which shortens the first sync of a large organization considerably.
+
+`[sources.grants_gov]` can narrow the opportunities Tessera keeps. Both lists are empty by default, which keeps every forecast and posted federal opportunity (about 1,500):
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `categories` | list of text | `[]` | Grants.gov funding categories, such as `"HL"` (health) and `"ST"` (science and technology) |
+| `agencies` | list of text | `[]` | Agency codes, or their beginnings: `"HHS-NIH"` keeps every NIH institute's, `"NSF"` the National Science Foundation's |
+
+The first sync reads every opportunity's details, about one a second; later syncs read only those that are new or changed, or were last read two weeks ago.
 
 ## `[sync]`
 
@@ -231,6 +259,28 @@ Who hears when something goes wrong; see [Running Tessera](operations.md#alerts)
 |---|---|---|---|
 | `email` | list of addresses | empty | Who is emailed when a sync has failures, a source goes stale, or backups lapse. Empty: problems show in Admin → Operations only |
 | `backup_days` | number | `7` | Warn when the last `tessera backup` is older than this many days (0 to 365; 0 never warns) |
+
+## `[ai]`
+
+The optional assistant; see [The assistant](assistant.md). Without this section, or with `enabled = false`, nothing of it exists in the app, the API, or the public site. The example configuration ends with this section commented out, ready to turn on.
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `enabled` | true/false | `false` | Turns the assistant on |
+| `provider` | text | (required) | The protocol: `openai` (Chat Completions), `anthropic` (Messages), or `bedrock` (Amazon Bedrock's Converse API) |
+| `model` | text | (required) | The model's name, or Bedrock's model or inference profile ID |
+| `base_url` | text | the official service | The endpoint's root, such as `http://127.0.0.1:11434/v1` (`openai`) or `http://127.0.0.1:11434` (`anthropic`) |
+| `api_key_env` | text | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `AWS_BEARER_TOKEN_BEDROCK` | The environment variable holding the key; with no key set, none is sent (fine for local servers) |
+| `region` | text | `""` | Bedrock: the AWS region (required for Bedrock) |
+| `headers` | list | `[]` | Extra `"Name: value"` headers for a gateway; never a key |
+| `max_tokens` | number | `1500` | The longest answer, in tokens |
+| `temperature` | number | `0.2` | 0 to 2; lower is steadier |
+| `timeout_seconds` | number | `120` | How long to wait for the provider |
+| `daily_limit` | number | `100` | Questions per person per day; 0 for no limit |
+| `roles` | list | `[]` | The roles that may use it (`admin`, `curator`, `manager`, `researcher`, `viewer`); empty for everyone who may read. Admins always may |
+| `log_days` | number | `365` | How long exchanges stay in the log |
+
+A setting named like a key (`api_key`, `secret`, `token`, `password`) is refused, and so is an `Authorization` header: keys belong in the environment.
 
 ## `[insight]`
 

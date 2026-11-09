@@ -38,7 +38,11 @@ BLOCK_TYPES: dict[str, str] = {
     "openings": "Openings",
     "contact": "Contact",
     "news": "News",
+    # The group's approved plain-language summary, where there is one; offered only while the
+    # optional assistant is on (see OPTIONAL_TYPES), and shown only then.
+    "summary": "Summary",
 }
+OPTIONAL_TYPES = {"summary": "ai"}  # block type → the configuration section that must be on
 REPEATABLE = {"about", "news"}  # text blocks may appear more than once
 SIDE = {"topics", "connections", "contact"}  # shown beside the main column on wide screens
 DEFAULT = (
@@ -296,6 +300,7 @@ def published_blocks(conn: Connection, group_id: str) -> tuple[list[dict], bool]
 __all__ = [
     "BLOCK_TYPES",
     "DEFAULT",
+    "OPTIONAL_TYPES",
     "REPEATABLE",
     "SIDE",
     "default_blocks",

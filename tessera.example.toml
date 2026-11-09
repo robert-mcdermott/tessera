@@ -28,6 +28,13 @@ email_domains = ["example.edu"]
 # Different organizations whose names contain one of the aliases above.
 exclusions = ["Example University of Technology"]
 
+# Who the organization is when it applies for funding, in Grants.gov's applicant type codes, so
+# that Opportunities can say whether it may apply: "06" public and "20" private institutions of
+# higher education, "12" nonprofits with 501(c)(3) status (other than higher education), and so
+# on (see docs/configuration.md). Leave empty to have every opportunity's applicant types checked
+# by hand.
+applicant_types = []
+
 # Re-branding. Everything here is optional.
 [branding]
 product_name = "Tessera"
@@ -103,6 +110,15 @@ enabled = true
 [sources.mesh]
 enabled = true
 
+# Forecast and posted federal funding opportunities from Grants.gov (no key needed), matched to
+# people and groups in Opportunities. Leave both lists empty for every opportunity, or narrow
+# them: funding categories such as "HL" (health) and "ST" (science and technology), and
+# agency codes or their beginnings such as "HHS-NIH" and "NSF".
+[sources.grants_gov]
+enabled = true
+categories = []
+agencies = []
+
 [sync]
 # How many years of history the first sync collects.
 window_years = 5
@@ -112,6 +128,7 @@ window_years = 5
 strong_threshold = 0.95   # "strong" suggestions, listed first for quick confirmation
 review_threshold = 0.60   # below this, suggestions are "unlikely" and hidden by default
 discover_min_papers = 2   # affiliated papers needed before proposing a newly discovered person
+store_threshold = 0.05    # candidates scoring lower are not recorded at all
 
 [discovery]
 # Concept profiles: a paper's weight halves every this many years.
@@ -159,6 +176,7 @@ username = ""
 password_env = ""   # the environment variable that holds the password
 sender = ""         # for example "Tessera <tessera@example.edu>"
 starttls = true
+# ssl = true        # connect with TLS from the start (usually port 465) instead of STARTTLS
 base_url = ""       # the app's address, for links in messages
 
 [publish]
@@ -177,3 +195,30 @@ small_number = 5
 # Who hears when a sync fails, a source goes stale, or backups lapse (sent through [mail]).
 email = []          # for example ["research-it@example.edu"]
 backup_days = 7     # warn when the last `tessera backup` is older than this; 0 never warns
+
+# An optional assistant: answers questions from Tessera's records, citing them and within each
+# person's access, and drafts plain-language summaries that a reviewer approves before anyone
+# sees them. It is off, and nothing in the app mentions it, until this section turns it on.
+# See docs/assistant.md; check the connection with `tessera ai check`.
+# [ai]
+# enabled = true
+# # The protocol the endpoint speaks: "openai" (any Chat Completions endpoint: OpenAI, Ollama,
+# # vLLM, LM Studio, a gateway), "anthropic" (any Messages endpoint: Anthropic, Ollama, a
+# # gateway), or "bedrock" (Amazon Bedrock's Converse API).
+# provider = "openai"
+# # The API root; leave empty for OpenAI's or Anthropic's own service. This is Ollama on this
+# # machine (no key needed).
+# base_url = "http://127.0.0.1:11434/v1"
+# model = "gemma4:31b-cloud"
+# # Keys are read from the environment, never from this file: name the variable here, or leave
+# # it empty for the provider's usual one (OPENAI_API_KEY, ANTHROPIC_API_KEY; for Bedrock,
+# # AWS_BEARER_TOKEN_BEDROCK or the AWS access key variables).
+# api_key_env = ""
+# region = ""              # Bedrock only, such as "us-west-2"
+# headers = []             # extra "Name: value" headers a gateway needs (no secrets)
+# max_tokens = 1500
+# temperature = 0.2
+# timeout_seconds = 120
+# daily_limit = 100        # questions per person per day; 0 for no limit
+# roles = []               # roles that may use it ("curator", "viewer", ...); empty for everyone
+# log_days = 365           # how long exchanges stay in the log

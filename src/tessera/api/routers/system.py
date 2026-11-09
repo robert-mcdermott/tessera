@@ -80,6 +80,8 @@ def meta(request: Request) -> dict[str, Any]:
             "vocabulary": config.vocabulary.to_json() if signed_in else None,
             # Where the public site is served ([publish] base_url), for embed codes.
             "public_site": (config.publish.base_url.rstrip("/") or None) if signed_in else None,
+            # Front-end modules to load, for optional features the configuration turns on.
+            "extensions": list(getattr(request.app.state, "extensions", [])) if signed_in else [],
         }
     }
 

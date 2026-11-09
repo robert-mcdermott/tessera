@@ -80,6 +80,19 @@ The capability catalog. IDs are stable: code, tests, and changelog entries can c
 | INT-09 | S | Opportunity navigator | Public opportunities matched to people and teams; fit and eligibility shown separately | 5 |
 | INT-10 | S | Team builder | Assemble people for an opportunity, see covered and missing concepts | 5 |
 | INT-11 | C | No league tables | No default ranking of people by any metric (a constraint on every view) | all |
+| INT-12 | S | Opportunities an organization tracks | Foundation, internal, and limited-submission opportunities, imported or entered, appear beside public ones with their source | 5 |
+| INT-13 | C | Patents in impact threads | Patents NIH reports for a grant extend its thread (a new source: RePORTER's bulk downloads) | — |
+
+## Researcher profiles (PRF)
+
+| ID | Pri | Requirement | Acceptance | Wave |
+|---|---|---|---|---|
+| PRF-01 | M | Every profile visible inside | Every person's profile is visible to every signed-in account; whether it is public is a separate choice | 6 |
+| PRF-02 | M | Sections the researcher keeps | Overview, research interests, positions, education and training, honors and awards, memberships and service, teaching and mentoring, talks, links, and featured publications, kept by the researcher or someone acting for them, with every change recorded | 6 |
+| PRF-03 | M | Public by choice | The researcher opts their profile in to or out of the public site and chooses which sections and items it shows; internal views always show everything | 6 |
+| PRF-04 | M | CVs and biosketches | CVs and NIH-format biosketches built from the profile, with chosen sections, items, order, personal statement, and contributions to science; several saved versions; printable and downloadable | 6 |
+| PRF-05 | S | Someone to act for them | A researcher can name an account that keeps their profile for them | 6 |
+| PRF-06 | C | Imports without lock-in | Entries record their source, so ORCID's public record or an HR feed can add to them later without duplicates; no import is required | — |
 
 ## Clinical studies (CLN)
 
@@ -102,8 +115,8 @@ The capability catalog. IDs are stable: code, tests, and changelog entries can c
 | PLT-06 | M | Local accounts and roles | Admin, curator, researcher, and viewer roles enforced in API, search, and exports | 2 |
 | PLT-07 | M | Public / internal separation | Public views use an allowlisted projection, never raw records | 3 |
 | PLT-08 | M | Backup, restore, and exit export | Documented, tested backup and restore; a full export of the ledger and lake | 4 |
-| PLT-09 | M | PostgreSQL ledger option | Full test suite passes against PostgreSQL | 6 |
-| PLT-10 | S | Standards-based single sign-on | Optional OpenID Connect sign-in with any standards-based provider (such as Microsoft Entra ID) beside local accounts, which remain the default; the provider's groups or app roles optionally map to Tessera roles and group scopes at each sign-in | 6 |
+| PLT-09 | M | PostgreSQL ledger option | Full test suite passes against PostgreSQL | 7 |
+| PLT-10 | S | Standards-based single sign-on | Optional OpenID Connect sign-in with any standards-based provider (such as Microsoft Entra ID) beside local accounts, which remain the default; the provider's groups or app roles optionally map to Tessera roles and group scopes at each sign-in | 7 |
 | PLT-11 | S | Configurable vocabulary | Unit kinds, role names, and labels are configurable | 3 |
 | PLT-12 | S | Operational visibility | Job metrics, run history, and failure alerts in the admin area | 4 |
 | PLT-13 | S | Brand kit | An organization's own palette (core colors by day and night), footer links, favicon, and social preview image are configuration; `tessera doctor` fails any configured color pair below WCAG AA | 3 |
@@ -117,7 +130,7 @@ The capability catalog. IDs are stable: code, tests, and changelog entries can c
 | UX-03 | M | Keyboard accessible | All features usable by keyboard; visible focus | 1 |
 | UX-04 | M | Responsive | Usable from 360 px to wide desktop | 1 |
 | UX-05 | S | Command palette | ⌘K / Ctrl-K finds entities, pages, and actions | 1 |
-| UX-06 | S | WCAG 2.2 AA audit | An audit is passed before v1.0 | 6 |
+| UX-06 | S | WCAG 2.2 AA audit | An audit is passed before v1.0 | 7 |
 
 ## AI (optional, off by default) (AI)
 

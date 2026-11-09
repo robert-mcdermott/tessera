@@ -41,8 +41,12 @@ log = logging.getLogger("tessera.ingest")
 PUBLISH_EVERY = 25  # payloads between lake publishes, so interruptions lose little
 ICITE_REFRESH_DAYS = 30
 ORCID_REFRESH_DAYS = 30
-# ORCID comes before "linked", so that papers listed on members' ORCID records are fetched.
-INGEST_ORDER = ("reporter", "ctgov", "pubmed", "orcid", "pubmed:linked", "icite", "mesh")
+# ORCID comes before "linked", so that papers listed on members' ORCID records are fetched;
+# "citing" follows iCite, which says which clinical articles cite the organization's papers.
+INGEST_ORDER = (
+    "reporter", "ctgov", "pubmed", "orcid", "pubmed:linked", "icite", "pubmed:citing", "mesh",
+    "grants_gov",
+)  # fmt: skip
 
 
 @dataclass
@@ -107,17 +111,23 @@ def _source_and_mode(source: str, options: IngestOptions) -> tuple[str, IngestOp
 
 
 def _resolve_ids(
-    home: DataHome, engine: Engine, source: str, options: IngestOptions
+    home: DataHome, engine: Engine, source: str, options: IngestOptions, today: date
 ) -> IngestOptions:
     """Fill in IDs (or name terms) for modes that derive them from the lake or ledger."""
+    if source == "grants_gov" and options.mode in {"auto", "open"} and not options.ids:
+        held = {} if options.full else opportunities_held(home, today)
+        return IngestOptions(**{**options.__dict__, "known": held})
     if source == "pubmed" and options.mode == "people" and not options.terms:
         return IngestOptions(**{**options.__dict__, "terms": people_terms(engine)})
     if options.ids:
         return options
     if source == "icite" and options.mode in {"auto", "refresh"}:
-        ids = pmids_needing_metrics(home)
+        # --full reads every paper again, not only those whose metrics are a month old.
+        ids = pmids_needing_metrics(home, 0 if options.full else ICITE_REFRESH_DAYS)
     elif source == "pubmed" and options.mode == "linked":
         ids = linked_pmids_missing(home, engine)
+    elif source == "pubmed" and options.mode == "citing":
+        ids = citing_pmids_missing(home)
     elif source == "orcid" and options.mode in {"auto", "refresh"}:
         ids = orcids_to_read(home, engine)
     else:
@@ -192,6 +202,42 @@ def linked_pmids_missing(home: DataHome, engine: Engine | None = None) -> list[s
     return [r[0] for r in rows]
 
 
+def opportunities_held(home: DataHome, today: date) -> dict[str, dict[str, Any]]:
+    """Each Grants.gov opportunity in the lake: its last listing, whether it is open, and
+    whether its details are older than the refresh window."""
+    from tessera.connectors.grantsgov import REFRESH_DAYS, opportunity_status
+
+    with Lake(home.lake) as lake:
+        rows = lake.rows(
+            "SELECT opportunity_id, listing, listed_status, doc_type, closes, archives, "
+            "_retrieved_at < now() - to_days(CAST(? AS INTEGER)) AS stale "
+            "FROM grants_gov_opportunity",
+            [REFRESH_DAYS],
+        )
+    return {
+        r["opportunity_id"]: {
+            "listing": r["listing"],
+            "stale": bool(r["stale"]),
+            "open": opportunity_status(r, today) in ("posted", "forecasted"),
+        }
+        for r in rows
+    }
+
+
+def citing_pmids_missing(home: DataHome) -> list[str]:
+    """Clinical articles citing the organization's papers whose PubMed record isn't kept yet.
+
+    Articles already among the organization's papers are read from there instead."""
+    with Lake(home.lake) as lake:
+        rows = lake.rows(
+            "SELECT DISTINCT c.citing_pmid AS pmid FROM icite_clinical_citation c "
+            "WHERE NOT EXISTS (SELECT 1 FROM citing_article a WHERE a.pmid = c.citing_pmid) "
+            "AND NOT EXISTS (SELECT 1 FROM pubmed_article a WHERE a.pmid = c.citing_pmid) "
+            "ORDER BY pmid"
+        )
+    return [r["pmid"] for r in rows]
+
+
 def ingest(
     config: Config,
     home: DataHome,
@@ -214,7 +260,7 @@ def ingest(
         interrupted = runs.mark_interrupted(engine)
         if interrupted:
             log.warning("marked %d interrupted run(s) as failed", interrupted)
-        options = _resolve_ids(home, engine, source, options)
+        options = _resolve_ids(home, engine, source, options, today or date.today())
         http_kwargs: dict[str, Any] = {}
         if transport is not None:
             http_kwargs["transport"] = transport
@@ -349,9 +395,10 @@ def replay(config: Config, home: DataHome, engine: Engine, source: str, of_run: 
 
 def expected_days(source: str) -> int:
     """How stale a source may get before the UI warns (days)."""
-    return {"pubmed": 7, "reporter": 7, "ctgov": 7, "icite": 45, "orcid": 45, "mesh": 400}.get(
-        source, 7
-    )
+    return {
+        "pubmed": 7, "reporter": 7, "ctgov": 7, "icite": 45, "orcid": 45, "mesh": 400,
+        "grants_gov": 7,
+    }.get(source, 7)  # fmt: skip
 
 
 __all__ = ["RunResult", "expected_days", "ingest", "ingest_many", "replay"]

@@ -12,7 +12,8 @@ The order is chosen so that every wave ends with something demonstrable using **
 | 3 | v0.3.0 | **Showcase** | Labs maintain living showcase pages through a weekly approval inbox; a public, allowlisted site goes live |
 | 4 | v0.4.0 | **Insight** | Leaders explore funding, topic, and study portfolios with transparent metrics, and export reproducible reports |
 | 5 | v0.5.0 | **Impact** | Follow grants to their impact; match funding opportunities to teams; optional grounded AI assistant |
-| 6 | v0.6.0 | **Adoption** | Another organization installs, re-brands, and runs Tessera on PostgreSQL with single sign-on |
+| 6 | v0.6.0 | **Profiles** | Every researcher has a full profile (positions, education, honors, service, activities) that they keep, open to everyone inside, public only if they opt in, with CVs and biosketches built from it |
+| 7 | v0.7.0 | **Adoption** | Another organization installs, re-brands, and runs Tessera on PostgreSQL with single sign-on |
 | — | v1.0.0 | **Stable** | Hardened, audited, documented, with API and upgrade guarantees |
 
 Status key: ☐ planned · ◐ in progress · ☑ done
@@ -67,7 +68,7 @@ Released as [v0.2.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0
 
 **Goal:** a product site with the full, illustrated documentation, so that people outside the pilot can find Tessera, see it, and try it.
 
-It waits until the main screens have settled: once wave 2's discovery views exist there is enough to show, and screenshots taken earlier would go stale within a wave. If an outside audience needs it sooner, it can move earlier; it must land before wave 6's adopter's guide, which it will host. Until then the Markdown in the repository is the documentation, and it is written so that the site can be built from it unchanged.
+It waits until the main screens have settled: once wave 2's discovery views exist there is enough to show, and screenshots taken earlier would go stale within a wave. If an outside audience needs it sooner, it can move earlier; it must land before wave 7's adopter's guide, which it will host. Until then the Markdown in the repository is the documentation, and it is written so that the site can be built from it unchanged.
 
 - **The guides stay the source.** `README.md` and the guides in `docs/*.md` are what GitHub shows and what the site is built from, so the two never disagree. Links between guides are written as GitHub reads them (`curation.md#bulk-decisions`).
 - **Site generator:** `docs/site/build.mjs`, needing nothing beyond Node 22 and no packages. It builds a home page (`docs/site/pages/index.html`) and one page per guide or group of sections, with a menu in reading order, a client-side search, light and dark themes from Tessera's own design tokens, and an API reference generated from the OpenAPI document (`docs/openapi.json`, kept current by a test). The build checks every local link, anchor, and image and fails on a broken one; CI runs it. Output goes to `site/`, which git ignores.
@@ -109,19 +110,35 @@ Detail: [waves/wave-3.md](waves/wave-3.md)
 
 Released as [v0.4.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0.4.0) on 2026-11-08. Detail: [waves/wave-4.md](waves/wave-4.md)
 
-## Wave 5: Impact (v0.5.0) ☐
+## Wave 5: Impact (v0.5.0) ☑
 
 **Goal:** connect discovery to outcomes and opportunities.
 
-- Grant-to-impact threads: grant → publications → studies → clinical citations, as an interactive thread view
-- Grants.gov connector; opportunity navigator with fit and eligibility as separate signals
-- Team builder: assemble people for an opportunity, see covered and missing concepts, export a team brief
-- Optional AI assistant, **off by default and invisible until it is enabled** in the configuration: while it is off there is no menu item, setting, route, or mention of it anywhere in the app, the API document, or the public site
-- Providers chosen by the adopter: any OpenAI-compatible or Anthropic-compatible endpoint, official or self-hosted (including locally hosted models), and Amazon Bedrock, with credentials read from the environment, never the configuration file
-- Grounded questions and answers that cite Tessera records and decline what the records don't support; the assistant reads only what the signed-in person may read, through the same access policy
-- Reviewable plain-language summaries for profiles and group pages, approved before they are shown; full model, prompt, and source logging
+| Slice | Name | Delivers | Status |
+|---|---|---|---|
+| 1 | Grant-to-impact threads | Grant → publications → studies → clinical citations (practice guidelines marked), typed and sourced, as an interactive thread; Insight → Impact | ☑ |
+| 2 | Funding opportunities | Grants.gov connector; opportunities an organization tracks itself (foundation, internal, limited submission) | ☑ |
+| 3 | Opportunity navigator | Fit and eligibility as separate signals with reasons; opportunities for a person and in a group's inbox and digest | ☑ |
+| 4 | Team builder | Assemble people for an opportunity, see covered and missing concepts, export a team brief | ☑ |
+| 5 | The AI layer | Optional, **off by default and invisible until enabled** (no menu item, setting, route, or mention in the app, the API document, or the public site); any OpenAI-compatible or Anthropic-compatible endpoint, official or self-hosted (including local models), and Amazon Bedrock, with credentials from the environment; full model, prompt, and source logging | ☑ |
+| 6 | Grounded questions and answers | Answers that cite Tessera records and decline what the records don't support; the assistant reads only what the signed-in person may read | ☑ |
+| 7 | Plain-language summaries | Reviewable lay summaries for profiles and group pages, approved before they are shown | ☑ |
+| 8 | Release prep | Guides, screenshots, evaluation, changelog, release | ☑ |
 
-## Wave 6: Adoption (v0.6.0) ☐
+Released as [v0.5.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0.5.0) on 2026-11-08. Detail: [waves/wave-5.md](waves/wave-5.md)
+
+## Wave 6: Profiles (v0.6.0) ☐
+
+**Goal:** a full profile for every researcher, kept by the researcher, open to everyone inside the organization, and public only by their choice, with CVs and biosketches built from it. Added 2026-11-08 at the maintainer's request.
+
+- Every profile stays visible to every signed-in account; the public page stays opt-in, set by the researcher (or someone acting for them), who also chooses which sections and items it shows
+- Sections the researcher keeps, beside what Tessera builds from public records: overview, research interests, positions and appointments, education and training, honors and awards, memberships and service, teaching and mentoring, talks and presentations, links, and featured publications
+- Kept by hand by the researcher, a curator, or an assistant the researcher names; edits take effect directly and every change is recorded
+- CVs and NIH-format biosketches (following NIH's form in force when the wave is built): choose sections, items, and order; write the personal statement and contributions to science from confirmed papers; keep several versions (one for a grant, one for a promotion); print to PDF or download as Markdown
+- Simple by design: no annual-review or reporting workflow, and no external integration required. Each entry records where it came from, so imports (ORCID's public record, an HR feed) can be added later without duplicating anything
+- Wave 5's plain-language summary and the opportunities that fit a researcher appear on their profile
+
+## Wave 7: Adoption (v0.7.0) ☐
 
 **Goal:** make Tessera easy for another organization to adopt and operate.
 

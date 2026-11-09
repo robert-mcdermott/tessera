@@ -26,6 +26,12 @@ from tessera.demo.content import (
     ABSTRACT,
     AREAS,
     BRIDGES,
+    CLINICAL_FALLBACK,
+    CLINICAL_JOURNALS,
+    CLINICAL_TITLES,
+    CLINICAL_TOPICS,
+    CLINICAL_TYPES,
+    CLINICAL_WEIGHTS,
     CONCLUSIONS,
     CONSEQUENCES,
     DIRECTIONS,
@@ -117,6 +123,7 @@ class World:
     orcid: list[dict[str, Any]]
     truth: set[tuple[str, str]]  # (person key, pmid)
     roster: list[dict[str, str]]
+    citing: list[dict[str, Any]] = field(default_factory=list)  # clinical articles citing ours
 
 
 def build_world(seed: int = 7, today: date | None = None, labs_per_area: int = 3) -> World:
@@ -661,6 +668,9 @@ def build_world(seed: int = 7, today: date | None = None, labs_per_area: int = 3
             }
         )
 
+    # Clinical articles citing the papers, from a separate random stream so nothing else moves.
+    citing = clinical_citations(pubmed, icite, reporter, links, today, random.Random(seed + 202))
+
     # --- studies ---------------------------------------------------------------------------
     studies = []
     papers_of = defaultdict(list)
@@ -829,7 +839,108 @@ def build_world(seed: int = 7, today: date | None = None, labs_per_area: int = 3
         orcid,
         truth,
         roster,
+        citing,
     )
+
+
+def clinical_citations(
+    pubmed: list[dict[str, Any]],
+    icite: list[dict[str, Any]],
+    reporter: list[dict[str, Any]],
+    links: list[dict[str, Any]],
+    today: date,
+    rng: random.Random,
+) -> list[dict[str, Any]]:
+    """Clinical articles that cite the papers, recorded on the papers' iCite rows.
+
+    Papers with a higher translation score (iCite's APT) are cited more often; some articles
+    cite several papers of the same field. Two papers that thank the program project (P01) are
+    cited by one practice guideline, so its thread always reaches one."""
+    area_of = {d: a for a in AREAS for d in a.mesh}
+    by_pmid = {r["pmid"]: r for r in icite}
+    for r in icite:
+        r["clinical_citations"] = []
+    rates = {0.95: 0.3, 0.75: 0.2, 0.5: 0.1, 0.25: 0.03, 0.05: 0.01}
+    kinds = list(CLINICAL_WEIGHTS)
+    weights = [CLINICAL_WEIGHTS[k] for k in kinds]
+    articles: list[dict[str, Any]] = []
+    pool: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    counter = 915_600_000
+    titles: set[str] = set()
+
+    def topic(area: Area) -> str:
+        names = [CLINICAL_TOPICS.get(c, c.lower()) for c in area.conditions]
+        return rng.choice(names or list(CLINICAL_FALLBACK.get(area.key, ("chronic disease",))))
+
+    def article(kind: str, area: Area, year: int) -> dict[str, Any]:
+        nonlocal counter
+        counter += rng.randint(1, 30)
+        title = rng.choice(CLINICAL_TITLES[kind]).format(c=topic(area))
+        for _ in range(6):  # titles are drawn from a few templates; avoid repeating one
+            if title not in titles:
+                break
+            title = rng.choice(CLINICAL_TITLES[kind]).format(c=topic(area))
+        titles.add(title)
+        found = {
+            "pmid": str(counter),
+            "title": title,
+            "journal": rng.choice(CLINICAL_JOURNALS),
+            "journal_abbrev": None,
+            "pub_year": year,
+            "pub_date": date(year, rng.randint(1, 12), 1),
+            "doi": None,
+            "publication_types": list(CLINICAL_TYPES[kind]),
+            "first_author": f"{rng.choice(EXTERNAL_FAMILY)} {rng.choice('ABCDEFGHJKLMNPRSTW')}",
+            "author_count": rng.randint(4, 24),
+            "is_retracted": False,
+        }
+        articles.append(found)
+        pool[area.key].append(found)
+        return found
+
+    def cite(pmid: str, found: dict[str, Any]) -> None:
+        row = by_pmid[pmid]["clinical_citations"]
+        if all(c["citing_pmid"] != found["pmid"] for c in row):
+            row.append({"citing_pmid": found["pmid"]})
+
+    for r in pubmed:
+        year = r["pub_year"]
+        area = next((area_of[m["descriptor"]] for m in r["mesh"] if m["descriptor"] in area_of),
+                    None)  # fmt: skip
+        if area is None or r["pmid"] not in by_pmid or year > today.year - 1:
+            continue
+        rate = rates.get(by_pmid[r["pmid"]]["apt"], 0.05)
+        for _ in range(4):
+            if rng.random() >= rate:
+                continue
+            when = year + rng.randint(1, 4)
+            if when > today.year:
+                continue
+            later = [a for a in pool[area.key] if a["pub_year"] > year]
+            if later and rng.random() < 0.35:
+                cite(r["pmid"], rng.choice(later))
+            else:
+                cite(r["pmid"], article(rng.choices(kinds, weights)[0], area, when))
+
+    program = sorted({x["core_project_num"] for x in reporter if x["activity_code"] == "P01"})
+    mesh_of = {r["pmid"]: r["mesh"] for r in pubmed}
+    if program:
+        core = program[0]
+        thanked = {x["pmid"] for x in links if x["core_project_num"] == core}
+        thanked |= {r["pmid"] for r in pubmed
+                    if any(g.get("core_project_num") == core for g in r["grants"])}  # fmt: skip
+        settled = [p for p in thanked if p in by_pmid and by_pmid[p]["year"] <= today.year - 2]
+        older = sorted(settled, key=int)
+        if len(older) >= 2:
+            when = min(today.year, max(by_pmid[p]["year"] for p in older[:2]) + 2)
+            field = next((area_of[m["descriptor"]] for m in mesh_of.get(older[0], [])
+                          if m["descriptor"] in area_of), AREAS[0])  # fmt: skip
+            guideline = article("guideline", field, when)
+            for p in older[:2]:
+                cite(p, guideline)
+    for r in icite:
+        r["clinical_citations"].sort(key=lambda c: int(c["citing_pmid"]))
+    return sorted(articles, key=lambda a: int(a["pmid"]))
 
 
 CONSORTIUM_TITLE = (

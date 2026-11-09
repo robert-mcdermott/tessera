@@ -15,7 +15,13 @@ from tessera.connectors.http import HttpClient
 from tessera.core.errors import TesseraError
 from tessera.home import DataHome
 from tessera.jobs import runs
-from tessera.jobs.ingest import ingest, ingest_many, linked_pmids_missing, replay
+from tessera.jobs.ingest import (
+    citing_pmids_missing,
+    ingest,
+    ingest_many,
+    linked_pmids_missing,
+    replay,
+)
 from tessera.jobs.lock import JobLockedError, job_lock
 from tessera.lake import Lake
 from tessera.lake.manifest import read_manifest
@@ -30,6 +36,9 @@ from .fakes import (
     FakeApi,
     ctgov_api,
     ctgov_study,
+    form,
+    gg_hit,
+    grants_gov_api,
     icite_api,
     no_sleep,
     orcid_api,
@@ -48,7 +57,9 @@ def world() -> FakeApi:
     projects = [reporter_project(i, f"R01CA{i:06d}") for i in range(1, 4)]
     links = {"R01CA000001": ["31000001", "31000002"], "R01CA000002": ["31000004"]}
     studies = [ctgov_study("NCT00000001"), ctgov_study("NCT00000002", pmids=("31000003",))]
-    for part in (pubmed_api(), reporter_api(projects, links), ctgov_api(studies), icite_api()):
+    opportunities = grants_gov_api([gg_hit("990001", "RFA-CA-27-001", "Cell therapy (R01)")])
+    for part in (pubmed_api(), reporter_api(projects, links), ctgov_api(studies), icite_api(),
+                 opportunities):  # fmt: skip
         api.routes.update(part.routes)
     # NLM's file server: this year's MeSH, and an HTML page (status 200) for next year's.
     sample = gzip.compress(
@@ -110,7 +121,9 @@ def test_ingest_all_sources(instance: Instance, engine, network: FakeApi) -> Non
         ("orcid", "refresh", "succeeded"),
         ("pubmed", "linked", "succeeded"),
         ("icite", "refresh", "succeeded"),
+        ("pubmed", "citing", "succeeded"),
         ("mesh", "annual", "succeeded"),
+        ("grants_gov", "open", "succeeded"),
     ]
     with Lake(instance.home.lake) as lake:
         count = lambda t: lake.scalar(f'SELECT count(*) FROM "{t}"')  # noqa: E731
@@ -122,6 +135,7 @@ def test_ingest_all_sources(instance: Instance, engine, network: FakeApi) -> Non
         assert count("pubmed_article") == 4
         assert count("icite_metrics") == 3  # iCite has nothing for one new paper
         assert count("mesh_descriptor") == 3
+        assert count("grants_gov_opportunity") == 1
         assert (
             lake.scalar("SELECT _source_version FROM ctgov_study LIMIT 1") == "2025-11-06T09:00:00"
         )
@@ -142,6 +156,7 @@ def test_ingest_all_sources(instance: Instance, engine, network: FakeApi) -> Non
         "icite",
         "orcid",
         "mesh",
+        "grants_gov",
     }
 
 
@@ -275,6 +290,59 @@ def test_linked_pmids_and_icite_auto(instance: Instance, engine, network: FakeAp
     assert metrics.report.total_found == 4
     again = ingest(instance.config, instance.home, engine, "icite", today=TODAY)
     assert again.report.total_found == 1  # only the paper iCite doesn't know yet
+    full = ingest(instance.config, instance.home, engine, "icite",
+                  options=IngestOptions(full=True), today=TODAY)  # fmt: skip
+    assert full.report.total_found == 4  # --full reads every paper again
+
+
+def _guideline_xml(pmids: list[str]) -> bytes:
+    articles = "".join(
+        f'<PubmedArticle><MedlineCitation><PMID Version="1">{p}</PMID><Article>'
+        "<Journal><Title>Practice Guidance Bulletin</Title><JournalIssue><PubDate><Year>2025"
+        f"</Year></PubDate></JournalIssue></Journal><ArticleTitle>Guideline {p}</ArticleTitle>"
+        "<AuthorList><Author><LastName>Lee</LastName><Initials>A</Initials></Author></AuthorList>"
+        "<PublicationTypeList><PublicationType>Practice Guideline</PublicationType>"
+        "</PublicationTypeList></Article></MedlineCitation></PubmedArticle>"
+        for p in pmids
+    )
+    return f"<PubmedArticleSet>{articles}</PubmedArticleSet>".encode()
+
+
+def test_citing_articles_follow_icite(instance: Instance, engine, network: FakeApi) -> None:  # type: ignore[no-untyped-def]
+    ingest(instance.config, instance.home, engine, "pubmed", today=TODAY)
+    clinical = {"31000001": [41000002, 41000001], "31000002": [41000001]}
+    original = network.routes["pubs"]
+
+    def pubs(request: httpx.Request) -> httpx.Response:
+        response = original(request)
+        data = response.json()
+        for item in data["data"]:
+            item["cited_by_clin"] = clinical.get(str(item["pmid"]))
+        return httpx.Response(200, json=data)
+
+    network.route("pubs", pubs)
+    ingest(instance.config, instance.home, engine, "icite", today=TODAY)
+    assert citing_pmids_missing(instance.home) == ["41000001", "41000002"]
+    asked: list[list[str]] = []
+
+    def efetch(request: httpx.Request) -> httpx.Response:
+        ids = form(request)["id"].split(",")
+        asked.append(ids)
+        return httpx.Response(200, content=_guideline_xml(ids))
+
+    network.route("efetch.fcgi", efetch)
+    result = ingest(instance.config, instance.home, engine, "pubmed:citing", today=TODAY)
+    assert result.status == "succeeded" and asked == [["41000001", "41000002"]]
+    assert citing_pmids_missing(instance.home) == []
+    with Lake(instance.home.lake) as lake:
+        rows = lake.rows("SELECT pmid, first_author, publication_types FROM citing_article "
+                         "ORDER BY pmid")  # fmt: skip
+        ours = lake.scalar("SELECT count(*) FROM pubmed_article WHERE pmid LIKE '41%'")
+    assert [r["pmid"] for r in rows] == ["41000001", "41000002"] and ours == 0
+    assert rows[0]["first_author"] == "Lee A" and rows[0]["publication_types"] == [
+        "Practice Guideline"
+    ]
+    assert (instance.home.raw / "pubmed" / result.run_id / "index.jsonl").is_file()
 
 
 def test_disabled_source(config_file: Path, network: FakeApi) -> None:

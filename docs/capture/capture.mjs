@@ -6,13 +6,16 @@
 //   node docs/capture/capture.mjs --theme dark       only one theme
 //   node docs/capture/capture.mjs --demo PATH        reuse a demo built with `tessera demo PATH`
 //   node docs/capture/capture.mjs social             only the social preview card (from home-light)
+//   node docs/capture/capture.mjs --ai MODEL         also the assistant's scenes, with MODEL at an
+//                                                    OpenAI-compatible endpoint (--ai-url, Ollama's
+//                                                    on this machine by default)
 //
 // It builds the demo in a temporary directory (unless --demo is given), serves it on a free
 // port, opens each scene in headless Chrome, and saves docs/images/<scene>-<theme>.webp.
 // Motion is reduced, so graphs are shown settled. Needs Node.js 22, uv, and Chrome.
 
 import { execFileSync, spawn } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -73,8 +76,29 @@ export const SCENES = [
   { name: "evidence-model", url: "/admin/evidence", ...WIDE },
   { name: "sources", url: "/admin/sources", ...WIDE },
   { name: "palette", url: "/", ...WIDE, step: "document.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true }))", wait: "document.querySelector('.palette input')", type: "grant", keepFocus: true },
+  { name: "thread", url: "/grants/R01CA990016", ...WIDE, wait: "document.querySelector('.thread-column')", scroll: ".thread" },
+  { name: "insight-impact", url: "/insight/impact", ...WIDE, wait: FIGURES },
+  { name: "opportunities", url: "/opportunities?status=posted&status=forecasted", ...WIDE },
+  { name: "opportunity", url: "/opportunities/9900101", ...WIDE, wait: "document.querySelector('.fit-heading')" },
+  { name: "team", url: "/teams/{team}", ...WIDE },
   { name: "mobile", url: "/people/{person}", width: 390, height: 844, mobile: true, scale: 2 },
+  // With --ai only: the assistant answers live, so these differ a little from run to run.
+  { name: "ask", ai: true, url: "/", ...WIDE, settle: 1200,
+    step: `(async () => { document.querySelector('.ask-open').click(); await new Promise((r) => { const t = setInterval(() => { if (document.querySelector('.ask-input')) { clearInterval(t); r(); } }, 50); });
+      const input = document.querySelector('.ask-input'); input.value = 'Who works on CAR-T cell therapy?';
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); })()`,
+    wait: "document.querySelector('.ask-sources')", after: "document.querySelector('.drawer-body').scrollTop = 0" },
+  { name: "summary", ai: true, url: "/people/{person}", ...WIDE, wait: "document.querySelector('.lay-text')", setup: approvedSummary },
+  { name: "assistant-log", ai: true, url: "/admin/assistant", ...WIDE, wait: "document.querySelector('.table')" },
 ];
+
+/** For the summary scene: a summary of {person}'s work, drafted and approved. */
+async function approvedSummary(base, chosen) {
+  const draft = await (await fetch(`${base}/api/v1/ai/summaries/${chosen.person}/draft`, { method: "POST" })).json();
+  if (!draft.data) throw new Error(`Could not draft a summary: ${JSON.stringify(draft)}`);
+  await fetch(`${base}/api/v1/ai/summaries/${draft.data.id}/approve`, { method: "POST",
+    headers: { "Content-Type": "application/json" }, body: "{}" });
+}
 
 function freePort() {
   return new Promise((ok) => {
@@ -103,7 +127,9 @@ async function people(base) {
   const best = (rank) => [...body.data].sort((a, b) => rank(b) - rank(a))[0]?.id;
   const snapshots = await (await fetch(`${base}/api/v1/insight/snapshots`)).json();
   const saved = await (await fetch(`${base}/api/v1/saved-searches`)).json();
+  const teams = await (await fetch(`${base}/api/v1/teams`)).json();
   return {
+    team: teams.data[0]?.id,
     person: best((p) => (p.counts.accepted || 0) + 5 * (p.counts.grants || 0) + 20 * (p.counts.studies || 0)),
     suggested: best((p) => p.counts.suggested || 0),
     snapshot: snapshots.data[0]?.id,
@@ -129,8 +155,11 @@ async function main() {
   const theme = option("--theme");
   const themeArg = theme ? [theme] : null;
   const demoArg = option("--demo");
+  const aiModel = option("--ai");
+  const aiUrl = option("--ai-url") ?? "http://127.0.0.1:11434/v1";
   const wanted = new Set(args);
-  const scenes = SCENES.filter((s) => !wanted.size || wanted.has(s.name));
+  const scenes = SCENES.filter((s) => (!wanted.size && (aiModel || !s.ai)) || wanted.has(s.name));
+  if (!aiModel && scenes.some((s) => s.ai)) throw new Error("The assistant's scenes need --ai MODEL.");
   const withSocial = !wanted.size || wanted.has("social");
   wanted.delete("social");
   if (!scenes.length && withSocial) {
@@ -147,50 +176,71 @@ async function main() {
     console.log("Building the demo organization …");
     execFileSync("uv", ["run", "--project", REPO, "tessera", "demo", demo, "--force"], { stdio: "inherit", cwd: REPO });
   }
-  const port = await freePort();
-  const base = `http://127.0.0.1:${port}`;
-  const server = spawn("uv", ["run", "--project", REPO, "tessera", "--config", join(demo, "tessera.toml"), "serve", "--port", String(port)],
-    { cwd: REPO, stdio: "ignore" });
+  // Two passes: everything else with the assistant off, as an installation starts, and then the
+  // assistant's own scenes with it on.
+  const passes = [scenes.filter((s) => !s.ai), scenes.filter((s) => s.ai)];
   const browser = await launch();
   try {
-    await waitForServer(base);
-    const chosen = await people(base);
     mkdirSync(IMAGES, { recursive: true });
-    for (const scene of scenes) {
-      for (const theme of themeArg || ["light", "dark"]) {
-        const page = await browser.page();
-        await page.viewport({ width: scene.width, height: scene.height, scale: scene.scale ?? 1.5, mobile: Boolean(scene.mobile) });
-        await page.media({ "prefers-color-scheme": theme, "prefers-reduced-motion": "reduce" });
-        // The public site is files the demo published (var/public); the rest is the app.
-        await page.goto(scene.file ? `file://${join(demo, "var", "public", scene.file)}`
-          : base + scene.url.replace(/\{(\w+)\}/g, (_, key) => chosen[key]));
-        await page.until(scene.ready ?? ready);
-        if (scene.step) {
-          await page.evaluate(scene.step);
+    for (const [n, list] of passes.entries()) {
+      if (!list.length) continue;
+      if (n === 1) {
+        const path = join(demo, "tessera.toml");
+        const text = readFileSync(path, "utf-8");
+        if (!/^\[ai\]/m.test(text)) {
+          writeFileSync(path, `${text}\n[ai]\nenabled = true\nprovider = "openai"\nbase_url = ${JSON.stringify(aiUrl)}\nmodel = ${JSON.stringify(aiModel)}\ndaily_limit = 0\n`);
         }
-        if (scene.wait) await page.until(scene.wait);
-        if (scene.then) await page.until(scene.then);
-        if (scene.after) await page.evaluate(scene.after);
-        if (scene.type) {
-          await page.evaluate(`(() => { const input = document.querySelector('.palette input'); input.value = ${JSON.stringify(scene.type)}; input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
-        }
-        if (!scene.keepFocus) await page.evaluate("document.activeElement?.blur()");
-        if (scene.scroll) {
-          // Bring the part that matters to just below the sticky top bar.
-          await page.evaluate(`(() => { const el = document.querySelector(${JSON.stringify(scene.scroll)}); window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 76); })()`);
-        }
-        await new Promise((r) => setTimeout(r, scene.settle ?? 600));
-        const file = join(IMAGES, `${scene.name}-${theme}.webp`);
-        writeFileSync(file, await page.screenshot({ quality: 80 }));
-        await page.close();
-        console.log(`  ${scene.name} (${theme})`);
+      }
+      const port = await freePort();
+      const base = `http://127.0.0.1:${port}`;
+      const server = spawn("uv", ["run", "--project", REPO, "tessera", "--config", join(demo, "tessera.toml"), "serve", "--port", String(port)],
+        { cwd: REPO, stdio: "ignore" });
+      try {
+        await waitForServer(base);
+        const chosen = await people(base);
+        await capture(browser, list, { base, chosen, demo, themeArg });
+      } finally {
+        server.kill();
       }
     }
     if (withSocial) await social(browser);
   } finally {
     await browser.close();
-    server.kill();
     if (work) rmSync(work, { recursive: true, force: true });
+  }
+}
+
+async function capture(browser, scenes, { base, chosen, demo, themeArg }) {
+  for (const scene of scenes) {
+    if (scene.setup) await scene.setup(base, chosen);
+    for (const theme of themeArg || ["light", "dark"]) {
+      const page = await browser.page();
+      await page.viewport({ width: scene.width, height: scene.height, scale: scene.scale ?? 1.5, mobile: Boolean(scene.mobile) });
+      await page.media({ "prefers-color-scheme": theme, "prefers-reduced-motion": "reduce" });
+      // The public site is files the demo published (var/public); the rest is the app.
+      await page.goto(scene.file ? `file://${join(demo, "var", "public", scene.file)}`
+        : base + scene.url.replace(/\{(\w+)\}/g, (_, key) => chosen[key]));
+      await page.until(scene.ready ?? ready);
+      if (scene.step) {
+        await page.evaluate(scene.step);
+      }
+      if (scene.wait) await page.until(scene.wait);
+      if (scene.then) await page.until(scene.then);
+      if (scene.after) await page.evaluate(scene.after);
+      if (scene.type) {
+        await page.evaluate(`(() => { const input = document.querySelector('.palette input'); input.value = ${JSON.stringify(scene.type)}; input.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      }
+      if (!scene.keepFocus) await page.evaluate("document.activeElement?.blur()");
+      if (scene.scroll) {
+        // Bring the part that matters to just below the sticky top bar.
+        await page.evaluate(`(() => { const el = document.querySelector(${JSON.stringify(scene.scroll)}); window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 76); })()`);
+      }
+      await new Promise((r) => setTimeout(r, scene.settle ?? 600));
+      const file = join(IMAGES, `${scene.name}-${theme}.webp`);
+      writeFileSync(file, await page.screenshot({ quality: 80 }));
+      await page.close();
+      console.log(`  ${scene.name} (${theme})`);
+    }
   }
 }
 

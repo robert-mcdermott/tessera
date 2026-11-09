@@ -13,7 +13,7 @@ from __future__ import annotations
 import hashlib
 import re
 import secrets
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +24,17 @@ from tessera.demo.world import CITY, DOMAIN, ORG, ORG_SHORT, REPORTER_ORG, World
 from tessera.home import DataHome
 from tessera.jobs import runs
 from tessera.lake import LakeWriter
-from tessera.lake.schemas import CTGOV, ICITE, MESH, ORCID, PUBMED, REPORTER, REPORTER_LINKS
+from tessera.lake.schemas import (
+    CTGOV,
+    GRANTS_GOV,
+    ICITE,
+    MESH,
+    ORCID,
+    PUBMED,
+    PUBMED_CITING,
+    REPORTER,
+    REPORTER_LINKS,
+)
 from tessera.ledger import migrate
 from tessera.ledger.db import make_engine
 
@@ -43,6 +53,8 @@ reporter_org_names = ["{REPORTER_ORG}"]
 ctgov_org_names = ["{ORG}", "{ORG_SHORT} Medical Center"]
 email_domains = ["{DOMAIN}"]
 exclusions = []
+# A nonprofit research institute, when it applies for funding (Grants.gov's code 12).
+applicant_types = ["12"]
 
 '''
 
@@ -80,6 +92,74 @@ def _record(
     runs.finish_run(engine, run_id, "succeeded", {"report": report, "lake": {}})
 
 
+def federal_opportunities(today: date) -> list[dict[str, Any]]:
+    """The demo's federal opportunities, as Grants.gov records (see content.OPPORTUNITIES)."""
+    from tessera.connectors.grantsgov import listing_key, nih_details
+    from tessera.demo.content import NIH_TYPES, OPPORTUNITIES
+    from tessera.opportunities.catalog import APPLICANT_TYPES
+
+    out = []
+    for n, o in enumerate(OPPORTUNITIES, start=1):
+        oid = str(9_900_100 + n)
+        forecast = bool(o.get("forecast"))
+        opens = today + timedelta(days=o["opens"])
+        closes = today + timedelta(days=o["closes"])
+        types = list(o.get("types", NIH_TYPES))
+        nih = nih_details(o["number"], o["title"]) if o["code"].startswith("HHS-NIH") else {}
+        status = "forecasted" if forecast else "posted"
+        hit = {
+            "number": o["number"],
+            "title": o["title"],
+            "oppStatus": status,
+            "docType": "forecast" if forecast else "synopsis",
+            "openDate": opens.strftime("%m/%d/%Y"),
+            "closeDate": closes.strftime("%m/%d/%Y"),
+        }
+        out.append({
+            "opportunity_id": oid, "number": o["number"], "title": o["title"],
+            "agency_code": o["code"], "agency": o["agency"],
+            "parent_agency": "Department of Health and Human Services"
+            if o["code"].startswith("HHS") else None,
+            "doc_type": "forecast" if forecast else "synopsis",
+            "listed_status": "unlisted" if o.get("closed") else status,
+            "listing": None if o.get("closed") else listing_key(hit),
+            "category": "Discretionary",
+            "posted": None if forecast else opens, "expected_post": opens if forecast else None,
+            "closes": closes, "close_note": None, "archives": closes + timedelta(days=60),
+            "award_ceiling": o["ceiling"], "award_floor": o.get("floor"),
+            "estimated_funding": o["ceiling"] * 4, "expected_awards": 4, "cost_sharing": False,
+            "applicant_types": types, "applicant_type_labels": [APPLICANT_TYPES[t] for t in types],
+            "instruments": ["Cooperative Agreement" if "(U" in o["title"] else "Grant"],
+            "categories": ["Health"] if o["code"].startswith("HHS") else ["Science and Technology"],
+            "assistance_listings": ["93.393"] if o["code"].startswith("HHS") else ["47.074"],
+            "description": o["text"],
+            "eligibility_notes": "See the notice for eligibility."
+            if not o.get("types") else "Only the applicant types listed may apply.",
+            "url": f"https://www.grants.gov/search-results-detail/{oid}",
+            "activity_codes": nih.get("activity_codes") or [],
+            "clinical_trial": nih.get("clinical_trial"), "guide_url": None,
+            "last_updated": min(opens, today - timedelta(days=12)),
+        })  # fmt: skip
+    return out
+
+
+def _local_opportunities(engine: Engine, today: date) -> None:
+    """Opportunities the Institute tracks itself: a pilot fund, a foundation, a limited
+    submission (see content.LOCAL_OPPORTUNITIES)."""
+    from tessera.demo.content import LOCAL_OPPORTUNITIES
+    from tessera.opportunities.store import import_rows
+
+    rows = []
+    for o in LOCAL_OPPORTUNITIES:
+        row = dict(o)
+        for name in ("posted_on", "closes_on", "internal_deadline"):
+            if name in row:
+                row[name] = (today + timedelta(days=row[name])).isoformat()
+        rows.append(row)
+    result = import_rows(engine, rows, CURATOR)
+    assert not result["problems"], result["problems"]
+
+
 def build_demo(
     path: Path,
     *,
@@ -94,7 +174,12 @@ def build_demo(
     from tessera.evidence.people import import_roster
     from tessera.evidence.resolve import resolve
     from tessera.groups.importer import import_groups
-    from tessera.jobs.build import build_attribution, build_discovery, build_search
+    from tessera.jobs.build import (
+        build_attribution,
+        build_discovery,
+        build_opportunities,
+        build_search,
+    )
 
     today = today or date.today()
     path = Path(path)
@@ -120,10 +205,13 @@ def build_demo(
         _record(engine, home, "ctgov", CTGOV, world.studies, "organization")
         _record(engine, home, "pubmed", PUBMED, world.pubmed, "affiliation")
         _record(engine, home, "icite", ICITE, world.icite, "refresh")
+        _record(engine, home, "pubmed", PUBMED_CITING, world.citing, "citing")
         _record(engine, home, "orcid", ORCID, world.orcid, "refresh")
         from tessera.demo.mesh import mesh_records
 
         _record(engine, home, "mesh", MESH, mesh_records(today.year), "annual")
+        _record(engine, home, "grants_gov", GRANTS_GOV, federal_opportunities(today), "open")
+        _local_opportunities(engine, today)
 
         roster = path / "roster.csv"
         _write_roster(world, roster)
@@ -141,13 +229,15 @@ def build_demo(
         resolve(config, home, engine, today=today)
         _evaluate(engine, config)
         _accounts(engine, world)
-        build_search(config, home, engine)
+        build_search(config, home, engine, today=today)
         built = build_discovery(config, home, engine)
         build_attribution(config, home, engine, today=today)
+        build_opportunities(config, home, engine, today=today)
+        _team(home, engine)
         _attribute(engine)
         _pages(engine, today)
         _public(engine)
-        build_search(config, home, engine)  # include what the steps above changed directly
+        build_search(config, home, engine, today=today)  # what the steps above changed directly
         _insight(config, home, engine, today)
         from tessera.publish import publish
 
@@ -530,6 +620,26 @@ def _insight(config: Config, home: DataHome, engine: Engine, today: date) -> Non
             engine, lake, config, home, report_id, actor="Demo curator",
             note="For the program's annual review", today=today, search=index,
         )  # fmt: skip
+
+
+def _team(home: DataHome, engine: Engine) -> None:
+    """A team for the cellular immunotherapy opportunity, so Teams has something to show: the
+    three people who fit it best, with the topics the opportunity was read as."""
+    from tessera.auth.principal import Principal
+    from tessera.opportunities import fit
+    from tessera.teams import store as teams
+
+    read = fit.fits_of(home, "opp:9900101")
+    if read is None:
+        return
+    operator = Principal(name=CURATOR, single_operator=True)
+    team_id = teams.create(engine, operator, {
+        "name": "Cellular immunotherapy R01", "opportunity": "opp:9900101",
+        "purpose": "An R01 on next-generation cellular immunotherapies for blood cancers.",
+        "concepts": read["concepts"]})  # fmt: skip
+    best = sorted(read["people"], key=lambda p: -p["score"])[:3]
+    for person_fit, role in zip(best, ("lead", "co_investigator", "collaborator"), strict=False):
+        teams.set_member(engine, team_id, person_fit["id"], operator, role)
 
 
 def _public(engine: Engine) -> None:

@@ -6,6 +6,8 @@ import { date, enumLabel, money, number, paragraphs, personName, relative } from
 import { openEvidence } from "../components/drawer.js";
 import { grantItem, publicationItem, studyItem } from "../components/items.js";
 import { barChart, callout, card, chip, emptyState, entityIcon, kv, pageHeader, pill, statusMark } from "../components/ui.js";
+// Threads are drawn by a module loaded with the pages that show one.
+const threads = () => import("../components/thread.js");
 import { show } from "./page.js";
 
 function prose(text) {
@@ -31,7 +33,14 @@ export function publication(main, params) {
   const reload = () => publication(main, params);
   return show(main, {
     title: (d) => d.title ?? `PMID ${pmid}`,
-    load: async () => (await get(`/api/v1/publications/${encodeURIComponent(pmid)}`, null, { fresh: true })).data,
+    load: async () => {
+      const [p, thread, T] = await Promise.all([
+        get(`/api/v1/publications/${encodeURIComponent(pmid)}`, null, { fresh: true }).then((r) => r.data),
+        get(`/api/v1/publications/${encodeURIComponent(pmid)}/thread`).then((r) => r.data).catch(() => null),
+        threads(),
+      ]);
+      return { ...p, thread, T };
+    },
     view: (p) => {
       const placed = p.authors.filter((a) => a.people.length);
       const authors = h("ol", { class: "author-list" }, p.authors.map((a) => {
@@ -63,7 +72,10 @@ export function publication(main, params) {
             p.grants.length ? card({ title: "Grants acknowledged", body: h("div", { class: "items" }, p.grants.map((g) =>
               grantItem(g.summary, { assertion: g.assertion, onEvidence: () => openEvidence(g.assertion.id) }))) }) : null,
             p.studies.length ? card({ title: "Studies citing this paper", body: h("div", { class: "items" }, p.studies.map((s) =>
-              studyItem(s.summary, { assertion: s.assertion, onEvidence: () => openEvidence(s.assertion.id) }))) }) : null),
+              studyItem(s.summary, { assertion: s.assertion, onEvidence: () => openEvidence(s.assertion.id) }))) }) : null,
+            p.thread?.clinical.length ? card({ title: `Clinical articles citing this paper (${p.thread.clinical.length})`, pad: true, attrs: { id: "thread" },
+              body: h("div", { class: "stack" }, h("p", {}, p.T.threadSentence(p.thread.summary, { grant: false })), p.T.clinicalList(p.thread.clinical),
+                h("div", { class: "stack-xs" }, p.thread.notes.map((n) => h("p", { class: "subtle" }, n))), p.T.sourceNote(p.thread.sources)) }) : null),
           h("div", { class: "stack-lg" },
             metrics ? card({ title: "Citation metrics", pad: true, body: h("div", { class: "stack-sm" },
               kv([["Citations", h("span", { class: "tabular", title: metrics.definitions.citation_count }, number(metrics.citation_count))],
@@ -89,7 +101,14 @@ export function grant(main, params) {
   const core = params.core;
   return show(main, {
     title: (g) => g.title ?? core,
-    load: async () => (await get(`/api/v1/grants/${encodeURIComponent(core)}`, null, { fresh: true })).data,
+    load: async () => {
+      const [g, thread, T] = await Promise.all([
+        get(`/api/v1/grants/${encodeURIComponent(core)}`, null, { fresh: true }).then((r) => r.data),
+        get(`/api/v1/grants/${encodeURIComponent(core)}/thread`).then((r) => r.data).catch(() => null),
+        threads(),
+      ]);
+      return { ...g, thread, T };
+    },
     view: (g) => {
       const years = g.fiscal_years.filter((y) => !y.subproject_id);
       return h("div", { class: "stack-lg" },
@@ -122,7 +141,12 @@ export function grant(main, params) {
               h("div", { class: "stat-value" }, money(g.totals.total_awarded)),
               h("p", { class: "subtle" }, "Awarded across the fiscal years in the data. See the note under the chart.")) }),
             g.terms?.length ? card({ title: "Terms", pad: true, body: h("div", { class: "chips" }, g.terms.slice(0, 16).map((t) => chip("plain", t))) }) : null,
-            card({ title: "Record", pad: true, body: provenance(g.provenance) }))));
+            card({ title: "Record", pad: true, body: provenance(g.provenance) }))),
+        g.thread ? card({ title: "What followed this grant", pad: true, attrs: { id: "thread" }, body: h("div", { class: "stack" },
+          h("p", {}, g.T.threadSentence(g.thread.summary)),
+          g.thread.papers.length ? g.T.threadView(g.thread) : null,
+          h("div", { class: "stack-xs" }, g.thread.notes.map((n) => h("p", { class: "subtle" }, n))),
+          g.T.sourceNote(g.thread.sources)) }) : null);
     },
   });
 }

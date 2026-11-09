@@ -5,22 +5,22 @@ import { ENTITY_ICONS } from "../core/icons.js";
 import { hue, initials, number, relative, scoreLabel } from "../core/format.js";
 
 export const ENTITY_LABELS = { person: "Person", publication: "Publication", grant: "Grant",
-  study: "Study", concept: "Topic", unit: "Unit" };
+  study: "Study", concept: "Topic", unit: "Unit", opportunity: "Opportunity" };
 
 export const ENTITY_PATHS = { person: "/people", publication: "/publications", grant: "/grants",
-  study: "/studies" };
+  study: "/studies", opportunity: "/opportunities" };
 
 /** URL of an entity from its kind and natural id. */
 export function entityHref(kind, id) {
   if (!id) return null;
-  const clean = String(id).replace(/^(pub|grt|stu):/, "");
+  const clean = String(id).replace(/^(pub|grt|stu|opp):/, "");
   return `${ENTITY_PATHS[kind]}/${encodeURIComponent(clean)}`;
 }
 
 export function refKind(ref) {
   if (!ref) return null;
   if (ref.startsWith("per_")) return "person";
-  return { "pub:": "publication", "grt:": "grant", "stu:": "study" }[ref.slice(0, 4)] ?? null;
+  return { "pub:": "publication", "grt:": "grant", "stu:": "study", "opp:": "opportunity" }[ref.slice(0, 4)] ?? null;
 }
 
 export function entityIcon(kind, size = "") {
@@ -220,6 +220,7 @@ export function pager({ total, offset, limit, onPage }) {
 export const FACET_LABELS = {
   status: "Status", unit: "Unit", year: "Year", journal: "Journal", type: "Type", flag: "Flags",
   activity: "Activity code", institute: "Institute", phase: "Phase", person: "Person",
+  source: "From", kind: "Kind", closing: "Closes within", agency: "Sponsor", category: "Category", eligibility: "Eligibility",
 };
 
 /** Facet checkboxes. selected: {name: [values]}; onChange(name, values). */

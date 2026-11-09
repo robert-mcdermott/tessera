@@ -640,11 +640,23 @@ def test_the_inbox_counts_since_the_last_review(engine, instance: Instance) -> N
             conn, lab, {"title": "Postdoc", "closes_on": closes}, actor="Ann", today=date.today()
         )
         items = inbox.group_inbox_items(conn, lab, config, date.today())
-        assert items["counts"] == {"papers": 0, "grants": 0, "roster": 1, "openings": 1}
+        assert items["counts"] == {
+            "papers": 0,
+            "grants": 0,
+            "roster": 1,
+            "openings": 1,
+            "opportunities": 0,
+        }
         assert items["roster"][0]["person"] == "Ada Okafor"
         inbox.mark_reviewed(conn, lab, actor="Ann")
         items = inbox.group_inbox_items(conn, lab, config, date.today())
-        assert items["counts"] == {"papers": 0, "grants": 0, "roster": 0, "openings": 1}
+        assert items["counts"] == {
+            "papers": 0,
+            "grants": 0,
+            "roster": 0,
+            "openings": 1,
+            "opportunities": 0,
+        }
     manager = Principal(name="Wren", grants=(Grant("manager", "unit", lab),))
     result = inbox.digest(engine, manager, config)
     assert [g["name"] for g in result["groups"]] == ["Okafor Lab"] and result["total"] == 1

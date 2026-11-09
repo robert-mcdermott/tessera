@@ -7,6 +7,7 @@ content lives in the lake and is referenced by key.
 from __future__ import annotations
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     Column,
@@ -520,3 +521,158 @@ setting = Table(
     Column("updated_by", String(200), nullable=False),
     Column("updated_at", UtcDateTime, nullable=False),
 )
+
+# Opportunities an organization tracks itself (INT-12): foundation calls, internal pilot funds,
+# limited submissions, and anything else not on Grants.gov, whose opportunities are in the lake.
+# ``source`` and ``external_id`` let an import update what it brought in before.
+OPPORTUNITY_KINDS = ("foundation", "internal", "federal", "state", "industry", "other")
+opportunity = Table(
+    "opportunity",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("source", String(200), nullable=False),
+    Column("external_id", String(200)),
+    Column("kind", String(20), nullable=False, server_default="foundation"),
+    Column("number", String(100)),
+    Column("title", String(500), nullable=False),
+    Column("sponsor", String(300)),
+    Column("description", Text),
+    Column("url", String(1000)),
+    Column("posted_on", Date),
+    Column("closes_on", Date),
+    Column("internal_deadline", Date),
+    Column("award_floor", BigInteger),
+    Column("award_ceiling", BigInteger),
+    Column("limited_submission", Boolean, nullable=False, server_default=false()),
+    Column("eligibility_notes", Text),
+    Column("applicant_types", JsonType, nullable=False),
+    Column("created_by", String(200), nullable=False),
+    Column("created_at", UtcDateTime, nullable=False),
+    Column("updated_by", String(200), nullable=False),
+    Column("updated_at", UtcDateTime, nullable=False),
+    Column("archived_at", UtcDateTime),
+    UniqueConstraint("source", "external_id"),
+    CheckConstraint(_in("kind", OPPORTUNITY_KINDS), name="kind"),
+)
+Index(None, opportunity.c.closes_on)
+
+# What someone does with an opportunity for themselves (INT-09): watch it, or dismiss it from
+# their own lists. ``owner`` is the account's ID, or "operator" without accounts.
+INTEREST_STATES = ("watching", "dismissed")
+opportunity_interest = Table(
+    "opportunity_interest",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("owner", String(200), nullable=False),
+    Column("opportunity", String(80), nullable=False),
+    Column("state", String(12), nullable=False),
+    Column("updated_at", UtcDateTime, nullable=False),
+    UniqueConstraint("owner", "opportunity"),
+    CheckConstraint(_in("state", INTEREST_STATES), name="state"),
+)
+Index(None, opportunity_interest.c.owner)
+
+# Teams (INT-10): people assembled for an opportunity, or for topics someone chooses. A team is
+# its owner's (an account's ID, or "operator"), and visible to its members, the people it is
+# shared with (person IDs), and admins. ``concepts`` are the topics it needs.
+TEAM_ROLES = ("lead", "co_investigator", "collaborator", "core", "other")
+team = Table(
+    "team",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("name", String(200), nullable=False),
+    Column("purpose", Text),
+    Column("opportunity", String(80)),
+    Column("concepts", JsonType, nullable=False),
+    Column("notes", Text),
+    Column("shared_with", JsonType, nullable=False),
+    Column("owner", String(200), nullable=False),
+    Column("owner_name", String(200), nullable=False),
+    Column("created_at", UtcDateTime, nullable=False),
+    Column("updated_at", UtcDateTime, nullable=False),
+)
+Index(None, team.c.owner)
+team_member = Table(
+    "team_member",
+    metadata,
+    Column("team_id", ID, ForeignKey("team.id", ondelete="CASCADE"), primary_key=True),
+    Column("person_id", ID, ForeignKey("person.id", ondelete="CASCADE"), primary_key=True),
+    Column("role", String(20), nullable=False, server_default="collaborator"),
+    Column("note", String(500)),
+    Column("added_by", String(200), nullable=False),
+    Column("added_at", UtcDateTime, nullable=False),
+    CheckConstraint(_in("role", TEAM_ROLES), name="role"),
+)
+Index(None, team_member.c.person_id)
+
+# Every exchange with the optional assistant (wave 5): who asked, the provider and model, the
+# prompt's version, the messages and tool calls (with the records they returned), the answer,
+# its citations, tokens, time, and outcome. Kept ``[ai] log_days``.
+AI_STATUSES = ("answered", "declined", "failed", "limited", "stopped")
+ai_exchange = Table(
+    "ai_exchange",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("owner", String(200), nullable=False),
+    Column("asked_by", String(200), nullable=False),
+    Column("kind", String(20), nullable=False),
+    Column("provider", String(20), nullable=False),
+    Column("model", String(200), nullable=False),
+    Column("prompt_version", String(40), nullable=False),
+    Column("question", Text),
+    Column("request", JsonType, nullable=False),
+    Column("answer", Text),
+    Column("citations", JsonType, nullable=False),
+    Column("usage", JsonType, nullable=False),
+    Column("status", String(16), nullable=False),
+    Column("error", Text),
+    Column("started_at", UtcDateTime, nullable=False),
+    Column("seconds", Float),
+    CheckConstraint(_in("status", AI_STATUSES), name="status"),
+)
+Index(None, ai_exchange.c.owner, ai_exchange.c.started_at)
+Index(None, ai_exchange.c.started_at)
+
+# Plain-language summaries of a person's or a group's work (wave 5): drafted by the optional
+# assistant from confirmed records, shown only once a reviewer approves them, and never while the
+# assistant is off. ``draft`` is what the model wrote; ``text`` is what was approved (the draft,
+# or the reviewer's edit of it). ``inputs`` holds the counts and references it was drafted from,
+# and ``inputs_digest`` their SHA-256, so a later draft can say whether anything changed.
+SUMMARY_SUBJECTS = ("person", "group")
+SUMMARY_STATUSES = ("draft", "approved", "rejected", "replaced")
+ai_summary = Table(
+    "ai_summary",
+    metadata,
+    Column("id", ID, primary_key=True),
+    Column("subject_type", String(10), nullable=False),
+    Column("subject_id", ID, nullable=False),
+    Column("status", String(12), nullable=False),
+    Column("draft", Text, nullable=False),
+    Column("text", Text),
+    Column("provider", String(20), nullable=False),
+    Column("model", String(200), nullable=False),
+    Column("prompt_version", String(40), nullable=False),
+    Column("inputs", JsonType, nullable=False),
+    Column("inputs_digest", String(64), nullable=False),
+    Column("exchange_id", ID),
+    Column("requested_by", String(200), nullable=False),
+    Column("requested_at", UtcDateTime, nullable=False),
+    Column("decided_by", String(200)),
+    Column("decided_at", UtcDateTime),
+    CheckConstraint(_in("subject_type", SUMMARY_SUBJECTS), name="subject_type"),
+    CheckConstraint(_in("status", SUMMARY_STATUSES), name="status"),
+)
+Index(None, ai_summary.c.subject_type, ai_summary.c.subject_id, ai_summary.c.status)
+
+# Every change to a summary, append-only: drafted, edited, approved, rejected, replaced.
+summary_event = Table(
+    "summary_event",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("summary_id", ID, ForeignKey("ai_summary.id", ondelete="CASCADE"), nullable=False),
+    Column("actor", String(200), nullable=False),
+    Column("action", String(20), nullable=False),
+    Column("note", Text),
+    Column("at", UtcDateTime, nullable=False),
+)
+Index(None, summary_event.c.summary_id)

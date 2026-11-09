@@ -2,15 +2,16 @@
 
 import { get, post } from "../core/api.js";
 import { h, icon } from "../core/dom.js";
-import { enumLabel, number, relative } from "../core/format.js";
+import { enumLabel, number, plural, relative } from "../core/format.js";
 import { navigate, query, setQuery } from "../core/router.js";
 import { can } from "../core/session.js";
 import { openDrawer, openEvidence } from "../components/drawer.js";
 import { toast } from "../components/toast.js";
 import { identifiersCard } from "../components/identifiers.js";
-import { grantItem, publicationItem, studyItem } from "../components/items.js";
+import { grantItem, opportunityList, publicationItem, studyItem } from "../components/items.js";
 import { avatar, barChart, callout, card, debounce, emptyState, pageHeader, pager, pill, segmented, statTile, tabs, topicChips } from "../components/ui.js";
 import { show } from "./page.js";
+import { slot } from "../core/slots.js";
 
 const LIMIT = 20;
 
@@ -27,10 +28,11 @@ export function person(main, params, { samePage = false } = {}) {
     title: (d) => d.profile.name,
     quiet: samePage,
     load: async () => {
-      const [profile, concepts, similar] = await Promise.all([
+      const [profile, concepts, similar, opportunities] = await Promise.all([
         get(`/api/v1/people/${encodeURIComponent(id)}`, null, { fresh: samePage }).then((r) => r.data),
         get(`/api/v1/people/${encodeURIComponent(id)}/concepts`).catch(() => ({ data: [], meta: {} })),
         get(`/api/v1/people/${encodeURIComponent(id)}/similar`).then((r) => r.data).catch(() => []),
+        get(`/api/v1/people/${encodeURIComponent(id)}/opportunities`).then((r) => r.data).catch(() => []),
       ]);
       let list = null;
       if (tab === "publications") {
@@ -42,12 +44,16 @@ export function person(main, params, { samePage = false } = {}) {
         list = await get(`/api/v1/people/${encodeURIComponent(id)}/grants`, null, { fresh: samePage });
       } else if (tab === "studies") {
         list = await get(`/api/v1/people/${encodeURIComponent(id)}/studies`, null, { fresh: samePage });
+      } else if (tab === "impact") {
+        const [impact, T] = await Promise.all([get(`/api/v1/people/${encodeURIComponent(id)}/impact`, null, { fresh: samePage }),
+          import("../components/thread.js")]);
+        list = { ...impact, T };
       } else if (tab === "history") {
         list = await get(`/api/v1/people/${encodeURIComponent(id)}/history`, null, { fresh: true });
       }
-      return { profile, list, concepts: concepts.data, areas: concepts.meta.areas ?? [], meshYear: concepts.meta.mesh_year, similar };
+      return { profile, list, concepts: concepts.data, areas: concepts.meta.areas ?? [], meshYear: concepts.meta.mesh_year, similar, opportunities };
     },
-    view: ({ profile, list, concepts, areas, meshYear, similar }) => {
+    view: ({ profile, list, concepts, areas, meshYear, similar, opportunities }) => {
       const c = profile.counts;
       const pubs = c.publications ?? {};
       const suggested = (c.suggested_by_band?.strong ?? 0) + (c.suggested_by_band?.possible ?? 0);
@@ -99,6 +105,7 @@ export function person(main, params, { samePage = false } = {}) {
         { id: "publications", label: "Publications", count: (pubs.accepted ?? 0) + suggested },
         { id: "grants", label: "Grants", count: c.grants },
         { id: "studies", label: "Studies", count: c.studies },
+        { id: "impact", label: "Impact" },
         { id: "history", label: "History" },
       ], tab, (next) => setQuery({ tab: next, page: null, status: null, band: null, sort: null }, { replace: false }));
 
@@ -106,6 +113,7 @@ export function person(main, params, { samePage = false } = {}) {
       if (tab === "publications") panel = publicationsPanel(list, { status, band, sort, pageNo, refresh });
       else if (tab === "grants") panel = linkedPanel(list.data, "grant", refresh, "No grants found for this person.");
       else if (tab === "studies") panel = linkedPanel(list.data, "study", refresh, "No study roles suggested for this person.");
+      else if (tab === "impact") panel = impactPanel(list.data, list.T);
       else panel = historyPanel(list.data);
 
       const side = h("div", { class: "stack-lg" },
@@ -119,6 +127,9 @@ export function person(main, params, { samePage = false } = {}) {
           : profile.concepts.length ? card({ title: "Topics", pad: true, attrs: { "data-entity": "concept" },
             body: h("div", { class: "stack-sm" }, topicChips(profile.concepts, 8),
               h("p", { class: "subtle" }, "Most distinctive MeSH topics across confirmed and strongly suggested papers.")) }) : null,
+        opportunities.length ? card({ title: "Opportunities that fit", pad: true, attrs: { "data-entity": "opportunity" },
+          action: h("a", { href: `/opportunities?fits=${encodeURIComponent(profile.id)}&status=posted&status=forecasted` }, "All"),
+          body: opportunityList(opportunities, 4) }) : null,
         similar.length ? card({ title: "Similar people", pad: true, attrs: { "data-entity": "person" },
           action: h("a", { class: "btn btn-sm btn-ghost", href: `/graph?view=focus&person=${profile.id}` }, icon("network", "icon icon-sm"), "Connections"),
           body: h("ul", { class: "plain-list similar" }, similar.slice(0, 6).map((p) => h("li", {},
@@ -144,7 +155,8 @@ export function person(main, params, { samePage = false } = {}) {
         profile.names.length > 1 ? card({ title: "Names in the data", pad: true,
           body: h("div", { class: "chips" }, profile.names.map((n) => h("span", { class: "chip chip-plain" }, `${n.given ? `${n.given} ` : ""}${n.family}`))) }) : null);
 
-      return h("div", { class: "stack-lg" }, header, mergedNote, candidateNote, stats,
+      return h("div", { class: "stack-lg" }, header, mergedNote, candidateNote,
+        ...(member ? slot("person:intro", { profile, refresh }) : []), stats,
         h("div", { class: "grid-main" }, h("div", {}, tabBar, panel), side));
     },
   });
@@ -413,3 +425,30 @@ export function publicToggle(path, isPublic, noun, refresh) {
     } }), `Public ${noun}`);
 }
 
+
+// --- Impact: what followed this person's grants and confirmed papers (INT-08) -----------------
+
+function grantCounts(s) {
+  const parts = [plural(s.papers, "paper"), plural(s.studies, "registered study", "registered studies"), plural(s.clinical, "clinical article")];
+  return parts.join(" · ") + (s.guidelines ? ` (${plural(s.guidelines, "practice guideline")})` : "");
+}
+
+function impactPanel(d, { clinicalList, sourceNote }) {
+  const s = d.papers;
+  const sentence = s.papers
+    ? `${number(s.papers_cited_clinically)} of their ${plural(s.papers, "confirmed paper")} ${s.papers_cited_clinically === 1 ? "is" : "are"} cited by `
+      + `${plural(s.clinical, "clinical article")}${s.guidelines ? `, including ${plural(s.guidelines, "practice guideline")}` : ""}; `
+      + `${number(s.papers_referenced_by_studies)} ${s.papers_referenced_by_studies === 1 ? "is" : "are"} referenced by registered studies.`
+    : "No confirmed papers yet.";
+  return h("div", { class: "stack-lg" },
+    card({ title: "What followed their grants", pad: true, attrs: { "data-entity": "grant" }, body: d.grants.length
+      ? h("ul", { class: "plain-list impact-grants" }, d.grants.map((g) => h("li", {},
+        h("a", { href: `/grants/${encodeURIComponent(g.core_project_num)}` }, g.title ?? g.core_project_num),
+        h("span", { class: "subtle tabular" }, `${g.core_project_num} · ${grantCounts(g.summary)}`))))
+      : emptyState({ kind: "grant", title: "No grants", text: "No grant in the data names this person as an investigator." }) }),
+    card({ title: "Clinical articles citing their papers", pad: true, body: h("div", { class: "stack" },
+      h("p", {}, sentence),
+      d.clinical.length ? clinicalList(d.clinical) : null,
+      h("div", { class: "stack-xs" }, d.notes.map((n) => h("p", { class: "subtle" }, n))),
+      sourceNote(d.sources)) }));
+}

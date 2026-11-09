@@ -209,6 +209,7 @@ a.card:hover { text-decoration: none; border-color: var(--border-strong); box-sh
 [data-entity="study"] { --entity: var(--ent-study); --entity-soft: var(--ent-study-soft); }
 [data-entity="concept"] { --entity: var(--ent-concept); --entity-soft: var(--ent-concept-soft); }
 [data-entity="unit"] { --entity: var(--ent-unit); --entity-soft: var(--ent-unit-soft); }
+[data-entity="opportunity"] { --entity: var(--accent); --entity-soft: var(--accent-soft); }
 
 .entity-icon {
   display: inline-flex; align-items: center; justify-content: center; flex: none;

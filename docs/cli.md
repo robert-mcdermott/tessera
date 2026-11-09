@@ -135,7 +135,7 @@ usage: tessera ingest [-h] [--mode MODE] [--ids ID [ID ...]] [--ids-file PATH] [
 | Argument | Meaning |
 |---|---|
 | `source` | pubmed \| icite \| reporter \| ctgov \| orcid \| all |
-| `--mode MODE` | org \| query \| ids \| linked or people (pubmed) \| pi (reporter) \| refresh (icite, orcid) |
+| `--mode MODE` | org \| query \| ids \| linked, people, or citing (pubmed) \| pi (reporter) \| refresh (icite, orcid) |
 | `--ids ID` | IDs to fetch |
 | `--ids-file PATH` | file with one ID per line |
 | `--query QUERY` | source query (PubMed syntax, Essie, or RePORTER JSON) |
@@ -191,6 +191,14 @@ Concept profiles, similar people, and the collaboration graph.
 
 ```text
 usage: tessera build discovery [-h]
+```
+
+### `tessera build opportunities`
+
+Who fits each open funding opportunity (after discovery).
+
+```text
+usage: tessera build opportunities [-h]
 ```
 
 ## `tessera sync`
@@ -310,6 +318,47 @@ usage: tessera groups list [-h] [--kind KIND] [--all]
 |---|---|
 | `--kind KIND` | only groups of this kind |
 | `--all` | include archived groups |
+
+## `tessera ai`
+
+The optional assistant ([ai] in the configuration).
+
+```text
+usage: tessera ai [-h] ACTION ...
+```
+
+### `tessera ai check`
+
+One round trip to the configured provider.
+
+```text
+usage: tessera ai check [-h]
+```
+
+## `tessera opportunities`
+
+Funding opportunities the organization tracks itself.
+
+```text
+usage: tessera opportunities [-h] ACTION ...
+```
+
+### `tessera opportunities import`
+
+Add or update opportunities from a CSV or JSON file.
+
+Import opportunities the organization tracks itself (foundation calls, internal pilot funds, limited submissions) from a CSV file with a header, or a JSON list. Columns: source, external_id, kind, number, title, sponsor, description, url, posted_on, closes_on, internal_deadline, award_floor, award_ceiling, limited_submission, eligibility_notes, applicant_types. Importing the same rows again updates them. Nothing is written if any row has a problem. Federal opportunities come from Grants.gov by themselves.
+
+```text
+usage: tessera opportunities import [-h] [--source SOURCE] [--complete] [--dry-run] path
+```
+
+| Argument | Meaning |
+|---|---|
+| `path` | CSV or JSON file |
+| `--source SOURCE` | who offers or lists them, for every row (instead of a source column) |
+| `--complete` | the file is the source's whole list: archive its opportunities the file omits |
+| `--dry-run` | report what would change; change nothing |
 
 ## `tessera digest`
 

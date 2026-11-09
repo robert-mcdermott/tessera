@@ -45,6 +45,8 @@ from tessera.ledger.tables import metadata
 # Never exported: secrets that would let someone sign in as somebody else.
 WITHHELD = {"account": {"password_hash"}, "auth_session": {"token_hash", "csrf_token"}}
 SKIPPED_TABLES = {"auth_session"}  # signed-in browsers: nothing anyone needs to leave with
+# Left out while empty and the feature is off.
+OPTIONAL_TABLES = {"ai_exchange", "ai_summary", "summary_event"}
 
 LEDGER_NOTES = {
     "person": "One row per person in the directory, and discovered, dismissed, and merged ones",
@@ -70,6 +72,13 @@ LEDGER_NOTES = {
     "saved_search": "People's saved searches",
     "report": "Insight reports",
     "report_snapshot": "Frozen report snapshots (their files are in snapshots/)",
+    "opportunity": "Funding opportunities the organization tracks itself (foundation, internal)",
+    "opportunity_interest": "Opportunities people watch or have dismissed from their own lists",
+    "team": "Teams assembled for an opportunity, with the topics they need and their sharing",
+    "team_member": "The people on each team, with their roles",
+    "ai_exchange": "Exchanges with the optional assistant: who asked, the model, the answer",
+    "ai_summary": "Plain-language summaries: the draft, the approved text, who approved it",
+    "summary_event": "Every change to a plain-language summary",
     "auto_accept_batch": "Links accepted automatically, by batch",
     "ingest_run": "Every fetch, resolve, and build run",
     "source_checkpoint": "Where each source's incremental fetches left off",
@@ -80,7 +89,10 @@ LAKE_NOTES = {
     "pubmed_author": "Authors of each PubMed record, in order, with affiliations",
     "pubmed_mesh": "MeSH headings of each PubMed record",
     "pubmed_grant": "Grants each PubMed record acknowledges",
+    "citing_article": "PubMed records of clinical articles that cite the organization's papers",
     "icite_metrics": "NIH iCite citation metrics, by PubMed ID",
+    "icite_clinical_citation": "Clinical articles NIH iCite lists as citing each paper",
+    "grants_gov_opportunity": "Federal funding opportunities from Grants.gov, open and closed",
     "reporter_project": "NIH RePORTER fiscal-year award records",
     "reporter_investigator": "Investigators on each RePORTER record",
     "reporter_publication_link": "Publications RePORTER links to each grant",
@@ -167,6 +179,9 @@ def write_exit(config: Config, home: DataHome, engine: Engine, out: Path) -> Exi
             for table in metadata.sorted_tables:
                 if table.name in SKIPPED_TABLES:
                     continue
+                unused = table.name in OPTIONAL_TABLES and not config.ai.enabled
+                if unused and not conn.execute(select(table).limit(1)).first():
+                    continue  # an optional feature never turned on leaves no trace
                 hidden = WITHHELD.get(table.name, set())
                 columns = [c for c in table.columns if c.name not in hidden]
                 key = list(table.primary_key.columns)

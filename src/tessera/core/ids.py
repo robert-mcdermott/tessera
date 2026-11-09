@@ -31,6 +31,10 @@ PREFIXES = {
     "srh": "saved search",
     "rpt": "report",
     "snp": "snapshot",
+    "opl": "opportunity",
+    "tem": "team",
+    "aix": "assistant exchange",
+    "sum": "summary",
 }
 
 _CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"

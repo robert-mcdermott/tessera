@@ -683,6 +683,10 @@ def _featured(request: Request, blocks: list[dict[str, Any]]) -> dict[str, Any]:
     return publication_summaries(index_of(request), lake_of(request), pmids)
 
 
+def _turned_on(request: Request, section: str) -> bool:
+    return bool(getattr(getattr(config_of(request), section, None), "enabled", False))
+
+
 def _page_view(request: Request, row: dict[str, Any], blocks: list[dict], **extra: Any) -> dict:
     return {
         "group_id": row["id"],
@@ -691,6 +695,7 @@ def _page_view(request: Request, row: dict[str, Any], blocks: list[dict], **extr
         "block_types": [
             {"id": k, "label": v, "repeatable": k in pages.REPEATABLE, "side": k in pages.SIDE}
             for k, v in pages.BLOCK_TYPES.items()
+            if k not in pages.OPTIONAL_TYPES or _turned_on(request, pages.OPTIONAL_TYPES[k])
         ],
         **extra,
     }
@@ -975,7 +980,8 @@ def group_inbox(request: Request, group_ref: str) -> dict[str, Any]:
     with engine_of(request).connect() as conn:
         row = _resolve(conn, group_ref)
         _require_edit(request, row["id"])
-        items = inbox.group_inbox_items(conn, row["id"], config, date.today())
+        items = inbox.group_inbox_items(conn, row["id"], config, date.today(),
+                                        home=request.app.state.home)  # fmt: skip
     pmids = [a["subject_id"].removeprefix("pub:") for a in items["papers"]]
     summaries = publication_summaries(index_of(request), lake_of(request), pmids)
     try:
@@ -1015,7 +1021,9 @@ def inbox_reviewed(request: Request, group_ref: str) -> dict[str, Any]:
 
 @router.get("/inbox", summary="Your digest: pending work in your groups and review queues")
 def my_digest(request: Request) -> dict[str, Any]:
-    return envelope(inbox.digest(engine_of(request), principal_of(request), config_of(request)))
+    found = inbox.digest(engine_of(request), principal_of(request), config_of(request),
+                         home=request.app.state.home)  # fmt: skip
+    return envelope(found)
 
 
 class GroupPublicIn(BaseModel):

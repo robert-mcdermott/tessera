@@ -187,6 +187,41 @@ ICITE = DatasetSpec(
             f("is_research_article", BOOL),
         ),
     ),
+    children=(
+        # The clinical articles that cite the paper (iCite's ``cited_by_clin``), for threads.
+        TableSpec(
+            name="icite_clinical_citation",
+            key=("pmid", "citing_pmid"),
+            field="clinical_citations",
+            columns=(
+                f("pmid", STR, False),
+                f("citing_pmid", STR, False),
+            ),
+        ),
+    ),
+)
+
+# Clinical articles that cite the organization's papers, from PubMed. Kept apart from
+# ``pubmed_article`` so that they never become candidates for anyone's authorship.
+PUBMED_CITING = DatasetSpec(
+    name="pubmed_citing",
+    root=TableSpec(
+        name="citing_article",
+        key=("pmid",),
+        columns=(
+            f("pmid", STR, False),
+            f("title", STR),
+            f("journal", STR),
+            f("journal_abbrev", STR),
+            f("pub_year", I16),
+            f("pub_date", DATE),
+            f("doi", STR),
+            f("publication_types", STR_LIST),
+            f("first_author", STR),
+            f("author_count", I16),
+            f("is_retracted", BOOL),
+        ),
+    ),
 )
 
 # --- NIH RePORTER ---------------------------------------------------------------------
@@ -419,6 +454,50 @@ ORCID = DatasetSpec(
     ),
 )
 
+# --- Grants.gov (wave 5) ----------------------------------------------------------------
+
+GRANTS_GOV = DatasetSpec(
+    name="grants_gov",
+    root=TableSpec(
+        name="grants_gov_opportunity",
+        key=("opportunity_id",),
+        columns=(
+            f("opportunity_id", STR, False),
+            f("number", STR),
+            f("title", STR),
+            f("agency_code", STR),
+            f("agency", STR),
+            f("parent_agency", STR),
+            f("doc_type", STR),  # synopsis (posted) or forecast
+            f("listed_status", STR),  # as the search listed it: posted, forecasted, or unlisted
+            f("listing", STR),  # the search's summary, to notice changes
+            f("category", STR),  # discretionary, mandatory, …
+            f("posted", DATE),
+            f("expected_post", DATE),  # forecasts: when the notice is expected
+            f("closes", DATE),  # for forecasts, an estimate
+            f("close_note", STR),
+            f("archives", DATE),
+            f("award_ceiling", I64),
+            f("award_floor", I64),
+            f("estimated_funding", I64),
+            f("expected_awards", I64),
+            f("cost_sharing", BOOL),
+            f("applicant_types", STR_LIST),  # Grants.gov's eligibility codes
+            f("applicant_type_labels", STR_LIST),
+            f("instruments", STR_LIST),
+            f("categories", STR_LIST),
+            f("assistance_listings", STR_LIST),
+            f("description", STR),
+            f("eligibility_notes", STR),
+            f("url", STR),
+            f("activity_codes", STR_LIST),  # NIH notices, from the title
+            f("clinical_trial", STR),  # NIH notices: required, optional, or not_allowed
+            f("guide_url", STR),  # NIH notices: the NIH Guide page
+            f("last_updated", DATE),
+        ),
+    ),
+)
+
 # --- MeSH (NLM descriptor data) --------------------------------------------------------
 
 MESH = DatasetSpec(
@@ -440,7 +519,18 @@ MESH = DatasetSpec(
 )
 
 DATASETS: dict[str, DatasetSpec] = {
-    d.name: d for d in (PUBMED, ICITE, REPORTER, REPORTER_LINKS, CTGOV, ORCID, MESH)
+    d.name: d
+    for d in (
+        PUBMED,
+        PUBMED_CITING,
+        ICITE,
+        REPORTER,
+        REPORTER_LINKS,
+        CTGOV,
+        ORCID,
+        MESH,
+        GRANTS_GOV,
+    )
 }
 TABLES: dict[str, TableSpec] = {t.name: t for d in DATASETS.values() for t in d.tables}
 DATASET_OF: dict[str, DatasetSpec] = {t.name: d for d in DATASETS.values() for t in d.tables}

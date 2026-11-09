@@ -25,7 +25,7 @@ MAX_SAVED = 100  # per person
 PAGE = 200
 FILTER_NAMES = frozenset(
     {"status", "unit", "year", "journal", "type", "flag", "activity", "institute", "phase",
-     "person"}
+     "person", "kind", "closing", "agency", "category", "source", "eligibility", "fits", "group"}
 )  # fmt: skip
 
 
@@ -72,8 +72,8 @@ def matches(index: SearchIndex, kind: str, q: str, filters: dict[str, list[str]]
 
 def _check(kind: str, q: str, name: str) -> None:
     if kind not in ("everything", *KINDS):
-        raise SavedSearchError(f"Search people, publications, grants, studies, or everything, "
-                               f"not {kind!r}.")  # fmt: skip
+        raise SavedSearchError(f"Search people, publications, grants, studies, opportunities, "
+                               f"or everything, not {kind!r}.")  # fmt: skip
     if not (name or "").strip() or len(name.strip()) > 200:
         raise SavedSearchError("A saved search's name has 1 to 200 characters.")
     if len(q or "") > 500:

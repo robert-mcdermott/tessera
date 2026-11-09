@@ -10,7 +10,7 @@ import { card, emptyState, pageHeader, tabs } from "../components/ui.js";
 import { browse, KINDS } from "./browse.js";
 import { show } from "./page.js";
 
-const ORDER = ["person", "publication", "grant", "study"];
+const ORDER = ["person", "publication", "grant", "study", "opportunity"];
 
 export function searchPage(main, { samePage = false } = {}) {
   const q = query().get("q") ?? "";

@@ -19,14 +19,17 @@ from tessera.api.routers import (
     evidence,
     graph,
     groups,
+    impact,
     insight,
     merges,
     operations,
+    opportunities,
     overview,
     people,
     records,
     saved,
     system,
+    teams,
 )
 from tessera.api.security import install_security_headers
 from tessera.api.static import (
@@ -84,6 +87,9 @@ def create_app(config: Config) -> FastAPI:
         candidates,
         merges,
         records,
+        impact,
+        opportunities,
+        teams,
         curation,
         evidence,
         groups,
@@ -92,6 +98,10 @@ def create_app(config: Config) -> FastAPI:
         operations,
     ):
         app.include_router(module.router)
+    if config.ai.enabled:  # the optional assistant: nothing of it exists unless turned on
+        from tessera.ai.web import install_ai
+
+        install_ai(app)
     install_api_reference(app)
     install_theme(app)
     install_branding(app)

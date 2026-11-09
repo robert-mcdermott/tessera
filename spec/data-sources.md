@@ -9,7 +9,7 @@ Tessera uses **free, public data sources only**. No source needs a paid subscrip
 | **NIH RePORTER** (API v2) | NIH-funded projects, investigators with stable profile IDs, organizations, amounts, dates, and the project-to-publication link table | 1 | No |
 | **ClinicalTrials.gov** (API v2) | Study registry records: status, phase, conditions, interventions, sponsors, officials, sites, references | 1 | No |
 | **ORCID** (Public API v3.0) | Researcher-confirmed identifiers, employment, and works lists | 2 | No: the public API answers without credentials (checked 2026-11-07) |
-| **Grants.gov** (Search API) | Open federal funding opportunities | 5 | No (to be confirmed when the connector is built) |
+| **Grants.gov** (search and opportunity APIs) | Forecast and posted federal funding opportunities | 5 | No: both answer without a key (checked 2026-11-08) |
 | **MeSH** (NLM descriptor data) | Synonyms, and the hierarchy for rolling concepts up into broader areas | 3 | No: one annual file (approved 2026-11-08) |
 
 ## Rules for every connector
@@ -41,6 +41,7 @@ Tessera uses **free, public data sources only**. No source needs a paid subscrip
 
 - **Endpoint:** `GET /api/pubs?pmids=…` in batches of up to 200 PMIDs, JSON.
 - **Use:** citation metrics for publications already in the lake. Refreshed on a slower cadence than metadata (monthly), since metrics move slowly.
+- **Clinical citations (wave 5):** `cited_by_clin` lists the PMIDs of clinical articles that cite a paper; threads follow it, and the citing articles' own records come from PubMed into a dataset kept apart from the organization's candidate papers.
 - **Responsible use:** the Relative Citation Ratio is a field-normalized citation measure, not a quality score. The translation indicator estimates the likelihood of later clinical citation, not patient benefit. The UI says this next to the numbers.
 
 ## NIH RePORTER
@@ -86,7 +87,12 @@ Tessera uses **free, public data sources only**. No source needs a paid subscrip
 
 ## Grants.gov (wave 5)
 
-- **Use:** open funding opportunities (title, agency, dates, eligibility, description) for opportunity-to-team matching.
+- **Endpoints:** `POST https://api.grants.gov/v1/api/search2` (forecast and posted opportunities, paged) and `POST https://api.grants.gov/v1/api/fetchOpportunity` (one opportunity's synopsis: description, dates, award range, eligible applicant types, instruments, categories, assistance listings). Neither needs a key (checked 2026-11-08).
+- **Use:** forecast and posted funding opportunities (title, agency, dates, eligibility, description) for matching opportunities to people, groups, and teams.
+- **Pace:** the search lists up to 1,000 opportunities a page, so every forecast and posted one (about 1,460) comes in two requests; details come one opportunity at a time, at most two requests a second. A first sync reads every opportunity's details; later syncs read only the new, the changed (the search's listing differs), those last read two weeks ago, and those held as open that the search no longer lists (they have closed or been archived).
+- **Kept:** number, title, agency and its parent, notice or forecast, dates, award range and expected awards, cost sharing, eligible applicant types (Grants.gov's codes), instruments, categories, assistance listings, the description and eligibility notes as text, and, for NIH notices, the activity codes and clinical-trial requirement read from the title and the NIH Guide link. **Not kept:** agency contact names, email addresses, and phone numbers, which are often a named program officer's.
+- **Quirks:** dates come as "May 21, 2026 12:00:00 AM EDT" in details and "05/21/2026" in the search; descriptions carry HTML; a forecast's dates are estimates and can pass while it is still listed; the search's agency filter needs exact codes, so `[sources.grants_gov] agencies` is applied by Tessera to code prefixes. In the lake: `grants_gov_opportunity`.
+- **Terms:** U.S. government information, public and free to reuse.
 - **Principle:** similarity is not eligibility. Matches show topical fit and eligibility as separate signals.
 
 ## Organization profile: how Tessera knows "who we are"

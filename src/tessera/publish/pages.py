@@ -220,9 +220,23 @@ def group_page(site: Site, base: str, g: dict[str, Any]) -> str:
     )
 
 
+def _summary(summary: dict[str, Any] | None, title: str | None = None) -> str:
+    """An approved plain-language summary, labeled as such; present only when the site was built
+    with its feature on."""
+    if not summary:
+        return ""
+    note = f"{summary['label']}; approved by {summary['approved_by']}" + (
+        f" on {summary['approved_on']}." if summary.get("approved_on") else "."
+    )
+    return section(title or "Summary", paras(summary["text"]) + f'<p class="meta">{esc(note)}</p>',
+                   cls="summary")  # fmt: skip
+
+
 def _block(page: Page, g: dict[str, Any], b: dict[str, Any]) -> str:
     kind = b["type"]
     title = b.get("title")
+    if kind == "summary":
+        return _summary(g.get("summary"), title)
     if kind == "about":
         return section(title or "About", paras(b.get("text")))
     if kind == "people":
@@ -379,7 +393,8 @@ def person_page(site: Site, base: str, p: dict[str, Any]) -> str:
         + "</header>"
     )
     main = (
-        section("Publications", citations(p["publications"]))
+        _summary(p.get("summary"))
+        + section("Publications", citations(p["publications"]))
         + section("Grants", f'<ul class="plain records">{"".join(grant_item(x) for x in p["grants"])}</ul>' if p["grants"] else "")
         + section("Studies", f'<ul class="plain records">{"".join(study_item(x) for x in p["studies"])}</ul>' if p["studies"] else "")
     )  # fmt: skip

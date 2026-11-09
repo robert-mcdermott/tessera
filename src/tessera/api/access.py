@@ -66,6 +66,28 @@ POLICIES: dict[tuple[str, str], Level] = {
     ("GET", "/api/v1/people/{person_id}/history"): R,
     ("GET", "/api/v1/people/{person_id}/similar"): R,
     ("GET", "/api/v1/people/{person_id}/concepts"): R,
+    ("GET", "/api/v1/people/{person_id}/impact"): R,
+    ("GET", "/api/v1/grants/{core}/thread"): R,
+    ("GET", "/api/v1/publications/{pmid}/thread"): R,
+    ("GET", "/api/v1/opportunities"): R,
+    ("GET", "/api/v1/opportunities/{oid}"): R,
+    ("POST", "/api/v1/opportunities"): Level.CURATE_ALL,
+    ("POST", "/api/v1/opportunities/import"): Level.CURATE_ALL,
+    ("POST", "/api/v1/opportunities/{oid}"): Level.CURATE_ALL,
+    ("DELETE", "/api/v1/opportunities/{oid}"): Level.CURATE_ALL,
+    ("GET", "/api/v1/opportunities/{oid}/fit"): R,
+    ("POST", "/api/v1/opportunities/{oid}/interest"): R,
+    ("GET", "/api/v1/me/opportunities"): R,
+    ("GET", "/api/v1/people/{person_id}/opportunities"): R,
+    ("GET", "/api/v1/groups/{group_ref}/opportunities"): R,
+    ("GET", "/api/v1/teams"): R,
+    ("POST", "/api/v1/teams"): R,
+    ("GET", "/api/v1/teams/{team_id}"): R,
+    ("POST", "/api/v1/teams/{team_id}"): R,
+    ("DELETE", "/api/v1/teams/{team_id}"): R,
+    ("POST", "/api/v1/teams/{team_id}/members"): R,
+    ("DELETE", "/api/v1/teams/{team_id}/members/{person_id}"): R,
+    ("GET", "/api/v1/teams/{team_id}/brief"): R,
     ("GET", "/api/v1/experts"): R,
     ("GET", "/api/v1/concepts"): R,
     ("GET", "/api/v1/graph/focus/{person_id}"): R,
@@ -282,6 +304,8 @@ def authorize(request: Request) -> None:
     path = getattr(route, "path", request.url.path)
     method = "GET" if request.method == "HEAD" else request.method
     level = POLICIES.get((method, path))
+    if level is None:  # routes an optional feature adds when the configuration turns it on
+        level = getattr(request.app.state, "extra_policies", {}).get((method, path))
     if level is None:
         if path.startswith("/api"):
             raise HTTPException(status_code=403, detail="This route has no access policy.")

@@ -44,10 +44,10 @@ PMID = re.compile(r"^[1-9][0-9]{0,8}$")
 class PubMedConnector(Connector):
     name = "pubmed"
     label = "PubMed"
-    datasets = ("pubmed",)
+    datasets = ("pubmed", "pubmed_citing")
     base_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
     min_interval = 0.34  # 3 requests/second without an API key
-    modes = ("org", "query", "ids", "linked", "people")
+    modes = ("org", "query", "ids", "linked", "people", "citing")
     batch_size = 200
     efetch_attempts = 2
     tool: ClassVar[str] = "tessera"
@@ -67,11 +67,12 @@ class PubMedConnector(Connector):
         mode = options.mode
         if mode == "auto":
             mode = "ids" if options.ids else "query" if options.query else "org"
-        if mode in {"ids", "linked"}:
+        if mode in {"ids", "linked", "citing"}:
             pmids = normalize_pmids(options.ids)
             if mode == "ids" and not pmids:
                 raise TesseraError("At least one PMID is required (--ids).")
-            return Plan(mode, "", f"{len(pmids)} PMIDs", params={"pmids": pmids}, empty=not pmids)
+            what = "PMIDs" if mode != "citing" else "clinical articles citing our papers"
+            return Plan(mode, "", f"{len(pmids)} {what}", params={"pmids": pmids}, empty=not pmids)
         if mode not in {"org", "query", "people"}:
             raise TesseraError(f"PubMed has no mode {mode!r}; choose from {', '.join(self.modes)}")
         if mode == "people":
@@ -109,14 +110,16 @@ class PubMedConnector(Connector):
     # -- fetching ------------------------------------------------------------------------
 
     def fetch(self, plan: Plan, report: FetchReport) -> Iterator[Payload]:
-        if plan.mode in {"ids", "linked"}:
+        if plan.mode in {"ids", "linked", "citing"}:
+            kind = "efetch_citing" if plan.mode == "citing" else "efetch"
             pmids = plan.params["pmids"]
             report.total_found = report.expected = len(pmids)
             returned: set[str] = set()
             for start in range(0, len(pmids), self.batch_size):
                 chunk = pmids[start : start + self.batch_size]
                 params = {"id": ",".join(chunk)}
-                for payload in self._efetch(params, {"pmids": [chunk[0], chunk[-1]]}, report):
+                where = {"pmids": [chunk[0], chunk[-1]]}
+                for payload in self._efetch(params, where, report, kind=kind):
                     returned.update(returned_pmids(payload.content))
                     yield payload
             missing = [p for p in pmids if p not in returned]
@@ -274,7 +277,11 @@ class PubMedConnector(Connector):
         return [w for half in halves for w in self._split(term, date_type, half, report)]
 
     def _efetch(
-        self, params: dict[str, Any], where: dict[str, Any], report: FetchReport
+        self,
+        params: dict[str, Any],
+        where: dict[str, Any],
+        report: FetchReport,
+        kind: str = "efetch",
     ) -> Iterator[Payload]:
         body = self._params({"db": "pubmed", "retmode": "xml", **params})
         last: Exception | None = None
@@ -289,7 +296,7 @@ class PubMedConnector(Connector):
                     self.http.sleep(2.0)
                 continue
             report.payloads += 1
-            yield Payload("efetch", response.content, "xml", utc_now(), request=where)
+            yield Payload(kind, response.content, "xml", utc_now(), request=where)
             return
         report.fail(where, last or "unknown error")
 
@@ -306,6 +313,8 @@ class PubMedConnector(Connector):
             record = parser(elem)
             if record is not None:
                 records.append(record)
+        if payload.kind == "efetch_citing":  # articles that cite ours, kept apart
+            return {"pubmed_citing": [citing_record(r) for r in records]}
         return {"pubmed": records}
 
 
@@ -659,3 +668,29 @@ def parse_book_article(elem: ET.Element) -> dict[str, Any] | None:
 
 
 PARSERS = {"PubmedArticle": parse_journal_article, "PubmedBookArticle": parse_book_article}
+
+
+def citing_record(record: dict[str, Any]) -> dict[str, Any]:
+    """The short form kept for an article that cites one of the organization's papers."""
+    authors = record.get("authors") or []
+    first = authors[0] if authors else None
+    if first is None:
+        first_author = None
+    elif first.get("collective_name"):
+        first_author = first["collective_name"]
+    else:
+        parts = (first.get("family"), first.get("initials"))
+        first_author = " ".join(x for x in parts if x) or None
+    return {
+        "pmid": record["pmid"],
+        "title": record.get("title"),
+        "journal": record.get("journal"),
+        "journal_abbrev": record.get("journal_abbrev"),
+        "pub_year": record.get("pub_year"),
+        "pub_date": record.get("pub_date"),
+        "doi": record.get("doi"),
+        "publication_types": record.get("publication_types") or [],
+        "first_author": first_author,
+        "author_count": len(authors) or None,
+        "is_retracted": bool(record.get("is_retracted")),
+    }

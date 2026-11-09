@@ -51,6 +51,8 @@ const PATHS = {
   chart: ["M4 20.5h16.5", "M6.5 17v-5", "M11 17V7.5", "M15.5 17v-7", "M20 17V4.5"],
   trash: ["M4.5 7h15", "M9.5 7V4.5h5V7", "M6.5 7l1 13a1 1 0 0 0 1 .9h7a1 1 0 0 0 1-.9l1-13", "M10 11v6", "M14 11v6"],
   download: ["M12 4v11", "m7.5 10.5 4.5 4.5 4.5-4.5", "M4.5 19.5h15"],
+  upload: ["M12 15V4", "m7.5 8.5 4.5-4.5 4.5 4.5", "M4.5 19.5h15"],
+  edit: ["M4 20h4L18.5 9.5a2.1 2.1 0 0 0-4-4L4 16v4z", "m13.5 6.5 4 4"],
   bookmark: ["M7 3.5h10a1 1 0 0 1 1 1v16l-6-4-6 4v-16a1 1 0 0 1 1-1z"],
   money: ["M3.5 7h17v10h-17z", "M12 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z", "M6.5 10v4", "M17.5 10v4"],
   keyboard: ["M3.5 6.5h17a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-17a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z",
@@ -65,10 +67,11 @@ const PATHS = {
   plus: ["M12 5v14", "M5 12h14"],
   minus: ["M5 12h14"],
   fit: ["M4 9V4h5", "M20 9V4h-5", "M4 15v5h5", "M20 15v5h-5"],
+  opportunity: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z", "M12 16.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9z", "M12 12h.01"],
 };
 
 export const ENTITY_ICONS = { person: "person", publication: "publication", grant: "grant",
-  study: "study", concept: "concept", unit: "unit" };
+  study: "study", concept: "concept", unit: "unit", opportunity: "opportunity" };
 
 export function icon(name, className = "icon") {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
