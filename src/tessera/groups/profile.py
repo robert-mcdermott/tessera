@@ -68,9 +68,10 @@ def people_of(
 
 
 def topics_and_areas(
-    home: DataHome, people: list[str]
+    home: DataHome, people: list[str], *, confirmed_only: bool = False
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """The group's topics (its people's profiles, summed) and broader research areas."""
+    """The group's topics (its people's profiles, summed) and broader research areas. With
+    ``confirmed_only`` (the public site), only topics their confirmed papers carry."""
     wanted = set(people)
     topics: list[dict[str, Any]] = []
     areas: list[dict[str, Any]] = []
@@ -82,9 +83,9 @@ def topics_and_areas(
         holders: dict[str, set[str]] = defaultdict(set)
         names: dict[str, str] = {}
         for r in pq.read_table(
-            path, columns=["person_id", "descriptor_ui", "descriptor", "weight"]
+            path, columns=["person_id", "descriptor_ui", "descriptor", "weight", "confirmed"]
         ).to_pylist():
-            if r["person_id"] in wanted:
+            if r["person_id"] in wanted and (r["confirmed"] or not confirmed_only):
                 weight[r["descriptor_ui"]] += r["weight"]
                 holders[r["descriptor_ui"]].add(r["person_id"])
                 names[r["descriptor_ui"]] = r["descriptor"]
@@ -155,10 +156,12 @@ def attributions(
 
 
 def connections(
-    conn: Connection, group_id: str, members: list[str], config: Config, today: date
-) -> list[dict[str, Any]]:
+    conn: Connection, group_id: str, members: list[str], config: Config, today: date,
+    *, confirmed_only: bool = False,
+) -> list[dict[str, Any]]:  # fmt: skip
     """Other groups (of the kinds that have papers of their own) whose current members write
-    papers with this group's members."""
+    papers with this group's members. With ``confirmed_only`` (the public site), only papers
+    whose authorship is confirmed; otherwise strong suggestions count too."""
     if not members:
         return []
     strong = config.evidence.strong_threshold
@@ -171,7 +174,7 @@ def connections(
             assertion.c.reported.is_(True),
         )
     ):  # fmt: skip
-        if status == "accepted" or (score or 0) >= strong:
+        if status == "accepted" or (not confirmed_only and (score or 0) >= strong):
             papers[obj].add(subject)
     mine = set(members)
     family = store.descendants(conn, [group_id]) | store._ancestors(conn, group_id)

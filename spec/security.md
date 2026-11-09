@@ -62,3 +62,20 @@ The records themselves come from public sources (PubMed, NIH RePORTER, ClinicalT
 **Fixed in the review:** the public-page preview, which is served from Tessera's own origin, now allows no scripts at all; the nginx example limits sign-in attempts by address, which the app cannot do behind a proxy; and (in slice 4) SVG uploads are checked and every branding image is served so nothing in it runs.
 
 **Recorded, with what would close them:** the three gaps above, and two that the reverse proxy covers: the app sets no limit of its own on the size of a request's body (the examples limit it to 4 MB), and it cannot count sign-in attempts by address behind a proxy (the nginx example does; Caddy needs its rate-limit module).
+
+## Review before 1.0 (wave 8)
+
+A second review read the code that protects things and the code that decides, each finding confirmed by running it where it could be, and fixed with a regression test unless recorded here.
+
+**Fixed, access:**
+- A membership (`member_of`) could be accepted or rejected through the decision routes, which checked only that the caller edits the group, not the membership routes' admin rule; a curator scoped to a group could so widen their own scope. Memberships are now decided by admins alone on those routes.
+- Any member of a team could add people to it, and so share it with them, though only its owner shares it. Only its owner, or an admin, now changes who is on it; the app offers those controls to them alone.
+- Saved cohorts and reports belonged to a display name, which is not unique and which single sign-on rewrites at each sign-in. They now belong to an account (migration 0026); one saved before 1.0 is given to the account whose name it recorded, when exactly one has it, and is otherwise left to admins.
+- Summary and biosketch drafts by the assistant ignored `[ai] roles` and the daily limit; each is a paid call to the model, so both now apply to them.
+- The limit on failed sign-ins was kept in each server process's memory, so several processes multiplied it; it is now in the ledger, by a hash of the account or address (migration 0025).
+- A role scoped to a group by name (`curator=group:Name`) took the first group of that name; a name more than one group has is now refused, with their addresses to choose from.
+
+**Fixed, the public site:** embeds and feeds showed a group's members, publications, and openings even when the group had left them off its page; a section a person left off (their groups, say) still appeared in the people index and their page's description; the assistant's approved summary could not be left off; a name containing `<!--<script` made a page's structured data swallow the rest of the page; a person's address could pass to someone of the same name who opted in later (addresses are now kept, migration 0027); public topics and a group's connections counted unconfirmed links; and an approver named by their email address was shown by it.
+
+**Recorded, with what would close them:**
+- Single sign-on matches a first sign-in to an existing account by its email address, including a local admin's; with `trust_email = true`, which Microsoft Entra ID needs, the provider need not have verified it. In a single-tenant directory, where addresses are the organization's own, this is sound; elsewhere, leave local admin accounts without an email address, or keep `trust_email` off. Matching only accounts without the admin role would close it.

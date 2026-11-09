@@ -46,14 +46,15 @@ def record(
 
 
 def used_today(engine: Engine, owner: str, today: date | None = None) -> int:
-    """Questions this owner asked today (UTC), for the daily limit."""
+    """Requests this owner made of the model today (UTC): questions and drafts alike, since
+    each is a paid call; for the daily limit."""
     start = datetime.combine(today or utc_now().date(), datetime.min.time()).replace(
         tzinfo=utc_now().tzinfo
     )
     with engine.connect() as conn:
         return int(conn.execute(
             select(func.count()).select_from(ai_exchange).where(
-                ai_exchange.c.owner == owner, ai_exchange.c.kind == "question",
+                ai_exchange.c.owner == owner,
                 ai_exchange.c.status != "limited", ai_exchange.c.started_at >= start)
         ).scalar() or 0)  # fmt: skip
 

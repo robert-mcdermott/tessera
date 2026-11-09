@@ -81,12 +81,15 @@ def _part(site: Site, base: str, g: dict[str, Any], part: str, theme: str = "") 
     page = EmbedPage(site, base, path, f"{label} · {g['name']}",
                      f"{label} of {g['name']}, from {site.title}.")  # fmt: skip
     page.theme = theme
-    block = next((b for b in g["blocks"] if b["type"] == part), {"type": part})
-    if part == "publications":
-        block = {**block, "show_chart": False}
-    if part == "people":
-        block = {**block, "show_alumni": False}
-    content = _block(page, g, {**block, "title": label})
+    # Only what the group's public page shows: a part it left off its page is empty here too.
+    block = next((b for b in g["blocks"] if b["type"] == part), None)
+    content = ""
+    if block is not None:
+        if part == "publications":
+            block = {**block, "show_chart": False}
+        if part == "people":
+            block = {**block, "show_alumni": False}
+        content = _block(page, g, {**block, "title": label})
     full = page.href(f"groups/{g['slug']}/index.html")
     head = (
         f'<h1 class="embed-title">{link(full, g["name"])}</h1>'
@@ -133,7 +136,8 @@ def feed(site: Site, base: str, g: dict[str, Any]) -> str:
             if item.get("date"):
                 entry["date_published"] = _when(item["date"])
             items.append(entry)
-    for o in g["openings"]:
+    shown = {b["type"] for b in g["blocks"]}  # only what the group's public page shows
+    for o in g["openings"] if "openings" in shown else []:
         entry = {
             "id": f"{home or g['slug'] + '/'}#opening-{o['title']}",
             "title": o["title"],
@@ -144,7 +148,7 @@ def feed(site: Site, base: str, g: dict[str, Any]) -> str:
         if o.get("url"):
             entry["external_url"] = o["url"]
         items.append(entry)
-    for c in g["publications"][:FEED_LIMIT]:
+    for c in g["publications"][:FEED_LIMIT] if "publications" in shown else []:
         venue = ". ".join(str(x) for x in (c.get("journal"), c.get("year")) if x)
         entry = {
             "id": f"https://pubmed.ncbi.nlm.nih.gov/{c['pmid']}/",

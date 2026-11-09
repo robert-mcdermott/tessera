@@ -134,6 +134,7 @@ Every pair of colors that carries text must meet WCAG 2.2 level AA: 4.5:1 for te
 | `accounts` | true/false | `false` | Require sign-in with local accounts and roles; see [Accounts and sign-in](operations.md#accounts-and-sign-in) |
 | `session_idle_hours` | number | `12` | A session ends this long after it was last used (1 to 720) |
 | `session_max_days` | number | `7` | A session never lasts longer than this from sign-in (1 to 90) |
+| `workers` | number | `1` | Server processes (1 to 64). One suits a laptop; on a server others use, run about four, so one slow request never holds up the rest. Each process takes its own memory; see [Running Tessera](operations.md#how-many-server-processes). `tessera serve --workers` overrides it |
 
 ## `[ledger]`
 
@@ -279,7 +280,7 @@ The optional assistant; see [The assistant](assistant.md). Without this section,
 | `max_tokens` | number | `1500` | The longest answer, in tokens |
 | `temperature` | number | `0.2` | 0 to 2; lower is steadier |
 | `timeout_seconds` | number | `120` | How long to wait for the provider |
-| `daily_limit` | number | `100` | Questions per person per day; 0 for no limit |
+| `daily_limit` | number | `100` | Requests to the model per person per day (questions, and summary and biosketch drafts); 0 for no limit |
 | `roles` | list | `[]` | The roles that may use it (`admin`, `curator`, `manager`, `researcher`, `viewer`); empty for everyone who may read. Admins always may |
 | `log_days` | number | `365` | How long exchanges stay in the log |
 

@@ -63,7 +63,7 @@ Some facts are shown as notes because they decide nothing: whether a clinical tr
 - **Others who fit the opportunity** lists the rest of the people who fit it.
 - **Members** takes a role for each person (lead, co-investigator, collaborator, core or resource, other); **Topics it needs** can be changed; **Worked together** says who on the team has papers, grants, or studies in common, and how many pairings would be new; **Groups it spans** lists their groups.
 
-A team is its owner's, and can be seen by its members (once their accounts are linked to their profiles), by the people its owner shares it with, and by admins. Only its owner or an admin shares or deletes it.
+A team is its owner's, and can be seen by its members (once their accounts are linked to their profiles), by the people its owner shares it with, and by admins. Only its owner or an admin changes who is on it, shares it, or deletes it.
 
 **Team brief** gives a page to print or save as PDF: the team, its opportunity, each member's role with their confirmed papers on its topics, their active NIH grants and their studies (with registry status), the coverage, and the groups spanned, with the data's sources and dates. It also downloads as Markdown, and the members as CSV. Only confirmed papers are listed, because the reader cannot see the evidence.
 

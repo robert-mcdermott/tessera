@@ -26,6 +26,7 @@ from urllib.parse import urlsplit
 from fastapi import FastAPI, HTTPException, Request, Response
 from starlette.concurrency import run_in_threadpool
 
+from tessera.api.common import follow_branding
 from tessera.api.problems import problem
 from tessera.auth.accounts import grants_of
 from tessera.auth.principal import Principal
@@ -71,16 +72,16 @@ POLICIES: dict[tuple[str, str], Level] = {
     ("GET", "/api/v1/people/{person_id}/similar"): R,
     ("GET", "/api/v1/people/{person_id}/concepts"): R,
     ("GET", "/api/v1/people/{person_id}/impact"): R,
-    ("GET", "/api/v1/grants/{core}/thread"): R,
+    ("GET", "/api/v1/grants/{core_project_num}/thread"): R,
     ("GET", "/api/v1/publications/{pmid}/thread"): R,
     ("GET", "/api/v1/opportunities"): R,
-    ("GET", "/api/v1/opportunities/{oid}"): R,
+    ("GET", "/api/v1/opportunities/{opportunity_id}"): R,
     ("POST", "/api/v1/opportunities"): Level.CURATE_ALL,
     ("POST", "/api/v1/opportunities/import"): Level.CURATE_ALL,
-    ("POST", "/api/v1/opportunities/{oid}"): Level.CURATE_ALL,
-    ("DELETE", "/api/v1/opportunities/{oid}"): Level.CURATE_ALL,
-    ("GET", "/api/v1/opportunities/{oid}/fit"): R,
-    ("POST", "/api/v1/opportunities/{oid}/interest"): R,
+    ("POST", "/api/v1/opportunities/{opportunity_id}"): Level.CURATE_ALL,
+    ("DELETE", "/api/v1/opportunities/{opportunity_id}"): Level.CURATE_ALL,
+    ("GET", "/api/v1/opportunities/{opportunity_id}/fit"): R,
+    ("POST", "/api/v1/opportunities/{opportunity_id}/interest"): R,
     ("GET", "/api/v1/me/opportunities"): R,
     ("GET", "/api/v1/people/{person_id}/opportunities"): R,
     ("GET", "/api/v1/groups/{group_ref}/opportunities"): R,
@@ -105,7 +106,7 @@ POLICIES: dict[tuple[str, str], Level] = {
     ("GET", "/api/v1/publications"): R,
     ("GET", "/api/v1/publications/{pmid}"): R,
     ("GET", "/api/v1/grants"): R,
-    ("GET", "/api/v1/grants/{core}"): R,
+    ("GET", "/api/v1/grants/{core_project_num}"): R,
     ("GET", "/api/v1/studies"): R,
     ("GET", "/api/v1/studies/{nct_id}"): R,
     ("GET", "/api/v1/assertions/{assertion_id}"): R,
@@ -348,6 +349,11 @@ def authorize(request: Request) -> None:
         raise HTTPException(status_code=403, detail="Your role does not allow this.")
 
 
+def _prepare(request: Request) -> None:
+    follow_branding(request.app)  # branding another server process saved
+    authenticate(request)
+
+
 def install_access(app: FastAPI) -> None:
     """Check every request before it reaches a route, static file, or the API document.
 
@@ -361,7 +367,7 @@ def install_access(app: FastAPI) -> None:
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         try:
-            await run_in_threadpool(authenticate, request)
+            await run_in_threadpool(_prepare, request)
         except HTTPException as exc:
             return problem(exc.status_code, exc.detail, instance=request.url.path)
         return await call_next(request)

@@ -78,6 +78,9 @@ accounts = false
 # A session ends after this many hours without use, and after this many days in any case.
 session_idle_hours = 12
 session_max_days = 7
+# Server processes. One is enough on a laptop; on a server others use, run about four, so that
+# one slow request never holds up the rest (each takes its own memory; see Running Tessera).
+workers = 1
 
 [ledger]
 # Leave empty to use SQLite at <data home>/ledger.db.

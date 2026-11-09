@@ -26,7 +26,7 @@ export const MENU = [
   ["Start", [["index", "Overview"], ["getting-started", "Getting started"], ["adopting", "Adopting Tessera"], ["organization-profile", "Describing your organization"]]],
   ["Use", [["curation", "Curating"], ["discovery", "Finding experts"], ["groups", "Groups"], ["profiles", "Profiles"], ["insight", "Insight"], ["opportunities", "Opportunities"], ["public-site", "The public site"]]],
   ["Run", [["branding", "Look and words"], ["configuration", "Configuration"], ["operations", "Running Tessera"], ["assistant", "The assistant"]]],
-  ["Reference", [["api", "The API"], ["api-reference", "API reference"], ["cli", "Command reference"], ["changelog", "Changelog"]]],
+  ["Reference", [["api", "The API"], ["api-reference", "API reference"], ["cli", "Command reference"], ["compatibility", "Compatibility"], ["changelog", "Changelog"]]],
 ];
 
 // --- Markdown (the subset the guides use) ----------------------------------------------------

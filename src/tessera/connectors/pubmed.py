@@ -288,7 +288,11 @@ class PubMedConnector(Connector):
         for attempt in range(1, self.efetch_attempts + 1):
             try:
                 response = self.http.post("efetch.fcgi", data=body)
-                ET.fromstring(response.content)  # validate before saving
+                root = ET.fromstring(response.content)  # validate before saving
+                if root.tag != "PubmedArticleSet":  # a maintenance page is well-formed too
+                    raise SourceError(
+                        self.name, f"efetch answered with <{root.tag}>, not PubMed's articles"
+                    )
             except (SourceError, ET.ParseError) as exc:
                 # The history server intermittently answers 400 for a valid WebEnv.
                 last = exc

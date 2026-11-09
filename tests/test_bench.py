@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from tessera.bench import simulate as sim
+from tessera.bench.load import load
 from tessera.bench.run import Report, build, machine, nightly, pages
 
 TODAY = date(2026, 11, 8)
@@ -56,6 +57,23 @@ def test_bench_builds_runs_a_night_and_times_the_app(tmp_path: Path) -> None:
     insight = [p for p in report.pages if p.name.startswith("Insight")]
     assert insight and all(p.cold for p in insight)
     assert report.to_json()["pages"][0]["within"] in (True, False)
+    # Many people at once, on two server processes (PLT-16).
+    load(tmp_path / "org", users=3, seconds=2, workers=2, say=say.append, runs=report.load,
+         paces=("without pause",))  # fmt: skip
+    (run,) = report.load
+    assert run.workers == 2 and run.requests > 0 and run.errors == 0
+    assert {p.name for p in run.pages} <= {name for name, *_ in _targets_names()}
+    assert run.memory_mb is None or run.memory_mb > 0
+    assert report.to_json()["load"][0]["within"] in (True, False)
+    assert any("3 users, without pause, 2 processes" in line for line in say)
+
+
+def _targets_names() -> list[tuple[str]]:
+    return [(n,) for n in ("A profile", "A profile's publications", "Search everything",
+                           "Search for a name", "People directory", "Publications list",
+                           "Grants list", "Review queue", "Find experts", "Home page counts",
+                           "A grant's thread", "A group", "A group's members",
+                           "An Insight figure")]  # fmt: skip
 
 
 @pytest.mark.parametrize(

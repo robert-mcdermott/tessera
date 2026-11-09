@@ -17,6 +17,7 @@ from collections import OrderedDict
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime
+from functools import partial
 from typing import Any
 
 import pyarrow as pa
@@ -27,6 +28,7 @@ from tessera.config import Config
 from tessera.connectors import CONNECTORS
 from tessera.connectors.reporter import fiscal_year
 from tessera.core.clock import isoformat, utc_now
+from tessera.core.once import Once
 from tessera.evidence.orgmatch import OrgMatcher
 from tessera.insight.cohorts import Cohort
 from tessera.jobs.runs import last_success
@@ -612,6 +614,19 @@ def _recall(key: tuple[Any, ...]) -> pa.Table | None:
         return found[1]
 
 
+_gathering = Once()
+
+
+def _gather_one(
+    key: tuple[Any, ...], name: str, ctx: Context, tables: dict[str, pa.Table]
+) -> pa.Table:
+    found = _recall(key)  # gathered while this request waited its turn
+    if found is None:
+        found = GATHERERS[name](ctx, tables)
+        _remember(key, found)
+    return found
+
+
 def gather(ctx: Context, needs: Iterable[str]) -> Inputs:
     tables: dict[str, pa.Table] = {"members": ctx.cohort.table()}
     base = (
@@ -625,8 +640,8 @@ def gather(ctx: Context, needs: Iterable[str]) -> Inputs:
         key = (*base, name)
         found = _recall(key)
         if found is None:
-            found = GATHERERS[name](ctx, tables)
-            _remember(key, found)
+            # Others asking for the same inputs now wait for this one gathering.
+            found = _gathering.run(key, partial(_gather_one, key, name, ctx, dict(tables)))
         tables[name] = found
     sources = {s for name in tables for s in TABLE_SOURCES.get(name, ())}
     return Inputs(tables, source_stamps(ctx.engine, sources, ctx.config), utc_now())

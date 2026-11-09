@@ -66,8 +66,10 @@ def get_assertion(request: Request, assertion_id: str) -> dict[str, Any]:
     view["object"]["label"] = _label(engine, row["object_id"], index)
     view["history"] = history
     view["can_decide"] = _may_decide(
-        request, {"subject_id": row["subject_id"], "object_id": row["object_id"]}
-    )
+        request,
+        {"subject_id": row["subject_id"], "object_id": row["object_id"],
+         "predicate": row["predicate"]},
+    )  # fmt: skip
     return envelope(view)
 
 
@@ -80,6 +82,11 @@ def _may_decide(request: Request, row: dict[str, Any]) -> bool:
     """Whether the principal may decide this link: one about a person needs that person (both,
     for a pair of records) in their scope; a link between records needs a curator for all."""
     principal = principal_of(request)
+    if row.get("predicate") == "member_of":
+        # Who belongs to a group is changed by admins, through the group's own routes; and a
+        # membership decides whose curator someone is, so a curator must not be able to widen
+        # their own scope through it.
+        return principal.is_admin
     if row["object_id"].startswith("unt_"):  # a paper attributed to a group
         return principal.edits_group(engine_of(request), row["object_id"])
     people = [ref for ref in (row["subject_id"], row["object_id"]) if ref.startswith("per_")]
@@ -93,7 +100,7 @@ def _assertion_row(request: Request, assertion_id: str) -> dict[str, Any] | None
     with engine_of(request).connect() as conn:
         row = (
             conn.execute(
-                select(assertion.c.subject_id, assertion.c.object_id).where(
+                select(assertion.c.subject_id, assertion.c.object_id, assertion.c.predicate).where(
                     assertion.c.id == assertion_id
                 )
             )
@@ -414,8 +421,14 @@ def bulk_decide(request: Request, body: BulkDecision) -> dict[str, Any]:
         )
         if band(r["score"], config) == body.band
     ]
+    decided = []
     for row in rows:
-        store.decide(engine, row["id"], body.action, actor, body.note)
+        try:  # only those still suggestions: another curator may have decided some meanwhile
+            store.decide(engine, row["id"], body.action, actor, body.note, expect="suggested")
+        except store.Superseded:
+            continue
+        decided.append(row)
+    rows = decided
     refresh_index(
         request, people=[body.person_id] if rows else [], records={r["object_id"] for r in rows}
     )

@@ -174,6 +174,17 @@
   <div><h3>Checked</h3><p>Every page audited for WCAG 2.2 AA in both themes, and a security review against OWASP ASVS level 1. <a href="adopting.html">Adopting Tessera →</a></p></div>
 </section>
 
+<section class="stable">
+  <h2 id="stable">Version 1.0: built to keep</h2>
+  <p>From 1.0, what you build on Tessera keeps working when you upgrade, and it was tested the way a first pilot would test it.</p>
+  <div class="pillars">
+    <div><h3>Many people at once</h3><p>Several server processes, each Insight figure built once however many ask for it, and a load test of 20 people at once to run on your own server. <a href="operations.html#how-many-server-processes">Server processes →</a></p></div>
+    <div><h3>A promise kept by a test</h3><p>The API, commands, configuration, data, exports, and public addresses change only by adding until a 2.0, and retiring anything gives notice. <a href="compatibility.html">Compatibility →</a></p></div>
+    <div><h3>Upgrades that keep everything</h3><p>An installation of any release since 0.1.0 upgrades in one step, every row kept, checked on SQLite and PostgreSQL before each release. <a href="operations.html#upgrading">Upgrading →</a></p></div>
+    <div><h3>Hardened</h3><p>A review of the code that decides and protects things, drills of what goes wrong on a server, and a soak under load, with what they found fixed. <a href="changelog.html">What changed →</a></p></div>
+  </div>
+</section>
+
 <section class="how">
   <h2 id="how-it-works">How it works</h2>
   <p>Connectors fetch public records into a Parquet lake. The evidence engine builds the directory and suggests links, each with its evidence; curators decide in the ledger; and the search index and discovery data feed a JSON API and a fast, accessible web app.</p>
@@ -210,5 +221,6 @@ uv run tessera --config demo/tessera.toml serve</code></pre></div>
     <a href="assistant.html"><strong>The assistant</strong><span>Turn on the optional assistant: providers, what it sees, the log.</span></a>
     <a href="api.html"><strong>The API</strong><span>Build on the JSON API; every endpoint is in the API reference.</span></a>
     <a href="cli.html"><strong>Command reference</strong><span>Every command and its options.</span></a>
+    <a href="compatibility.html"><strong>Compatibility</strong><span>What each release keeps working: the API, commands, configuration, and data.</span></a>
   </div>
 </section>

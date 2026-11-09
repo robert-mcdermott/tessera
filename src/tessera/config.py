@@ -95,6 +95,7 @@ class ServerConfig:
     accounts: bool = False  # require sign-in with local accounts
     session_idle_hours: int = 12  # a session ends this long after it was last used
     session_max_days: int = 7  # and never lasts longer than this from sign-in
+    workers: int = 1  # server processes; more keep one slow request from holding up the rest
 
 
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
@@ -937,6 +938,8 @@ def validate(config: Config) -> list[str]:
         problems.append("server.session_idle_hours must be between 1 and 720")
     if not 1 <= server.session_max_days <= 90:
         problems.append("server.session_max_days must be between 1 and 90")
+    if not 1 <= server.workers <= 64:
+        problems.append("server.workers must be between 1 and 64")
 
     url = config.ledger.url
     if url and not (url.startswith("sqlite") or url.startswith("postgresql")):

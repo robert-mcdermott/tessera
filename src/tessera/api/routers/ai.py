@@ -54,6 +54,18 @@ def may_use(request: Request) -> bool:
     return principal.is_admin or not roles or bool(principal.roles & set(roles))
 
 
+def _may_spend(request: Request) -> None:
+    """A draft is a paid call to the model, like a question: the same roles, and the same
+    daily limit."""
+    if not may_use(request):
+        raise HTTPException(status_code=403, detail="Your role does not include the assistant.")
+    limit = config_of(request).ai.daily_limit
+    if limit and log.used_today(engine_of(request), owner_of(request)) >= limit:
+        raise HTTPException(
+            status_code=429, detail=f"You have used today's {limit:,} requests to the assistant."
+        )
+
+
 @router.get("/status", summary="Whether you may ask, and how many questions are left today")
 def status(request: Request) -> dict[str, Any]:
     config = config_of(request).ai
@@ -205,6 +217,7 @@ def summary(request: Request, subject: str) -> dict[str, Any]:
 def draft_summary(request: Request, subject: str) -> dict[str, Any]:
     kind, subject_id, _, tool_ref = _subject(request, subject)
     actor = _reviewer(request, kind, subject_id)
+    _may_spend(request)
     config = config_of(request)
     provider = make(config.ai, transport=transport_of(request))
     try:
@@ -279,8 +292,7 @@ def biosketch_draft(request: Request, person_id: str, body: BiosketchDraft) -> d
         raise HTTPException(
             status_code=403, detail="Only those who keep this profile may draft for it."
         )
-    if not may_use(request):
-        raise HTTPException(status_code=403, detail="Your role does not include the assistant.")
+    _may_spend(request)
     config = config_of(request)
     provider = make(config.ai, transport=transport_of(request))
     try:

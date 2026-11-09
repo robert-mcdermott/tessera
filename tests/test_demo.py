@@ -293,3 +293,85 @@ def test_publishing_checks_before_replacing(demo, tmp_path: Path) -> None:  # ty
         assert (out / "index.html").read_text() == before
     finally:
         engine.dispose()
+
+
+def test_the_public_site_keeps_to_every_choice(tmp_path: Path) -> None:
+    """Wave 8's review of the public site: embeds and feeds show only what the group's page
+    shows; a section a person leaves off is left out everywhere; names cannot break a page's
+    structured data; and a person's address is kept, whoever of the same name opts in later."""
+    import json
+
+    from sqlalchemy import select, update
+
+    from tessera.home import DataHome
+    from tessera.ledger.db import make_engine
+    from tessera.ledger.tables import person
+    from tessera.publish import publish
+    from tessera.publish.projection import _shown_name
+
+    result = build_demo(tmp_path / "demo", today=TODAY)
+    config = load_config(Path(result["config"]), env={})
+    engine = make_engine(config.ledger_url)
+    out = tmp_path / "site"
+    try:
+        with TestClient(create_app(config), base_url="http://localhost") as client:
+            slug = "cancer-immunotherapy-program"
+            page = client.get(f"/api/v1/groups/{slug}/page").json()["data"]
+            kept = [b for b in page["blocks"]
+                    if b["type"] not in ("people", "publications", "openings")]  # fmt: skip
+            assert client.post(f"/api/v1/groups/{slug}/page/draft",
+                               json={"blocks": kept}).status_code == 200  # fmt: skip
+            assert client.post(f"/api/v1/groups/{slug}/page/publish", json={}).status_code == 200
+            renamed = client.post(
+                f"/api/v1/groups/{slug}", json={"name": "Program <!--<script> & co"}
+            )
+            assert renamed.status_code == 200
+            with engine.connect() as conn:
+                public = conn.execute(select(person.c.id, person.c.display_name)
+                                      .where(person.c.public.is_(True))
+                                      .order_by(person.c.id)).all()  # fmt: skip
+            first, name = public[0]
+            hidden = client.post(f"/api/v1/people/{first}/profile/public",
+                                 json={"hidden_sections": ["groups"]})  # fmt: skip
+            assert hidden.status_code == 200, hidden.text
+            sections = client.get(f"/api/v1/people/{first}/profile").json()["data"]
+            assert "summary" not in {s["id"] for s in sections["public_sections"]}  # no hint of it
+        built = publish(config, DataHome(config.data.home), engine, out=out, today=TODAY)
+        assert built.written and not built.problems, built.problems
+        folder = out / "groups" / slug
+        for part in ("people", "publications", "openings"):
+            embed = (folder / "embed" / f"{part}.html").read_text()
+            assert "pubmed.ncbi.nlm.nih.gov" not in embed and "people/" not in embed.split(
+                "embed-footer")[0].split("embed-title")[-1], part  # fmt: skip
+        feed = json.loads((folder / "feed.json").read_text())
+        assert {i["tags"][0] for i in feed["items"]} <= {"news"}
+        program = (folder / "index.html").read_text()
+        script = program.split('<script type="application/ld+json">')[1].split("</script>")[0]
+        assert "<" not in script and json.loads(script)["name"] == "Program <!--<script> & co"
+        with engine.connect() as conn:
+            address = conn.execute(select(person.c.public_slug)
+                                   .where(person.c.id == first)).scalar_one()  # fmt: skip
+        own = (out / "people" / address / "index.html").read_text()
+        assert "Cancer Immunotherapy" not in own.split("</header>")[0]  # its groups, left off
+        index = (out / "people" / "index.html").read_text()
+        assert f">{name}</a></li>" in index  # listed without its groups
+        # Someone of the same name, with an earlier ID, opts in: the address stays the first's.
+        with engine.begin() as conn:
+            other = conn.execute(
+                select(person.c.id)
+                .where(person.c.public.is_(False), person.c.status == "active")
+                .order_by(person.c.id)
+            ).scalar()
+            conn.execute(update(person).where(person.c.id == other)
+                         .values(display_name=name, public=True))  # fmt: skip
+        publish(config, DataHome(config.data.home), engine, out=out, today=TODAY)
+        with engine.connect() as conn:
+            addresses = dict(
+                conn.execute(
+                    select(person.c.id, person.c.public_slug).where(person.c.id.in_((first, other)))
+                ).all()
+            )
+        assert addresses[first] == address and addresses[other] == f"{address}-2"
+    finally:
+        engine.dispose()
+    assert _shown_name("someone@example.edu") == "a reviewer" and _shown_name("Ada") == "Ada"

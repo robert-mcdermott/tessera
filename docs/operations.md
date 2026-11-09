@@ -61,6 +61,20 @@ uv run tessera serve
 
 Tessera listens on `127.0.0.1:8000` by default (`[server] host` and `port`).
 
+### How many server processes
+
+`tessera serve` runs one process unless `[server] workers` (or `--workers`) asks for more. One is right for a laptop. On a server other people use, run about four: requests then share the processor's cores, and one slow request (the first Insight figure after the data changes, say) never holds up everyone else's. The container image and the systemd unit in `deploy/` run four, and `tessera doctor --production` warns at one.
+
+With 20 simulated users on a 100,000-publication organization, measured with `tessera bench` on a 10-core laptop:
+
+| | One process | Four processes |
+|---|---|---|
+| Users clicking every 2 to 8 seconds: slowest 5% of requests, and the slowest | 174 ms, 2.4 s | 119 ms, 1.9 s |
+| Users clicking without pause: requests served a second | 24 | 73 |
+| Memory of the server, under that load | 0.9 GB | 2.8 GB |
+
+Each process takes its own memory (about 0.7 GB at 100,000 publications, and up to about 0.9 GB with its caches full: four took 0.8 to 3.6 GB over two hours of use, nightly syncs included) and keeps its own caches; everything else they share through the ledger, including the count of failed sign-ins, so the limit on guessing holds however many there are. Branding saved in the app reaches every process within a second. More processes than cores gains nothing.
+
 ## Running it as a service
 
 The repository's `deploy/` folder has reference files for running Tessera on a server: a container image, a compose file with PostgreSQL, systemd units, and reverse-proxy configurations. Copy them and adjust the names and paths. Before people use it, run `tessera doctor --production` (see [Checks for production](#checks-for-production)).
@@ -100,7 +114,7 @@ Each service may write only `/srv/tessera`, has no privileges, and is limited to
 `deploy/container/Dockerfile` builds an image with uv from the lock file. It runs as an unprivileged user (uid 10001), with two volumes: `/srv/tessera/config`, which holds `tessera.toml` and branding images, and `/srv/tessera/data`, the data home. The image holds no state, so an upgrade is a new image and `tessera db upgrade`.
 
 ```bash
-podman build --format docker -f deploy/container/Dockerfile -t tessera:0.7.0 .   # or docker build
+podman build --format docker -f deploy/container/Dockerfile -t tessera:1.0.0 .   # or docker build
 ```
 
 (`--format docker` keeps the image's health check, which podman's default format drops.)
@@ -129,7 +143,7 @@ None needs signing in, and they say nothing about the organization's data.
 
 ### Checks for production
 
-`tessera doctor --production` adds what a server other people use needs: accounts and an admin, a contact address for the public sources, an NCBI API key, HTTPS addresses for the app and the public site, a recent sync and a recent backup, room on the disk, a search index, and not running as root. Run it after installing and after each upgrade; it exits non-zero if anything fails.
+`tessera doctor --production` adds what a server other people use needs: accounts and an admin, several server processes, a contact address for the public sources, an NCBI API key, HTTPS addresses for the app and the public site, a recent sync and a recent backup, room on the disk, a search index, and not running as root. Run it after installing and after each upgrade; it exits non-zero if anything fails.
 
 ## Accounts and sign-in
 
@@ -263,7 +277,7 @@ uv run tessera --config new.toml build discovery
 uv run tessera export /mnt/exports/tessera-2026-11-08
 ```
 
-The folder has every ledger table (people, names and identifiers, groups and memberships, every link with its evidence and decision, the decision logs, pages, reports, profile entries and their history, CVs and biosketches, and settings) and every lake table (the current version of each record fetched from PubMed, iCite, NIH RePORTER, ClinicalTrials.gov, ORCID, and MeSH), each as Parquet and CSV; report snapshots; `DATA-DICTIONARY.md`, describing every table and column; and a `manifest.json` with row counts and digests. Password hashes and browser sessions are left out. In CSV files, lists and objects are JSON text.
+The folder has every ledger table (people, names and identifiers, groups and memberships, every link with its evidence and decision, the decision logs, pages, reports, profile entries and their history, CVs and biosketches, and settings) and every lake table (the current version of each record fetched from PubMed, iCite, NIH RePORTER, ClinicalTrials.gov, ORCID, and MeSH), each as Parquet and CSV; report snapshots; `DATA-DICTIONARY.md`, describing every table and column; and a `manifest.json` with row counts and digests. Password hashes, browser sessions, and the count of recent failed sign-ins are left out. In CSV files, lists and objects are JSON text.
 
 ## Operations and alerts
 
@@ -300,7 +314,23 @@ uv run tessera build search    # rebuild the index with the new version
 uv run tessera build discovery # and concept profiles and the graph
 ```
 
-`tessera doctor` and the web app's health check (`/api/v1/health`) report a ledger that needs `db upgrade`. Migrations keep every row: they are tested on SQLite and PostgreSQL with a populated ledger, upgrading and downgrading. Take a backup before upgrading anyway (`tessera backup`). The [changelog](../CHANGELOG.md) notes anything that needs more than these steps.
+`tessera doctor` and the web app's health check (`/api/v1/health`) report a ledger that needs `db upgrade`. Upgrades keep every row: they are tested on SQLite and PostgreSQL with a populated ledger, and with installations made by every earlier release. Migrations can be run backwards for development, but going back drops what later releases added, so to undo an upgrade, restore the backup taken before it. Take that backup before upgrading (`tessera backup`). The [changelog](../CHANGELOG.md) notes anything that needs more than these steps, and [Compatibility](compatibility.md) says what each kind of release may change.
+
+### From any 0.x release to 1.0
+
+An installation made by any earlier release, from 0.1.0 on, upgrades in one step: there is no need to pass through the releases between. Its configuration file loads as it is, since every setting added since has a default.
+
+1. Take a backup with the release you have (`tessera backup`, from 0.4.0 on), or copy the data home and, for PostgreSQL, dump the database.
+2. Install 1.0 (`git pull` or a fresh clone, then `uv sync`).
+3. `tessera db upgrade`, then `tessera build search` and `tessera build discovery`.
+4. `tessera sync`, to fetch what sources added since your release need: from before 0.5.0, Grants.gov's opportunities (about 12 minutes the first time) and iCite's clinical citations. Until then, the pages that use them say they are empty.
+5. `tessera doctor --production`, for a server others use.
+
+What changes on the way, beyond new features, is in each release's **Upgrading** notes in the changelog: from before 0.3.0, units become groups and memberships plain members; from before 0.6.0, researchers keep their own profiles once their accounts are linked to them; from before 1.0, `[server] workers` runs several server processes.
+
+This is checked before each release by `scripts/check-upgrades.sh`, which installs every earlier release from its tag, makes an installation with it (its demonstration organization, or for 0.1.0 and 0.2.0 the synthetic organization their own tests use, with decisions made through their API), takes a backup with it where it can, and upgrades it with this release. It checks that every ledger row comes through with every column it had, except what a migration changes on purpose (each checked exactly); that the lake and raw responses are untouched, file by file; that `tessera doctor` passes and the main pages answer; and that the release's own backup restores into a new data home with the same rows. It does this on SQLite for every release, and for 0.7.0 on PostgreSQL 16, after 0.7.0 moves its own installation there.
+
+Going back is not supported: to undo an upgrade, restore the backup with the release it came from.
 
 ## PostgreSQL
 
@@ -343,10 +373,10 @@ What Tessera needs grows with the number of publications more than with the numb
 | `raw/`, from real downloads (not measured) | about 0.8 GB | about 8 GB |
 | A first sync's local work, after the download | about 2 minutes | about 45 minutes |
 | A nightly sync's local work, after the download | about 2 minutes | about 36 minutes |
-| Memory of the web server | 0.6 GB | 2.0 GB |
+| Memory of one server process | 0.6 GB | 2.0 GB |
 | Memory of a sync, at its peak | 4.4 GB | 16 GB |
 
-- **Memory.** A sync runs as its own process and holds the whole organization in memory while it resolves authorship and builds concept profiles, so it, not the web server, decides the memory a server needs: 8 GB is enough at 100,000 papers, and 32 GB at a million. Up to 512 MB of the web server's memory is Insight's cache of the inputs it has gathered.
+- **Memory.** A sync runs as its own process and holds the whole organization in memory while it resolves authorship and builds concept profiles, so it decides the memory a server needs, with the server's processes beside it (four take four times the figure above): 8 GB is enough at 100,000 papers, and 32 GB at a million. Up to 512 MB of each server process's memory is Insight's cache of the inputs it has gathered.
 - **Disk.** The ledger is the largest part the benchmark measures: it keeps every link between a person and a record (about 4.3 million at a million papers) with the evidence for each, about 1.4 KB a link. Simulated papers have shorter text than real ones, so a real lake and search index are larger: real papers take about 1.5 KB each in the lake, four times the simulation's. The benchmark downloads nothing, so it leaves `raw/` empty; there, every response is kept as received, compressed, at about 8 KB a paper (8 GB a million), so that `tessera replay` can rebuild the lake without the network. Allow the totals above, `raw/`, and as much again, for backups (each `tessera backup` copies the ledger) and for the next search index, which is written beside the current one before it replaces it.
 - **Time.** The download is not included: it is bounded by the public sources (PubMed sends 200 records a request, so a million papers is 5,000 requests), and at a million papers the first one takes hours. A nightly sync's local work is resolving what is new and rebuilding the search index and the derived views; the app keeps working while it runs.
 - **Processor.** Resolving authorship uses one core; the builds use them all.
@@ -364,7 +394,14 @@ At the largest size, some things are slower than they should be; each is recorde
 uv run tessera bench /srv/bench --people 10000 --papers 1000000
 ```
 
-This builds a simulated organization in that folder; it never touches the network, your data home, or your ledger. It runs what a first sync and a nightly sync do locally, starts the app on a free port, times its main pages (the first request, the median, and the 95th percentile, against their budgets), and prints the results with each step's peak memory, the data's size, and the machine. It also saves them as `bench-<time>.json` in the folder, so results from different servers can be compared.
+This builds a simulated organization in that folder; it never touches the network, your data home, or your ledger. It runs what a first sync and a nightly sync do locally, starts the app on a free port, times its main pages one request at a time (the first request, the median, and the 95th percentile, against their budgets), and then has simulated users use it at once. It prints the results with each step's peak memory, the data's size, and the machine, and saves them as `bench-<time>.json` in the folder, so results from different servers can be compared.
+
+**Many people at once.** 20 simulated users (`--users`) use the app for a minute each way (`--seconds`), on four server processes (`--workers`), each run with a new server whose caches are empty, as after the nightly sync. Each user asks for a mix of profiles, searches, lists, the review queue, groups, grants, and Insight figures:
+
+- **at a realistic pace**, waiting 2 to 8 seconds between requests (faster than people read): the slowest 5% of requests should take under 300 ms, and none over 2 seconds;
+- **without pause**, asking again as soon as each answer comes, several times the load real people make: this shows how many requests the server can serve a second. The slowest 5% should take under a second, and none over 5 seconds.
+
+The report also gives the slowest requests after the first 30 seconds, once the caches the first requests fill are full. To run only this part on an organization already built: `tessera bench /srv/bench --people … --papers … --only load`.
 
 At the largest size it needs about 15 GB of disk and two hours; the default size (1,000 people and 50,000 papers) takes a few minutes. Run it again in the same folder to time a nightly sync and the pages without building again; `--rebuild` starts over, and `--seed` makes a different organization. To measure PostgreSQL, point `[ledger] url` in the `tessera.toml` the first run leaves in the folder at an empty PostgreSQL database, then run again with `--rebuild`.
 
@@ -380,8 +417,12 @@ uv run tessera lake gc         # delete superseded files older than 7 days
 
 ## When something goes wrong
 
-- **`tessera doctor`** checks the configuration, the data home, the ledger schema, and the database engines Tessera relies on (SQLite full-text search and DuckDB); `tessera doctor --online` also checks that each public source can be reached.
+- **`tessera doctor`** checks the configuration, the data home, the ledger schema, that the search index, the derived files, and the lake can be read, and the database engines Tessera relies on (SQLite full-text search and DuckDB); `tessera doctor --online` also checks that each public source can be reached.
 - **`tessera runs`** and the **Sources** page show failed or partial runs with the source's error.
 - **Logs** are in `<data home>/logs`. Add `-v` to any command for more detail.
 - **A source changed or was down:** run `uv run tessera sync` again; completed work is not repeated.
 - **Search looks out of date:** `uv run tessera build search` rebuilds it from the lake and ledger in seconds.
+- **A source fails during a sync** (down, slow, or sending something it should not): that source's run is recorded as failed or partial with what went wrong, its last good data stays, and the other sources, the resolve, and the builds go on. The sync exits with a non-zero status; the next one fetches what was missed.
+- **A sync or resolve was stopped** (a restart, a killed process): run it again. The stopped run is marked interrupted; each step it finished is kept, and the next run does the rest, ending exactly where an uninterrupted run would.
+- **A page says the search index cannot be read**, or a derived file cannot be: `tessera doctor` names the file and the command that rebuilds it (`tessera build search`, `tessera build discovery`, or `tessera build opportunities`). They are made from the ledger and the lake, so nothing is lost.
+- **`tessera doctor` says a lake file cannot be read:** the lake holds what was fetched, so restore the latest backup into a new data home (`tessera restore`, below *Backups*) and point the configuration at it; or, if `raw/` holds that source's responses, `tessera replay` rebuilds its lake records from them. Then run `tessera sync` to fetch what came after the backup.

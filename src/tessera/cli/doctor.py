@@ -56,6 +56,8 @@ def run_checks(
 
     checks.append(_check_home(config))
     checks.append(_check_ledger(config))
+    checks += _check_data(config)
+    checks += _check_space(config)
     checks.append(_check_access(config))
     checks.append(_check_backup(config))
     checks += _check_brand(config)
@@ -153,6 +155,88 @@ def _check_backup(config: Config) -> Check:
     if age > timedelta(days=config.alerts.backup_days):
         return Check("Backups", WARN, f"{detail}: older than {config.alerts.backup_days} days")
     return Check("Backups", OK, detail)
+
+
+# What rebuilds each derived file, for when one cannot be read.
+REBUILT_BY = {"search.db": "tessera build search", "opportunity_fit.parquet":
+              "tessera build opportunities"}  # fmt: skip
+REBUILD_REST = "tessera build discovery"
+
+
+def _readable_parquet(path: Path) -> str | None:
+    """Why a Parquet file cannot be read, or None: its footer and the first column of every row
+    group are read, which finds a damaged file without reading all of it."""
+    import pyarrow.parquet as pq
+
+    try:
+        found = pq.ParquetFile(path)
+        for group in range(found.num_row_groups):
+            found.read_row_group(group, columns=[found.schema_arrow.names[0]])
+    except Exception as exc:  # pyarrow reports damage with several kinds of error
+        return f"{exc.__class__.__name__}: {str(exc)[:120]}"
+    return None
+
+
+def _check_data(config: Config) -> list[Check]:
+    """The search index, the derived files, and the lake can be read; if not, what to do."""
+    from tessera.search.index import index_path
+
+    home = DataHome(config.data.home)
+    if not home.is_initialized():
+        return []
+    out: list[Check] = []
+    index = index_path(home)
+    if index.is_file():
+        try:
+            with sqlite3.connect(f"file:{index}?mode=ro", uri=True) as con:
+                con.execute("SELECT count(*) FROM sqlite_master").fetchone()
+                found = con.execute("PRAGMA quick_check(1)").fetchone()[0]
+            if found != "ok":
+                raise sqlite3.DatabaseError(found)
+            out.append(Check("Search index", OK, "readable"))
+        except sqlite3.Error as exc:
+            out.append(Check("Search index", FAIL, f"cannot be read ({exc}); rebuild it: "
+                             "`tessera build search`"))  # fmt: skip
+    damaged = []
+    for path in sorted(home.derived.glob("*.parquet")) if home.derived.is_dir() else []:
+        why = _readable_parquet(path)
+        if why:
+            damaged.append(f"{path.name} ({why}); rebuild it: "
+                           f"`{REBUILT_BY.get(path.name, REBUILD_REST)}`")  # fmt: skip
+    if damaged:
+        out.append(Check("Derived files", FAIL, "; ".join(damaged)))
+    elif home.derived.is_dir():
+        out.append(Check("Derived files", OK, "readable"))
+    lake = sorted(home.lake.rglob("*.parquet")) if home.lake.is_dir() else []
+    broken = [(p, why) for p in lake if (why := _readable_parquet(p))]
+    if broken:
+        where, why = broken[0]
+        detail = (
+            f"{len(broken)} file(s) cannot be read, such as {where.relative_to(home.lake)} "
+            f"({why}). Restore the latest backup (`tessera restore`); see Running Tessera, "
+            "When something goes wrong"
+        )
+        out.append(Check("Lake", FAIL, detail))
+    elif lake:
+        out.append(Check("Lake", OK, f"{len(lake):,} files readable"))
+    return out
+
+
+SPACE_LOW = 1024**3  # a sync and a search index rebuild need room beside what is there
+
+
+def _check_space(config: Config) -> list[Check]:
+    import shutil
+
+    home = DataHome(config.data.home)
+    if not home.root.is_dir():
+        return []
+    free = shutil.disk_usage(home.root).free
+    if free < SPACE_LOW:
+        return [Check("Disk", FAIL if free < SPACE_LOW // 10 else WARN,
+                      f"{free / 2**20:,.0f} MB free beside the data home: a sync or rebuild may "
+                      "not fit; free some space")]  # fmt: skip
+    return []
 
 
 def _check_home(config: Config) -> Check:
@@ -308,6 +392,16 @@ def _check_production(config: Config) -> list[Check]:
         add("sign-in", OK, "accounts on")
     else:
         add("sign-in", FAIL, "a server others use needs [server] accounts = true")
+    workers = config.server.workers
+    if workers > 1:
+        add("processes", OK, f"{workers} server processes")
+    else:
+        add(
+            "processes",
+            WARN,
+            "one server process: set [server] workers = 4 (or TESSERA_SERVER_WORKERS), so "
+            "one slow request never holds up the rest",
+        )
     if config.sources.contact_email:
         add("contact", OK, config.sources.contact_email)
     else:

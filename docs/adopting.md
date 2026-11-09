@@ -36,7 +36,7 @@ That is the life of an installation in small: data from public sources, decision
 |---|---|---|
 | **Where it runs** | A virtual machine or server with [systemd](operations.md#on-a-server-with-systemd), or [containers](operations.md#in-a-container) | Whichever your team already runs and backs up |
 | **The ledger** | SQLite (one file in the data home) or [PostgreSQL](operations.md#postgresql) | SQLite unless you already run PostgreSQL, or policy wants a database server |
-| **The size of the server** | 8 GB of memory up to about 100,000 papers, 32 GB at a million | See [Sizing a server](operations.md#sizing-a-server) |
+| **The size of the server** | 8 GB of memory up to about 100,000 papers, 32 GB at a million; four server processes | See [Sizing a server](operations.md#sizing-a-server) and [How many server processes](operations.md#how-many-server-processes); `tessera bench` measures your server with 20 people at once |
 | **Sign-in** | Local accounts, or [single sign-on](operations.md#single-sign-on) with your identity provider, which brings its own multi-factor authentication | Single sign-on for more than a handful of people; keep one local admin as a way back in |
 | **Who curates** | Curators for everyone, curators for some groups, researchers for themselves, managers for their groups' pages | See [Who decides](curation.md#who-decides) |
 | **A public site** | None, or one served by your web server | Nothing is public unless a person or group chooses it |
@@ -106,7 +106,7 @@ When profiles and pages are ready, invite people and groups to make theirs publi
 
 - **Every night**, the sync and the backup; copy backups off the machine ([Backups](operations.md#backups)).
 - **Every week**, a glance at **Admin → Operations** for failed runs and what needs attention, and at the review queue.
-- **At each release**, an upgrade: the new code, `tessera db upgrade`, and a restart ([Upgrading](operations.md#upgrading)).
+- **At each release**, an upgrade: the new code, `tessera db upgrade`, and a restart ([Upgrading](operations.md#upgrading)). From 1.0, what you build on Tessera (scripts on its API, your configuration, links to the public site) keeps working across minor releases ([Compatibility](compatibility.md)).
 - **When something is wrong**, `tessera doctor`, the **Sources** page, and the logs ([When something goes wrong](operations.md#when-something-goes-wrong)).
 
 ## Getting help

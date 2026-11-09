@@ -79,6 +79,21 @@ def build_parser() -> argparse.ArgumentParser:
     bench.add_argument(
         "--samples", type=int, default=30, help="requests timed per page (default 30)"
     )
+    bench.add_argument(
+        "--users", type=int, default=20, help="simulated users at once (default 20; 0 skips)"
+    )
+    bench.add_argument(
+        "--seconds", type=float, default=60.0, help="how long each run of users lasts (default 60)"
+    )
+    bench.add_argument(
+        "--workers", type=int, default=4, help="server processes for the users (default 4)"
+    )
+    bench.add_argument(
+        "--only",
+        action="append",
+        choices=("nightly", "pages", "load"),
+        help="run only this step after the build (repeat for more)",
+    )
     bench.set_defaults(handler=cmd_bench)
 
     doctor = commands.add_parser("doctor", help="check that this installation is ready")
@@ -482,6 +497,9 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--host", help="override server.host")
     serve.add_argument("--port", type=int, help="override server.port")
     serve.add_argument(
+        "--workers", type=int, help="server processes (overrides server.workers; default 1)"
+    )
+    serve.add_argument(
         "--reload", action="store_true", help="restart on code changes (development)"
     )
     serve.set_defaults(handler=cmd_serve)
@@ -504,6 +522,50 @@ def main(argv: Sequence[str] | None = None) -> int:
     except KeyboardInterrupt:
         log.warning("interrupted")
         return EXIT_ERROR
+    except Exception as exc:
+        if _ledger_unreachable(exc):
+            log.error("The ledger database cannot be reached (%s). Check that it is running and "
+                      "that [ledger] url (or TESSERA_LEDGER_URL) is right; `tessera doctor` checks "
+                      "it.", str(exc).splitlines()[0][:200])  # fmt: skip
+            return EXIT_ERROR
+        if _disk_full(exc):
+            log.error("The disk is full (%s). Free some space beside the data home, then run this "
+                      "again: what was there before is kept as it was.", exc)  # fmt: skip
+            return EXIT_ERROR
+        if not _damaged_data(exc):
+            raise
+        log.error("A data file cannot be read (%s). Run `tessera doctor` to find which, and how "
+                  "to fix it.", exc)  # fmt: skip
+        return EXIT_ERROR
+
+
+def _ledger_unreachable(exc: BaseException) -> bool:
+    from sqlalchemy.exc import InterfaceError, OperationalError
+
+    if isinstance(exc, OperationalError | InterfaceError):
+        text = str(exc).lower()
+        return "connect" in text or "connection" in text or "server closed" in text
+    return type(exc).__module__.startswith("psycopg") and "connect" in str(exc).lower()
+
+
+def _disk_full(exc: BaseException) -> bool:
+    import errno
+
+    if isinstance(exc, OSError) and exc.errno == errno.ENOSPC:
+        return True
+    text = str(exc).lower()
+    return "disk is full" in text or "no space left" in text
+
+
+def _damaged_data(exc: BaseException) -> bool:
+    """An error reading the search index or a Parquet file, rather than a mistake in code
+    (DuckDB is not imported just to name its errors: most commands never load it)."""
+    import sqlite3
+
+    if isinstance(exc, sqlite3.DatabaseError):
+        return True
+    kinds = [k.__name__ for k in type(exc).__mro__ if k.__module__.lstrip("_") == "duckdb"]
+    return bool(kinds) and "ProgrammingError" not in kinds
 
 
 def _load(args: argparse.Namespace):  # type: ignore[no-untyped-def]
@@ -563,8 +625,13 @@ def cmd_bench(args: argparse.Namespace) -> int:
     if args.people < 10 or args.papers < 100:
         print("Use at least 10 people and 100 papers.", file=sys.stderr)
         return EXIT_ERROR
+    if not 1 <= args.workers <= 64 or args.users < 0 or args.seconds <= 0:
+        print("Use 1 to 64 workers, 0 or more users, and a positive number of seconds.",
+              file=sys.stderr)  # fmt: skip
+        return EXIT_ERROR
     run(Path(args.path), people=args.people, papers=args.papers, seed=args.seed,
-        rebuild=args.rebuild, samples=args.samples,
+        rebuild=args.rebuild, samples=args.samples, users=args.users, seconds=args.seconds,
+        workers=args.workers, steps=tuple(args.only or ("nightly", "pages", "load")),
         say=lambda line: print(line, flush=True))  # fmt: skip
     return EXIT_OK
 
@@ -1504,6 +1571,9 @@ def _port_free(host: str, port: int) -> bool:
     return True
 
 
+WORKER_HEALTHCHECK_SECONDS = 60
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -1511,6 +1581,11 @@ def cmd_serve(args: argparse.Namespace) -> int:
     home.require()
     host = args.host or config.server.host
     port = args.port or config.server.port
+    workers = args.workers or config.server.workers
+    if not 1 <= workers <= 64:
+        raise TesseraError("Run between 1 and 64 server processes.")
+    if args.reload:
+        workers = 1  # restarting on code changes runs one process
     for warning in config_warnings(config):
         log.warning("%s", warning)
     if not config.server.accounts and host not in LOOPBACK_HOSTS:
@@ -1539,8 +1614,10 @@ def cmd_serve(args: argparse.Namespace) -> int:
             f"port: `tessera serve --port {other}` (or [server] port)."
         )
     os.environ[ENV_CONFIG_PATH] = str(Path(config.path).resolve())
+    processes = f" in {workers} processes" if workers > 1 else ""
     print(
-        f"{config.branding.product_name} running at http://{host}:{port}/  (Ctrl-C to stop)",
+        f"{config.branding.product_name} running at http://{host}:{port}/{processes}  "
+        "(Ctrl-C to stop)",
         flush=True,
     )
     uvicorn.run(
@@ -1548,6 +1625,11 @@ def cmd_serve(args: argparse.Namespace) -> int:
         factory=True,
         host=host,
         port=port,
+        workers=workers if workers > 1 else None,
+        # A process busy with heavy requests can be slow to answer the supervisor's check; at
+        # uvicorn's 5 seconds it would be killed, with every connection it was serving, and
+        # come back with empty caches. Only one stuck for a minute is restarted.
+        timeout_worker_healthcheck=WORKER_HEALTHCHECK_SECONDS,
         reload=args.reload,
         reload_dirs=[str(Path(__file__).resolve().parents[1])] if args.reload else None,
         log_level="warning" if args.quiet else "info",
@@ -1564,8 +1646,15 @@ def _read_password(from_stdin: bool) -> str:
 
     if from_stdin:
         return sys.stdin.readline().rstrip("\n")
-    first = getpass.getpass("Password (at least 12 characters): ")
-    if getpass.getpass("Again: ") != first:
+    try:
+        first = getpass.getpass("Password (at least 12 characters): ")
+        again = getpass.getpass("Again: ")
+    except EOFError:
+        raise TesseraError(
+            "No password was given. Type it at the prompt, or, from a script, pipe it in with "
+            "--password-stdin."
+        ) from None
+    if again != first:
         raise TesseraError("The two passwords differ.")
     return first
 

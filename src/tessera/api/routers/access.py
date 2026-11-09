@@ -74,16 +74,15 @@ def sign_in(request: Request, response: Response, body: SignIn) -> dict[str, Any
         raise HTTPException(
             status_code=409, detail="Accounts are off; there is nothing to sign in to."
         )
-    throttle = request.app.state.throttle
+    throttle, engine = request.app.state.throttle, engine_of(request)
     username = body.username.strip().lower()
     keys = _throttle_keys(request, f"user:{username}")
-    if throttle.blocked(*keys):
+    if throttle.blocked(engine, *keys):
         raise HTTPException(
             status_code=429,
             detail="Too many failed attempts. Wait a few minutes and try again.",
             headers={"Retry-After": "900"},
         )
-    engine = engine_of(request)
     row = accounts.find_account(engine, username)
     valid = row is not None and row["username"] == username and row["status"] == "active"
     if valid:
@@ -91,9 +90,9 @@ def sign_in(request: Request, response: Response, body: SignIn) -> dict[str, Any
     else:
         burn_time(body.password)  # as slow as a real check, so usernames do not leak
     if not valid:
-        throttle.failed(*keys)
+        throttle.failed(engine, *keys)
         raise HTTPException(status_code=401, detail="That username and password do not match.")
-    throttle.succeeded(*keys)
+    throttle.succeeded(engine, *keys)
     assert row is not None
     token, csrf, expires = create_session(
         engine,
@@ -135,14 +134,14 @@ def change_password(request: Request, response: Response, body: PasswordChange) 
     engine, config = engine_of(request), request.app.state.config
     throttle = request.app.state.throttle
     keys = _throttle_keys(request, f"password:{principal.account_id}")
-    if throttle.blocked(*keys):
+    if throttle.blocked(engine, *keys):
         raise HTTPException(status_code=429, detail="Too many attempts. Wait a few minutes.")
     row = accounts.find_account(engine, principal.account_id)
     assert row is not None
     if not verify_password(body.current_password, row["password_hash"]):
-        throttle.failed(*keys)
+        throttle.failed(engine, *keys)
         raise HTTPException(status_code=400, detail="The current password is not right.")
-    throttle.succeeded(*keys)
+    throttle.succeeded(engine, *keys)
     try:
         accounts.set_password(engine, principal.account_id, body.new_password)
     except PasswordError as exc:

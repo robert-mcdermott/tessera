@@ -386,7 +386,7 @@ def test_api_reference_page(client: TestClient) -> None:
         "/api/v1/assertions/{assertion_id}/decision",
         "/api/v1/search",
         "/api/v1/sources",
-        "/api/v1/grants/{core}",
+        "/api/v1/grants/{core_project_num}",
         "/api/v1/studies/{nct_id}",
     ):
         assert path in spec["paths"], path

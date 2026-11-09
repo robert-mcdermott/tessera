@@ -17,6 +17,9 @@ User=tessera
 Group=tessera
 WorkingDirectory=/srv/tessera
 Environment=TESSERA_CONFIG=/srv/tessera/tessera.toml
+# Four server processes, so one slow request never holds up the rest; each takes its own memory
+# (about 0.7 GB at 100,000 publications). This overrides [server] workers in the configuration.
+Environment=TESSERA_SERVER_WORKERS=4
 # Secrets (NCBI_API_KEY, PGPASSWORD, TESSERA_OIDC_CLIENT_SECRET, …), readable only by root.
 EnvironmentFile=-/etc/tessera/tessera.env
 ExecStart=/srv/tessera/app/.venv/bin/tessera serve

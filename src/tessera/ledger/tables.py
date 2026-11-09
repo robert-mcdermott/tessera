@@ -69,8 +69,12 @@ person = Table(
     Column("merged_into", ID, ForeignKey("person.id", ondelete="SET NULL")),
     # Opted in to a page on the public site (tessera publish).
     Column("public", Boolean, nullable=False, server_default=false()),
+    # The address of their public page, kept from the first time it is published, so that it
+    # never changes (not even when someone of the same name opts in later).
+    Column("public_slug", String(200)),
     CheckConstraint(_in("status", PERSON_STATUSES), name="status"),
 )
+Index(None, person.c.public_slug, unique=True)  # one page each, never shared
 Index(None, person.c.family_name)
 Index(None, person.c.status)
 
@@ -444,6 +448,9 @@ cohort = Table(
     Column("created_at", UtcDateTime, nullable=False),
     Column("updated_by", String(200), nullable=False),
     Column("updated_at", UtcDateTime, nullable=False),
+    # Who may change it besides admins: the account's ID, "operator" in single-operator mode, or
+    # null for one saved before 1.0 whose name matched no single account (admins only).
+    Column("owner", String(40)),
 )
 
 # A person's saved searches (DIS-10): what they searched for, and the matches they have already
@@ -481,6 +488,7 @@ report = Table(
     Column("created_at", UtcDateTime, nullable=False),
     Column("updated_by", String(200), nullable=False),
     Column("updated_at", UtcDateTime, nullable=False),
+    Column("owner", String(40)),  # as a cohort's
 )
 
 report_snapshot = Table(
@@ -540,6 +548,18 @@ auth_session = Table(
     Column("user_agent", String(300)),
 )
 Index(None, auth_session.c.account_id)
+
+# Failed sign-ins and password checks, counted per account and per address to slow guessing.
+# In the ledger, so the count holds across server processes and restarts; only a hash of each
+# key (an account or an address) is kept, and rows older than the window are removed.
+failed_sign_in = Table(
+    "failed_sign_in",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("key_hash", String(64), nullable=False),
+    Column("failed_at", UtcDateTime, nullable=False),
+)
+Index(None, failed_sign_in.c.key_hash, failed_sign_in.c.failed_at)
 
 # Links one automatic run accepted (CUR-05), so that the whole run can be undone together.
 auto_accept_batch = Table(

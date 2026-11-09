@@ -225,12 +225,12 @@ def list_grants(
 
 
 @router.get(
-    "/grants/{core}",
+    "/grants/{core_project_num}",
     tags=["grants"],
     summary="A grant: fiscal-year records, investigators, publications, and studies",
 )
-def get_grant(request: Request, core: str) -> dict[str, Any]:
-    core = core.upper()
+def get_grant(request: Request, core_project_num: str) -> dict[str, Any]:
+    core = core_project_num.upper()
     lake, engine, config = lake_of(request), engine_of(request), config_of(request)
     years = lake.rows(
         "SELECT * FROM reporter_project WHERE core_project_num = ? ORDER BY fiscal_year, appl_id",

@@ -8,19 +8,22 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Body, HTTPException, Query, Request
 from fastapi.responses import PlainTextResponse
 
+from tessera.api import bodies
 from tessera.api.access import principal_of
 from tessera.api.common import config_of, engine_of, envelope, index_of, lake_of
 from tessera.evidence.store import display_names
 from tessera.opportunities import catalog, fit
 from tessera.teams import brief, coverage, store
-from tessera.teams.store import TeamError, TeamNotFound
+from tessera.teams.store import TeamError, TeamForbidden, TeamNotFound
 
 router = APIRouter(prefix="/api/v1", tags=["teams"])
 
 
 def _fail(exc: TeamError) -> HTTPException:
-    return HTTPException(status_code=404 if isinstance(exc, TeamNotFound) else 400,
-                         detail=str(exc))  # fmt: skip
+    status = (
+        404 if isinstance(exc, TeamNotFound) else 403 if isinstance(exc, TeamForbidden) else 400
+    )
+    return HTTPException(status_code=status, detail=str(exc))
 
 
 def _summary(found: dict[str, Any], principal: Any) -> dict[str, Any]:
@@ -68,6 +71,7 @@ def _detail(request: Request, found: dict[str, Any]) -> dict[str, Any]:
                     for m in found["members"]],
         "shared_with": [{"id": p, "name": shared.get(p, p)} for p in found["shared_with"] or []],
         "can_share": store.owns(found, principal),
+        "can_manage": store.owns(found, principal),  # changes who is on it
         "coverage": result,
         "opportunity_view": opportunity,
         "people_who_fit": fitting,
@@ -88,7 +92,11 @@ def list_teams(request: Request) -> dict[str, Any]:
     return envelope([_summary(t, principal) for t in store.list_for(engine_of(request), principal)])
 
 
-@router.post("/teams", summary="Start a team, for an opportunity or for topics you choose")
+@router.post(
+    "/teams",
+    summary="Start a team, for an opportunity or for topics you choose",
+    openapi_extra=bodies.NEW_TEAM,
+)
 def start_team(request: Request, body: Annotated[dict[str, Any], Body()]) -> dict[str, Any]:
     engine, home = engine_of(request), request.app.state.home
     fields = dict(body)
@@ -123,7 +131,11 @@ def get_team(request: Request, team_id: str) -> dict[str, Any]:
     return envelope(_detail(request, _get(request, team_id)))
 
 
-@router.post("/teams/{team_id}", summary="Change a team's name, purpose, notes, topics, or sharing")
+@router.post(
+    "/teams/{team_id}",
+    summary="Change a team's name, purpose, notes, topics, or sharing",
+    openapi_extra=bodies.TEAM_CHANGE,
+)
 def change_team(
     request: Request, team_id: str, body: Annotated[dict[str, Any], Body()]
 ) -> dict[str, Any]:

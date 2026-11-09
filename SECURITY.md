@@ -11,7 +11,7 @@ Say what an attacker could do, which version you used, and how to reproduce it. 
 
 ## Supported versions
 
-Fixes go into the latest release. Tessera is pre-1.0: upgrade to the latest release to receive them (see [Upgrading](docs/operations.md#upgrading)).
+Fixes go into the latest minor release of the current major version (1.x). Upgrading within a major version keeps everything [Compatibility](docs/compatibility.md) promises working, so there is no reason to stay on an older release: upgrade to the latest to receive fixes (see [Upgrading](docs/operations.md#upgrading)).
 
 ## How Tessera is kept secure
 

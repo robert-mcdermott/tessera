@@ -17,7 +17,7 @@ Tessera is an open research intelligence platform for academic research organiza
   </picture>
 </p>
 
-> **Status:** version 0.6.0. It builds the research graph with evidence, supports curation with accounts and roles, finds experts and connections, gives every group a page and a public site, shows the portfolio with Insight, follows grants to their impact, finds funding that fits, offers an optional AI assistant, and now gives every researcher a profile they keep, with CVs and NIH biosketches built from it. Making Tessera easy for another organization to adopt comes next; see the [roadmap](spec/roadmap.md).
+> **Status:** version 1.0.0, stable. It builds the research graph with evidence, supports curation with accounts, roles, and single sign-on, finds experts and connections, gives every group a page and a public site, shows the portfolio with Insight, follows grants to their impact, finds funding that fits, gives every researcher a profile they keep, with CVs and NIH biosketches, and offers an optional AI assistant. It runs on SQLite or PostgreSQL, as a service in several processes, in an organization's own colors and words. From 1.0, what you build on it keeps working when you upgrade: see [Compatibility](docs/compatibility.md), and the [roadmap](spec/roadmap.md) for what comes next.
 
 ## What it does
 

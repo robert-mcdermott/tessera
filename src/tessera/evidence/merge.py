@@ -57,6 +57,18 @@ def _decode(value: Any) -> Any:
     return value
 
 
+def _unchanged(current: dict[str, Any], after: dict[str, Any]) -> bool:
+    """Whether a row still holds what the merge left in it."""
+    for column, value in after.items():
+        now, then = current.get(column), _decode(value)
+        if isinstance(now, datetime) and isinstance(then, datetime):
+            if now.replace(tzinfo=None) != then.replace(tzinfo=None):
+                return False
+        elif now != then:
+            return False
+    return True
+
+
 class Journal:
     """The ordered list of changes a merge makes, each with the values it replaced."""
 
@@ -328,6 +340,18 @@ def unmerge(engine: Engine, merge_id: str, actor: str, note: str | None = None) 
                 f"{survivor['display_name']} was itself merged into another record later. "
                 "Undo that merge first."
             )
+        later = conn.execute(
+            select(person_merge.c.id).where(
+                person_merge.c.survivor_id == row["survivor_id"],
+                person_merge.c.undone_at.is_(None),
+                person_merge.c.at > row["at"],
+            )
+        ).first()
+        if later is not None:  # its journal assumes this one's changes are still in place
+            raise MergeError(
+                f"Another record has been merged into {survivor['display_name']} since. "
+                "Undo that merge first."
+            )
         for entry in reversed(row["journal"]):
             t = TABLES[entry["table"]]
             if entry["op"] == "insert":
@@ -341,6 +365,13 @@ def unmerge(engine: Engine, merge_id: str, actor: str, note: str | None = None) 
             if current is None:
                 raise MergeError(
                     "Something this merge changed no longer exists; it cannot be undone."
+                )
+            if not _unchanged(dict(current), entry["after"]):
+                # Changed since (a decision on a moved link, say): putting back what was there
+                # before the merge would quietly undo that too.
+                raise MergeError(
+                    "Something this merge changed has been changed again since (a decision, "
+                    "say), so it cannot be undone automatically."
                 )
             conn.execute(
                 update(t)

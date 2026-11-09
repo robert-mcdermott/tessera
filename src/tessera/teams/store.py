@@ -32,6 +32,10 @@ class TeamNotFound(TeamError):
     """No such team, or not one this person may see."""
 
 
+class TeamForbidden(TeamError):
+    """Something only the team's owner, or an admin, may do."""
+
+
 def owner_of(principal: Any) -> str:
     return principal.account_id or "operator"
 
@@ -142,7 +146,7 @@ def change(engine: Engine, team_id: str, fields: dict[str, Any], principal: Any)
         values["concepts"] = _clean_concepts(fields["concepts"])
     if "shared_with" in fields:
         if not owns(found, principal):
-            raise TeamError("Only the team's owner, or an admin, shares it.")
+            raise TeamForbidden("Only the team's owner, or an admin, shares it.")
         people = fields["shared_with"]
         if not isinstance(people, list) or not all(isinstance(p, str) for p in people):
             raise TeamError("shared_with is a list of person IDs.")
@@ -163,7 +167,7 @@ def change(engine: Engine, team_id: str, fields: dict[str, Any], principal: Any)
 def remove(engine: Engine, team_id: str, principal: Any) -> None:
     found = get_visible(engine, team_id, principal)
     if not owns(found, principal):
-        raise TeamError("Only the team's owner, or an admin, deletes it.")
+        raise TeamForbidden("Only the team's owner, or an admin, deletes it.")
     with engine.begin() as conn:
         conn.execute(delete(team_member).where(team_member.c.team_id == team_id))
         conn.execute(delete(team).where(team.c.id == team_id))
@@ -173,8 +177,11 @@ def set_member(
     engine: Engine, team_id: str, person_id: str, principal: Any,
     role: str = "collaborator", note: str | None = None,
 ) -> None:  # fmt: skip
-    """Add someone, or change their role or note."""
+    """Add someone, or change their role or note (the owner, or an admin: a member is someone
+    the team is visible to, so adding one shares it)."""
     found = get_visible(engine, team_id, principal)
+    if not owns(found, principal):
+        raise TeamForbidden("Only the team's owner, or an admin, changes who is on it.")
     if role not in TEAM_ROLES:
         raise TeamError(f"role is one of {', '.join(TEAM_ROLES)}.")
     note = _text(note, 500, "note")
@@ -194,7 +201,8 @@ def set_member(
 
 
 def remove_member(engine: Engine, team_id: str, person_id: str, principal: Any) -> None:
-    get_visible(engine, team_id, principal)
+    if not owns(get_visible(engine, team_id, principal), principal):
+        raise TeamForbidden("Only the team's owner, or an admin, changes who is on it.")
     with engine.begin() as conn:
         conn.execute(delete(team_member).where(team_member.c.team_id == team_id,
                                                 team_member.c.person_id == person_id))  # fmt: skip
@@ -204,6 +212,7 @@ def remove_member(engine: Engine, team_id: str, person_id: str, principal: Any) 
 __all__ = [
     "ROLE_LABELS",
     "TeamError",
+    "TeamForbidden",
     "TeamNotFound",
     "change",
     "create",

@@ -1,4 +1,4 @@
-"""``tessera bench``: how Tessera performs on this machine at a chosen size (PLT-14).
+"""``tessera bench``: how Tessera performs on this machine at a chosen size (PLT-14, PLT-16).
 
 1. **Build** (once per folder): a simulated organization written to the lake, then everything a
    first sync does locally: the roster and groups imported, people, links, and authorship
@@ -7,7 +7,9 @@
 2. **Nightly:** one day's new papers (300) added, then what a nightly sync does after fetching:
    resolve, and every build again.
 3. **Pages:** ``tessera serve`` started on a free port, and the app's main requests timed (p50
-   and p95), with the server's memory.
+   and p95), one at a time, with the server's memory.
+4. **Many people at once:** simulated users against the server with several processes, at a
+   realistic pace and without pause (``tessera.bench.load``).
 
 Nothing touches the network. The report (printed, and saved as JSON beside the organization)
 names the machine, so results from different servers can be compared.
@@ -20,7 +22,6 @@ import os
 import platform
 import random
 import shutil
-import socket
 import statistics
 import subprocess
 import sys
@@ -35,6 +36,8 @@ from typing import Any
 from sqlalchemy import insert, select, update
 
 from tessera import __version__
+from tessera.bench.load import LoadRun, load
+from tessera.bench.serving import memory_mb, serving
 from tessera.config import Config, load_config
 from tessera.home import DataHome
 
@@ -80,10 +83,12 @@ class Report:
     sizes: dict[str, int] = field(default_factory=dict)
     server_memory_mb: float | None = None
     ledger: str = "SQLite"
+    load: list[LoadRun] = field(default_factory=list)
 
     def to_json(self) -> dict[str, Any]:
         out = asdict(self)
         out["pages"] = [{**asdict(p), "within": p.within} for p in self.pages]
+        out["load"] = [{**asdict(r), "within": r.within} for r in self.load]
         return out
 
 
@@ -381,60 +386,14 @@ def nightly(path: Path, *, say: Callable[[str], None], report: Report) -> None:
 # --- 3. pages ------------------------------------------------------------------------------------
 
 
-def _free_port() -> int:
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        return int(s.getsockname()[1])
-
-
-def _rss_mb(pid: int) -> float | None:
-    try:
-        out = subprocess.check_output(["ps", "-o", "rss=", "-p", str(pid)], text=True).strip()
-        return round(int(out) / 1024, 1)
-    except (OSError, ValueError, subprocess.SubprocessError):
-        return None
-
-
 def pages(path: Path, *, samples: int, say: Callable[[str], None], report: Report) -> None:
+    """Each request alone, one after another, against one server process."""
     import httpx
 
-    config_path = path / "tessera.toml"
-    port = _free_port()
-    # The server reads the same ledger as the steps before it, wherever it is.
-    env = {**os.environ, "TESSERA_LEDGER_URL": load_config(config_path).ledger_url}
-    server = subprocess.Popen(
-        [
-            sys.executable,
-            "-m",
-            "tessera",
-            "--config",
-            str(config_path),
-            "serve",
-            "--port",
-            str(port),
-        ],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        env=env,
-    )
-    base = f"http://127.0.0.1:{port}"
-    try:
-        with httpx.Client(base_url=base, timeout=120) as client:
-            for _ in range(600):
-                try:
-                    if client.get("/api/v1/health").status_code == 200:
-                        break
-                except httpx.HTTPError:
-                    pass
-                time.sleep(0.1)
-            else:
-                raise RuntimeError("tessera serve did not start")
-            say(f"  timing the app's requests at {base} ({samples} of each) …")
-            _time_pages(client, samples, report, say)
-        report.server_memory_mb = _rss_mb(server.pid)
-    finally:
-        server.terminate()
-        server.wait(timeout=30)
+    with serving(path) as (base, server), httpx.Client(base_url=base, timeout=120) as client:
+        say(f"  timing the app's requests at {base} ({samples} of each) …")
+        _time_pages(client, samples, report, say)
+        report.server_memory_mb = memory_mb(server.pid)
 
 
 def _time_pages(client: Any, samples: int, report: Report,
@@ -513,8 +472,23 @@ def _time_pages(client: Any, samples: int, report: Report,
 # --- the command ---------------------------------------------------------------------------------
 
 
+STEPS = ("nightly", "pages", "load")
+
+
+def _upgrade(path: Path) -> None:
+    from tessera.ledger import migrate
+    from tessera.ledger.db import make_engine
+
+    engine = make_engine(load_config(path / "tessera.toml").ledger_url)
+    try:
+        migrate.upgrade(engine)
+    finally:
+        engine.dispose()
+
+
 def run(path: Path, *, people: int, papers: int, seed: int = 7, rebuild: bool = False,
-        samples: int = 30, say: Callable[[str], None] = print) -> Report:  # fmt: skip
+        samples: int = 30, users: int = 20, seconds: float = 60.0, workers: int = 4,
+        steps: tuple[str, ...] = STEPS, say: Callable[[str], None] = print) -> Report:  # fmt: skip
     path = path.resolve()
     state = json.loads((path / STATE).read_text()) if (path / STATE).exists() else None
     fresh = rebuild or state is None or (state["people"], state["papers"]) != (people, papers)
@@ -528,10 +502,16 @@ def run(path: Path, *, people: int, papers: int, seed: int = 7, rebuild: bool = 
     report.ledger = (
         "PostgreSQL" if "postgresql" in load_config(path / "tessera.toml").ledger_url else "SQLite"
     )
-    say("A nightly sync (no fetching) …")
-    nightly(path, say=say, report=report)
-    say("The app …")
-    pages(path, samples=samples, say=say, report=report)
+    _upgrade(path)  # an organization built by an earlier version
+    if "nightly" in steps:
+        say("A nightly sync (no fetching) …")
+        nightly(path, say=say, report=report)
+    if "pages" in steps:
+        say("The app, one request at a time …")
+        pages(path, samples=samples, say=say, report=report)
+    if "load" in steps and users > 0:
+        say("Many people at once …")
+        load(path, users=users, seconds=seconds, workers=workers, say=say, runs=report.load)
     stamp = time.strftime("%Y%m%d-%H%M%S")
     out = path / f"bench-{stamp}.json"
     out.write_text(json.dumps(report.to_json(), indent=1, default=str), encoding="utf-8")
@@ -539,4 +519,4 @@ def run(path: Path, *, people: int, papers: int, seed: int = 7, rebuild: bool = 
     return report
 
 
-__all__ = ["NEW_PAPERS", "Page", "Report", "Step", "machine", "run"]
+__all__ = ["NEW_PAPERS", "STEPS", "Page", "Report", "Step", "machine", "run"]

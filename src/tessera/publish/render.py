@@ -92,7 +92,14 @@ class Page:
             meta.append(f'<meta property="og:image" content="{esc(image)}">')
             meta.append('<meta name="twitter:card" content="summary_large_image">')
         if self.data:
-            data = json.dumps(self.data, ensure_ascii=False, sort_keys=True).replace("</", "<\\/")
+            # Inside <script>, "<!--" and "<script" change how the rest is read, not only "</":
+            # escape every <, >, and & (still the same JSON).
+            data = (
+                json.dumps(self.data, ensure_ascii=False, sort_keys=True)
+                .replace("&", "\\u0026")
+                .replace("<", "\\u003c")
+                .replace(">", "\\u003e")
+            )
             meta.append(f'<script type="application/ld+json">{data}</script>')
         notes = "".join(f"<p>{esc(c)}</p>" for c in credits)
         if site.footer_links:

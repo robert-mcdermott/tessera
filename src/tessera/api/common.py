@@ -14,15 +14,17 @@ import base64
 import binascii
 import json
 import logging
+import time
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from pathlib import Path
 from typing import Any
 
 import pyarrow as pa
 from fastapi import HTTPException, Query, Request
 from sqlalchemy.engine import Engine
 
-from tessera.config import Config
+from tessera.config import Config, load_config
 from tessera.lake import Lake
 from tessera.search.index import index_path
 from tessera.search.query import SearchIndex
@@ -34,6 +36,44 @@ log = logging.getLogger("tessera.api")
 
 def config_of(request: Request) -> Config:
     return request.app.state.config
+
+
+BRANDING_CHECK_SECONDS = 1.0
+
+
+def config_stamp(config: Config) -> int | None:
+    """When the configuration file last changed, or None if it cannot be read."""
+    try:
+        return Path(config.path).stat().st_mtime_ns if config.path else None
+    except OSError:
+        return None
+
+
+def follow_branding(app: Any) -> None:
+    """Take up branding saved by another server process.
+
+    Saving branding in the app rewrites the configuration file and applies it at once in the
+    process that saved it; every other process notices the file changed (looked at no more
+    than once a second) and takes its branding too. As when saving, nothing else in the file
+    takes effect until a restart.
+    """
+    state = app.state
+    now = time.monotonic()
+    if now - getattr(state, "branding_checked", 0.0) < BRANDING_CHECK_SECONDS:
+        return
+    state.branding_checked = now
+    config = state.config
+    stamp = config_stamp(config)
+    if stamp is None or stamp == getattr(state, "config_stamp", None):
+        return
+    state.config_stamp = stamp
+    try:
+        saved = load_config(config.path)
+    except Exception as exc:  # a file being written, or edited by hand into an error
+        log.warning("The configuration file changed but does not load: %s", exc)
+        return
+    if saved.branding != config.branding:
+        state.config = replace(config, branding=saved.branding)
 
 
 def engine_of(request: Request) -> Engine:

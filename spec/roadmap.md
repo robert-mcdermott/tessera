@@ -14,7 +14,7 @@ The order is chosen so that every wave ends with something demonstrable using **
 | 5 | v0.5.0 | **Impact** | Follow grants to their impact; match funding opportunities to teams; optional grounded AI assistant |
 | 6 | v0.6.0 | **Profiles** | Every researcher has a full profile (positions, education, honors, service, activities) that they keep, open to everyone inside, public only if they opt in, with CVs and biosketches built from it |
 | 7 | v0.7.0 | **Adoption** | Another organization installs, re-brands, and runs Tessera on PostgreSQL with single sign-on |
-| — | v1.0.0 | **Stable** | Hardened, audited, documented, with API and upgrade guarantees |
+| 8 | v1.0.0 | **Stable** | Many people use it at once without slowing down; an installation of any earlier release upgrades with nothing lost; the API, configuration, and data home carry a compatibility promise |
 
 Status key: ☐ planned · ◐ in progress · ☑ done
 
@@ -175,15 +175,27 @@ Released as [v0.6.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0
 
 Detail: [waves/wave-7.md](waves/wave-7.md)
 
-## v1.0.0: Stable ☐
+## Wave 8: Stable (v1.0.0) ☑
+
+**Goal:** make Tessera dependable to run and to build on, ready to demonstrate and to pilot.
 
 - API stability guarantee for `/api/v1`; documented deprecation policy
 - Upgrade path tested across all 0.x schemas
-- Hardening from pilot feedback
+- Hardening from our own testing: a soak, failure drills, and a review of the code that decides or protects things. No outside pilot comes before 1.0; demonstrations and a pilot with real users follow the release
 - Steady under many users at once, for the size Tessera is built for: a few thousand people and up to about 300,000 publications, where wave 7 measured a nightly sync of under two minutes and pages within their budgets. A load test after wave 7 (20 simulated users on one server process, at 100,000 publications) was fast at a realistic pace (median 33 ms, slowest 2 s), but with every user requesting without pause it showed two weaknesses, fixed here:
   - **Each Insight figure built once.** When several people ask for the same figure, or the same inputs, before they are ready, one request builds them and the others wait for that result; today each builds its own at the same time, and under that load figures waited up to 93 seconds
   - **Several server processes.** `tessera serve --workers`, with the service files running 2 to 4, so one slow request no longer holds up the rest (four processes served ten times the requests of one in the same test); first, the limit on failed sign-ins moves from each process's memory to the ledger, so it holds across processes
   - **A load test in `tessera bench`.** Simulated users at once against the server, at a realistic pace and without pause, so an organization can check its own server before going live and after each upgrade
+
+| Slice | Name | Delivers | Status |
+|---|---|---|---|
+| 1 | Many people at once | A load test in `tessera bench`, each Insight figure built once, several server processes, sign-in limits in the ledger | ☑ |
+| 2 | The 1.0 promise | Stable and experimental routes, a test against breaking changes, a deprecation policy, a compatibility guide | ☑ |
+| 3 | Upgrades from every earlier release | Each 0.x release's data home upgraded to 1.0 with every record kept, on SQLite and PostgreSQL | ☑ |
+| 4 | Hardened | A soak, failure drills, a review of the code that decides or protects things, dependencies current | ☑ |
+| 5 | Release prep | Guides, screenshots, checks, changelog, release | ☑ |
+
+Released as [v1.0.0](https://github.com/robert-mcdermott/tessera/releases/tag/v1.0.0) on 2026-11-09. Detail: [waves/wave-8.md](waves/wave-8.md)
 
 ## Later, for much larger organizations
 

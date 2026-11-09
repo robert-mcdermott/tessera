@@ -44,7 +44,8 @@ from tessera.ledger.tables import metadata
 
 # Never exported: secrets that would let someone sign in as somebody else.
 WITHHELD = {"account": {"password_hash"}, "auth_session": {"token_hash", "csrf_token"}}
-SKIPPED_TABLES = {"auth_session", "sign_in_attempt"}  # signed-in browsers and sign-ins under way
+# Signed-in browsers, sign-ins under way, and the count of recent failed ones.
+SKIPPED_TABLES = {"auth_session", "sign_in_attempt", "failed_sign_in"}
 # Left out while empty and the feature is off.
 OPTIONAL_TABLES = {"ai_exchange", "ai_summary", "summary_event"}
 

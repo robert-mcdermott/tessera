@@ -83,6 +83,7 @@ function coverageTable(t) {
 }
 
 function addPersonButton(t, person, reload, label = "Add") {
+  if (!t.can_manage) return null; // only its owner, or an admin, changes who is on it
   return h("button", { type: "button", class: "btn btn-sm", "aria-label": `${label} ${person.name} to the team`, onclick: async () => {
     await post(api(t.id, "/members"), { person_id: person.id, role: "collaborator" });
     invalidate();
@@ -118,6 +119,10 @@ function members(t, reload) {
   }, 250));
   return card({ title: `Members (${number(t.members.length)})`, pad: true, attrs: { "data-entity": "person" }, body: h("div", { class: "stack" },
     t.members.length ? h("ul", { class: "plain-list fit-list" }, t.members.map((m) => {
+      if (!t.can_manage) {
+        return h("li", {}, h("div", { class: "row-sm" }, avatar(m.name, "sm"), h("a", { class: "grow", href: `/people/${m.id}` }, m.name),
+          h("span", { class: "subtle" }, m.role_label)));
+      }
       const role = h("select", { class: "input input-sm", "aria-label": `Role of ${m.name}`, onchange: async (event) => {
         await post(api(t.id, "/members"), { person_id: m.id, role: event.target.value, note: m.note });
         invalidate();
@@ -130,7 +135,7 @@ function members(t, reload) {
           reload();
         } }, icon("close", "icon icon-sm"))));
     })) : h("p", { class: "muted" }, "Nobody yet."),
-    input, results) });
+    t.can_manage ? input : null, t.can_manage ? results : null) });
 }
 
 function topics(t, reload) {

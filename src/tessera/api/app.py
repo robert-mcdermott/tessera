@@ -9,7 +9,9 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI
 
 from tessera import PRODUCT_NAME, __version__
+from tessera.api import stability
 from tessera.api.access import authorize, install_access
+from tessera.api.common import config_stamp
 from tessera.api.problems import install_problem_handlers
 from tessera.api.routers import (
     access,
@@ -74,6 +76,7 @@ def create_app(config: Config) -> FastAPI:
         dependencies=[Depends(authorize)],  # every route's role, from access.POLICIES
     )
     app.state.config = config
+    app.state.config_stamp = config_stamp(config)  # to notice branding saved by another process
     app.state.home = home
     app.state.throttle = SignInThrottle()
     install_access(app)  # every request: who is asking, and may they (before the headers,
@@ -107,6 +110,8 @@ def create_app(config: Config) -> FastAPI:
         from tessera.ai.web import install_ai
 
         install_ai(app)
+    stability.mark(app)  # each route stable or experimental, in the OpenAPI document
+    stability.install_deprecations(app)
     install_api_reference(app)
     install_theme(app)
     install_branding(app)

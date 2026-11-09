@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.engine import Engine
 
 from tessera.analytics.concepts import profile_path
@@ -68,6 +68,12 @@ def _profile_view(chosen: dict[str, Any], summaries: Any) -> list[dict[str, Any]
     return out
 
 
+def _shown_name(name: str | None) -> str:
+    """A name fit for the public site: an account named by its email address (single sign-on
+    gives one when the provider sends no name) is shown as its role instead."""
+    return "a reviewer" if not name or "@" in name else name
+
+
 def _day(value: Any) -> str | None:
     return f"{value.day} {value:%B %Y}" if value else None
 
@@ -101,9 +107,10 @@ class Site:
 
 
 def project(config: Config, home: DataHome, engine: Engine, today: date | None = None,
-            only_person: str | None = None) -> Site:  # fmt: skip
+            only_person: str | None = None, keep_addresses: bool = False) -> Site:  # fmt: skip
     """The site's data. With ``only_person``, just that person's page, public or not yet (for a
-    preview of what publishing it would show); no group pages."""
+    preview of what publishing it would show); no group pages. With ``keep_addresses`` (when
+    publishing), the address given to anyone published for the first time is kept."""
     today = today or date.today()
     vocab = config.vocabulary
     org = config.organization
@@ -146,17 +153,28 @@ def project(config: Config, home: DataHome, engine: Engine, today: date | None =
         }
         # What each person chose to show from their profile, and which built sections to leave off.
         profiles = {pid: profile_store.public_profile(conn, pid) for pid in public_people}
-        # Addresses: from names, in a fixed order, so they are stable between builds.
+        # Addresses: each person keeps the one their page was first published at; anyone new
+        # gets one from their name that nobody has had, so a link never comes to show someone
+        # else.
+        kept = dict(
+            conn.execute(
+                select(person.c.id, person.c.public_slug).where(person.c.public_slug.is_not(None))
+            ).all()
+        )
         person_slug: dict[str, str] = {}
-        taken: set[str] = set()
+        taken: set[str] = set(kept.values())
+        new_addresses: dict[str, str] = {}
         for pid in sorted(public_people):
+            if pid in kept:
+                person_slug[pid] = kept[pid]
+                continue
             base = slugify(public_people[pid].display_name)
             slug, n = base, 1
             while slug in taken:
                 n += 1
                 slug = f"{base}-{n}"
             taken.add(slug)
-            person_slug[pid] = slug
+            person_slug[pid] = new_addresses[pid] = slug
         group_slug = {gid: g["slug"] for gid, g in public_groups.items()}
         # Approved plain-language summaries: only while their feature is on, and only of public
         # people and groups.
@@ -166,7 +184,7 @@ def project(config: Config, home: DataHome, engine: Engine, today: date | None =
 
             for kind, ids in (("person", public_people), ("group", public_groups)):
                 lay[kind] = {
-                    sid: {"text": r["text"], "approved_by": r["decided_by"],
+                    sid: {"text": r["text"], "approved_by": _shown_name(r["decided_by"]),
                           "approved_on": _day(r["decided_at"]), "label": summary_store.LABEL}
                     for sid, r in summary_store.approved(conn, kind, sorted(ids)).items()
                 }  # fmt: skip
@@ -223,7 +241,7 @@ def project(config: Config, home: DataHome, engine: Engine, today: date | None =
                 "studies": profile.linked(conn, ids, "official_of"),
                 "connections": [
                     c
-                    for c in profile.connections(conn, gid, ids, config, today)
+                    for c in profile.connections(conn, gid, ids, config, today, confirmed_only=True)
                     if c["id"] in public_groups
                 ],
                 "parents": [
@@ -237,9 +255,20 @@ def project(config: Config, home: DataHome, engine: Engine, today: date | None =
             }
 
     # --- people ---------------------------------------------------------------------------
+    if keep_addresses and new_addresses and not only_person:
+        with engine.begin() as conn:
+            for pid, slug in new_addresses.items():
+                conn.execute(
+                    update(person)
+                    .where(person.c.id == pid, person.c.public_slug.is_(None))
+                    .values(public_slug=slug)
+                )
     with Lake(home.lake) as lake:
         for pid in sorted(public_people, key=lambda p: (
             (public_people[p].family_name or public_people[p].display_name).lower(), p)):  # fmt: skip
+            hidden = set(
+                profiles[pid]["hidden_sections"]
+            )  # left out of the data, not only the page
             papers = summaries(authored.get(pid, []))
             citations = sorted(
                 (c for c in (_pick(papers.get(r), CITATION_FIELDS) for r in authored.get(pid, []))
@@ -250,25 +279,28 @@ def project(config: Config, home: DataHome, engine: Engine, today: date | None =
                 {
                     "slug": person_slug[pid],
                     "name": public_people[pid].display_name,
-                    "summary": lay["person"].get(pid),
+                    "summary": None if "summary" in hidden else lay["person"].get(pid),
                     "sort": (public_people[pid].family_name or public_people[pid].display_name),
                     "orcid": orcid.get(pid),
-                    "groups": sorted(memberships.get(pid, []), key=lambda m: m["group"]),
-                    "areas": [
+                    "groups": [] if "groups" in hidden
+                    else sorted(memberships.get(pid, []), key=lambda m: m["group"]),
+                    "areas": [] if "topics" in hidden else [
                         {"area": a["area"], "share": a["share"]}
                         for a in person_areas(lake, home, pid)[:5]
                         if a["share"] >= 0.03
                     ],
-                    "topics": [
-                        c["descriptor"] for c in person_concepts(lake, profile_path(home), pid, 10)
-                    ],
-                    "publications": citations,
+                    "topics": [] if "topics" in hidden else [  # those confirmed papers carry
+                        c["descriptor"]
+                        for c in person_concepts(lake, profile_path(home), pid, 30)
+                        if c["confirmed"]
+                    ][:10],
+                    "publications": [] if "publications" in hidden else citations,
                     "profile": _profile_view(profiles[pid], summaries),
-                    "hidden": set(profiles[pid]["hidden_sections"]),
-                    "grants": [
+                    "hidden": hidden,
+                    "grants": [] if "grants" in hidden else [
                         g for g in (_pick(s, GRANT_FIELDS) for s in summaries(grants.get(pid, [])).values()) if g
                     ],
-                    "studies": [
+                    "studies": [] if "studies" in hidden else [
                         s for s in (_pick(x, STUDY_FIELDS) for x in summaries(studies.get(pid, [])).values()) if s
                     ],
                 }
@@ -278,7 +310,7 @@ def project(config: Config, home: DataHome, engine: Engine, today: date | None =
     for gid, g in sorted([] if only_person else public_groups.items(),
                          key=lambda kv: kv[1]["name"].lower()):  # fmt: skip
         data = group_data[gid]
-        topics, areas = profile.topics_and_areas(home, data["ids"])
+        topics, areas = profile.topics_and_areas(home, data["ids"], confirmed_only=True)
 
         def person_ref(v: dict[str, Any]) -> dict[str, Any]:
             return {
