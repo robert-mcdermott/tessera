@@ -163,8 +163,10 @@ figure.shot img { border-radius: var(--radius-xl, 18px); box-shadow: 0 1px 2px r
 .feature.flip .feature-text { order: 2; }
 .feature h2 { border: 0; margin: 0 0 var(--space-3); padding: 0; font-size: 26px; }
 .feature p { color: var(--text-muted); }
-.how, .try, .guides { margin: var(--space-9) 0; }
-.how h2, .try h2, .guides h2 { border: 0; padding: 0; font-size: 26px; }
+.how, .try, .guides, .stable { margin: var(--space-9) 0; }
+.how h2, .try h2, .guides h2, .stable h2 { border: 0; padding: 0; font-size: 26px; }
+.stable > p { color: var(--text-muted); }
+.stable .pillars { margin: var(--space-5) 0 0; }
 .how figure img { box-shadow: none; }
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--space-3); }
 .cards a { display: grid; gap: 4px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius-l); text-decoration: none; background: var(--surface-1); }

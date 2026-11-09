@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compatibility · Tessera</title>
+<meta name="description" content="From 1.0, Tessera promises that what you build on it keeps working when you upgrade: scripts that call its API, the configuration you wrote, the data home it keeps, the exports you take, and the addre">
+<meta property="og:title" content="Compatibility">
+<meta property="og:description" content="From 1.0, Tessera promises that what you build on it keeps working when you upgrade: scripts that call its API, the configuration you wrote, the data home it keeps, the exports you take, and the addre">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://robert-mcdermott.github.io/tessera/images/social-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="assets/tessera-mark.svg">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/site.css">
+<script src="assets/theme.js"></script>
+<script src="assets/site.js" defer></script>
+</head>
+<body class="page-compatibility">
+<a class="skip" href="#content">Skip to content</a>
+<header class="top">
+  <button class="menu-button" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu">☰</button>
+  <a class="brand" href="index.html"><img src="assets/tessera-mark.svg" alt="" width="26" height="26"><span>Tessera</span><span class="version">v1.0.0</span></a>
+  <div class="search" role="search">
+    <input id="search" type="search" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off" spellcheck="false">
+    <kbd>/</kbd>
+    <div class="results" id="results" role="listbox" hidden></div>
+  </div>
+  <div class="theme" role="group" aria-label="Theme">
+    <button type="button" data-theme-choice="light" title="Light">☀</button><button type="button" data-theme-choice="system" title="System">◐</button><button type="button" data-theme-choice="dark" title="Dark">☾</button>
+  </div>
+  <a class="github" href="https://github.com/robert-mcdermott/tessera" rel="noopener">GitHub</a>
+</header>
+<div class="layout">
+  <nav class="menu" id="menu" aria-label="Documentation"><div class="menu-group"><div class="menu-title">Start</div><ul><li><a href="index.html">Overview</a></li><li><a href="getting-started.html">Getting started</a></li><li><a href="adopting.html">Adopting Tessera</a></li><li><a href="organization-profile.html">Describing your organization</a></li></ul></div><div class="menu-group"><div class="menu-title">Use</div><ul><li><a href="curation.html">Curating</a></li><li><a href="discovery.html">Finding experts</a></li><li><a href="groups.html">Groups</a></li><li><a href="profiles.html">Profiles</a></li><li><a href="insight.html">Insight</a></li><li><a href="opportunities.html">Opportunities</a></li><li><a href="public-site.html">The public site</a></li></ul></div><div class="menu-group"><div class="menu-title">Run</div><ul><li><a href="branding.html">Look and words</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="operations.html">Running Tessera</a></li><li><a href="assistant.html">The assistant</a></li></ul></div><div class="menu-group"><div class="menu-title">Reference</div><ul><li><a href="api.html">The API</a></li><li><a href="api-reference.html">API reference</a></li><li><a href="cli.html">Command reference</a></li><li><a href="compatibility.html" aria-current="page">Compatibility</a></li><li><a href="changelog.html">Changelog</a></li></ul></div></nav>
+  <main id="content" class="content">
+<h1 id="compatibility">Compatibility</h1>
+<p>From 1.0, Tessera promises that what you build on it keeps working when you upgrade: scripts that call its API, the configuration you wrote, the data home it keeps, the exports you take, and the addresses of your public site. This guide says what is promised, what is not, and how anything is retired.</p>
+<h2 id="version-numbers">Version numbers<a class="anchor" href="#version-numbers" aria-label="Link to this section">#</a></h2>
+<p>Versions are <em>major.minor.patch</em>:</p>
+<ul><li><strong>Patch</strong> releases (1.0.1) fix problems and change nothing you rely on.</li><li><strong>Minor</strong> releases (1.1.0) add things. Nothing promised below changes or goes away in one, except a deprecated item past its sunset (see <a href="#retiring-something">Retiring something</a>).</li><li><strong>Major</strong> releases (2.0.0) may change or remove what is promised. Each says what, and how to move.</li></ul>
+<p>Every change is in the <a href="changelog.html">changelog</a>, with <strong>Breaking</strong> changes (only ever in a major release, or for an experimental route) and <strong>Deprecated</strong> items called out.</p>
+<h2 id="the-api">The API<a class="anchor" href="#the-api" aria-label="Link to this section">#</a></h2>
+<p>Every route under <code>/api/v1</code> is either <strong>stable</strong> or <strong>experimental</strong>, marked as <code>x-stability</code> in the OpenAPI document (served at <code>/api/openapi.json</code>; a copy for this version is in <a href="https://github.com/robert-mcdermott/tessera/blob/main/docs/openapi.json" rel="noopener">openapi.json</a>).</p>
+<p>A <strong>stable</strong> route changes only by adding to it:</p>
+<ul><li>new routes;</li><li>new optional parameters, and new optional fields in a request body;</li><li>new fields in an answer, and new values where a field lists choices (treat a value you do not know as you would an unknown one);</li><li>more items in a list, and more facets.</li></ul>
+<p>So a client should ignore fields it does not know, and should not depend on the order of an object's fields. Everything else stays: a stable route's address, its parameters, the fields of its request body and of its answer, their types, and the <a href="api.html#conventions">conventions</a> (the envelope, paging, errors, and identifiers).</p>
+<p><strong>Experimental</strong> routes serve views that are still settling, or depend on outside services: the graph views' data, the branding editor's, job metrics, how an opportunity fits, the evidence model's evaluation, and the optional assistant. They may change in a minor release, and the changelog says how.</p>
+<p>A test keeps the promise: <a href="https://github.com/robert-mcdermott/tessera/blob/main/tests/api_contract.json" rel="noopener"><code>tests/api_contract.json</code></a> records what every stable route accepts and what it answers with (each answer recorded from the demonstration organization, field by field, with its type), and the test fails on any change that would break a client. Recording it again adds what is new and never removes anything.</p>
+<p>An Insight figure's rows are described by its metric's definition, which has a version (<code>publications.count/v1</code>): a metric whose counting changes gets a new version, and every figure says which it used (see <a href="insight.html#definitions">Insight</a>).</p>
+<h2 id="the-command-line">The command line<a class="anchor" href="#the-command-line" aria-label="Link to this section">#</a></h2>
+<p>Commands, their options, and their exit codes (0 for success, anything else for a failure) keep working; new commands and options may be added. What a command prints for people to read may change; for anything a script needs, use the API or the exports.</p>
+<h2 id="the-configuration-file">The configuration file<a class="anchor" href="#the-configuration-file" aria-label="Link to this section">#</a></h2>
+<p>Every setting in <code>tessera.toml</code> keeps its meaning, and every new setting has a default, so a configuration written for 1.0 loads in every 1.x release. If a setting is ever renamed, the old name keeps working, with a warning, until the next major release. The same holds for the environment variables that override settings (<code>TESSERA_SERVER_WORKERS</code>, and the like).</p>
+<h2 id="the-data-home-and-the-ledger">The data home and the ledger<a class="anchor" href="#the-data-home-and-the-ledger" aria-label="Link to this section">#</a></h2>
+<p>A data home from any earlier release upgrades with <code>tessera db upgrade</code>, keeping every record; the search index and other derived files are rebuilt by <code>tessera build</code>. Upgrades go forward only: to go back, restore the backup taken before upgrading (see <a href="operations.html#upgrading">Upgrading</a>).</p>
+<p>The data home's layout, the ledger's tables, and the lake's files are Tessera's own, and may change in any release, with migrations that carry your data forward. Read them through the API or an export rather than directly.</p>
+<h2 id="exports">Exports<a class="anchor" href="#exports" aria-label="Link to this section">#</a></h2>
+<p>The exit export (<code>tessera export</code>) keeps its tables and their columns; new ones may be added, and its data dictionary describes every one. Backups (<code>tessera backup</code>) restore into the same release or any later one.</p>
+<h2 id="the-public-site">The public site<a class="anchor" href="#the-public-site" aria-label="Link to this section">#</a></h2>
+<p>The addresses of the public site's pages (each group's and person's page, the pieces a group's own website embeds, the indexes, and the sitemap) stay the same, so links to them keep working.</p>
+<h2 id="retiring-something">Retiring something<a class="anchor" href="#retiring-something" aria-label="Link to this section">#</a></h2>
+<p>Anything stable that is to go away is first <strong>deprecated</strong>: it keeps working until its <strong>sunset</strong>, at least six months after it was deprecated and never before the next minor release. The changelog lists it under <strong>Deprecated</strong>, with what to use instead. A deprecated API route also says so in every answer:</p>
+<ul><li><code>Deprecation</code>: when it was deprecated (<a href="https://www.rfc-editor.org/rfc/rfc9745" rel="noopener">RFC 9745</a>), such as <code>@1799020800</code>;</li><li><code>Sunset</code>: the date it stops working (<a href="https://www.rfc-editor.org/rfc/rfc8594" rel="noopener">RFC 8594</a>);</li><li><code>Link</code>: what replaces it;</li></ul>
+<p>and is marked <code>deprecated</code> in the OpenAPI document, with <code>x-sunset</code> and <code>x-replacement</code>. Nothing is deprecated in 1.0.</p>
+<h2 id="security-fixes">Security fixes<a class="anchor" href="#security-fixes" aria-label="Link to this section">#</a></h2>
+<p>Fixes go into the latest minor release of the current major version. See <a href="https://github.com/robert-mcdermott/tessera/blob/main/SECURITY.md" rel="noopener">Security</a>.</p>
+    <nav class="pager" aria-label="Pages"><a class="prev" href="cli.html"><span>Previous</span>Command reference</a><a class="next" href="changelog.html"><span>Next</span>Changelog</a></nav>
+    <footer class="foot">Describes Tessera 1.0.0. Apache License 2.0. Screenshots show an invented organization; every person and record in them is fictional.</footer>
+  </main>
+  <aside class="toc" aria-label="On this page"><div class="menu-title">On this page</div><ul><li class="l2"><a href="#version-numbers">Version numbers</a></li><li class="l2"><a href="#the-api">The API</a></li><li class="l2"><a href="#the-command-line">The command line</a></li><li class="l2"><a href="#the-configuration-file">The configuration file</a></li><li class="l2"><a href="#the-data-home-and-the-ledger">The data home and the ledger</a></li><li class="l2"><a href="#exports">Exports</a></li><li class="l2"><a href="#the-public-site">The public site</a></li><li class="l2"><a href="#retiring-something">Retiring something</a></li><li class="l2"><a href="#security-fixes">Security fixes</a></li></ul></aside>
+</div>
+</body>
+</html>
