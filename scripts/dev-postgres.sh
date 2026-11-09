@@ -6,6 +6,7 @@
 #   scripts/dev-postgres.sh stop     stop and remove it
 #
 # Then:  TESSERA_TEST_POSTGRES_URL=<printed url> uv run pytest -m postgres
+#   or scripts/test-both.sh to run the whole suite on SQLite and on PostgreSQL
 set -eu
 
 NAME="${TESSERA_PG_CONTAINER:-tessera-pg-test}"
@@ -28,7 +29,9 @@ if ! "$ENGINE" container exists "$NAME" 2>/dev/null && \
    ! "$ENGINE" inspect "$NAME" >/dev/null 2>&1; then
   "$ENGINE" run -d --rm --name "$NAME" \
     -e POSTGRES_USER=tessera -e POSTGRES_PASSWORD="$PASSWORD" -e POSTGRES_DB=tessera_test \
-    -p "127.0.0.1:$PORT:5432" "$IMAGE" >/dev/null
+    -p "127.0.0.1:$PORT:5432" "$IMAGE" \
+    -c max_connections=300 -c fsync=off -c synchronous_commit=off -c full_page_writes=off \
+    >/dev/null  # durability off: these databases are thrown away
 fi
 
 printf "Waiting for PostgreSQL on 127.0.0.1:%s " "$PORT"

@@ -2,7 +2,7 @@
 
 **Goal:** make Tessera easy for another organization to adopt and run: on PostgreSQL, behind its own single sign-on, in its own colors and words, as a service on its own server, at the size of a large research institution, accessible, reviewed for security, and with a guide that takes an adopter from nothing to a curated, published installation.
 
-**Branch:** `wave-7` · **Target version:** `0.7.0` · **Status:** ◐ planned
+**Branch:** `wave-7` · **Target version:** `0.7.0` · **Status:** ◐ slice 1 done
 
 ## Exit criteria
 
@@ -47,14 +47,14 @@ Requirements: PLT-09, PLT-10, PLT-14, PLT-15, UX-06; PLT-05, PLT-11, and PLT-13 
 
 ---
 
-## Slice 1: Both databases ☐
+## Slice 1: Both databases ☑
 
 **Goal:** every test runs on PostgreSQL as well as SQLite, and passes on both (PLT-09).
 
-- [ ] A switch that runs the whole suite against PostgreSQL: each installation a test creates gets a fresh PostgreSQL database instead of a SQLite file
-- [ ] Whatever behaves differently on PostgreSQL is fixed in the code, not skipped in the tests (types, ordering, case, JSON, locking, identifiers)
-- [ ] One command runs the suite on both, starting and removing a disposable PostgreSQL
-- [ ] *Running Tessera* says when to choose PostgreSQL and how to move an installation from SQLite
+- [x] A switch that runs the whole suite against PostgreSQL: each installation a test creates gets a fresh PostgreSQL database instead of a SQLite file
+- [x] Whatever behaves differently on PostgreSQL is fixed in the code, not skipped in the tests (types, ordering, case, JSON, locking, identifiers)
+- [x] One command runs the suite on both, starting and removing a disposable PostgreSQL
+- [x] *Running Tessera* says when to choose PostgreSQL and how to move an installation from SQLite
 
 **Acceptance:** the full suite passes on SQLite and on PostgreSQL 16, with no test skipped on either except those that are about the other database.
 
@@ -138,4 +138,5 @@ Requirements: PLT-09, PLT-10, PLT-14, PLT-15, UX-06; PLT-05, PLT-11, and PLT-13 
 
 | Date | Note |
 |---|---|
+| 2026-11-08 | Slice 1 done. With `TESSERA_TEST_LEDGER=postgres`, each data home a test creates gets its own empty PostgreSQL database (a migration takes 0.12 s there, so no template is needed and every test means exactly what it does on SQLite); the switch lives in the tests alone and changes nothing in Tessera. The whole suite then failed three tests: two were about the default SQLite file (one now says so and is skipped on PostgreSQL; the other checks the file only on SQLite), and one was a real difference: the review queue's ties came back in storage order, which on PostgreSQL changes after a restore. Assertions are now read in ID order, and the queue's sort ends with the ID. `scripts/test-both.sh` runs both: 827 tests on SQLite in 3.6 minutes and 828 on PostgreSQL 16 in 11 minutes, on the laptop. |
 | 2026-11-08 | Wave 7 planned. Single sign-on is OpenID Connect only, with the authorization-code flow and PKCE, the ID token's signature checked against the provider's keys with the standard library, and app roles recommended for Entra ID because of its group limit. The scale target is simulated; the budgets extend the ones in [ux.md](../ux.md) from 5,000 people and 300,000 publications to 10,000 and 1,000,000, and add the sync's and builds' times. |

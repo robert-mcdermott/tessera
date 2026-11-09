@@ -80,6 +80,7 @@ addopts = "-ra --strict-markers -m 'not network'"
 markers = [
     "network: live tests that call public APIs (run with -m network)",
     "postgres: needs TESSERA_TEST_POSTGRES_URL (see CONTRIBUTING.md)",
+    "sqlite_ledger: about the default SQLite ledger file, so skipped when every ledger is on PostgreSQL",
 ]
 filterwarnings = [
     "error::DeprecationWarning:tessera.*",

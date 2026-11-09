@@ -6,6 +6,7 @@ import pytest
 
 from tessera import __version__
 from tessera.cli import EXIT_ERROR, EXIT_OK, main
+from tessera.config import load_config
 from tessera.lake import LakeWriter
 from tessera.lake.schemas import ICITE
 from tessera.ledger import migrate
@@ -40,7 +41,8 @@ def test_init_creates_everything(tmp_path: Path, capsys: pytest.CaptureFixture[s
     home = tmp_path / "site" / "var"
     for sub in ("raw", "lake", "derived", "logs"):
         assert (home / sub).is_dir()
-    assert (home / "ledger.db").is_file()
+    if load_config(config, env={}).ledger_url.startswith("sqlite"):
+        assert (home / "ledger.db").is_file()
     assert f"Ledger ready (revision {migrate.head_revision()})" in out
 
     config.write_text(config.read_text().replace('name = "Example University"', 'name = "Kept"'))

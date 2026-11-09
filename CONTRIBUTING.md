@@ -26,13 +26,21 @@ python3 scripts/check_terms.py  # private-terms check (see below)
 
 ### PostgreSQL
 
-SQLite is the default ledger. To run the ledger tests against PostgreSQL, start a disposable container with podman or docker:
+SQLite is the default ledger, and every test also runs on PostgreSQL. To run the whole suite on both, with a disposable PostgreSQL in podman or docker that is removed afterwards:
+
+```bash
+scripts/test-both.sh                          # arguments go to pytest on both runs
+```
+
+Or by hand: with `TESSERA_TEST_LEDGER=postgres`, every installation a test creates gets its own empty PostgreSQL database instead of `ledger.db` (see `tests/pg_ledgers.py`):
 
 ```bash
 scripts/dev-postgres.sh                       # prints a connection URL
-TESSERA_TEST_POSTGRES_URL=<url> uv run --extra postgres pytest -m postgres
+TESSERA_TEST_LEDGER=postgres TESSERA_TEST_POSTGRES_URL=<url> uv run --extra postgres pytest
 scripts/dev-postgres.sh stop
 ```
+
+Without `TESSERA_TEST_LEDGER`, `TESSERA_TEST_POSTGRES_URL` runs only the tests about PostgreSQL itself (`-m postgres`). A test that is about SQLite alone says so and is skipped on PostgreSQL; anything else that differs between the two is fixed in the code, not skipped.
 
 ### Web app tests
 

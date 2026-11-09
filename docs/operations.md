@@ -176,13 +176,32 @@ uv run tessera build discovery # and concept profiles and the graph
 
 ## PostgreSQL
 
-SQLite suits one organization on one machine well. To keep the ledger in PostgreSQL instead:
+The ledger (people, links, decisions, groups, profiles, accounts, and history) can live in SQLite or PostgreSQL; the lake and search index stay in the data home either way. Every test runs on both, and everything works the same on each.
+
+**SQLite** is the default and needs nothing else: one file in the data home, backed up by `tessera backup`. It suits an organization of any size on one server; readers never wait for the writer, and Tessera writes little.
+
+**Choose PostgreSQL** when:
+
+- your organization already runs PostgreSQL, with its own backups, replication, and monitoring, and wants the ledger looked after with the rest;
+- the database must live on a managed server separate from the one that runs Tessera;
+- policy requires a database server rather than a file.
+
+To use it:
 
 ```bash
 uv sync --extra postgres
 ```
 
-Then set `[ledger] url = "postgresql+psycopg://tessera@dbhost/tessera"` (or `TESSERA_LEDGER_URL`) and run `uv run tessera db upgrade` to create the schema. Put the password in the standard `PGPASSWORD` variable or a `.pgpass` file rather than in the URL. The lake and search index stay in the data home either way.
+Then create an empty database, set `[ledger] url = "postgresql+psycopg://tessera@dbhost/tessera"` (or `TESSERA_LEDGER_URL`), and run `uv run tessera db upgrade` to create the schema. Put the password in the standard `PGPASSWORD` variable or a `.pgpass` file rather than in the URL. Tessera is tested on PostgreSQL 16.
+
+**Moving an installation from SQLite to PostgreSQL:**
+
+1. Stop the server and any scheduled sync, and take a backup: `uv run tessera backup`.
+2. Create an empty PostgreSQL database for Tessera.
+3. Copy the configuration; in the copy, set `[ledger] url` to the new database and `[data] home` to a new, empty folder. Restore into them: `uv run tessera --config new.toml restore <backup>` (see [Restoring](#restoring)).
+4. Start the server with the new configuration and check **Admin → Operations**. Keep the old data home until you are satisfied.
+
+The same steps, the other way round, move an installation back to SQLite.
 
 ## Lake maintenance
 

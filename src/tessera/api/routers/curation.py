@@ -217,15 +217,16 @@ def _count_below(engine, floor: float, person_id: str | None, scope: set[str] | 
 def _priority(row: dict[str, Any], row_band: str | None, names: dict[str, str]) -> tuple:
     features = {e["feature"] for e in row["evidence"] or []}
     score = -(row["score"] or 0)
+    last = row["id"]  # ties in a fixed order, whatever order the database returned them in
     if row_band == "strong":  # quick confirmations first, grouped by person
-        return (0, names.get(row["subject_id"], ""), score)
+        return (0, names.get(row["subject_id"], ""), score, last)
     if row_band == "possible":
         if features & CONFLICTS:
-            return (1, score)
+            return (1, score, last)
         if "name_ambiguity" in features:
-            return (2, score)
-        return (3, score)
-    return (4, score)
+            return (2, score, last)
+        return (3, score, last)
+    return (4, score, last)
 
 
 @router.get("/review", summary="The review queue of suggested authorships, in priority order")

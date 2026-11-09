@@ -660,8 +660,9 @@ def assertions_for(
         query = query.where(assertion.c.status.in_(tuple(statuses)))
     if reported_only:
         query = query.where(assertion.c.reported.is_(True))
+    # In the order they were made (IDs sort by time), the same on SQLite and PostgreSQL.
     with engine.connect() as conn:
-        return [dict(r) for r in conn.execute(query).mappings()]
+        return [dict(r) for r in conn.execute(query.order_by(assertion.c.id)).mappings()]
 
 
 def display_names(engine: Engine, person_ids: Iterable[str]) -> dict[str, str]:

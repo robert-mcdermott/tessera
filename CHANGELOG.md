@@ -2,6 +2,16 @@
 
 All notable changes to Tessera are recorded here. Versions follow [semantic versioning](https://semver.org/); each wave of work ships as a minor release (wave 1 → 0.1.0, wave 2 → 0.2.0).
 
+## Unreleased
+
+### Added
+
+- Every test runs on PostgreSQL as well as SQLite (PLT-09): with `TESSERA_TEST_LEDGER=postgres`, each installation a test creates gets its own PostgreSQL database, and `scripts/test-both.sh` runs the whole suite on both, with a disposable PostgreSQL that it removes afterwards. *Running Tessera* says when to choose PostgreSQL and how to move an installation to it.
+
+### Fixed
+
+- The review queue lists suggestions in the same order on PostgreSQL as on SQLite, including after a restore; before, ties came back in whatever order the database stored them.
+
 ## 0.6.0 (2026-11-08)
 
 Profiles. Every researcher now has a full profile: what Tessera builds from public records, beside the sections they keep themselves, from an overview and research interests to earlier positions, education, honors, service, teaching, talks, links, and the papers they want to feature. Every profile is open to everyone inside the organization, public only by the researcher's choice, and the source of their CVs and NIH biosketches, which stay current because they are built from the profile and confirmed records each time.
