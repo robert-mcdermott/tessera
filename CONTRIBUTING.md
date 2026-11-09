@@ -42,6 +42,18 @@ scripts/dev-postgres.sh stop
 
 Without `TESSERA_TEST_LEDGER`, `TESSERA_TEST_POSTGRES_URL` runs only the tests about PostgreSQL itself (`-m postgres`). A test that is about SQLite alone says so and is skipped on PostgreSQL; anything else that differs between the two is fixed in the code, not skipped.
 
+### The API contract and upgrades
+
+`tests/test_api_contract.py` checks every change against [`tests/api_contract.json`](tests/api_contract.json), which records what each stable API route accepts and answers with (see [Compatibility](docs/compatibility.md)). It fails on anything that would break a client: a route, parameter, or field taken away, a type changed, something newly required. When you add a stable route or field, record it:
+
+```bash
+UPDATE_CONTRACT=1 uv run pytest tests/test_api_contract.py
+```
+
+Recording only adds. Taking something out of the contract is an edit by hand, for a major version or a route past its sunset. A new route that is still settling belongs in `EXPERIMENTAL_PATHS` (`src/tessera/api/stability.py`).
+
+Before a release, `scripts/check-upgrades.sh` installs every earlier release from its tag, makes an installation with it, upgrades it with this one, and checks that every ledger row, lake file, and raw response comes through (on SQLite, and for 0.7.0 on a disposable PostgreSQL). A migration that changes rows on purpose says so to the check (`intended` and `moved` in `scripts/check_upgrades.py`), so that the change is confirmed rather than excused.
+
 ### Web app tests
 
 The web app has no build step. `tests/test_web.py` checks its safety rules (no inline code, no resources from other origins, no HTML parsing of data), that every module import resolves (including worker scripts), that every module is loaded by something, and the size budgets: one for what the app loads at start and one for each part loaded on first use, such as the graph views. When Node.js is installed it also syntax-checks every module and runs the JavaScript unit tests in `tests/js` (`node --test tests/js/*.test.mjs`).
@@ -65,7 +77,7 @@ node docs/capture/capture.mjs --audit-only        # audit every scene, write no 
 node docs/capture/capture.mjs --audit             # take the screenshots and audit them
 ```
 
-What a machine cannot judge, such as whether a name is meaningful or how a screen reader announces a change, needs a pass by hand with the keyboard and a screen reader.
+What a machine cannot judge, such as whether a name is meaningful or how a screen reader announces a change, needs a pass by hand with the keyboard and a screen reader: [spec/screen-reader-check.md](spec/screen-reader-check.md) is a script for one.
 
 ### Live API tests
 

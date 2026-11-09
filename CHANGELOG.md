@@ -2,9 +2,15 @@
 
 All notable changes to Tessera are recorded here. Versions follow [semantic versioning](https://semver.org/). Waves 1 to 7 shipped as 0.1.0 to 0.7.0, and wave 8 ships as 1.0.0; from 1.0, [Compatibility](docs/compatibility.md) says what each kind of release may change.
 
-## Unreleased
+## 1.0.0 (2026-11-09)
 
-Toward 1.0.0 (wave 8).
+Stable. Tessera now promises that what you build on it keeps working: its API, command line, configuration file, data, exports, and public site addresses change only by adding until a 2.0. It stays fast when many people use it at once, an installation of any earlier release upgrades in one step with nothing lost, and a review of the code that decides and protects things, with drills of the failures an installation will meet, found and fixed what a first pilot would have.
+
+**Highlights:** several server processes, with each Insight figure built once however many ask for it, and a load test in `tessera bench`; every API route marked stable or experimental, with a test against breaking changes and a deprecation policy, and a new guide, *Compatibility*; upgrades from every release since 0.1.0, checked by one command on SQLite and PostgreSQL; and the fixes from the review and the drills, below, among them a resolve that would fail for good after a paper was added by hand, a scoped curator able to widen their own scope, public embeds showing what a group had left off its page, and a garbled answer from PubMed counted as a success.
+
+**Upgrading, from any 0.x release:** back up first (`tessera backup`), install 1.0, and run `tessera db upgrade` (every migration since your release, up to 0027), `tessera build search`, and `tessera build discovery`; then `tessera sync`, which fetches what sources added since need, and `tessera publish` if you publish a public site, so that each person's address is kept from then on. Your configuration file loads as it is. On a server, set `[server] workers = 4` (the container image and the systemd unit do). Each earlier release's notes below say what else changed on the way; *Running Tessera* has the steps in order, under **From any 0.x release to 1.0**.
+
+**Checks for this release:** authorship is unchanged by the fixes: on the pilot, re-resolved with this release, the ORCID works-list check gives the result of 0.5.0 to 0.7.0 exactly (196 listed papers from 2025 on, 94.9% found as candidates, 97.3% of those strong). The full suite passes on SQLite (954 tests) and on PostgreSQL 16 (955). This release's migrations, 0025 to 0027, were run down to 0024 and back up on a copy of the pilot's ledger on both, every row kept (7,498 in 41 tables). An installation made by every release from 0.1.0 upgrades with every row kept, and its backup restores, on SQLite and, from 0.7.0, on PostgreSQL. With 20 people at once on four server processes at 100,000 publications, the slowest 5% of requests took 119 ms at a realistic pace, and four processes served 73 requests a second without pause; on the release day, with the laptop busy with other work, both took longer, and 0.7.0 and 1.0.0 served the same requests in the same time. The accessibility audit finds nothing in any screenshot scene, by day or after dark. Dependencies are at the latest releases their ranges allow, with no known vulnerability.
 
 ### Added
 
@@ -34,10 +40,6 @@ Found by a review of the code that decides and protects things, and by drills of
 ### Breaking
 
 - Two path parameters have new names in the OpenAPI document, to match the rest: a grant's `{core}` is `{core_project_num}`, and an opportunity's `{oid}` is `{opportunity_id}`. The addresses are unchanged; only a client generated from the document sees the new names.
-
-### Upgrading
-
-Run `tessera db upgrade` (migrations 0025 to 0027), then `tessera publish` if you publish a public site, so that each published person's address is kept from then on. To run several processes, set `[server] workers` (see *Running Tessera*). Saved cohorts and reports whose saver's name matches no single account can then be changed by admins only; everyone can still read them.
 
 ## 0.7.0 (2026-11-09)
 

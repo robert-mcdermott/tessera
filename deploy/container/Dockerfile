@@ -1,6 +1,6 @@
 # Tessera as a container image.
 #
-#   podman build -f deploy/container/Dockerfile -t tessera:0.7.0 .     (or docker build)
+#   podman build -f deploy/container/Dockerfile -t tessera:1.0.0 .     (or docker build)
 #
 # Built with uv from the lock file, so the image has exactly the tested versions. It runs as
 # an unprivileged user; the configuration and the data home are volumes, so the image itself

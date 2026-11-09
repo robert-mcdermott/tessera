@@ -33,7 +33,7 @@ services:
     build:
       context: ../..
       dockerfile: deploy/container/Dockerfile
-    image: tessera:0.7.0
+    image: tessera:1.0.0
     restart: unless-stopped
     depends_on:
       db:

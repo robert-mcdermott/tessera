@@ -10,7 +10,7 @@ The site is written to `public/` in the data home, or wherever `[publish] out` s
 
 - a **home page** with every published group, by kind;
 - a page for every **group** that opted in, following its published blocks (see [Groups](groups.md#the-groups-page)): what it does, its leaders and people, its publications, grants, studies, themes and projects, openings, news, topics, and contact;
-- a page for every **person** who opted in: their groups and roles, ORCID iD, research areas and topics, publications, grants, and studies;
+- a page for every **person** who opted in: their groups and roles, ORCID iD, research areas and topics, publications, grants, and studies. Its address (`people/<name>/`) is kept from the first time it is published, so links to it keep working, even when someone of the same name opts in later (their page gets the next free address);
 - indexes of groups and people, a `404.html`, `robots.txt`, and, when `base_url` is set, a `sitemap.xml`;
 - for every public group, pages to [embed in another website](#embedding-group-content-in-another-website) and a JSON feed.
 
@@ -35,7 +35,7 @@ The site is built from an **allowlist**: every field on it is chosen by name, so
 | On a person's page, the profile sections they chose (overview, interests, positions, education, honors, service, teaching, talks, links, featured publications), less any entry they left off | Sections and entries a person left off, and anything on a profile that is not public |
 | Confirmed publications, as citations: authors, title, journal, year, with links to the DOI and PubMed | Abstracts, suggestions, scores, evidence, and decisions |
 | Grants by title, number, institute, and years; studies by title, NCT number, phase, and status | Anything from the internal app: IDs, accounts, history, the review queue |
-| Topics and research areas, with credit to MeSH | Unconfirmed papers: only papers someone confirmed are published |
+| Topics and research areas, with credit to MeSH; topics, and a group's connections to other groups, come from confirmed papers | Unconfirmed papers: only papers someone confirmed are published |
 | A group's themes, projects, open openings, news, and contact | Openings that have closed |
 | Approved plain-language summaries, labeled as drafted with AI assistance and approved by whom, while [the assistant](assistant.md#plain-language-summaries) is on | Summary drafts, rejected summaries, and every summary while the assistant is off |
 
@@ -70,6 +70,8 @@ A group's publications, people, openings, and news can appear on its own website
 | `groups/<address>/embed/openings.html` | Its open openings, which drop off when they close |
 | `groups/<address>/embed/news.html` | Its news |
 | `groups/<address>/feed.json` | A [JSON Feed](https://jsonfeed.org/version/1.1) of its news, openings, and confirmed publications, for sites that show content themselves |
+
+An embed shows only what the group's own public page shows: a part the group leaves off its page (its people, say) is empty in its embed, and left out of its feed.
 
 ![A program's publications as an embed: the group's name linking back to its page, featured publications, then the rest, with DOI and PubMed links](images/embed-light.webp "An embed of a group's publications")
 

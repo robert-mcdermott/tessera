@@ -114,7 +114,7 @@ Each service may write only `/srv/tessera`, has no privileges, and is limited to
 `deploy/container/Dockerfile` builds an image with uv from the lock file. It runs as an unprivileged user (uid 10001), with two volumes: `/srv/tessera/config`, which holds `tessera.toml` and branding images, and `/srv/tessera/data`, the data home. The image holds no state, so an upgrade is a new image and `tessera db upgrade`.
 
 ```bash
-podman build --format docker -f deploy/container/Dockerfile -t tessera:0.7.0 .   # or docker build
+podman build --format docker -f deploy/container/Dockerfile -t tessera:1.0.0 .   # or docker build
 ```
 
 (`--format docker` keeps the image's health check, which podman's default format drops.)

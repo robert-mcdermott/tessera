@@ -193,7 +193,7 @@ Detail: [waves/wave-7.md](waves/wave-7.md)
 | 2 | The 1.0 promise | Stable and experimental routes, a test against breaking changes, a deprecation policy, a compatibility guide | ☑ |
 | 3 | Upgrades from every earlier release | Each 0.x release's data home upgraded to 1.0 with every record kept, on SQLite and PostgreSQL | ☑ |
 | 4 | Hardened | A soak, failure drills, a review of the code that decides or protects things, dependencies current | ☑ |
-| 5 | Release prep | Guides, screenshots, checks, changelog, release | ☐ |
+| 5 | Release prep | Guides, screenshots, checks, changelog, release | ◐ |
 
 Detail: [waves/wave-8.md](waves/wave-8.md)
 

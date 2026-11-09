@@ -57,7 +57,7 @@ The **Cohort** button at the top of every Insight page chooses whose work is cou
 
 For a group, **While members** (the default) counts each member's work from the year they joined to the year they left, where the membership's dates are known; a member with no dates counts throughout. **Current members, all their work** counts everything the group's current members have done, whenever and wherever they did it. About says which, and how many members have dates.
 
-**Save this cohort** keeps the current cohort under a name for everyone to choose. Managers, curators, researchers, and admins can save cohorts; whoever saved one, or an admin, can rename or delete it. A saved cohort holds its definition, not a list of people, so a saved group follows the group's membership as it changes.
+**Save this cohort** keeps the current cohort under a name for everyone to choose. Managers, curators, researchers, and admins can save cohorts; the account that saved one, or an admin, can rename or delete it (a report likewise). A saved cohort holds its definition, not a list of people, so a saved group follows the group's membership as it changes.
 
 The cohort, the period, and the options are part of the page's address, so a view can be bookmarked and shared.
 

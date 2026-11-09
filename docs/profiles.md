@@ -56,7 +56,7 @@ Everyone sees the names of those who keep a profile; only its keepers see their 
 Nobody appears on the [public site](public-site.md) unless they choose to. The **Public page** card on the About tab says whether the profile is public, and those who keep it can:
 
 - **Make it public** or **Make it internal only**; the page appears or goes at the next `tessera publish`;
-- choose the **sections on the public page**: the profile's own sections, and publications, grants, studies, groups, and topics;
+- choose the **sections on the public page**: the profile's own sections, and publications, grants, studies, groups, and topics (and, with [the assistant](assistant.md) on, its approved summary). A section left off is left out of the whole public site, the people index and the page's description included;
 - leave a single entry off the public page with the eye beside it;
 - **Preview the public page**, built by the same code as `tessera publish`, for this person alone.
 

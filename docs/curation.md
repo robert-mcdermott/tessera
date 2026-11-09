@@ -76,7 +76,7 @@ The same person sometimes has two records, typically one from a roster and one f
 - **Merge into…** moves the left record's papers, grants, units, names, and identifiers to the record on the right, which is kept. **Keep … instead** merges the other way.
 - **Different people** keeps the two apart; the pair is not proposed again. **Later** sets it aside.
 - If both records had decided the same paper differently, the more recent decision holds, and the merge says so.
-- A merged record's page says where it went. **Undo merge**, there or on the kept record's profile, restores both records exactly as they were.
+- A merged record's page says where it went. **Undo merge**, there or on the kept record's profile, restores both records exactly as they were. When several records were merged into one, undo the latest first: an earlier merge cannot be undone while a later one into the same record is in place. Decisions made on moved papers since the merge go back with them. A merged record's own **Undo** (for a promotion or dismissal) waits until its merge is undone.
 
 ![Possible duplicates: two records of one person side by side, with the evidence that they are the same person](images/duplicates-light.webp "Possible duplicates")
 - To merge two records Tessera did not pair, use **Merge…** on either profile.
@@ -98,7 +98,7 @@ Every identifier decision appears in the decision log.
 **Admin → Evidence** shows how suggestions are scored and how well, measured on your own decisions. Curators can look; admins can change it.
 
 - **Evaluate now** fits learned weights to your accept and reject decisions and compares them with the hand-set ones on people left out of the fit. Once there are enough decisions (200, with 20 rejections, about 5 people) and the learned model predicts better, **Release it** makes it active from the next sync; **Use hand-set weights** goes back.
-- **Auto-accept** can be switched on only at a score where the evaluation measured at least 99% precision over at least 50 decisions. Each sync then accepts open suggestions at or above it that have no conflicting evidence. They are marked **Auto-confirmed**, appear as a batch on the page, are never used for learning, and a batch can be undone in one step (which also switches auto-accept off).
+- **Auto-accept** can be switched on only at a score where the evaluation measured at least 99% precision over at least 50 decisions. Each sync then accepts open suggestions at or above it that have no conflicting evidence. They are marked **Auto-confirmed**, appear as a batch on the page, are never used for learning, and a batch can be undone in one step (which also switches auto-accept off). Auto-accept, undoing a batch, and **Accept all strong** act only on links still as they found them: a decision someone makes while they run is never overwritten.
 - From the command line: `tessera evidence status`, `evaluate`, `release`, `revert`, and `auto-accept --threshold 0.99 | --off | --undo BATCH`.
 
 ![Admin, Evidence: the active model, an evaluation comparing hand-set and learned weights, and auto-accept](images/evidence-model-light.webp "Admin → Evidence")
