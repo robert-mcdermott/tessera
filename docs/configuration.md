@@ -262,7 +262,7 @@ Who hears when something goes wrong; see [Running Tessera](operations.md#alerts)
 
 ## `[ai]`
 
-The optional assistant; see [The assistant](assistant.md). Without this section, or with `enabled = false`, nothing of it exists in the app, the API, or the public site.
+The optional assistant; see [The assistant](assistant.md). Without this section, or with `enabled = false`, nothing of it exists in the app, the API, or the public site. The example configuration ends with this section commented out, ready to turn on.
 
 | Setting | Type | Default | Meaning |
 |---|---|---|---|

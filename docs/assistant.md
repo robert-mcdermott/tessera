@@ -76,7 +76,7 @@ Turning the assistant off keeps approved summaries but shows them nowhere, the p
 
 ## Turning it on
 
-Add an `[ai]` section to the configuration and restart `tessera serve`. Keys are never written in the file: the configuration names the environment variable that holds one, and a key written in the file stops Tessera from starting.
+Add an `[ai]` section to the configuration and restart `tessera serve`. The starting configuration that `tessera init` writes (and [`tessera.example.toml`](../tessera.example.toml)) ends with one, commented out, listing every setting: remove the `# ` before `[ai]` and each setting you need. Keys are never written in the file: the configuration names the environment variable that holds one, and a key written in the file stops Tessera from starting.
 
 `provider` is the protocol the endpoint speaks:
 
