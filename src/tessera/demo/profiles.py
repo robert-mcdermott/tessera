@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import random
 import zlib
+from collections.abc import Callable
 from typing import Any
 
 from sqlalchemy.engine import Engine
@@ -244,9 +245,16 @@ def profile_for(
 
 
 def build_profiles(
-    engine: Engine, world: World, key_of: dict[str, str], today_year: int, limit: int = 12
+    engine: Engine,
+    world: World,
+    key_of: dict[str, str],
+    today_year: int,
+    limit: int = 12,
+    documents: Callable[[str, Person, list[str]], None] | None = None,
 ) -> int:
-    """Profiles for up to ``limit`` lab heads; returns how many entries were made."""
+    """Profiles for up to ``limit`` lab heads; returns how many entries were made. The first of
+    them (the one with the most confirmed papers) is also given to ``documents``, to start a CV
+    and a biosketch."""
     by_key = {p.key: p for p in world.people}
     cited = {str(r.get("pmid")): int(r.get("citation_count") or 0) for r in world.icite}
     heads = [(pid, by_key[k]) for pid, k in key_of.items() if k in by_key and by_key[k].is_pi]
@@ -261,7 +269,51 @@ def build_profiles(
         for section, fields in profile_for(person, papers, cited, today_year):
             store.add(engine, pid, section, fields, actor=actor, capacity="self")
             made += 1
+    if heads and documents is not None:
+        pid, person = heads[0]
+        documents(pid, person, sorted(papers_of[pid], key=lambda p: (-cited.get(p, 0), p)))
     return made
 
 
-__all__ = ["build_profiles", "profile_for"]
+def biosketch_for(person: Person, papers: list[str]) -> dict[str, Any]:
+    """What a lab head has written so far in a biosketch: a personal statement, two
+    contributions (the second still citing a paper the way a manuscript would, which NIH does
+    not allow), and products chosen from their confirmed papers."""
+    rng = _rng(person)
+    area = person.area
+    processes = rng.sample(list(area.processes), k=min(3, len(area.processes)))
+    models = rng.sample(list(area.models), k=min(2, len(area.models)))
+    method = rng.choice(area.methods).lower()
+    statement = (
+        f"My laboratory studies how {processes[0]} and {processes[1]} are controlled, and how "
+        f"that control fails in disease. Over the past decade we have built the {method} and the "
+        f"{models[0]} that the proposed project depends on, and we use them every day.\n\n"
+        f"I have led several funded projects on {processes[0]} as principal investigator, and I "
+        f"have trained doctoral students and postdoctoral fellows who now run laboratories of "
+        f"their own. The project builds directly on that work: its first aim extends our recent "
+        f"findings in {models[-1]}, and its second applies the same approach to "
+        f"{processes[-1]}.\n\n"
+        "I am well placed to lead it. My group has the methods, the models, and the "
+        "collaborations it needs, and I will give it the time it asks for."
+    )
+    first = (
+        f"Early in my career I asked why {processes[0]} differs so much between otherwise "
+        f"similar cells. Using {method} in {models[0]}, my colleagues and I showed that the "
+        f"difference is set early and kept, which changed how the field designs experiments on "
+        f"{processes[0]}. I designed the studies, led the analysis, and wrote the papers."
+    )
+    second = (
+        f"More recently my group turned to {processes[1]}. We found that it depends on signals "
+        f"that had been thought to act only on {processes[-1]} (Okafor et al., 2021), and we "
+        f"built the {models[-1]} now used by other groups to study it. I led the work and "
+        "supervised the trainees who carried it out."
+    )
+    return {
+        "statement": statement,
+        "contributions": [{"text": first}, {"text": second}],
+        "products_related": [{"pmid": p} for p in papers[:4]],
+        "products_other": [{"pmid": p} for p in papers[4:7]],
+    }
+
+
+__all__ = ["biosketch_for", "build_profiles", "profile_for"]

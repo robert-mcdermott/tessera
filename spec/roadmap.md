@@ -146,7 +146,7 @@ Released as [v0.5.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0
 | 4 | Public by choice | The researcher chooses whether the profile is public and which sections and entries it shows | ☑ |
 | 5 | CVs | Named CV versions from the profile and confirmed records, printable and downloadable | ☑ |
 | 6 | NIH biosketches | NIH's Common Form and Supplement, with its limits checked, ready for SciENcv | ☑ |
-| 7 | Release prep | Guides, screenshots, evaluation, changelog, release | ☐ |
+| 7 | Release prep | Guides, screenshots, evaluation, changelog, release | ◐ |
 
 Detail: [waves/wave-6.md](waves/wave-6.md)
 

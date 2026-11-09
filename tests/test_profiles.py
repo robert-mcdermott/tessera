@@ -19,7 +19,7 @@ from tessera.auth.accounts import Grant, create_account
 from tessera.config import load_config
 from tessera.demo import build_demo
 from tessera.ledger.db import make_engine
-from tessera.ledger.tables import assertion, person, profile_entry, unit
+from tessera.ledger.tables import assertion, cv_document, person, profile_entry, unit
 from tessera.profiles import store
 from tessera.profiles.sections import ProfileError, clean
 
@@ -384,6 +384,38 @@ def test_the_demo_fills_in_a_dozen_profiles(world: World) -> None:
         "link",
         "featured",
     }
+
+
+def test_the_demo_begins_a_cv_and_a_biosketch(world: World) -> None:
+    from tessera.profiles import biosketch
+
+    engine = make_engine(world.config.ledger_url)
+    try:
+        with engine.connect() as conn:
+            docs = (
+                conn.execute(
+                    select(cv_document)
+                    .where(cv_document.c.name.in_(["Full CV", "NIH biosketch, R01 renewal"]))
+                    .order_by(cv_document.c.kind)
+                )
+                .mappings()
+                .all()
+            )
+            confirmed = store.confirmed_papers(conn, docs[0]["person_id"]) if docs else set()
+    finally:
+        engine.dispose()
+    assert [d["kind"] for d in docs] == ["cv", "nih_biosketch"]
+    assert docs[0]["person_id"] == docs[1]["person_id"]
+    spec = docs[1]["spec"]
+    assert docs[1]["form"] == biosketch.FORM and spec["position_title"]
+    assert 0 < len(spec["statement"]) <= biosketch.LIMITS["statement"]
+    assert not biosketch.citations_in(spec["statement"])
+    first, second = spec["contributions"]
+    assert all(len(c) <= biosketch.LIMITS["contribution"] for c in (first, second))
+    # The one thing left to fix, so the checks have something to say.
+    assert not biosketch.citations_in(first) and biosketch.citations_in(second)
+    products = spec["products_related"] + spec["products_other"]
+    assert products and all(p["pmid"] in confirmed for p in products)
 
 
 # --- someone to act for them ---------------------------------------------------------------------

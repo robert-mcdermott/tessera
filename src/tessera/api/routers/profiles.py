@@ -337,7 +337,10 @@ def _cv_context(request: Request, person_id: str, doc: dict[str, Any]) -> dict[s
         )
         head = cv.header(conn, config, person_id)
     options = {
-        sid: [{"id": str(r["id"]), "label": _option_label(sid, r)} for r in rows]
+        sid: [
+            {"id": str(r["id"]), "label": _option_label(sid, r, config.organization.name)}
+            for r in rows
+        ]
         for sid, rows in available.items()
     }
     if doc["kind"] == "nih_biosketch":
@@ -365,7 +368,10 @@ def _cv_context(request: Request, person_id: str, doc: dict[str, Any]) -> dict[s
     }  # fmt: skip
 
 
-def _option_label(section: str, row: dict[str, Any]) -> str:
+def _option_label(section: str, row: dict[str, Any], organization: str = "") -> str:
+    """How an entry is named in the editor's lists: enough to tell two alike apart, such as one
+    title held in two groups (their own organization's name left off, as it goes without
+    saying)."""
     from tessera.profiles import format as fmt
 
     if section == "publications":
@@ -374,8 +380,10 @@ def _option_label(section: str, row: dict[str, Any]) -> str:
         return f"{row['main']} ({row['id']})"
     if section == "overview":
         return row["fields"]["text"][:80]
-    title, _, dates = fmt.lines(section, row["fields"])
-    return f"{title} · {dates}" if dates else title
+    title, detail, dates = fmt.lines(section, row["fields"])
+    if organization and detail != organization:
+        detail = detail.removesuffix(f", {organization}")
+    return " · ".join(x for x in (title, detail, dates) if x)
 
 
 @router.get(

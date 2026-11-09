@@ -11,6 +11,7 @@ Tessera assembles a research organization's footprint from public sources, conne
 | [Curating](curation.md) | Work through suggestions, promote discovered people, and understand what decisions do |
 | [Finding experts](discovery.md) | Find who works on a topic, see similar people and connections, and understand what drives a profile |
 | [Groups](groups.md) | Set up divisions, programs, labs, and other groups by hand or from a file, with members, roles, and dates |
+| [Profiles](profiles.md) | Keep a researcher's profile, choose what their public page shows, and build CVs and NIH biosketches from it |
 | [Insight](insight.md) | Read portfolio figures for the organization or any group, with what each counts, for whom, and from which sources |
 | [Opportunities](opportunities.md) | Find funding that fits the organization's people and groups, see whether the organization may apply, and track foundation and internal calls |
 | [The assistant](assistant.md) | Turn on the optional assistant, with any OpenAI-compatible or Anthropic-compatible endpoint or Amazon Bedrock |

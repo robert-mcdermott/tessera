@@ -21,7 +21,7 @@ The site is written to `public/` in the data home, or wherever `[publish] out` s
 Nobody appears unless they opt in.
 
 - A **group** opts in with **Public page** in its page editor (its managers or curators), or `tessera groups public <address>`.
-- A **person** opts in with **Public profile** on their profile, or **Make it public** in the **Public page** card on its **About** tab (they themselves, if their account is linked to it, someone they named to act for them, a curator, or an admin), or `tessera people public <ID>`. The same card chooses which sections their page shows, and the eye on an entry leaves that entry off it; **Preview the public page** shows the page as the next publish will build it.
+- A **person** opts in with **Public profile** on their profile, or **Make it public** in the **Public page** card on its **About** tab (they themselves, if their account is linked to it, someone they named to act for them, a curator, or an admin), or `tessera people public <ID>`. The same card chooses which sections their page shows, and the eye on an entry leaves that entry off it; **Preview the public page** shows the page as the next publish will build it. See [Profiles](profiles.md#public-by-choice).
 
 `--off` on either command takes pages away at the next publication. A group's page lists its people by name and role; only people who opted in link to a profile.
 
