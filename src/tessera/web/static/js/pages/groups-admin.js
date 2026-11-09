@@ -137,8 +137,8 @@ export function groupAdmin(main, params, ctx = {}) {
       });
       const children = card({
         title: "Within this group",
-        action: merged ? null : h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => editGroup(null, vocab, null, group) },
-          icon("plus", "icon icon-sm"), "Add"),
+        action: merged ? null : h("button", { type: "button", class: "btn btn-sm btn-ghost", "aria-label": "Add a group within this one",
+          onclick: () => editGroup(null, vocab, null, group) }, icon("plus", "icon icon-sm"), "Add"),
         pad: true,
         body: group.children.length
           ? h("ul", { class: "plain-list" }, group.children.map((c) => h("li", { class: "row-sm" },

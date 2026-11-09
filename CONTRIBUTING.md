@@ -26,13 +26,21 @@ python3 scripts/check_terms.py  # private-terms check (see below)
 
 ### PostgreSQL
 
-SQLite is the default ledger. To run the ledger tests against PostgreSQL, start a disposable container with podman or docker:
+SQLite is the default ledger, and every test also runs on PostgreSQL. To run the whole suite on both, with a disposable PostgreSQL in podman or docker that is removed afterwards:
+
+```bash
+scripts/test-both.sh                          # arguments go to pytest on both runs
+```
+
+Or by hand: with `TESSERA_TEST_LEDGER=postgres`, every installation a test creates gets its own empty PostgreSQL database instead of `ledger.db` (see `tests/pg_ledgers.py`):
 
 ```bash
 scripts/dev-postgres.sh                       # prints a connection URL
-TESSERA_TEST_POSTGRES_URL=<url> uv run --extra postgres pytest -m postgres
+TESSERA_TEST_LEDGER=postgres TESSERA_TEST_POSTGRES_URL=<url> uv run --extra postgres pytest
 scripts/dev-postgres.sh stop
 ```
+
+Without `TESSERA_TEST_LEDGER`, `TESSERA_TEST_POSTGRES_URL` runs only the tests about PostgreSQL itself (`-m postgres`). A test that is about SQLite alone says so and is skipped on PostgreSQL; anything else that differs between the two is fixed in the code, not skipped.
 
 ### Web app tests
 
@@ -47,6 +55,17 @@ User guides live in [`docs/`](docs/README.md) as plain Markdown that reads well 
 ```bash
 UPDATE_DOCS=1 uv run pytest tests/test_docs.py
 ```
+
+### Screenshots and the accessibility audit
+
+The guides' screenshots are taken from the real app serving the demo organization, in light and dark, by `node docs/capture/capture.mjs` (Node.js 22 and Chrome; its options are described at the top of the file). The same tool audits every scene for WCAG 2.2 AA: accessible names from Chrome's accessibility tree, landmarks and headings, the contrast of rendered text, target sizes, and a real Tab walk for visible, unhidden focus and keyboard traps (`docs/capture/audit.mjs`). Run it after changing the web app; it exits non-zero on any finding:
+
+```bash
+node docs/capture/capture.mjs --audit-only        # audit every scene, write no screenshots
+node docs/capture/capture.mjs --audit             # take the screenshots and audit them
+```
+
+What a machine cannot judge, such as whether a name is meaningful or how a screen reader announces a change, needs a pass by hand with the keyboard and a screen reader.
 
 ### Live API tests
 

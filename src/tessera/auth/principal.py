@@ -30,6 +30,7 @@ class Principal:
     grants: tuple[Grant, ...] = ()
     single_operator: bool = False
     csrf_token: str | None = None
+    has_password: bool = True  # False for an account that signs in only with single sign-on
     _people: Any = field(default=False, repr=False)  # cache; False until computed
 
     @property
@@ -143,6 +144,7 @@ class Principal:
             "name": self.name,
             "person_id": self.person_id,
             "single_operator": self.single_operator,
+            "has_password": self.has_password,
             "roles": [g.to_json() for g in self.grants]
             if not self.single_operator
             else [{"role": "admin", "scope_type": None, "scope_id": None}],

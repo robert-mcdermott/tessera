@@ -28,8 +28,8 @@ export function identifiersCard(profile, refresh) {
     || a.scheme.localeCompare(b.scheme));
   // A merged record's identifiers moved on; only those who curate this person may change them.
   const editable = profile.status !== "merged" && profile.can_curate !== false;
-  const add = editable ? h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => addIdentifier(profile, refresh) },
-    "Add") : null;
+  const add = editable ? h("button", { type: "button", class: "btn btn-sm btn-ghost", "aria-label": "Add an identifier",
+    onclick: () => addIdentifier(profile, refresh) }, "Add") : null;
   const confirmed = items.some((i) => i.scheme === "orcid" && i.status === "accepted");
   return card({
     title: "Identifiers",

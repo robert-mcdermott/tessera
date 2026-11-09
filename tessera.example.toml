@@ -35,7 +35,8 @@ exclusions = ["Example University of Technology"]
 # by hand.
 applicant_types = []
 
-# Re-branding. Everything here is optional.
+# Re-branding. Everything here is optional, and admins can set it in the app instead, with a
+# live preview and contrast checks (Admin → Branding), which rewrites this section.
 [branding]
 product_name = "Tessera"
 # The color palette everyone sees by default: "tessera" (calm neutrals, indigo accent),
@@ -142,6 +143,9 @@ similar_per_person = 25
 [vocabulary]
 # What the app calls groups, the kinds of group it offers, and the roles people hold in them.
 # Keys are stored with each group and membership: rename a label freely, but keep its key.
+# Or start from a preset and change only what differs (remove the tables below to use its
+# kinds and roles): "academic_medical_center", "university", or "research_institute".
+# preset = "academic_medical_center"
 group = "Group"
 groups = "Groups"
 leader_roles = ["lead", "co_lead"]   # listed as a group's leaders
@@ -222,3 +226,36 @@ backup_days = 7     # warn when the last `tessera backup` is older than this; 0 
 # daily_limit = 100        # questions per person per day; 0 for no limit
 # roles = []               # roles that may use it ("curator", "viewer", ...); empty for everyone
 # log_days = 365           # how long exchanges stay in the log
+
+# Single sign-on with an OpenID Connect provider (Microsoft Entra ID, Okta, Google, Keycloak,
+# and others), beside local accounts: it needs [server] accounts = true. People sign in with
+# the provider's button; local accounts with a password, such as an admin's, still work.
+# See docs/operations.md (Single sign-on); check it with `tessera doctor --online`.
+# [auth.oidc]
+# # The provider's issuer; its discovery document says the rest. Entra ID:
+# # "https://login.microsoftonline.com/<tenant ID>/v2.0"
+# issuer = "https://login.example.edu"
+# client_id = ""
+# # The client secret is read from the environment, never from this file.
+# client_secret_env = "TESSERA_OIDC_CLIENT_SECRET"
+# label = "Sign in with single sign-on"     # the button on the sign-in page
+# # Register <this site>/api/v1/auth/sso/callback with the provider; set it here only if
+# # Tessera cannot work it out from the request.
+# redirect_url = ""
+# scopes = ["openid", "profile", "email"]
+# username_claim = "preferred_username"
+# name_claim = "name"
+# email_claim = "email"
+# default_role = "viewer"   # for those with no mapped role; "" refuses them
+# researchers = true        # linked to their person, they review and keep their own profile
+# create_accounts = true    # create an account at first sign-in
+# link_people = true        # link an account to the person with the same email address
+# trust_email = false       # true for Entra ID (a single-tenant app) or another provider whose
+#                           # addresses are the organization's own, verified or not
+# # Roles from the provider, replaced at every sign-in: "roles" for Entra ID's app roles,
+# # "groups" for groups. Values on the right are as for `tessera users add --role`.
+# roles_claim = "roles"
+# [auth.oidc.roles]
+# "Tessera.Admin" = "admin"
+# "Tessera.Curator" = "curator"
+# "Pathology curators" = "curator=group:Department of Pathology"

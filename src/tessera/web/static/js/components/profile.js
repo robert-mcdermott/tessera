@@ -189,8 +189,8 @@ function prose(text) {
 function sectionCard(ctx) {
   const { section, entries, keeps, personId, done, extra = [] } = ctx;
   const add = keeps && !(section.single && entries.length) && entries.length < section.most
-    ? h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => editEntry({ personId, section, done }) },
-      icon("plus", "icon icon-sm"), "Add") : null;
+    ? h("button", { type: "button", class: "btn btn-sm btn-ghost", "aria-label": `Add to ${section.label}`,
+      onclick: () => editEntry({ personId, section, done }) }, icon("plus", "icon icon-sm"), "Add") : null;
   if (section.single) {
     const entry = entries[0];
     return card({ title: section.label, pad: true, attrs: { "data-profile-section": section.id },

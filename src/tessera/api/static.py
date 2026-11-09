@@ -109,11 +109,16 @@ def install_theme(app: FastAPI) -> None:
 
 
 FAVICON_TYPES = {".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon"}
+# Branding images are pictures, never documents: whatever an SVG holds, nothing in it runs.
+IMAGE_POLICY = (
+    "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox"
+)
 
 
 def install_branding(app: FastAPI, root: Path = WEB_ROOT) -> None:
-    """``/branding/logo-light``, ``/branding/logo-dark``, and ``/branding/favicon``: the
-    configured files (the favicon falls back to Tessera's mark)."""
+    """``/branding/logo-light``, ``/branding/logo-dark``, ``/branding/favicon``, and
+    ``/branding/social-image``: the configured files (the favicon falls back to Tessera's
+    mark), served so that no script in them can run."""
     from tessera.config import LOGO_TYPES
 
     @app.get("/branding/{variant}", include_in_schema=False)
@@ -125,18 +130,20 @@ def install_branding(app: FastAPI, root: Path = WEB_ROOT) -> None:
             return FileResponse(
                 path,
                 media_type=FAVICON_TYPES.get(path.suffix.lower(), "image/svg+xml"),
-                headers={"Cache-Control": "no-cache"},
+                headers={"Cache-Control": "no-cache", "Content-Security-Policy": IMAGE_POLICY},
             )
         path = {
             "logo-light": brand.logo_light,
             "logo-dark": brand.logo_dark or brand.logo_light,
+            "social-image": brand.social_image,
         }.get(variant)
         if path is None or not path.is_file():
             raise HTTPException(status_code=404, detail="No such logo.")
         media_type = LOGO_TYPES.get(path.suffix.lower())
         if media_type is None:
             raise HTTPException(status_code=404, detail="No such logo.")
-        return FileResponse(path, media_type=media_type, headers={"Cache-Control": "no-cache"})
+        headers = {"Cache-Control": "no-cache", "Content-Security-Policy": IMAGE_POLICY}
+        return FileResponse(path, media_type=media_type, headers=headers)
 
 
 def install_api_reference(app: FastAPI, root: Path = WEB_ROOT) -> None:

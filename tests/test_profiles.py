@@ -528,6 +528,10 @@ def test_the_researcher_chooses_what_the_public_page_shows(world: World) -> None
     assert preview.status_code == 200 and preview.headers["content-type"].startswith("text/html")
     assert dropped["fields"]["title"] not in preview.text and "Overview" in preview.text
     assert 'href="/api/v1/me/public-page.css"' in preview.text
+    # Served from the app's own origin: built only from escaped values, and allowed no scripts.
+    policy = preview.headers["content-security-policy"]
+    assert "default-src 'none'" in policy and "style-src 'self'" in policy
+    assert "script-src" not in policy  # so none, from default-src
     assert world.clients["uma"].get("/api/v1/me/public-page.css").status_code == 200
     assert world.clients["guest"].get(f"{base}/public/preview").status_code == 403
     # Someone acting for them may turn it off; then the page is gone from the next build.

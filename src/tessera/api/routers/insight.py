@@ -7,6 +7,9 @@ their data timestamps; ``records=true`` adds the records counted and the links b
 
 from __future__ import annotations
 
+import threading
+import time
+from collections import OrderedDict
 from datetime import date
 from typing import Any
 
@@ -59,6 +62,9 @@ def get_figure(
     records: bool = Query(False, description="Include the records counted"),
 ) -> dict[str, Any]:
     options = {k: v for k, v in request.query_params.items() if k not in RESERVED}
+    key = None if records else _figure_key(request, metric_id, cohort, start, end, options)
+    if key is not None and (kept := _recall_figure(key)) is not None:
+        return envelope(kept)
     try:
         result = make_figure(
             engine_of(request), lake_of(request), config_of(request), metric_id,
@@ -66,7 +72,59 @@ def get_figure(
         )  # fmt: skip
     except (TesseraError, PeriodError) as exc:
         raise _fail(exc) from exc
-    return envelope(result.to_json(records=records))
+    body = result.to_json(records=records)
+    if key is not None:
+        _remember_figure(key, body)
+    return envelope(body)
+
+
+# Finished figures, as served, until the data changes (the same version as the inputs cache),
+# the day turns, or a saved cohort is edited; never with their records, which can be large.
+FIGURES_KEPT = 256
+FIGURE_SECONDS = 600
+_figures: OrderedDict[tuple[Any, ...], tuple[float, dict[str, Any]]] = OrderedDict()
+_figures_lock = threading.Lock()
+
+
+def _figure_key(request: Request, metric_id: str, cohort: str | None, start: int | None,
+                end: int | None, options: dict[str, str]) -> tuple[Any, ...]:  # fmt: skip
+    from sqlalchemy import func, select
+
+    from tessera.insight.inputs import data_version
+    from tessera.ledger.tables import cohort as cohort_table
+
+    engine = engine_of(request)
+    with engine.connect() as conn:
+        saved = conn.execute(select(func.max(cohort_table.c.updated_at))).scalar()
+    return (
+        str(engine.url),
+        str(lake_of(request).root),
+        metric_id,
+        cohort,
+        start,
+        end,
+        tuple(sorted(options.items())),
+        date.today().isoformat(),
+        str(saved),
+        data_version(engine),
+    )
+
+
+def _recall_figure(key: tuple[Any, ...]) -> dict[str, Any] | None:
+    with _figures_lock:
+        found = _figures.get(key)
+        if found is None or time.monotonic() - found[0] > FIGURE_SECONDS:
+            return None
+        _figures.move_to_end(key)
+        return found[1]
+
+
+def _remember_figure(key: tuple[Any, ...], body: dict[str, Any]) -> None:
+    with _figures_lock:
+        _figures[key] = (time.monotonic(), body)
+        _figures.move_to_end(key)
+        while len(_figures) > FIGURES_KEPT:
+            _figures.popitem(last=False)
 
 
 def _search(request: Request) -> Any:

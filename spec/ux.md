@@ -133,6 +133,8 @@ Each is a small ES module that returns DOM. There is no virtual DOM and no templ
 | Each part loaded on first use, such as the graph views (gzipped) | ≤ 40 KB |
 | Laying out a graph of about 150 nodes | No main-thread task over 50 ms (the layout runs in a worker) |
 | First meaningful render on a laptop | < 1 s |
-| Profile API response (p95), 5k people, 300k publications | < 300 ms |
+| Profile API response (p95), 10k people, 1M publications | < 300 ms |
 | Search API response (p95) | < 200 ms |
 | Review queue: next item after a decision | < 100 ms (prefetched) |
+
+The budgets for every page and build at that size, and the measured results, are in the [wave 7 plan](waves/wave-7.md#budgets-at-10000-people-and-1000000-publications); `tessera bench` measures them on any machine.

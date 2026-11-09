@@ -6,6 +6,7 @@ import pytest
 
 from tessera import __version__
 from tessera.cli import EXIT_ERROR, EXIT_OK, main
+from tessera.config import load_config
 from tessera.lake import LakeWriter
 from tessera.lake.schemas import ICITE
 from tessera.ledger import migrate
@@ -40,7 +41,8 @@ def test_init_creates_everything(tmp_path: Path, capsys: pytest.CaptureFixture[s
     home = tmp_path / "site" / "var"
     for sub in ("raw", "lake", "derived", "logs"):
         assert (home / sub).is_dir()
-    assert (home / "ledger.db").is_file()
+    if load_config(config, env={}).ledger_url.startswith("sqlite"):
+        assert (home / "ledger.db").is_file()
     assert f"Ledger ready (revision {migrate.head_revision()})" in out
 
     config.write_text(config.read_text().replace('name = "Example University"', 'name = "Kept"'))
@@ -55,6 +57,53 @@ def test_doctor_healthy(instance: Instance, capsys: pytest.CaptureFixture[str]) 
     assert code == EXIT_OK, out
     for name in ("Python", "Configuration", "Data home", "Ledger", "SQLite FTS5", "DuckDB Parquet"):
         assert name in out
+
+
+def test_doctor_checks_what_a_production_server_needs(
+    instance: Instance, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("NCBI_API_KEY", raising=False)
+    code, out = run(capsys, "--config", str(instance.path), "doctor")
+    assert "Production" not in out  # only when asked
+    code, out = run(capsys, "--config", str(instance.path), "doctor", "--production")
+    assert code == EXIT_ERROR, out  # no accounts: a server others use needs them
+    lines = {
+        line.split("  ")[0][2:].strip(): line for line in out.splitlines() if "Production" in line
+    }
+    assert lines["Production: sign-in"].startswith("✗")
+    assert lines["Production: NCBI key"].startswith("!")
+    assert "Production: disk" in lines and "Production: sync" in lines
+    monkeypatch.setenv("NCBI_API_KEY", "a-test-key")
+    config = instance.path.read_text().replace("accounts = false", "accounts = true")
+    instance.path.write_text(config)
+    from tessera.auth.accounts import Grant, create_account
+    from tessera.config import load_config
+    from tessera.ledger.db import make_engine
+
+    engine = make_engine(load_config(instance.path).ledger_url)
+    try:
+        create_account(engine, "admin", "Admin", "a-long-test-passphrase-9",
+                       [Grant("admin", None, None, False)], actor="test")  # fmt: skip
+    finally:
+        engine.dispose()
+    code, out = run(capsys, "--config", str(instance.path), "doctor", "--production")
+    assert "✓ Production: sign-in" in out and "✓ Production: NCBI key" in out
+
+
+def test_serve_says_when_the_port_is_taken(
+    instance: Instance, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Rather than saying it is running and then failing to listen."""
+    import socket
+
+    with socket.socket() as taken:
+        taken.bind(("127.0.0.1", 0))
+        taken.listen()
+        port = taken.getsockname()[1]
+        code, out = run(capsys, "--config", str(instance.path), "serve", "--port", str(port))
+    assert code == EXIT_ERROR
+    assert f"already listening on 127.0.0.1:{port}" in out and "--port" in out
+    assert "running at" not in out
 
 
 def test_doctor_reports_missing_config(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

@@ -50,6 +50,9 @@ function editorView(main, params, { group, page, revisions, papers }) {
   let blocks = structuredClone(page.blocks);
   let dirty = false;
   const list = h("ol", { class: "plain-list block-list", "aria-label": "Blocks, in order" });
+  // What moving or removing a block did, for screen readers (the list itself is redrawn).
+  const said = h("p", { class: "sr-only", "aria-live": "polite" });
+  const kindOf = (block) => types[block.type]?.label ?? block.type;
   const status = h("span", { class: "subtle" });
   const saveButton = h("button", { type: "button", class: "btn", onclick: () => save() }, "Save draft");
   const markDirty = () => {
@@ -86,7 +89,19 @@ function editorView(main, params, { group, page, revisions, papers }) {
     [blocks[i], blocks[j]] = [blocks[j], blocks[i]];
     markDirty();
     draw();
-    list.children[j]?.querySelector(`button[data-move="${by}"]`)?.focus();
+    list.children[j]?.querySelector(`button[data-move="${by}"]:not([disabled])`)?.focus()
+      ?? list.children[j]?.querySelector(`button[data-move="${-by}"]`)?.focus();
+    said.textContent = `Moved ${kindOf(blocks[j])} to position ${j + 1} of ${blocks.length}.`;
+  };
+  const remove = (i) => {
+    const kind = kindOf(blocks[i]);
+    blocks.splice(i, 1);
+    markDirty();
+    draw();
+    // Focus stays in the list: on the block that took this one's place, or the one before it.
+    const next = list.children[Math.min(i, blocks.length - 1)];
+    (next?.querySelector("button[data-remove]") ?? list.closest("section, .card, main")?.querySelector("h2, h1"))?.focus();
+    said.textContent = `Removed the ${kind} block.`;
   };
 
   const field = (label, control) => h("label", { class: "field" }, h("span", {}, label), control);
@@ -145,9 +160,9 @@ function editorView(main, params, { group, page, revisions, papers }) {
         h("div", { class: "stack-xs grow" }, h("strong", {}, types[block.type]?.label ?? block.type),
           h("span", { class: "subtle" }, HELP[block.type] ?? "")),
         types[block.type]?.side ? pill("Side column") : null,
-        iconButton("chevronUp", "Move up", { "data-move": "-1", disabled: i === 0, onclick: () => move(i, -1) }),
-        iconButton("chevronDown", "Move down", { "data-move": "1", disabled: i === blocks.length - 1, onclick: () => move(i, 1) }),
-        iconButton("close", "Remove this block", { onclick: () => { blocks.splice(i, 1); markDirty(); draw(); } })),
+        iconButton("chevronUp", `Move ${kindOf(block)} up`, { "data-move": "-1", disabled: i === 0, onclick: () => move(i, -1) }),
+        iconButton("chevronDown", `Move ${kindOf(block)} down`, { "data-move": "1", disabled: i === blocks.length - 1, onclick: () => move(i, 1) }),
+        iconButton("close", `Remove the ${kindOf(block)} block`, { "data-remove": "", onclick: () => remove(i) })),
       h("div", { class: "stack-sm block-settings" }, settings(block)))));
     if (!blocks.length) list.append(h("li", {}, emptyState({ iconName: "grid", title: "No blocks", text: "Add a block to start the page." })));
     adder.replaceChildren(h("option", { value: "" }, "Add a block…"),
@@ -237,7 +252,7 @@ function editorView(main, params, { group, page, revisions, papers }) {
     }),
     callout("Choose the blocks the page shows and their order. Blocks marked Side column appear beside the others on wide screens. Changes stay in the draft until you publish."),
     h("div", { class: "grid-main" },
-      h("div", { class: "stack" }, list, h("div", { class: "row wrap" }, adder, page.has_draft ? discard : null)),
+      h("div", { class: "stack" }, list, said, h("div", { class: "row wrap" }, adder, page.has_draft ? discard : null)),
       h("div", { class: "stack-lg" }, history, embedCard(group))));
 }
 

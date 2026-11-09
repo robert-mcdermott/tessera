@@ -2,6 +2,60 @@
 
 All notable changes to Tessera are recorded here. Versions follow [semantic versioning](https://semver.org/); each wave of work ships as a minor release (wave 1 → 0.1.0, wave 2 → 0.2.0).
 
+## 0.7.0 (2026-11-09)
+
+Adoption. Another organization can now install Tessera, make it its own, and run it: on SQLite or PostgreSQL, behind its own single sign-on, in its colors and words, as a service on its own server, at the size of a large research institution, checked for accessibility and security, and with a guide that takes it from nothing to a curated, published site.
+
+**Highlights:** every test runs on SQLite and on PostgreSQL 16; single sign-on with OpenID Connect (Microsoft Entra ID, Okta, Google, Keycloak, and others), with roles from the provider's groups or app roles; **Admin → Branding**, with a live preview and every color pair's contrast checked, and vocabulary presets for an academic medical center, a university, and a research institute; a container image, a compose file with PostgreSQL, systemd units, and reverse-proxy examples, with health checks and `tessera doctor --production`; `tessera bench`, and the speed-ups it led to, measured at 10,000 people and a million papers; an accessibility audit of every page and a security review; and a guide, *Adopting Tessera*.
+
+**Upgrading:** run `tessera db upgrade` (migrations 0023 and 0024; 0024 builds new indexes, which takes a few minutes on a very large ledger), then `tessera build search`, or wait for the next sync: the search index now holds each document's kind, and until it is rebuilt, searching works as before. New settings, all optional: `[auth.oidc]` for single sign-on and `[vocabulary] preset`.
+
+**Checks for this release:** authorship is unchanged: on the pilot, re-resolved with this release, the ORCID works-list check gives 0.6.0's result exactly (196 listed papers from 2025 on, 94.9% found as candidates, 97.3% of those strong). The full suite passes on SQLite (913 tests) and on PostgreSQL 16 (914); migrations 0023 and 0024 were run down and back up on a copy of the pilot's ledger on both, every row kept. The accessibility audit finds nothing in any screenshot scene, by day or after dark. A fresh clone followed *Adopting Tessera*'s rehearsal to a signed-in, curated, published demo. No dependencies were added or changed, and `pip-audit` finds no known vulnerability in them.
+
+### Added
+
+- Every test runs on PostgreSQL as well as SQLite (PLT-09): with `TESSERA_TEST_LEDGER=postgres`, each installation a test creates gets its own PostgreSQL database, and `scripts/test-both.sh` runs the whole suite on both, with a disposable PostgreSQL that it removes afterwards. *Running Tessera* says when to choose PostgreSQL and how to move an installation to it.
+
+- Single sign-on with OpenID Connect (PLT-10, ADR-0011): with `[auth.oidc]`, people sign in through Microsoft Entra ID, Okta, Google, Keycloak, or any standards-based provider, by the authorization-code flow with PKCE; the ID token's RS256 signature (checked with the standard library), issuer, audience, expiry, and nonce are checked before anyone is signed in, and a sign-in must finish in the browser that began it. Accounts are found by the provider's identifier, matched by a verified email address, or created (unless turned off), and linked to the directory person with the same address. The provider's app roles or groups map to Tessera roles, group scopes included, and are replaced at every sign-in; roles given in the app stay, and the last admin is never removed. Local accounts keep working, behind **Sign in with a password**. **Admin → Accounts** shows how each account signs in and which roles came from the provider; `tessera doctor --online` checks the provider. Migration 0023. *Running Tessera* has steps for each provider.
+
+- `tessera bench` (PLT-14): measures Tessera on this machine with a simulated organization of any size (`--people`, `--papers`), shaped like a real one and written straight to the lake and ledger with no network: it times every local step of a first sync and of a nightly one, then starts the server and times the app's main requests (first, p50, p95) against their budgets, with each step's peak memory, the server's memory, the data's size on disk, and the machine it ran on, and saves the report as JSON. *Running Tessera* has sizing advice from its results. A folder built once is reused, so the nightly and app timings can be rerun.
+
+- **Admin → Branding** (PLT-13): admins set the product name, the palette everyone sees first, an accent, the organization's own colors by day and after dark, logos for light and dark backgrounds, the browser icon, the link-preview image, and footer links, with a live preview of the app and the public site in both modes and the contrast of every pair of colors shown as it changes. Saving writes the `[branding]` section of `tessera.toml` (keeping the file before as `tessera.toml.bak`, and images in `brand/` beside it), takes effect at once, and is refused while any pair is below WCAG 2.2 AA. SVGs with scripts or links to other files are refused, and branding images are served so nothing in them can run. A new guide, *Look and words*, covers it, with guidance for logos.
+
+- Reference files for running Tessera as a service, in `deploy/`: a container image built with uv from the lock file (an unprivileged user; the configuration and data home as volumes), a compose file with PostgreSQL 16, systemd units for the server and timers for the nightly sync and backup (sandboxed: `systemd-analyze security` rates the server 1.9, "OK"), and Caddy and nginx configurations. Each was run or checked: the image serves the demo, the compose file runs it on PostgreSQL, the units pass `systemd-analyze verify`, and the proxy configurations pass `caddy validate` and `nginx -t`. *Running Tessera* has a new section, "Running it as a service".
+
+- Health checks for supervisors and load balancers: `/api/v1/health/live` answers whenever the process does, and `/api/v1/health/ready` when the ledger (at the current schema) and the lake can be read. `tessera doctor --production` checks what a server other people use needs: accounts, a contact address and an NCBI API key for the sources, HTTPS addresses, a recent sync, room on the disk, a search index, and not running as root.
+
+- A guide, *Adopting Tessera*, that takes an organization from nothing to a signed-in, curated, published installation: what to decide first, installing, describing the organization, people and groups, the first sync, a plan for the first weeks of curation, pages and profiles, the public site, and keeping it running, starting with a rehearsal of the whole life of an installation on the demo organization.
+
+- An accessibility audit of every page in both themes (UX-06): `node docs/capture/capture.mjs --audit` checks each documentation scene against WCAG 2.2 AA as it takes the screenshot, from accessible names in Chrome's own accessibility tree to the contrast of rendered text, target sizes, and a real walk with the Tab key for visible, unhidden focus and keyboard traps, and fails on any finding.
+
+- A security review (PLT-15): the threat model and a review against OWASP ASVS 4.0.3 at level 1 are in `spec/security.md`, with every finding fixed or recorded, and `SECURITY.md` says how to report a vulnerability privately.
+
+- Vocabulary presets (PLT-11): `[vocabulary] preset = "academic_medical_center"`, `"university"`, or `"research_institute"` names groups, their kinds, and roles as that kind of organization does; settings beside it adjust the preset.
+
+### Changed
+
+- Faster at scale, measured at 10,000 people and 1,000,000 papers:
+  - **Resolving** remembers the names and affiliations it has normalized and works out each person's topic vector once, so it takes half the time.
+  - **Similar people** are compared a batch at a time and explained only for the pairs kept, so they are built in bounded memory (at a million papers, comparing everyone at once ran out of memory) and twice as fast, with the same results.
+  - **Search** counts and ranks one kind's matches from the full-text index alone (each document's kind is now in it), counts facets from the matches, and keeps a search's facet counts until the index changes, so the next page does not count them again. A search for a name takes about a tenth of a second at a million papers. Rebuild the search index after upgrading (`tessera build search`, or the next sync); until then, searches work as before.
+  - **The review queue** is counted in the database and reads only the page it shows, in the same order as before, however many suggestions are open; the order comes from a covering index rather than every suggestion's evidence (`assertion.review_flags`, kept as evidence is written).
+  - **A group's page** counts only its own and its subgroups' members, and **a grant's thread** finds the papers that acknowledge it by an index that SQLite now prefers.
+  - **Insight** keeps the inputs it gathers and the figures it serves until the data changes (the version of every run, decision, and person or group change), the day turns, or ten minutes pass.
+  - **Lists:** unfiltered lists read facet counts stored with the search index (kept exact by triggers between builds); a person's links are read from a covering index.
+  - Migration 0024.
+
+### Fixed
+
+- `tessera serve` says when something else is already listening on its port, and suggests another, instead of announcing that it is running and then failing to listen.
+
+- Accessibility, from the audit and a pass with the keyboard alone over curating, searching, editing a group page, keeping a profile, and building a CV: the sidebar scrolls on short screens, so its last items (Admin) can be seen and reached; with the command palette open, the keyboard stays in it and the page behind is out of reach; topic chips' remove buttons and profiles' research-area links meet contrast and target size; every *Add* button says what it adds; a group page's blocks say which block each button moves or removes, moves and removals are announced, and focus stays in the list; the biosketch's personal statement and the palette's results are named; and branding images are uploaded from a button one can see focused.
+
+- Security: the public-page preview, which is served from the app's own address, allows no scripts at all; the nginx example limits sign-in attempts from one address, which the app cannot count behind a proxy.
+
+- The review queue lists suggestions in the same order on PostgreSQL as on SQLite, including after a restore; before, ties came back in whatever order the database stored them.
+
 ## 0.6.0 (2026-11-08)
 
 Profiles. Every researcher now has a full profile: what Tessera builds from public records, beside the sections they keep themselves, from an overview and research interests to earlier positions, education, honors, service, teaching, talks, links, and the papers they want to feature. Every profile is open to everyone inside the organization, public only by the researcher's choice, and the source of their CVs and NIH biosketches, which stay current because they are built from the profile and confirmed records each time.

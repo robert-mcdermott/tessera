@@ -1,0 +1,27 @@
+# Caddy in front of Tessera: HTTPS with certificates Caddy obtains and renews itself.
+# Replace the host names; Tessera listens on 127.0.0.1:8000 ([server] host and port).
+#
+# Caddy sends X-Forwarded-Proto and X-Forwarded-Host, which Tessera reads to mark its cookies
+# Secure and to build the single sign-on address. Tessera sets its own security headers.
+
+tessera.example.edu {
+	encode zstd gzip
+	header Strict-Transport-Security "max-age=31536000"
+	request_body {
+		max_size 4MB  # branding images are at most 2 MB
+	}
+	reverse_proxy 127.0.0.1:8000 {
+		# A first Insight figure at a million papers can take most of a minute.
+		transport http {
+			response_header_timeout 120s
+		}
+	}
+}
+
+# The public site (tessera publish writes it to <data home>/public): plain files.
+research.example.edu {
+	encode zstd gzip
+	header Strict-Transport-Security "max-age=31536000"
+	root * /srv/tessera/var/public
+	file_server
+}

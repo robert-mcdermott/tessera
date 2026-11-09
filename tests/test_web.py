@@ -17,7 +17,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from tessera.api.security import SECURITY_HEADERS
-from tessera.api.static import WEB_ROOT
+from tessera.api.static import IMAGE_POLICY, WEB_ROOT
 from tessera.config import load_config
 
 JS_ROOT = WEB_ROOT / "js"
@@ -376,7 +376,10 @@ def test_configured_logo_is_served(config_file: Path, instance: object) -> None:
     assert light.status_code == 200 and light.headers["content-type"].startswith("image/svg+xml")
     assert dark.status_code == 200 and dark.content == light.content
     assert other.status_code == 404
-    assert light.headers["content-security-policy"] == SECURITY_HEADERS["Content-Security-Policy"]
+    # Stricter than the app's own policy: whatever an SVG holds, nothing in it runs.
+    assert light.headers["content-security-policy"] == IMAGE_POLICY
+    assert "script-src 'none'" in IMAGE_POLICY and "sandbox" in IMAGE_POLICY
+    assert light.headers["x-content-type-options"] == "nosniff"
 
 
 def test_no_logo_by_default(client: TestClient) -> None:

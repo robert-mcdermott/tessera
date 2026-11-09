@@ -1,0 +1,46 @@
+# One backup: an archive of the ledger, the lake, report snapshots, and the configuration in
+# <data home>/backups/ (tessera backup --out DIR writes elsewhere). Copy archives off the
+# machine: a backup on the same disk does not survive the disk. See docs/operations.md.
+
+[Unit]
+Description=Tessera backup
+Documentation=https://robert-mcdermott.github.io/tessera/operations.html#backups
+
+[Service]
+Type=oneshot
+User=tessera
+Group=tessera
+WorkingDirectory=/srv/tessera
+Environment=TESSERA_CONFIG=/srv/tessera/tessera.toml
+# Secrets (NCBI_API_KEY, PGPASSWORD, TESSERA_OIDC_CLIENT_SECRET, …), readable only by root.
+EnvironmentFile=-/etc/tessera/tessera.env
+ExecStart=/srv/tessera/app/.venv/bin/tessera --quiet backup
+# Keep 30 days of archives here, if you choose (archives are not removed otherwise):
+# ExecStartPost=/usr/bin/find /srv/tessera/var/backups -name "*.tar.gz" -mtime +30 -delete
+TimeoutStartSec=4h
+Nice=10
+IOSchedulingClass=idle
+
+# Sandboxing: Tessera needs its own folder, outbound HTTPS (the sync), and its port.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/srv/tessera
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0027

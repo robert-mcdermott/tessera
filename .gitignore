@@ -27,3 +27,7 @@ htmlcov/
 .idea/
 .vscode/
 *.swp
+
+# The compose example's local files (deploy/container/compose.yaml)
+deploy/container/.env
+deploy/container/config/

@@ -6,6 +6,9 @@
 //   node docs/capture/capture.mjs --theme dark       only one theme
 //   node docs/capture/capture.mjs --demo PATH        reuse a demo built with `tessera demo PATH`
 //   node docs/capture/capture.mjs social             only the social preview card (from home-light)
+//   node docs/capture/capture.mjs --audit            also audit each scene for WCAG 2.2 AA (audit.mjs),
+//                                                    and fail if anything is found; --audit-only
+//                                                    audits without writing screenshots
 //   node docs/capture/capture.mjs --ai MODEL         also the assistant's scenes, with MODEL at an
 //                                                    OpenAI-compatible endpoint (--ai-url, Ollama's
 //                                                    on this machine by default)
@@ -21,6 +24,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { audit } from "./audit.mjs";
 import { launch } from "./cdp.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -71,6 +75,7 @@ export const SCENES = [
   { name: "insight-snapshot", url: "/insight/snapshots/{snapshot}", ...WIDE, wait: FIGURES },
   { name: "saved-search", url: "/publications?q=lymphoma&saved={saved}", ...WIDE, wait: "document.querySelector('.saved-panel .saved-lead')" },
   { name: "operations", url: "/admin/operations", ...WIDE },
+  { name: "branding", url: "/admin/branding", ...WIDE },
   { name: "embed", file: "groups/cancer-immunotherapy-program/embed/publications.html", width: 760, height: 560, ready: "document.querySelector('main h1')" },
   { name: "duplicates", url: "/review/duplicates", ...WIDE },
   { name: "discovered", url: "/review/people", ...WIDE },
@@ -183,6 +188,10 @@ async function social(browser) {
 async function main() {
   const args = process.argv.slice(2);
   const option = (name) => { const i = args.indexOf(name); if (i < 0) return null; const v = args[i + 1]; args.splice(i, 2); return v; };
+  const flag = (name) => { const i = args.indexOf(name); if (i < 0) return false; args.splice(i, 1); return true; };
+  const auditOnly = flag("--audit-only");
+  const auditing = flag("--audit") || auditOnly;
+  const findings = [];
   const theme = option("--theme");
   const themeArg = theme ? [theme] : null;
   const demoArg = option("--demo");
@@ -229,19 +238,38 @@ async function main() {
       try {
         await waitForServer(base);
         const chosen = await people(base);
-        await capture(browser, list, { base, chosen, demo, themeArg });
+        await capture(browser, list, { base, chosen, demo, themeArg, auditing, auditOnly, findings });
       } finally {
         server.kill();
       }
     }
-    if (withSocial) await social(browser);
+    if (withSocial && !auditOnly) await social(browser);
   } finally {
     await browser.close();
     if (work) rmSync(work, { recursive: true, force: true });
   }
+  if (auditing) report(findings);
 }
 
-async function capture(browser, scenes, { base, chosen, demo, themeArg }) {
+/** The audit's findings, grouped by rule; exits non-zero when there are any. */
+function report(findings) {
+  const out = join(tmpdir(), "tessera-audit.json");
+  writeFileSync(out, JSON.stringify(findings, null, 1));
+  if (!findings.length) {
+    console.log("Audit: nothing found (WCAG 2.2 AA, automated checks).");
+    return;
+  }
+  const byRule = new Map();
+  for (const f of findings) byRule.set(f.rule, [...(byRule.get(f.rule) ?? []), f]);
+  for (const [rule, list] of byRule) {
+    console.log(`\n${rule}: ${list.length}`);
+    for (const f of list.slice(0, 60)) console.log(`  ${f.scene} (${f.theme})  ${f.where}  ${f.detail}`);
+  }
+  console.log(`\nAudit: ${findings.length} findings; all of them in ${out}`);
+  process.exitCode = 1;
+}
+
+async function capture(browser, scenes, { base, chosen, demo, themeArg, auditing = false, auditOnly = false, findings = [] }) {
   for (const scene of scenes) {
     if (scene.setup) await scene.setup(base, chosen);
     for (const theme of themeArg || ["light", "dark"]) {
@@ -267,10 +295,18 @@ async function capture(browser, scenes, { base, chosen, demo, themeArg }) {
         await page.evaluate(`(() => { const el = document.querySelector(${JSON.stringify(scene.scroll)}); window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 76); })()`);
       }
       await new Promise((r) => setTimeout(r, scene.settle ?? 600));
-      const file = join(IMAGES, `${scene.name}-${theme}.webp`);
-      writeFileSync(file, await page.screenshot({ quality: 80 }));
+      if (!auditOnly) {
+        const file = join(IMAGES, `${scene.name}-${theme}.webp`);
+        writeFileSync(file, await page.screenshot({ quality: 80 }));
+      }
+      let note = "";
+      if (auditing && !scene.noAudit) {
+        const found = await audit(page);
+        findings.push(...found.map((f) => ({ scene: scene.name, theme, ...f })));
+        note = found.length ? `  ${found.length} audit findings` : "";
+      }
       await page.close();
-      console.log(`  ${scene.name} (${theme})`);
+      console.log(`  ${scene.name} (${theme})${note}`);
     }
   }
 }

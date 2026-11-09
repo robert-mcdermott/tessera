@@ -35,7 +35,10 @@ export function accounts(main, ctx = {}) {
       const rows = list.map((a) => h("tr", { class: a.status === "disabled" ? "muted" : "" },
         h("td", {}, h("div", { class: "row-sm" }, avatar(a.name, "sm"),
           h("div", { class: "stack-xs" }, h("strong", {}, a.name), h("span", { class: "subtle mono" }, a.username)))),
-        h("td", {}, h("div", { class: "chips" }, a.roles.map((r) => h("span", { class: "chip chip-plain" }, roleText(r))))),
+        h("td", {}, h("div", { class: "chips" }, a.roles.map((r) => h("span", { class: "chip chip-plain",
+          title: r.source === "provider" ? "From single sign-on: changed at the provider" : null },
+          roleText(r), r.source === "provider" ? h("span", { class: "subtle" }, " · SSO") : null)))),
+        h("td", { class: "nowrap muted" }, signsInWith(a.sign_in)),
         h("td", {}, a.status === "active" ? pill("Active", "ok") : pill("Disabled", "")),
         h("td", { class: "nowrap muted" }, a.last_sign_in_at ? relative(a.last_sign_in_at) : "never"),
         h("td", { class: "actions" }, h("button", { type: "button", class: "btn btn-sm btn-ghost", onclick: () => editAccount(a, units, reload) }, "Edit"))));
@@ -48,13 +51,19 @@ export function accounts(main, ctx = {}) {
         }),
         card({ body: rows.length
           ? h("div", { class: "table-wrap" }, h("table", { class: "table" },
-            h("thead", {}, h("tr", {}, h("th", {}, "Person"), h("th", {}, "Roles"), h("th", {}, "Status"), h("th", {}, "Last sign-in"),
+            h("thead", {}, h("tr", {}, h("th", {}, "Person"), h("th", {}, "Roles"), h("th", {}, "Signs in with"), h("th", {}, "Status"), h("th", {}, "Last sign-in"),
               h("th", { class: "actions" }, h("span", { class: "sr-only" }, "Actions")))),
             h("tbody", {}, rows)))
           : emptyState({ iconName: "people", title: "No accounts yet" }) }),
         card({ title: "Roles", pad: true, body: h("dl", { class: "kv" }, ROLES.flatMap((r) => [h("dt", {}, r.label), h("dd", {}, r.text)])) }));
     },
   });
+}
+
+function signsInWith(how) {
+  if (!how) return "";
+  const ways = [how.single_sign_on ? "Single sign-on" : null, how.password ? "Password" : null].filter(Boolean);
+  return ways.join(" or ") || "Nothing yet";
 }
 
 function roleText(r) {
@@ -65,9 +74,12 @@ function roleText(r) {
 
 /** The role picker shared by the add and edit forms. units: [{id, slug, name, kind}]. */
 function roleFields(initial, units) {
-  const roles = new Set(initial.roles.map((r) => r.role));
-  const scoped = initial.roles.find((r) => r.role === "curator" && r.scope_type);
-  const managed = initial.roles.find((r) => r.role === "manager");
+  // Roles from single sign-on are the provider's to change; these are the ones given here.
+  const given = initial.roles.filter((r) => r.source !== "provider");
+  const fromProvider = initial.roles.filter((r) => r.source === "provider");
+  const roles = new Set(given.map((r) => r.role));
+  const scoped = given.find((r) => r.role === "curator" && r.scope_type);
+  const managed = given.find((r) => r.role === "manager");
   const boxes = ROLES.map((r) => h("input", { type: "checkbox", id: `role-${r.id}`, value: r.id, checked: roles.has(r.id) }));
   const groupOptions = (prefix) => units.map((u) => h("option", { value: `group:${u.slug}` }, `${prefix}${u.name} (${u.kind})`));
   const slugOf = (id) => units.find((u) => u.id === id)?.slug;
@@ -85,7 +97,8 @@ function roleFields(initial, units) {
   const below = h("input", { type: "checkbox", id: "role-below", checked: Boolean(managed?.include_below) });
   const person = h("input", { class: "input mono", id: "role-person", value: initial.person_id ?? "",
     placeholder: "per_… (from the person's profile address)", autocomplete: "off" });
-  const fieldset = h("fieldset", { class: "field" }, h("legend", {}, "Roles"),
+  const fieldset = h("fieldset", { class: "field" }, h("legend", {}, fromProvider.length ? "Roles given here" : "Roles"),
+    fromProvider.length ? h("p", { class: "subtle" }, `From single sign-on, changed at the provider at each sign-in: ${fromProvider.map(roleText).join(", ")}.`) : null,
     ROLES.map((r, i) => h("div", { class: "row-sm" }, boxes[i], h("label", { for: `role-${r.id}` }, h("strong", {}, r.label), h("span", { class: "subtle" }, ` · ${r.text}`)))),
     h("div", { class: "field" }, h("label", { for: "role-scope" }, "A curator decides for"), scope),
     h("div", { class: "field" }, h("label", { for: "role-manages" }, "A manager keeps the page of"), manages,

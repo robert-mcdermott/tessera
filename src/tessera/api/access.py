@@ -29,7 +29,7 @@ from starlette.concurrency import run_in_threadpool
 from tessera.api.problems import problem
 from tessera.auth.accounts import grants_of
 from tessera.auth.principal import Principal
-from tessera.auth.sessions import COOKIE, CSRF_HEADER, load_session
+from tessera.auth.sessions import COOKIE, CSRF_HEADER, NO_PASSWORD, load_session
 from tessera.config import LOOPBACK_HOSTS
 from tessera.ledger.tables import account
 
@@ -47,11 +47,15 @@ class Level(IntEnum):
 P, R = Level.PUBLIC, Level.READ
 POLICIES: dict[tuple[str, str], Level] = {
     ("GET", "/api/v1/health"): P,
+    ("GET", "/api/v1/health/live"): P,
+    ("GET", "/api/v1/health/ready"): P,
     ("GET", "/api/v1/meta"): P,
     ("GET", "/api/v1/session"): P,
     ("POST", "/api/v1/session"): P,
     ("DELETE", "/api/v1/session"): R,
     ("POST", "/api/v1/session/password"): R,
+    ("GET", "/api/v1/auth/sso/start"): P,
+    ("GET", "/api/v1/auth/sso/callback"): P,
     ("GET", "/api/docs"): R,
     ("GET", "/api/openapi.json"): R,
     ("GET", "/api/v1/search"): R,
@@ -201,6 +205,10 @@ POLICIES: dict[tuple[str, str], Level] = {
     ("GET", "/api/v1/accounts"): Level.ADMIN,
     ("POST", "/api/v1/accounts"): Level.ADMIN,
     ("POST", "/api/v1/accounts/{account_id}"): Level.ADMIN,
+    ("GET", "/api/v1/admin/branding"): Level.ADMIN,
+    ("POST", "/api/v1/admin/branding"): Level.ADMIN,
+    ("POST", "/api/v1/admin/branding/check"): Level.ADMIN,
+    ("POST", "/api/v1/admin/branding/images/{image}"): Level.ADMIN,
 }
 UNSAFE = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
@@ -260,6 +268,7 @@ def _principal(request: Request) -> Principal | None:
         person_id=row["person_id"],
         grants=grants,
         csrf_token=session["csrf_token"],
+        has_password=row["password_hash"] != NO_PASSWORD,
     )
 
 

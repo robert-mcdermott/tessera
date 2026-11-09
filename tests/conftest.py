@@ -21,6 +21,42 @@ class Instance:
     home: DataHome
 
 
+_LEDGERS = None
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """With TESSERA_TEST_LEDGER=postgres, every test's ledger is a PostgreSQL database."""
+    import os
+
+    global _LEDGERS
+    if os.environ.get("TESSERA_TEST_LEDGER") == "postgres":
+        url = os.environ.get("TESSERA_TEST_POSTGRES_URL")
+        if not url:
+            raise pytest.UsageError("TESSERA_TEST_LEDGER=postgres needs TESSERA_TEST_POSTGRES_URL")
+        from tests.pg_ledgers import Ledgers
+
+        _LEDGERS = Ledgers(url)
+        _LEDGERS.install()
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    if _LEDGERS is None:
+        return
+    skip = pytest.mark.skip(reason="about the default SQLite ledger; this run is on PostgreSQL")
+    for item in items:
+        if "sqlite_ledger" in item.keywords:
+            item.add_marker(skip)
+
+
+def pytest_unconfigure(config: pytest.Config) -> None:
+    if _LEDGERS is not None:
+        _LEDGERS.uninstall()
+
+
+def pytest_report_header(config: pytest.Config) -> str:
+    return f"ledger: {'PostgreSQL' if _LEDGERS is not None else 'SQLite'}"
+
+
 @pytest.fixture(autouse=True)
 def _isolate_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep a developer's TESSERA_* variables from leaking into tests."""

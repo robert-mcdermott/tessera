@@ -1,0 +1,12 @@
+# Back up every night, well before the sync: only one data job runs at a time, and a second
+# one stops at once. Enable with: systemctl enable --now tessera-backup.timer
+
+[Unit]
+Description=Nightly Tessera backup
+
+[Timer]
+OnCalendar=*-*-* 00:30
+Persistent=true
+
+[Install]
+WantedBy=timers.target

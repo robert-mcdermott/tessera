@@ -65,8 +65,27 @@ def build_parser() -> argparse.ArgumentParser:
     demo.add_argument("--seed", type=int, default=7, help="another seed, other people")
     demo.set_defaults(handler=cmd_demo)
 
+    bench = commands.add_parser(
+        "bench",
+        help="measure Tessera on this machine with a simulated organization of any size",
+    )
+    bench.add_argument(
+        "path", nargs="?", default="bench", help="where to build it, or reuse (default: ./bench)"
+    )
+    bench.add_argument("--people", type=int, default=1000, help="people (default 1,000)")
+    bench.add_argument("--papers", type=int, default=50_000, help="papers (default 50,000)")
+    bench.add_argument("--seed", type=int, default=7, help="another seed, another organization")
+    bench.add_argument("--rebuild", action="store_true", help="build it again even if it is there")
+    bench.add_argument(
+        "--samples", type=int, default=30, help="requests timed per page (default 30)"
+    )
+    bench.set_defaults(handler=cmd_bench)
+
     doctor = commands.add_parser("doctor", help="check that this installation is ready")
     doctor.add_argument("--online", action="store_true", help="also test public API reachability")
+    doctor.add_argument(
+        "--production", action="store_true", help="also check what a server others use needs"
+    )
     doctor.set_defaults(handler=cmd_doctor)
 
     db = commands.add_parser("db", help="ledger database maintenance")
@@ -538,6 +557,18 @@ def _print_result(result) -> None:  # type: ignore[no-untyped-def]
 # --- commands -------------------------------------------------------------------------
 
 
+def cmd_bench(args: argparse.Namespace) -> int:
+    from tessera.bench.run import run
+
+    if args.people < 10 or args.papers < 100:
+        print("Use at least 10 people and 100 papers.", file=sys.stderr)
+        return EXIT_ERROR
+    run(Path(args.path), people=args.people, papers=args.papers, seed=args.seed,
+        rebuild=args.rebuild, samples=args.samples,
+        say=lambda line: print(line, flush=True))  # fmt: skip
+    return EXIT_OK
+
+
 def cmd_demo(args: argparse.Namespace) -> int:
     from tessera.demo import DemoError, build_demo
 
@@ -591,7 +622,7 @@ def cmd_init(args: argparse.Namespace) -> int:
 def cmd_doctor(args: argparse.Namespace) -> int:
     from .doctor import exit_code, print_checks, run_checks
 
-    checks = run_checks(args.config, online=args.online)
+    checks = run_checks(args.config, online=args.online, production=args.production)
     print_checks(checks)
     return exit_code(checks)
 
@@ -1455,6 +1486,24 @@ def cmd_eval_authorship(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _port_free(host: str, port: int) -> bool:
+    """Whether a server could listen on host:port now (as uvicorn will, reusing the address)."""
+    import socket
+
+    try:
+        infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    except OSError:
+        return True  # let the server report an address it cannot use
+    for family, kind, proto, _, address in infos[:1]:
+        with socket.socket(family, kind, proto) as probe:
+            probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                probe.bind(address)
+            except OSError:
+                return False
+    return True
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -1483,8 +1532,17 @@ def cmd_serve(args: argparse.Namespace) -> int:
                 "tessera users add <username> --role admin"
             )
     assert config.path is not None
+    if not args.reload and not _port_free(host, port):
+        other = port + 1000 if port < 64535 else 8080
+        raise TesseraError(
+            f"Something else is already listening on {host}:{port}. Stop it, or choose another "
+            f"port: `tessera serve --port {other}` (or [server] port)."
+        )
     os.environ[ENV_CONFIG_PATH] = str(Path(config.path).resolve())
-    print(f"{config.branding.product_name} running at http://{host}:{port}/  (Ctrl-C to stop)")
+    print(
+        f"{config.branding.product_name} running at http://{host}:{port}/  (Ctrl-C to stop)",
+        flush=True,
+    )
     uvicorn.run(
         "tessera.api.app:create_app_from_env",
         factory=True,

@@ -248,7 +248,8 @@ def test_signed_out_requests_need_a_session(world: World) -> None:
     # The web app's files are public (the sign-in page needs them); its data is not.
     assert world.clients["anonymous"].get("/").status_code == 200
     meta = world.clients["anonymous"].get("/api/v1/meta").json()["data"]
-    assert meta["mode"] == {"accounts": True, "operator": None} and meta["sources"] == []
+    assert meta["mode"] == {"accounts": True, "operator": None, "sso": None}
+    assert meta["sources"] == []
 
 
 # --- scopes ------------------------------------------------------------------------------------
@@ -483,6 +484,7 @@ def test_admins_manage_accounts(world: World) -> None:
             "scope_id": world.ids["unit"],
             "include_below": False,
             "scope_label": world.ids["unit_name"],
+            "source": "local",
         }
     ]
     assert "password_hash" not in account

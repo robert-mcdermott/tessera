@@ -137,9 +137,9 @@ function editor(data, { save, saveSoon, personId, docId }) {
         if (!other.value.trim()) return;
         spec[key] = [...spec[key], { text: other.value.trim() }];
         now();
-      } }, other, h("button", { type: "submit", class: "btn btn-sm" }, "Add")));
+      } }, other, h("button", { type: "submit", class: "btn btn-sm", "aria-label": `Add to ${label.toLowerCase()}` }, "Add")));
   };
-  const statement = h("textarea", { class: "input bio-area", id: "bio-statement", rows: 10, "aria-describedby": "bio-statement-hint",
+  const statement = h("textarea", { class: "input bio-area", id: "bio-statement", rows: 10, "aria-label": "Personal statement", "aria-describedby": "bio-statement-hint",
     oninput: (event) => { spec.statement = event.currentTarget.value; later(); } }, spec.statement);
   const insertInto = (textarea, assign) => (text) => {
     textarea.value = text;

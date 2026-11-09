@@ -24,7 +24,20 @@ def _config(request: Request) -> Config:
     return request.app.state.config
 
 
-@router.get("/health", summary="Liveness and readiness")
+@router.get("/health/live", summary="Alive: the process answers")
+def health_live() -> dict[str, str]:
+    """For a supervisor deciding whether to restart the process: it depends on nothing else."""
+    return {"status": "ok"}
+
+
+@router.get("/health/ready", summary="Ready: the ledger, at the current schema, and the lake")
+def health_ready(request: Request) -> JSONResponse:
+    """For a load balancer deciding whether to send traffic: ``200`` when the ledger and lake
+    are usable, ``503`` otherwise, with each check's state."""
+    return health(request)
+
+
+@router.get("/health", summary="Liveness and readiness (as /health/ready)")
 def health(request: Request) -> JSONResponse:
     """``200`` when the ledger and lake are usable, ``503`` otherwise, with per-check detail."""
     checks: dict[str, Any] = {}
@@ -74,6 +87,10 @@ def meta(request: Request) -> dict[str, Any]:
             "mode": {
                 "accounts": config.server.accounts,
                 "operator": None if config.server.accounts else config.server.operator,
+                # The sign-in page's single sign-on button, when it is set up.
+                "sso": {"label": config.auth.oidc.label}
+                if config.server.accounts and config.auth.oidc.enabled
+                else None,
             },
             # Before sign-in, only what the sign-in page shows (name, branding).
             "sources": _freshness(request, config) if signed_in else [],

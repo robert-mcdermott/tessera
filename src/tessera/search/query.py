@@ -11,17 +11,23 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+import threading
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from tessera.core.errors import TesseraError
-from tessera.search.index import ALL_KINDS, KINDS
+from tessera.search.index import ALL_KINDS, KINDS, has_kind_column, kind_token
 
 MARK_START, MARK_END = "", ""
 MAX_TERMS = 12
 MAX_QUERY_LENGTH = 500
 COLUMN_WEIGHTS = "10.0, 6.0, 3.0, 1.0"  # title, people, terms, body
+KINDED_WEIGHTS = COLUMN_WEIGHTS + ", 0.0"  # and the kind, which never adds to the rank
+SORTER_THREADS = 4  # for SQLite's sorter: grouping a common word's facets, for example
+FACETS_KEPT = 256  # facet counts kept per query, so paging through results does not recount them
+PREFIX_MARKS_UP_TO = 200_000  # documents in the index, above which a part word is not marked
 SORTS = {
     "person": {"name": "d.sort_key", "activity": "d.weight DESC, d.sort_key"},
     "publication": {"year": "d.sort_key", "citations": "d.weight DESC, d.sort_key"},
@@ -162,6 +168,22 @@ def to_fts_any(text: str | None) -> str | None:
     return " OR ".join(f'"{w}"' for w in words) if words else None
 
 
+_facets_kept: OrderedDict[tuple, dict[str, list[dict[str, Any]]]] = OrderedDict()
+_facets_lock = threading.Lock()
+
+
+def _version(path: Path) -> int:
+    """The index file's version: rebuilds replace it, and decisions change it in place."""
+    try:
+        return path.stat().st_mtime_ns
+    except OSError:
+        return 0
+
+
+def _copy(facets: dict[str, list[dict[str, Any]]]) -> dict[str, list[dict[str, Any]]]:
+    return {name: [dict(v) for v in values] for name, values in facets.items()}
+
+
 @dataclass
 class SearchResult:
     items: list[dict[str, Any]]
@@ -181,6 +203,8 @@ class SearchIndex:
             )
         con = sqlite3.connect(f"file:{self.path}?mode=ro", uri=True, check_same_thread=False)
         con.row_factory = sqlite3.Row
+        con.execute(f"PRAGMA threads = {SORTER_THREADS}")
+        con.execute("PRAGMA temp_store = MEMORY")  # each search's matches, in ``temp.hits``
         return con
 
     def meta(self) -> dict[str, str]:
@@ -194,17 +218,67 @@ class SearchIndex:
 
     @staticmethod
     def _filters(kind: str, filters: dict[str, list[str]]) -> tuple[str, list[Any]]:
-        clauses, params = ["d.kind = ?"], [kind]
+        clauses, params = SearchIndex._facet_filters(filters, "d.id")
+        return " AND ".join(["d.kind = ?", *clauses]), [kind, *params]
+
+    @staticmethod
+    def _facet_filters(filters: dict[str, list[str]], ident: str) -> tuple[list[str], list[Any]]:
+        clauses: list[str] = []
+        params: list[Any] = []
         for name, values in sorted(filters.items()):
             values = [v for v in values if v]
             if not values:
                 continue
             marks = ", ".join("?" for _ in values)
             clauses.append(
-                f"d.id IN (SELECT doc_id FROM facet WHERE name = ? AND value IN ({marks}))"
+                f"{ident} IN (SELECT doc_id FROM facet WHERE name = ? AND value IN ({marks}))"
             )
             params += [name, *values]
-        return " AND ".join(clauses), params
+        return clauses, params
+
+    def _hits(
+        self,
+        con: sqlite3.Connection,
+        kind: str | None,
+        fts: str,
+        filters: dict[str, list[str]],
+    ) -> None:
+        """Every match, with its rank, in the temporary table ``hits`` (with each one's kind, when
+        every kind is searched): the full-text query runs once per search, not once for the
+        count, again for the page, and again for the facets. With the last word typed in part,
+        it merges the lists of every word that begins so, which at a million papers takes most
+        of a second.
+
+        From 0.7.0 each document's kind is a word in the full-text index, so one kind's
+        matches are found there alone, and an (id, kind) index gives every match's kind without
+        reading the documents. An index from before then is read the old way."""
+        kinded = has_kind_column(con)
+        weights = KINDED_WEIGHTS if kinded else COLUMN_WEIGHTS
+        rank = f"doc_fts.rowid AS id, bm25(doc_fts, {weights}) AS rank"
+        con.execute("DROP TABLE IF EXISTS temp.hits")
+        if kind is None:
+            doc = "doc d INDEXED BY ix_doc_kind" if kinded else "doc d"
+            con.execute(
+                f"CREATE TEMP TABLE hits AS SELECT {rank}, d.kind AS kind FROM doc_fts "
+                f"JOIN {doc} ON d.id = doc_fts.rowid WHERE doc_fts MATCH ?",
+                [fts],
+            )
+            con.execute("CREATE INDEX temp.hits_by_kind ON hits (kind, rank, id)")
+        elif kinded:
+            clauses, params = self._facet_filters(filters, "doc_fts.rowid")
+            where = "".join(f" AND {c}" for c in clauses)
+            con.execute(
+                f"CREATE TEMP TABLE hits AS SELECT {rank} FROM doc_fts "
+                f"WHERE doc_fts MATCH ?{where}",
+                [f'"{kind_token(kind)}" AND ({fts})', *params],
+            )
+        else:
+            where, params = self._filters(kind, filters)
+            con.execute(
+                f"CREATE TEMP TABLE hits AS SELECT {rank} FROM doc_fts "
+                f"JOIN doc d ON d.id = doc_fts.rowid WHERE doc_fts MATCH ? AND {where}",
+                [fts, *params],
+            )
 
     def search(
         self,
@@ -223,33 +297,49 @@ class SearchIndex:
         if kind not in ALL_KINDS:
             raise TesseraError(f"Unknown kind {kind!r}; choose from {', '.join(ALL_KINDS)}")
         fts = to_fts_any(query) if match == "any" else to_fts_query(query)
-        where, params = self._filters(kind, filters or {})
         con = self.connect()
         try:
             if fts:
-                base = (
-                    "FROM doc_fts JOIN doc d ON d.id = doc_fts.rowid "
-                    f"WHERE doc_fts MATCH ? AND {where}"
-                )
-                base_params = [fts, *params]
+                self._hits(con, kind, fts, filters or {})
+                ids_sql, base_params = "SELECT id FROM temp.hits", []
+                total = con.execute("SELECT count(*) FROM temp.hits").fetchone()[0]
                 order = sort if sort in SORTS[kind] else "relevance"
-                order_sql = (
-                    f"bm25(doc_fts, {COLUMN_WEIGHTS})"
-                    if order == "relevance"
-                    else SORTS[kind][order]
-                )
+                if order == "relevance":  # ranked by ID and rank alone; the page read in full
+                    ids = [
+                        r[0]
+                        for r in con.execute(
+                            "SELECT id FROM temp.hits ORDER BY rank, id LIMIT ? OFFSET ?",
+                            [limit, offset],
+                        )
+                    ]
+                    rows = self._docs(con, ids)
+                else:
+                    rows = con.execute(
+                        f"SELECT d.* FROM doc d WHERE d.id IN ({ids_sql}) "
+                        f"ORDER BY {SORTS[kind][order]} LIMIT ? OFFSET ?",
+                        [limit, offset],
+                    ).fetchall()
             else:
+                where, params = self._filters(kind, filters or {})
                 base, base_params = f"FROM doc d WHERE {where}", params
+                ids_sql = f"SELECT d.id {base}"
                 order = sort if sort in SORTS[kind] else DEFAULT_SORT[kind]
-                order_sql = SORTS[kind][order]
-            total = con.execute(f"SELECT count(*) {base}", base_params).fetchone()[0]
-            rows = con.execute(
-                f"SELECT d.* {base} ORDER BY {order_sql} LIMIT ? OFFSET ?",
-                [*base_params, limit, offset],
-            ).fetchall()
+                total = con.execute(f"SELECT count(*) {base}", base_params).fetchone()[0]
+                rows = con.execute(
+                    f"SELECT d.* {base} ORDER BY {SORTS[kind][order]} LIMIT ? OFFSET ?",
+                    [*base_params, limit, offset],
+                ).fetchall()
             wanted = fts and with_highlights
             marks = self._highlights(con, fts, [r["id"] for r in rows]) if wanted else {}
-            facets = self._facet_counts(con, kind, base, base_params) if with_facets else {}
+            facets: dict[str, list[dict[str, Any]]] = {}
+            if with_facets:
+                unfiltered = not fts and not any(v for v in (filters or {}).values())
+                totals = self._facet_totals(con, kind) if unfiltered else None
+                facets = (
+                    totals
+                    if totals is not None
+                    else self._counted_facets(con, kind, fts, filters or {}, ids_sql, base_params)
+                )
         except sqlite3.OperationalError as exc:  # defensive: input is sanitized above
             raise TesseraError(f"Search failed: {exc}") from exc
         finally:
@@ -257,19 +347,31 @@ class SearchIndex:
         return SearchResult([_item(r, marks.get(r["id"])) for r in rows], total, facets)
 
     @staticmethod
-    def _facet_counts(
-        con: sqlite3.Connection, kind: str, base: str, params: list[Any]
-    ) -> dict[str, list[dict[str, Any]]]:
+    def _has_totals(con: sqlite3.Connection) -> bool:
+        """Indexes built before 0.7.0 have no stored totals (``tessera build search`` adds them)."""
+        found = con.execute("SELECT 1 FROM sqlite_master WHERE name = 'facet_total'").fetchone()
+        return found is not None
+
+    @classmethod
+    def _facet_totals(
+        cls, con: sqlite3.Connection, kind: str
+    ) -> dict[str, list[dict[str, Any]]] | None:
+        """A whole kind's facet counts, as stored when the index was written."""
+        if not cls._has_totals(con):
+            return None
         names = FACETS[kind]
         marks = ", ".join("?" for _ in names)
         rows = con.execute(
-            f"SELECT f.name, f.value, count(*) AS n FROM facet f WHERE f.name IN ({marks}) "
-            f"AND f.doc_id IN (SELECT d.id {base}) GROUP BY f.name, f.value",
-            [*names, *params],
+            f"SELECT name, value, n FROM facet_total WHERE kind = ? AND name IN ({marks})",
+            [kind, *names],
         ).fetchall()
+        return cls._shape(names, [(r["name"], r["value"], r["n"]) for r in rows])
+
+    @staticmethod
+    def _shape(names: Any, rows: list[tuple[str, str, int]]) -> dict[str, list[dict[str, Any]]]:
         out: dict[str, list[dict[str, Any]]] = {name: [] for name in names}
-        for r in rows:
-            out[r["name"]].append({"value": r["value"], "count": r["n"]})
+        for name, value, n in rows:
+            out[name].append({"value": value, "count": n})
         for name, values in out.items():
             if name == "year":
                 values.sort(key=lambda v: v["value"], reverse=True)
@@ -278,41 +380,97 @@ class SearchIndex:
             out[name] = values[:50]
         return out
 
+    @classmethod
+    def _facet_counts(
+        cls, con: sqlite3.Connection, kind: str, ids_sql: str, params: list[Any]
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Counted from the matches (``ids_sql`` selects their ``id``), each one's facets read
+        from the facet index by document, rather than every document's facets scanned."""
+        names = FACETS[kind]
+        marks = ", ".join("?" for _ in names)
+        rows = con.execute(
+            f"SELECT f.name, f.value, count(*) AS n FROM ({ids_sql}) m "
+            f"CROSS JOIN facet f ON f.doc_id = m.id WHERE f.name IN ({marks}) "
+            "GROUP BY f.name, f.value",
+            [*params, *names],
+        ).fetchall()
+        return cls._shape(names, [(r["name"], r["value"], r["n"]) for r in rows])
+
+    def _counted_facets(
+        self,
+        con: sqlite3.Connection,
+        kind: str,
+        fts: str | None,
+        filters: dict[str, list[str]],
+        ids_sql: str,
+        params: list[Any],
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Facet counts of a search, kept until the index changes: the next page of the same
+        search does not count them again (a common word's are most of its time)."""
+        chosen = tuple(sorted((k, tuple(sorted(v))) for k, v in filters.items() if v))
+        key = (str(self.path), _version(self.path), kind, fts, chosen)
+        with _facets_lock:
+            if key in _facets_kept:
+                _facets_kept.move_to_end(key)
+                return _copy(_facets_kept[key])
+        facets = self._facet_counts(con, kind, ids_sql, params)
+        with _facets_lock:
+            _facets_kept[key] = _copy(facets)
+            while len(_facets_kept) > FACETS_KEPT:
+                _facets_kept.popitem(last=False)
+        return facets
+
+    @staticmethod
+    def _docs(con: sqlite3.Connection, ids: list[int]) -> list[sqlite3.Row]:
+        """These documents in full, in the order given."""
+        if not ids:
+            return []
+        marks = ", ".join("?" for _ in ids)
+        found = {r["id"]: r for r in con.execute(f"SELECT * FROM doc WHERE id IN ({marks})", ids)}
+        return [found[i] for i in ids if i in found]
+
     def grouped(self, query: str, per_kind: int = 5) -> dict[str, SearchResult]:
-        """Top results of every kind, for an "everything" search."""
+        """Top results of every kind, for an "everything" search (members' records only, never
+        candidates): the matches found once, then counted and ranked kind by kind."""
         fts = to_fts_query(query)
         results = {kind: SearchResult([], 0) for kind in KINDS}
         if not fts:
             return results
-        kinds = ", ".join("?" for _ in KINDS)  # members' records only, never candidates
         con = self.connect()
         try:
-            # FTS5 ranking functions cannot sit inside a window function, so rank first.
-            rows = con.execute(
-                "WITH hits AS MATERIALIZED ("
-                f"SELECT doc_fts.rowid AS id, bm25(doc_fts, {COLUMN_WEIGHTS}) AS rank "
-                "FROM doc_fts WHERE doc_fts MATCH ?), "
-                "ranked AS (SELECT d.*, row_number() OVER (PARTITION BY d.kind ORDER BY h.rank) "
-                "AS rn, count(*) OVER (PARTITION BY d.kind) AS total "
-                f"FROM hits h JOIN doc d ON d.id = h.id WHERE d.kind IN ({kinds})) "
-                "SELECT * FROM ranked WHERE rn <= ? ORDER BY kind, rn",
-                [fts, *KINDS, per_kind],
-            ).fetchall()
-            marks = self._highlights(con, fts, [r["id"] for r in rows])
+            self._hits(con, None, fts, {})
+            found: dict[str, list[sqlite3.Row]] = {}
+            for kind in KINDS:
+                count = "SELECT count(*) FROM temp.hits WHERE kind = ?"
+                results[kind].total = con.execute(count, [kind]).fetchone()[0]
+                if results[kind].total:
+                    top = "SELECT id FROM temp.hits WHERE kind = ? ORDER BY rank, id LIMIT ?"
+                    found[kind] = self._docs(
+                        con, [r[0] for r in con.execute(top, [kind, per_kind])]
+                    )
+            ids = [r["id"] for rows in found.values() for r in rows]
+            marks = self._highlights(con, fts, ids)
         except sqlite3.OperationalError as exc:
             raise TesseraError(f"Search failed: {exc}") from exc
         finally:
             con.close()
-        for row in rows:
-            result = results[row["kind"]]
-            result.items.append(_item(row, marks.get(row["id"])))
-            result.total = row["total"]
+        for kind, rows in found.items():
+            results[kind].items = [_item(r, marks.get(r["id"])) for r in rows]
         return results
 
     @staticmethod
     def _highlights(con: sqlite3.Connection, fts: str, ids: list[int]) -> dict[int, sqlite3.Row]:
+        """Marks in each result's title, people, and text. A word typed in part is marked
+        wherever a word begins so, unless the index holds more than ``PREFIX_MARKS_UP_TO``
+        documents: then only whole words are marked, since finding the partial word's place in
+        each result merges every word in the index that begins so (about 45 ms a result for
+        "cells" among a million papers, whatever the search matched)."""
         if not ids:
             return {}
+        if fts.endswith("*"):
+            size = con.execute("SELECT max(id) FROM doc").fetchone()[0] or 0
+            if size > PREFIX_MARKS_UP_TO:
+                fts = fts[:-1]
         marks = ", ".join("?" for _ in ids)
         rows = con.execute(
             "SELECT rowid AS id, highlight(doc_fts, 0, ?, ?) AS hl_title, "
@@ -352,11 +510,17 @@ class SearchIndex:
     def facet_values(self, kind: str, name: str) -> list[dict[str, Any]]:
         con = self.connect()
         try:
-            rows = con.execute(
-                "SELECT f.value, count(*) AS n FROM facet f JOIN doc d ON d.id = f.doc_id "
-                "WHERE d.kind = ? AND f.name = ? GROUP BY f.value ORDER BY f.value",
-                [kind, name],
-            ).fetchall()
+            if self._has_totals(con):
+                rows = con.execute(
+                    "SELECT value, n FROM facet_total WHERE kind = ? AND name = ? ORDER BY value",
+                    [kind, name],
+                ).fetchall()
+            else:
+                rows = con.execute(
+                    "SELECT f.value, count(*) AS n FROM facet f JOIN doc d ON d.id = f.doc_id "
+                    "WHERE d.kind = ? AND f.name = ? GROUP BY f.value ORDER BY f.value",
+                    [kind, name],
+                ).fetchall()
         finally:
             con.close()
         return [{"value": r["value"], "count": r["n"]} for r in rows]

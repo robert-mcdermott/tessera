@@ -30,8 +30,14 @@ def test_example_config_loads(config_file: Path) -> None:
     assert config.server.host == "127.0.0.1"
     assert config.sources.pubmed.api_key_env == "NCBI_API_KEY"
     assert config.data.home == (config_file.parent / "var").resolve()
-    assert config.ledger_url.startswith("sqlite:///")
+    assert config.ledger.url == ""  # the default ledger
     assert config_warnings(config) == []
+
+
+@pytest.mark.sqlite_ledger
+def test_the_default_ledger_is_a_sqlite_file_in_the_data_home(config_file: Path) -> None:
+    config = load_config(config_file, env={})
+    assert config.ledger_url == f"sqlite:///{config.data.home / 'ledger.db'}"
 
 
 def test_repo_example_matches_packaged_example() -> None:

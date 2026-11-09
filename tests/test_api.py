@@ -28,8 +28,19 @@ def test_health_degraded_when_ledger_not_migrated(config_file: Path) -> None:
     DataHome(config.data.home).create()  # no migrations applied
     with TestClient(create_app(config), base_url="http://localhost") as client:
         response = client.get("/api/v1/health")
+        ready = client.get("/api/v1/health/ready")
+        live = client.get("/api/v1/health/live")
     assert response.status_code == 503
     assert response.json()["checks"]["ledger"] == "outdated"
+    # Not ready for traffic, but alive: a supervisor must not restart it for this.
+    assert ready.status_code == 503 and ready.json() == response.json()
+    assert live.status_code == 200 and live.json() == {"status": "ok"}
+
+
+def test_liveness_and_readiness_for_supervisors_and_load_balancers(client: TestClient) -> None:
+    assert client.get("/api/v1/health/live").json() == {"status": "ok"}
+    ready = client.get("/api/v1/health/ready")
+    assert ready.status_code == 200 and ready.json()["checks"] == {"ledger": "ok", "lake": "ok"}
 
 
 def test_app_refuses_to_start_without_data_home(config_file: Path) -> None:
@@ -46,7 +57,7 @@ def test_meta(client: TestClient) -> None:
     assert data["product"]["name"] == "Tessera"
     assert data["product"]["version"] == __version__
     assert data["organization"] == {"name": "Example University", "short_name": "EXU"}
-    assert data["mode"] == {"accounts": False, "operator": "Operator"}
+    assert data["mode"] == {"accounts": False, "operator": "Operator", "sso": None}
     sources = {s["name"]: s for s in data["sources"]}
     assert set(sources) == {"pubmed", "icite", "reporter", "ctgov", "orcid", "mesh", "grants_gov"}
     assert sources["pubmed"] == {

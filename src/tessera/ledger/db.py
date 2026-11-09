@@ -22,6 +22,7 @@ def _sqlite_pragmas(dbapi_connection: Any, _record: Any) -> None:
         cursor.execute("PRAGMA synchronous=NORMAL")  # safe with WAL, much faster than FULL
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.execute("PRAGMA busy_timeout=5000")
+        cursor.execute("PRAGMA threads=4")  # the sorter may use helpers (the queue's counts)
     finally:
         cursor.close()
 

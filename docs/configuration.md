@@ -64,6 +64,8 @@ A private university is usually `["20"]`; an independent nonprofit research inst
 
 ## `[branding]`
 
+Admins can set all of this in the app, with a live preview and contrast checks, under **Admin → Branding**; see [Look and words](branding.md), which also has guidance for logos.
+
 | Setting | Type | Default | Meaning |
 |---|---|---|---|
 | `product_name` | text | `"Tessera"` | The product's name in the sidebar and page titles |
@@ -205,6 +207,7 @@ What the app calls groups, the kinds of group it offers, and the roles people ho
 
 | Setting | Type | Default | Meaning |
 |---|---|---|---|
+| `preset` | text | (none) | Start from the words of a kind of organization: `academic_medical_center`, `university`, or `research_institute`; settings given beside it replace the preset's. See [Look and words](branding.md#the-words) |
 | `group`, `groups` | text | `Group`, `Groups` | What the app calls one group and several |
 | `leader_roles` | list of role keys | `["lead", "co_lead"]` | Roles listed as a group's leaders |
 | `default_role` | role key | `member` | The role of a membership that names none |
@@ -281,6 +284,30 @@ The optional assistant; see [The assistant](assistant.md). Without this section,
 | `log_days` | number | `365` | How long exchanges stay in the log |
 
 A setting named like a key (`api_key`, `secret`, `token`, `password`) is refused, and so is an `Authorization` header: keys belong in the environment.
+
+## `[auth.oidc]`
+
+Single sign-on with an OpenID Connect provider, beside local accounts; it needs `[server] accounts = true`. See [Single sign-on](operations.md#single-sign-on) for setting it up with Microsoft Entra ID, Okta, Google, or Keycloak.
+
+| Setting | Type | Default | Meaning |
+|---|---|---|---|
+| `issuer` | text | `""` | The provider's issuer address; setting it turns single sign-on on. `https://` (or `http://` on this machine, for testing) |
+| `client_id` | text | (required) | The application's client ID at the provider |
+| `client_secret_env` | text | `TESSERA_OIDC_CLIENT_SECRET` | The environment variable holding the client secret; a `client_secret` in the file is refused |
+| `label` | text | `Sign in with single sign-on` | The button on the sign-in page |
+| `redirect_url` | text | `""` | The callback address registered with the provider; empty: this site's `/api/v1/auth/sso/callback`, from the request (and a reverse proxy's `X-Forwarded-Host` and `X-Forwarded-Proto`) |
+| `scopes` | list | `["openid", "profile", "email"]` | Must include `openid` |
+| `username_claim` | text | `preferred_username` | Names a new account (the part before any `@`) |
+| `name_claim` | text | `name` | The account's display name, kept up to date at each sign-in |
+| `email_claim` | text | `email` | Matches existing accounts and directory people |
+| `roles_claim` | text | `""` | The claim holding app roles or groups to map (`roles` for Entra ID, `groups` for Okta); empty: no mapping |
+| `default_role` | text | `viewer` | The role of someone with no mapped role; `""` refuses them |
+| `researchers` | true/false | `true` | An account linked to a person also gets the researcher role |
+| `create_accounts` | true/false | `true` | Create an account at first sign-in; `false` admits only accounts an admin added |
+| `link_people` | true/false | `true` | Link an account to the directory person with the same email address |
+| `trust_email` | true/false | `false` | Use the email claim even when the provider does not mark it verified (Entra ID) |
+
+`[auth.oidc.roles]` maps each value of the `roles_claim` to a role, written as for `tessera users add --role`: `"Tessera.Curator" = "curator"`, `"Lab managers" = "manager=group:okafor-lab"`. Mapped roles are replaced at every sign-in; roles given in the app are kept.
 
 ## `[insight]`
 

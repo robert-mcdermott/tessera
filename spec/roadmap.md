@@ -150,7 +150,7 @@ Released as [v0.5.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0
 
 Released as [v0.6.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0.6.0) on 2026-11-08. Detail: [waves/wave-6.md](waves/wave-6.md)
 
-## Wave 7: Adoption (v0.7.0) ☐
+## Wave 7: Adoption (v0.7.0) ☑
 
 **Goal:** make Tessera easy for another organization to adopt and operate.
 
@@ -162,11 +162,25 @@ Released as [v0.6.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0
 - Performance at 10,000 people and 1 million publications
 - WCAG 2.2 AA audit and fixes; security review
 
+| Slice | Name | Delivers | Status |
+|---|---|---|---|
+| 1 | Both databases | The full suite on SQLite and PostgreSQL, with one command for both | ☑ |
+| 2 | Single sign-on | OpenID Connect with PKCE, account linking, role mapping, a local admin always | ☑ |
+| 3 | At scale | A simulated 10,000 people and 1,000,000 publications, a benchmark command, and the fixes | ☑ |
+| 4 | The organization's look and words | A theme builder in the app, logo guidance, vocabulary presets | ☑ |
+| 5 | Running it as a service | Container image, systemd units, reverse-proxy examples, health checks | ☑ |
+| 6 | Accessible and reviewed | A WCAG 2.2 AA audit and a security review, with fixes | ☑ |
+| 7 | The adopter's guide | From installation to a curated, published site | ☑ |
+| 8 | Release prep | Guides, screenshots, checks, changelog, release | ☑ |
+
+Detail: [waves/wave-7.md](waves/wave-7.md)
+
 ## v1.0.0: Stable ☐
 
 - API stability guarantee for `/api/v1`; documented deprecation policy
 - Upgrade path tested across all 0.x schemas
 - Hardening from pilot feedback
+- A nightly sync whose work follows what changed: resolve only the new papers and the people whose records or decisions changed, rather than the whole organization, checked against a full resolve and measured with `tessera bench` (wave 7 recorded the miss: about 15 minutes at 1,000,000 publications)
 
 ## Later (after leadership commits resources)
 

@@ -3,15 +3,61 @@
   "info": {
     "title": "Tessera API",
     "summary": "People, publications, grants, and clinical studies, connected with evidence.",
-    "version": "0.6.0"
+    "version": "0.7.0"
   },
   "paths": {
+    "/api/v1/health/live": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Alive: the process answers",
+        "description": "For a supervisor deciding whether to restart the process: it depends on nothing else.",
+        "operationId": "health_live_api_v1_health_live_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Live Api V1 Health Live Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/health/ready": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Ready: the ledger, at the current schema, and the lake",
+        "description": "For a load balancer deciding whether to send traffic: ``200`` when the ledger and lake\nare usable, ``503`` otherwise, with each check's state.",
+        "operationId": "health_ready_api_v1_health_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/health": {
       "get": {
         "tags": [
           "system"
         ],
-        "summary": "Liveness and readiness",
+        "summary": "Liveness and readiness (as /health/ready)",
         "description": "``200`` when the ledger and lake are usable, ``503`` otherwise, with per-check detail.",
         "operationId": "health_api_v1_health_get",
         "responses": {
@@ -281,6 +327,122 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/sso/start": {
+      "get": {
+        "tags": [
+          "access"
+        ],
+        "summary": "Begin signing in with the single sign-on provider (redirects there)",
+        "operationId": "sso_start_api_v1_auth_sso_start_get",
+        "parameters": [
+          {
+            "name": "next",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Next"
+            }
+          }
+        ],
+        "responses": {
+          "303": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/sso/callback": {
+      "get": {
+        "tags": [
+          "access"
+        ],
+        "summary": "Where the single sign-on provider sends the browser back (redirects into the app)",
+        "operationId": "sso_callback_api_v1_auth_sso_callback_get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
+            }
+          }
+        ],
+        "responses": {
+          "303": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -8786,6 +8948,111 @@
                   "additionalProperties": true,
                   "type": "object",
                   "title": "Response Operations Api V1 Operations Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/branding": {
+      "get": {
+        "tags": [
+          "branding"
+        ],
+        "summary": "The organization's branding as configured, with its contrast checks",
+        "operationId": "get_branding_api_v1_admin_branding_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get Branding Api V1 Admin Branding Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "branding"
+        ],
+        "summary": "Save branding to the configuration file (refused below WCAG AA)",
+        "operationId": "save_branding_api_v1_admin_branding_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Save Branding Api V1 Admin Branding Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/branding/check": {
+      "post": {
+        "tags": [
+          "branding"
+        ],
+        "summary": "Check proposed branding: contrast by day and night, and problems",
+        "operationId": "check_branding_api_v1_admin_branding_check_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Check Branding Api V1 Admin Branding Check Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/branding/images/{image}": {
+      "post": {
+        "tags": [
+          "branding"
+        ],
+        "summary": "Upload a logo, favicon, or link-preview image",
+        "operationId": "upload_image_api_v1_admin_branding_images__image__post",
+        "parameters": [
+          {
+            "name": "image",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Image"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Upload Image Api V1 Admin Branding Images  Image  Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }

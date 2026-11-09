@@ -1,0 +1,55 @@
+# Tessera with its ledger in PostgreSQL 16 (docker compose, or podman compose).
+#
+#   cd deploy/container
+#   printf 'POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 24)" > .env    # once; keep it secret
+#   docker compose run --rm tessera tessera init                       # writes config/tessera.toml
+#   (describe your organization in config/tessera.toml; set [server] accounts = true)
+#   docker compose run --rm tessera tessera db upgrade
+#   docker compose run --rm -T tessera tessera users add admin --role admin --password-stdin
+#   docker compose up -d
+#   docker compose run --rm tessera tessera sync                       # the first sync
+#
+# The app answers on this machine only (127.0.0.1:8000): put a reverse proxy in front of it
+# (deploy/proxy). Schedule `docker compose run --rm tessera tessera sync` and `… backup` with
+# the host's timer or cron. See docs/operations.md, "Running it as a service".
+
+services:
+  db:
+    image: docker.io/library/postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tessera
+      POSTGRES_USER: tessera
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tessera -d tessera"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  tessera:
+    build:
+      context: ../..
+      dockerfile: deploy/container/Dockerfile
+    image: tessera:0.7.0
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      TESSERA_LEDGER_URL: postgresql+psycopg://tessera@db:5432/tessera
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      # Optional keys for the public sources and the assistant, by the names the configuration
+      # gives them, for example:
+      # NCBI_API_KEY: ${NCBI_API_KEY:-}
+    volumes:
+      - ./config:/srv/tessera/config
+      - data:/srv/tessera/data
+    ports:
+      - "127.0.0.1:8000:8000"
+
+volumes:
+  pgdata:
+  data:

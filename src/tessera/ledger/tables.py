@@ -189,14 +189,49 @@ assertion = Table(
     Column("first_seen_at", UtcDateTime, nullable=False),
     Column("last_evaluated_at", UtcDateTime, nullable=False),
     Column("updated_at", UtcDateTime, nullable=False),
+    # "conflict" and "ambiguous", from the evidence when it is written: what the review queue
+    # orders by besides the score, so it never reads the evidence (wave 7).
+    Column("review_flags", String(40)),
     UniqueConstraint("subject_id", "predicate", "object_id", "qualifier_key"),
     CheckConstraint(_in("status", ASSERTION_STATUSES), name="status"),
     CheckConstraint(_in("origin", ASSERTION_ORIGINS), name="origin"),
     CheckConstraint("score IS NULL OR (score >= 0 AND score <= 1)", name="score_range"),
 )
-Index(None, assertion.c.subject_id, assertion.c.predicate)
-Index(None, assertion.c.object_id, assertion.c.predicate)
-Index(None, assertion.c.predicate, assertion.c.status)
+# A person's links, with everything lists and figures filter and show, so those queries never
+# read the table: its evidence column, before status and score, spills each row into overflow
+# pages, which made reading a large organization's links slow (wave 7).
+Index(
+    "ix_assertion_links",
+    assertion.c.subject_id,
+    assertion.c.predicate,
+    assertion.c.status,
+    assertion.c.reported,
+    assertion.c.score,
+    assertion.c.object_id,
+    assertion.c.id,
+)
+# A record's links (who wrote this paper, which papers acknowledge this grant). Status and reported
+# are in it so that, with no statistics, SQLite prefers it to the queue's index for these lookups.
+Index(
+    "ix_assertion_objects",
+    assertion.c.object_id,
+    assertion.c.predicate,
+    assertion.c.status,
+    assertion.c.reported,
+    assertion.c.subject_id,
+    assertion.c.id,
+)
+# The review queue's open suggestions by band, with what orders them, likewise without the table.
+Index(
+    "ix_assertion_queue",
+    assertion.c.predicate,
+    assertion.c.status,
+    assertion.c.reported,
+    assertion.c.score,
+    assertion.c.subject_id,
+    assertion.c.review_flags,
+    assertion.c.id,
+)
 
 curation_event = Table(
     "curation_event",
@@ -257,6 +292,7 @@ Index(None, person_merge.c.survivor_id)
 
 ROLES = ("admin", "curator", "manager", "researcher", "viewer")
 ACCOUNT_STATUSES = ("active", "disabled")
+GRANT_SOURCES = ("local", "provider")
 
 account = Table(
     "account",
@@ -290,7 +326,11 @@ role_grant = Table(
     Column("include_below", Boolean, nullable=False, server_default=false()),
     Column("granted_by", String(200), nullable=False),
     Column("granted_at", UtcDateTime, nullable=False),
+    # "local": given in Tessera; "provider": from the single sign-on provider's mapping, and
+    # replaced at each sign-in (wave 7).
+    Column("source", String(16), nullable=False, server_default="local"),
     CheckConstraint(_in("role", ROLES), name="role"),
+    CheckConstraint(_in("source", GRANT_SOURCES), name="source"),
     CheckConstraint(
         "(scope_type IS NULL AND scope_id IS NULL) OR "
         "(scope_type IN ('unit', 'person') AND scope_id IS NOT NULL)",
@@ -457,6 +497,34 @@ report_snapshot = Table(
     Column("summary", JsonType, nullable=False),
 )
 Index(None, report_snapshot.c.report_id)
+
+# Accounts that sign in through an OpenID Connect provider: the provider's subject identifier
+# for each, unique per issuer (wave 7).
+account_identity = Table(
+    "account_identity",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("account_id", ID, ForeignKey("account.id", ondelete="CASCADE"), nullable=False),
+    Column("issuer", String(500), nullable=False),
+    Column("subject", String(255), nullable=False),
+    Column("email", String(320)),
+    Column("created_at", UtcDateTime, nullable=False),
+    Column("last_sign_in_at", UtcDateTime),
+    UniqueConstraint("issuer", "subject"),
+)
+Index(None, account_identity.c.account_id)
+
+# A single sign-on under way: what its callback must find. Only a hash of the state is kept,
+# and each is used once and expires in minutes.
+sign_in_attempt = Table(
+    "sign_in_attempt",
+    metadata,
+    Column("state_hash", String(64), primary_key=True),
+    Column("nonce", String(64), nullable=False),
+    Column("verifier", String(128), nullable=False),
+    Column("next_path", String(500), nullable=False),
+    Column("created_at", UtcDateTime, nullable=False),
+)
 
 # Signed-in browsers. Only a hash of the session token is stored.
 auth_session = Table(

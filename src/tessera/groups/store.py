@@ -893,15 +893,21 @@ def current_members(
     }
 
 
-def member_counts(conn: Connection, today: date | None = None) -> dict[str, dict[str, int]]:
-    """{group ID: {"current": n, "alumni": n}}, counting people once per group."""
+def member_counts(
+    conn: Connection, today: date | None = None, group_ids: Iterable[str] | None = None
+) -> dict[str, dict[str, int]]:
+    """{group ID: {"current": n, "alumni": n}}, counting people once per group: every group's,
+    or only these groups'. Only what counting needs is read (never the evidence)."""
     today = today or date.today()
     current: dict[str, set[str]] = defaultdict(set)
     past: dict[str, set[str]] = defaultdict(set)
-    for r in memberships(conn):
-        (current if is_current(r["qualifiers"], today) else past)[r["object_id"]].add(
-            r["subject_id"]
-        )
+    query = select(assertion.c.subject_id, assertion.c.object_id, assertion.c.qualifiers).where(
+        assertion.c.predicate == "member_of", assertion.c.status == "accepted"
+    )
+    if group_ids is not None:
+        query = query.where(assertion.c.object_id.in_(sorted(set(group_ids))))
+    for subject_id, group_id, qualifiers in conn.execute(query):
+        (current if is_current(qualifiers, today) else past)[group_id].add(subject_id)
     return {
         gid: {"current": len(current[gid]), "alumni": len(past[gid] - current[gid])}
         for gid in set(current) | set(past)

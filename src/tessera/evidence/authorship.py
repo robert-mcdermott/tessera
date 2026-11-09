@@ -25,6 +25,7 @@ from typing import Any
 
 import pyarrow as pa
 import pyarrow.compute as pc
+from sqlalchemy import select
 from sqlalchemy.engine import Engine
 
 from tessera.config import Config
@@ -33,6 +34,7 @@ from tessera.evidence.identifiers import propose_orcids
 from tessera.evidence.names import Match, Name, best_match, family_keys, key, make_name
 from tessera.evidence.orgmatch import OrgMatcher, emails_in
 from tessera.lake import Lake
+from tessera.ledger.tables import assertion
 
 log = logging.getLogger("tessera.evidence.authorship")
 
@@ -196,6 +198,15 @@ class Seeds:
     rejected_coauthors: Counter = field(default_factory=Counter)
     orcids: Counter = field(default_factory=Counter)  # iDs printed at the person's positions
     slot_orcids: dict[str, str] = field(default_factory=dict)  # pmid -> iD at that position
+    _mesh_norm_sq: int | None = None
+
+    @property
+    def mesh_norm_sq(self) -> int:
+        """The squared length of the topic vector, worked out once rather than per candidate
+        (the seeds do not change while a person's candidates are scored)."""
+        if self._mesh_norm_sq is None:
+            self._mesh_norm_sq = sum(v * v for v in self.mesh.values())
+        return self._mesh_norm_sq
 
 
 def coauthor_key(name: Name | None) -> str | None:
@@ -655,7 +666,7 @@ def _seed_features(
 
     if paper.mesh and seeds.mesh:
         dot = sum(seeds.mesh[d] - (1 if own else 0) for d in paper.mesh)
-        norm_sq = sum(v * v for v in seeds.mesh.values())
+        norm_sq = seeds.mesh_norm_sq
         if own:
             norm_sq += -2 * sum(seeds.mesh[d] for d in paper.mesh) + len(paper.mesh)
         if dot > 0 and norm_sq > 0:
@@ -794,9 +805,25 @@ def resolve_authorship(
     ambiguity = ambiguity_counts(found)
     stats = AuthorshipStats(people=len(profiles))
 
-    decided = store.assertions_for(
-        engine, predicate="authored", statuses=("accepted", "rejected"), reported_only=False
-    )
+    # Only what the decisions say, not their evidence: on a large lake that is most of the cost.
+    with engine.connect() as conn:
+        decided = [
+            dict(r)
+            for r in conn.execute(
+                select(
+                    assertion.c.subject_id,
+                    assertion.c.object_id,
+                    assertion.c.status,
+                    assertion.c.locked,
+                    assertion.c.qualifiers,
+                )
+                .where(
+                    assertion.c.predicate == "authored",
+                    assertion.c.status.in_(("accepted", "rejected")),
+                )
+                .order_by(assertion.c.id)
+            ).mappings()
+        ]
     accepted: dict[str, set[str]] = defaultdict(set)
     rejected: dict[str, set[str]] = defaultdict(set)
     claimed_slots: dict[tuple[str, int], str] = {}
