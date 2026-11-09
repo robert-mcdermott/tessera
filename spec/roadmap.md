@@ -127,7 +127,7 @@ Released as [v0.4.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0
 
 Released as [v0.5.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0.5.0) on 2026-11-08. Detail: [waves/wave-5.md](waves/wave-5.md)
 
-## Wave 6: Profiles (v0.6.0) ◐
+## Wave 6: Profiles (v0.6.0) ☑
 
 **Goal:** a full profile for every researcher, kept by the researcher, open to everyone inside the organization, and public only by their choice, with CVs and biosketches built from it. Added 2026-11-08 at the maintainer's request.
 
@@ -146,9 +146,9 @@ Released as [v0.5.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0
 | 4 | Public by choice | The researcher chooses whether the profile is public and which sections and entries it shows | ☑ |
 | 5 | CVs | Named CV versions from the profile and confirmed records, printable and downloadable | ☑ |
 | 6 | NIH biosketches | NIH's Common Form and Supplement, with its limits checked, ready for SciENcv | ☑ |
-| 7 | Release prep | Guides, screenshots, evaluation, changelog, release | ◐ |
+| 7 | Release prep | Guides, screenshots, evaluation, changelog, release | ☑ |
 
-Detail: [waves/wave-6.md](waves/wave-6.md)
+Released as [v0.6.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0.6.0) on 2026-11-08. Detail: [waves/wave-6.md](waves/wave-6.md)
 
 ## Wave 7: Adoption (v0.7.0) ☐
 

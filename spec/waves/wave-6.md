@@ -2,7 +2,7 @@
 
 **Goal:** a full profile for every researcher: what Tessera builds from public records, beside the sections the researcher keeps (overview, interests, positions, education, honors, service, teaching, talks, links, featured papers). Every profile is open to everyone inside the organization, public only by the researcher's choice, and the source of the researcher's CVs and NIH biosketches.
 
-**Branch:** `wave-6` · **Target version:** `0.6.0` · **Status:** ◐ slices 1 to 6 done; slice 7 ready, waiting for the go-ahead to release
+**Branch:** `wave-6` · **Target version:** `0.6.0` · **Status:** ☑ released as 0.6.0 on 2026-11-08
 
 ## Exit criteria
 
@@ -124,13 +124,13 @@ Tessera follows this form; if NIH changes it, the biosketch's checks change with
 
 **Acceptance:** a biosketch with a 3,600-character personal statement, 16 honors, or six contributions says what is over and by how much; a product must be a confirmed paper or entered by hand; Copy for SciENcv gives each section separately; with the assistant on, a drafted contribution stays a draft until the researcher saves it.
 
-## Slice 7: Release prep ◐
+## Slice 7: Release prep ☑
 
 - [x] A guide, *Profiles*, covering sections, who keeps a profile, public choices, CVs, and biosketches (with what NIH requires); updates to *Curating*, *The public site*, *The assistant*, and *Configuration*
 - [x] Screenshots from the demo: a profile's About, editing a section, public choices, a CV editor, a biosketch with its checks
 - [x] Evaluation and checks: access tests for every role, someone acting for another, and the public site; dependency and license review; the private-terms check over the whole repository
 - [x] `CHANGELOG.md` for 0.6.0; version bump; the documentation site's home page
-- [ ] PR, merge, tag `v0.6.0`, release, and the documentation site published, on the maintainer's go-ahead
+- [x] PR, merge, tag `v0.6.0`, release, and the documentation site published, on the maintainer's go-ahead
 
 **Acceptance:** the full suite passes on SQLite and PostgreSQL 16; migrations 0019 to 0022 run up and down on both; the ORCID works-list check on the pilot gives the same result as 0.5.0 against the same lists; no dependencies were added; a scan of every change since 0.5.0 for pilot names is clean.
 
@@ -140,6 +140,7 @@ Tessera follows this form; if NIH changes it, the biosketch's checks change with
 
 | Date | Note |
 |---|---|
+| 2026-11-08 | Released as 0.6.0 on the maintainer's go-ahead, with the documentation site's new *Profiles* guide and home page sections for profiles and for CVs and biosketches. |
 | 2026-11-08 | Slice 7 ready. A guide, *Profiles*, covers the sections, who keeps a profile and someone acting for them, public choices, CVs, and NIH biosketches with what NIH requires; *Curating*, *The public site*, *The assistant*, *Running Tessera*, and *Getting started* point to it. The demo now begins a CV and a biosketch for the lab head with the most confirmed papers, the biosketch's second contribution still citing a paper the way a manuscript would, so its checks have something to say. New screenshots: a profile's About, changing an entry, public choices, a public profile, a CV, a biosketch, and (with the assistant) a drafted personal statement; the existing profile shot keeps its publications. Screenshots showed one title held in three groups as three identical lines in the editor, so the editor's lists now name each entry's group and place, less the organization's own name. Checks: the full suite passes (825 tests on SQLite); ruff, the JavaScript tests, and the private-terms check are clean; PostgreSQL 16 passes the ledger and operations tests, migrations 0019 to 0022 included, up and down; the ORCID works-list check on the pilot gives 0.5.0's result exactly (196 listed, 94.9% found, 97.3% strong); on a copy of the pilot with strong suggestions accepted, CVs and biosketches for the 40 people with the most papers were built from 1,590 confirmed papers without error, the slowest in 476 ms; no dependencies changed; no pilot name appears in any change since 0.5.0. |
 | 2026-11-08 | Slice 6 done. A biosketch is a CV document of its own kind, so it needed no migration; its spec holds what the researcher writes and chooses, and the form is stored with it (`nih-2026-01`). NIH's limits are reported rather than refused, so a draft can be saved while it is still too long, and each check says what is over and by how much. A narrative is checked for what looks like a citation (a PubMed or PMC ID, a DOI, an "et al." reference, a numbered reference), with no false alarm on ordinary numbers and years. Dates follow NIH's MM/YYYY. The default position title is a real title from the group directory ("Associate Professor") rather than a group role ("Lead"). Copy for SciENcv gives each section as plain text in SciENcv's order, since the certified PDF can only come from SciENcv. With the assistant on, a first draft is written from the chosen confirmed papers, read through the API as the person asking; on the demo, `gemma4:31b-cloud` wrote a 1,665-character first-person statement with no citations in a few seconds. The draft goes to a drawer, never straight into the biosketch. |
 | 2026-11-08 | Slice 5 done. A CV stores only its spec (sections, order, chosen entries, options) and is built from the profile and confirmed records whenever it is shown, so it never goes stale; a section set to all entries picks up new ones, and a chosen list does not. Positions include the group directory's, with the organization's name. Publications take their full author lists and volume, issue, and pages from the lake, and are cited close to NLM's style, the person's own author position in bold (from the confirmed authorship's position). Grants show the person's role (PI, contact PI, or MPI) from RePORTER's investigators; studies their official role. Printing hides the editor and the app around the CV; the Markdown download is the same document. Reordering uses up and down buttons rather than dragging, as on the profile, for keyboards and screen readers. The public site's person page now formats entries with the same shared code. |
