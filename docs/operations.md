@@ -97,6 +97,64 @@ uv run tessera users roles cora --role curator --role viewer
 
 Sessions end after `session_idle_hours` without use (12 by default) and after `session_max_days` in any case (7). After five failed attempts for one username or address, sign-in is refused for 15 minutes. Tessera will not start with accounts on and no active admin, nor listen beyond this machine with accounts off. See [ADR-0009](../spec/decisions/0009-local-accounts-and-sessions.md) for the design.
 
+## Single sign-on
+
+With accounts on, people can also sign in through your organization's identity provider: Microsoft Entra ID, Okta, Google, Keycloak, or any other that speaks OpenID Connect. They sign in where they already do, with its multi-factor authentication, and leaving the organization at the provider ends their access to Tessera too. Local accounts keep working beside it, so an admin with a password can always get in.
+
+How it works: the sign-in page shows your provider's button first, with **Sign in with a password** folded beneath it. Tessera sends the browser to the provider (the authorization-code flow with PKCE), checks the ID token that comes back (its signature against the provider's published keys, issuer, audience, expiry, and a one-time nonce), and then starts its own session as for a password. See [ADR-0011](../spec/decisions/0011-single-sign-on-with-openid-connect.md).
+
+**At the provider,** register a web application:
+
+- **Redirect address:** `https://<your Tessera>/api/v1/auth/sso/callback`.
+- **Sign-in method:** authorization code, with PKCE (S256) required if the provider offers the choice; the client authenticated with a client secret.
+- **ID tokens signed with RS256** (the usual default).
+- **Claims:** `email` and `name`, and, to map roles, the app roles or groups.
+
+**In Tessera,** add to the configuration (the example configuration has every setting, commented):
+
+```toml
+[auth.oidc]
+issuer = "https://login.microsoftonline.com/<tenant ID>/v2.0"
+client_id = "<application (client) ID>"
+label = "Sign in with Corvane"
+trust_email = true         # Entra ID marks no address verified; safe for a single-tenant app
+roles_claim = "roles"      # Entra ID's app roles
+
+[auth.oidc.roles]
+"Tessera.Admin" = "admin"
+"Tessera.Curator" = "curator"
+"Pathology.Curator" = "curator=group:Department of Pathology"
+```
+
+Put the client secret in the environment, never in the file: `TESSERA_OIDC_CLIENT_SECRET` (or the variable `client_secret_env` names). Restart, then run `uv run tessera doctor --online`, which reads the provider's discovery document and keys.
+
+**Accounts.** The first time someone signs in, Tessera finds their account by the provider's identifier for them; failing that, by an email address the provider marks verified (or any address, with `trust_email = true`); failing that, it creates one, named from their username at the provider, with no password. Set `create_accounts = false` to admit only people an admin has added. An account is linked to the person in the directory with the same email address, if there is exactly one (`link_people`), and then may review and keep their own profile (`researchers`).
+
+**Roles.** With `roles_claim` and a `[auth.oidc.roles]` table, the provider's app roles or groups become Tessera roles, written as for `tessera users add --role`. They are put in place at every sign-in, so a role removed at the provider is gone at the next one. Someone with no mapped role gets `default_role` (`viewer`), or is refused if it is empty. Roles an admin gives in **Admin → Accounts** are kept as they are, and the page shows which roles came from the provider and how each account signs in. The last active admin is never removed by the provider.
+
+Signing out of Tessera ends Tessera's session, not the provider's.
+
+### Microsoft Entra ID
+
+1. In the Microsoft Entra admin center, **App registrations → New registration**. Name it Tessera, choose **Accounts in this organizational directory only**, and add the redirect address as a **Web** platform.
+2. **Certificates & secrets → New client secret**; put its value in `TESSERA_OIDC_CLIENT_SECRET`.
+3. **App roles → Create app role** for each Tessera role you will map (value `Tessera.Curator`, and so on), then in **Enterprise applications → Tessera → Users and groups**, assign people or groups to them. Optionally, under **Properties**, require assignment, so that only those assigned can sign in.
+4. The issuer is `https://login.microsoftonline.com/<directory (tenant) ID>/v2.0`; the client ID is the application (client) ID. Set `trust_email = true` and `roles_claim = "roles"`.
+
+Prefer app roles to groups: Entra ID leaves groups out of the token for anyone in more than about 200 of them.
+
+### Okta
+
+Create an **OIDC, Web Application** integration with the redirect address as a sign-in redirect URI and the authorization code grant. The issuer is your authorization server, such as `https://<your domain>.okta.com/oauth2/default`. To map groups, add a `groups` claim to the ID token in the authorization server's claims (filtered to the groups Tessera needs) and set `roles_claim = "groups"`.
+
+### Google
+
+In the Google Cloud console, create an **OAuth client ID** of type **Web application** with the redirect address. The issuer is `https://accounts.google.com`. Google marks addresses verified; it has no roles or groups in its ID tokens, so leave `roles_claim` empty, give roles in **Admin → Accounts**, and keep `default_role = "viewer"` or set `create_accounts = false`. Limit sign-in to your organization's own Google Workspace in the consent screen's settings (an internal app).
+
+### Keycloak
+
+Create a client with **Client authentication** on and the **Standard flow**, the redirect address as a valid redirect URI, and **PKCE method** S256 under the client's advanced settings. The issuer is `https://<host>/realms/<realm>`. To map realm roles, add a **User Realm Role** mapper to the client with the token claim name `roles`, multivalued, added to the ID token, and set `roles_claim = "roles"`.
+
 ## Backups
 
 `tessera backup` writes one archive of everything that cannot be made again:

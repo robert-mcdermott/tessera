@@ -18,10 +18,20 @@ export function nextPath() {
   }
 }
 
+// What the single sign-on callback reports (/sign-in?sso=…).
+const SSO_OUTCOMES = {
+  cancelled: "Sign-in was cancelled.",
+  expired: "That sign-in expired or was started in another browser. Try again.",
+  refused: "You were signed in by your organization, but Tessera has no account or role for you. Ask an administrator.",
+  failed: "Single sign-on did not work. Try again, or ask an administrator to check the server's log.",
+};
+
 export function signIn(root, meta) {
   setTitle("Sign in");
   const product = meta.product;
   const org = meta.organization;
+  const sso = meta.mode?.sso;
+  const outcome = SSO_OUTCOMES[new URLSearchParams(window.location.search).get("sso")];
   const username = h("input", { class: "input", id: "username", name: "username", autocomplete: "username",
     autocapitalize: "none", spellcheck: "false", required: true });
   const password = h("input", { class: "input", id: "password", name: "password", type: "password",
@@ -57,6 +67,18 @@ export function signIn(root, meta) {
   error,
   submit);
 
+  // With single sign-on, its button comes first and the password form folds away (for local
+  // accounts, such as an administrator's).
+  const ssoNotice = outcome ? h("p", { class: "field-error", role: "alert" }, outcome) : null;
+  const methods = sso
+    ? h("div", { class: "stack" },
+      ssoNotice,
+      h("a", { class: "btn btn-primary btn-block", href: `/api/v1/auth/sso/start?next=${encodeURIComponent(nextPath())}` }, sso.label),
+      h("details", { class: "signin-password" },
+        h("summary", {}, "Sign in with a password"),
+        h("div", { class: "stack signin-password-form" }, form)))
+    : form;
+
   const brand = product.logo
     ? h("div", { class: "signin-brand" },
       h("img", { class: "brand-logo brand-logo-light", src: product.logo.light, alt: product.name }),
@@ -72,7 +94,8 @@ export function signIn(root, meta) {
         h("div", { class: "stack-xs" },
           h("h1", { id: "signin-title" }, "Sign in"),
           h("p", { class: "muted" }, org.name)),
-        form)),
-    h("p", { class: "subtle signin-help" }, "Forgotten your password? Ask an administrator to reset it.")));
-  username.focus();
+        methods)),
+    h("p", { class: "subtle signin-help" }, sso ? "Trouble signing in? Ask an administrator."
+      : "Forgotten your password? Ask an administrator to reset it.")));
+  if (!sso) username.focus();
 }

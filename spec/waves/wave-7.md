@@ -2,7 +2,7 @@
 
 **Goal:** make Tessera easy for another organization to adopt and run: on PostgreSQL, behind its own single sign-on, in its own colors and words, as a service on its own server, at the size of a large research institution, accessible, reviewed for security, and with a guide that takes an adopter from nothing to a curated, published installation.
 
-**Branch:** `wave-7` · **Target version:** `0.7.0` · **Status:** ◐ slice 1 done
+**Branch:** `wave-7` · **Target version:** `0.7.0` · **Status:** ◐ slices 1 and 2 done
 
 ## Exit criteria
 
@@ -58,17 +58,17 @@ Requirements: PLT-09, PLT-10, PLT-14, PLT-15, UX-06; PLT-05, PLT-11, and PLT-13 
 
 **Acceptance:** the full suite passes on SQLite and on PostgreSQL 16, with no test skipped on either except those that are about the other database.
 
-## Slice 2: Single sign-on ☐
+## Slice 2: Single sign-on ☑
 
 **Goal:** optional OpenID Connect sign-in with any standards-based provider, beside local accounts (PLT-10).
 
-- [ ] `[auth.oidc]` in the configuration: the provider's issuer, the client ID, the client secret's environment variable, the scopes, the button's label, and the claims to read; the provider's settings found through its discovery document
-- [ ] Sign-in through the authorization-code flow with PKCE, a state value, and a nonce; the ID token checked (signature against the provider's published keys, issuer, audience, expiry, nonce) before anyone is signed in
-- [ ] Accounts linked to the provider by its subject identifier; at first sign-in, matched to an existing account by a verified email address or created with a default role, or refused when creation is turned off
-- [ ] An optional mapping from the provider's app roles or groups to Tessera roles and group scopes, applied at every sign-in, so a change at the provider takes effect at the next sign-in
-- [ ] Local sign-in stays available for accounts that have a password, so a local admin can always get in; single sign-on can be the only choice shown to everyone else
-- [ ] **Admin → Accounts** shows how each account signs in and when it last did; `tessera doctor` checks the provider's discovery document and keys
-- [ ] A decision record for single sign-on; the sign-in guide with Microsoft Entra ID, Okta, Google, and Keycloak
+- [x] `[auth.oidc]` in the configuration: the provider's issuer, the client ID, the client secret's environment variable, the scopes, the button's label, and the claims to read; the provider's settings found through its discovery document
+- [x] Sign-in through the authorization-code flow with PKCE, a state value, and a nonce; the ID token checked (signature against the provider's published keys, issuer, audience, expiry, nonce) before anyone is signed in
+- [x] Accounts linked to the provider by its subject identifier; at first sign-in, matched to an existing account by a verified email address or created with a default role, or refused when creation is turned off
+- [x] An optional mapping from the provider's app roles or groups to Tessera roles and group scopes, applied at every sign-in, so a change at the provider takes effect at the next sign-in
+- [x] Local sign-in stays available for accounts that have a password, so a local admin can always get in; single sign-on can be the only choice shown to everyone else
+- [x] **Admin → Accounts** shows how each account signs in and when it last did; `tessera doctor` checks the provider's discovery document and keys
+- [x] A decision record for single sign-on; the sign-in guide with Microsoft Entra ID, Okta, Google, and Keycloak
 
 **Acceptance:** tests sign in through a scripted provider and refuse a bad signature, a wrong audience, an expired token, a replayed state, and a wrong nonce; a sign-in through a Keycloak running locally creates an account with the mapped role, and a role removed at the provider is removed at the next sign-in; a local admin signs in with single sign-on turned on.
 
@@ -138,5 +138,6 @@ Requirements: PLT-09, PLT-10, PLT-14, PLT-15, UX-06; PLT-05, PLT-11, and PLT-13 
 
 | Date | Note |
 |---|---|
+| 2026-11-08 | Slice 2 done. Single sign-on is OpenID Connect's authorization-code flow with PKCE (S256), a state, and a nonce; the attempt is kept in the ledger by a hash of its state (migration 0023), used once, and bound to the browser by a Lax cookie, since the provider's redirect back is cross-site. The ID token's RS256 signature is verified with the standard library (one modular exponentiation and a comparison with the PKCS #1 v1.5 encoding), checked against a signature OpenSSL made, and a key the provider rotates is read again. Roles from the provider are stored as such and replaced at each sign-in, so an admin's own grants are untouched and the edit form shows the provider's as read-only. Accounts made at sign-in have the password hash `!`, which matches nothing. 28 tests sign in through a scripted provider that checks PKCE and the client secret as a real one does, and refuse eight kinds of forged or wrong token. End to end against Keycloak 26 in a container: the first sign-in created an account with the Curator role from Keycloak's realm roles, and after Keycloak swapped it for Admin, the next sign-in (with no prompt, through Keycloak's own session) took Curator away and gave Admin; a local admin signed in with a password throughout. |
 | 2026-11-08 | Slice 1 done. With `TESSERA_TEST_LEDGER=postgres`, each data home a test creates gets its own empty PostgreSQL database (a migration takes 0.12 s there, so no template is needed and every test means exactly what it does on SQLite); the switch lives in the tests alone and changes nothing in Tessera. The whole suite then failed three tests: two were about the default SQLite file (one now says so and is skipped on PostgreSQL; the other checks the file only on SQLite), and one was a real difference: the review queue's ties came back in storage order, which on PostgreSQL changes after a restore. Assertions are now read in ID order, and the queue's sort ends with the ID. `scripts/test-both.sh` runs both: 827 tests on SQLite in 3.6 minutes and 828 on PostgreSQL 16 in 11 minutes, on the laptop. |
 | 2026-11-08 | Wave 7 planned. Single sign-on is OpenID Connect only, with the authorization-code flow and PKCE, the ID token's signature checked against the provider's keys with the standard library, and app roles recommended for Entra ID because of its group limit. The scale target is simulated; the budgets extend the ones in [ux.md](../ux.md) from 5,000 people and 300,000 publications to 10,000 and 1,000,000, and add the sync's and builds' times. |

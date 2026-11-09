@@ -29,7 +29,7 @@ from starlette.concurrency import run_in_threadpool
 from tessera.api.problems import problem
 from tessera.auth.accounts import grants_of
 from tessera.auth.principal import Principal
-from tessera.auth.sessions import COOKIE, CSRF_HEADER, load_session
+from tessera.auth.sessions import COOKIE, CSRF_HEADER, NO_PASSWORD, load_session
 from tessera.config import LOOPBACK_HOSTS
 from tessera.ledger.tables import account
 
@@ -52,6 +52,8 @@ POLICIES: dict[tuple[str, str], Level] = {
     ("POST", "/api/v1/session"): P,
     ("DELETE", "/api/v1/session"): R,
     ("POST", "/api/v1/session/password"): R,
+    ("GET", "/api/v1/auth/sso/start"): P,
+    ("GET", "/api/v1/auth/sso/callback"): P,
     ("GET", "/api/docs"): R,
     ("GET", "/api/openapi.json"): R,
     ("GET", "/api/v1/search"): R,
@@ -260,6 +262,7 @@ def _principal(request: Request) -> Principal | None:
         person_id=row["person_id"],
         grants=grants,
         csrf_token=session["csrf_token"],
+        has_password=row["password_hash"] != NO_PASSWORD,
     )
 
 

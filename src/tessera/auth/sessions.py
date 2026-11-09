@@ -26,6 +26,9 @@ CSRF_HEADER = "X-CSRF-Token"
 TOUCH_EVERY = timedelta(minutes=1)  # write the sliding expiry at most this often
 
 
+NO_PASSWORD = "!"  # noqa: S105 (an account without one; never matches a password)
+
+
 def token_hash(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 

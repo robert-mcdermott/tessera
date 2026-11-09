@@ -44,7 +44,7 @@ from tessera.ledger.tables import metadata
 
 # Never exported: secrets that would let someone sign in as somebody else.
 WITHHELD = {"account": {"password_hash"}, "auth_session": {"token_hash", "csrf_token"}}
-SKIPPED_TABLES = {"auth_session"}  # signed-in browsers: nothing anyone needs to leave with
+SKIPPED_TABLES = {"auth_session", "sign_in_attempt"}  # signed-in browsers and sign-ins under way
 # Left out while empty and the feature is off.
 OPTIONAL_TABLES = {"ai_exchange", "ai_summary", "summary_event"}
 
@@ -82,6 +82,7 @@ LEDGER_NOTES = {
     "profile_entry": "The sections of a profile a person keeps: positions, education, honors, ...",
     "profile_event": "Every change to a profile: who, in what capacity, before and after",
     "profile_delegate": "Accounts a person named to keep their profile for them",
+    "account_identity": "Each account's identity at the single sign-on provider (issuer, subject)",
     "profile_public": "The sections a person leaves off their public page",
     "cv_document": "CVs and biosketches: each version's name and what it includes",
     "auto_accept_batch": "Links accepted automatically, by batch",

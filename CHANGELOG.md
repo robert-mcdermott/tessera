@@ -8,6 +8,8 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 
 - Every test runs on PostgreSQL as well as SQLite (PLT-09): with `TESSERA_TEST_LEDGER=postgres`, each installation a test creates gets its own PostgreSQL database, and `scripts/test-both.sh` runs the whole suite on both, with a disposable PostgreSQL that it removes afterwards. *Running Tessera* says when to choose PostgreSQL and how to move an installation to it.
 
+- Single sign-on with OpenID Connect (PLT-10, ADR-0011): with `[auth.oidc]`, people sign in through Microsoft Entra ID, Okta, Google, Keycloak, or any standards-based provider, by the authorization-code flow with PKCE; the ID token's RS256 signature (checked with the standard library), issuer, audience, expiry, and nonce are checked before anyone is signed in, and a sign-in must finish in the browser that began it. Accounts are found by the provider's identifier, matched by a verified email address, or created (unless turned off), and linked to the directory person with the same address. The provider's app roles or groups map to Tessera roles, group scopes included, and are replaced at every sign-in; roles given in the app stay, and the last admin is never removed. Local accounts keep working, behind **Sign in with a password**. **Admin → Accounts** shows how each account signs in and which roles came from the provider; `tessera doctor --online` checks the provider. Migration 0023. *Running Tessera* has steps for each provider.
+
 ### Fixed
 
 - The review queue lists suggestions in the same order on PostgreSQL as on SQLite, including after a restore; before, ties came back in whatever order the database stored them.

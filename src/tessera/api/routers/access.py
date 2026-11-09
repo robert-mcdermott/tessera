@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from tessera.api.access import principal_of
@@ -16,6 +18,7 @@ from tessera.auth.sessions import COOKIE, create_session, revoke_session
 from tessera.core.errors import TesseraError
 
 LOOPBACK_ADDRESSES = frozenset({"127.0.0.1", "::1", "localhost"})
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["access"])
 
@@ -107,6 +110,7 @@ def sign_in(request: Request, response: Response, body: SignIn) -> dict[str, Any
         person_id=row["person_id"],
         grants=tuple(row["grants"]),
         csrf_token=csrf,
+        has_password=True,
     )
     return envelope(_session_body(principal, csrf), accounts=True, expires_at=expires)
 
@@ -252,3 +256,135 @@ def change(request: Request, account_id: str, body: AccountChange) -> dict[str, 
     row = accounts.find_account(engine, account_id)
     assert row is not None
     return envelope(accounts.describe(row))
+
+
+# --- single sign-on (PLT-10, ADR-0011) -----------------------------------------------------------
+
+SSO_COOKIE = "tessera_sso"
+SSO_PATH = "/api/v1/auth/sso"
+
+
+def _provider(request: Request) -> Any:
+    """The configured provider, with its discovery document and keys kept between sign-ins."""
+    from tessera.auth.oidc import Provider
+
+    oidc = request.app.state.config.auth.oidc
+    if not oidc.enabled or not request.app.state.config.server.accounts:
+        raise HTTPException(status_code=404, detail="Single sign-on is not set up.")
+    provider = getattr(request.app.state, "oidc_provider", None)
+    if provider is None or provider.issuer != oidc.issuer:
+        provider = Provider(
+            oidc.issuer, transport=getattr(request.app.state, "oidc_transport", None)
+        )
+        request.app.state.oidc_provider = provider
+    return provider
+
+
+def _redirect_uri(request: Request) -> str:
+    oidc = request.app.state.config.auth.oidc
+    if oidc.redirect_url:
+        return oidc.redirect_url
+    scheme = request.headers.get("x-forwarded-proto", "").split(",")[0].strip()
+    host = request.headers.get("x-forwarded-host", "").split(",")[0].strip()
+    scheme = scheme or request.url.scheme
+    host = host or request.headers.get("host", "") or request.url.netloc
+    return f"{scheme}://{host}{SSO_PATH}/callback"
+
+
+def _secure(request: Request) -> bool:
+    return request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+
+
+def _to_sign_in(outcome: str) -> RedirectResponse:
+    response = RedirectResponse(f"/sign-in?sso={outcome}", status_code=303)
+    response.delete_cookie(SSO_COOKIE, path=SSO_PATH)
+    return response
+
+
+@router.get(
+    "/auth/sso/start",
+    summary="Begin signing in with the single sign-on provider (redirects there)",
+    response_class=RedirectResponse,
+    status_code=303,
+)
+def sso_start(request: Request, next: str | None = None) -> RedirectResponse:
+    from tessera.auth import sso
+    from tessera.auth.oidc import OIDCError
+
+    provider = _provider(request)
+    try:
+        started = sso.begin(
+            engine_of(request),
+            request.app.state.config,
+            provider,
+            redirect_uri=_redirect_uri(request),
+            next_path=next,
+        )
+    except OIDCError as exc:
+        log.warning("Single sign-on could not begin: %s", exc)
+        return _to_sign_in("failed")
+    response = RedirectResponse(started.url, status_code=303)
+    # Lax, not Strict: it must come back with the provider's (cross-site) redirect.
+    response.set_cookie(
+        SSO_COOKIE,
+        started.state,
+        max_age=sso.ATTEMPT_MINUTES * 60,
+        httponly=True,
+        samesite="lax",
+        secure=_secure(request),
+        path=SSO_PATH,
+    )
+    return response
+
+
+@router.get(
+    "/auth/sso/callback",
+    summary="Where the single sign-on provider sends the browser back (redirects into the app)",
+    response_class=RedirectResponse,
+    status_code=303,
+)
+def sso_callback(
+    request: Request,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+) -> RedirectResponse:
+    import os
+
+    from tessera.auth import sso
+    from tessera.auth.oidc import OIDCError
+
+    provider = _provider(request)
+    config = request.app.state.config
+    if error:
+        log.info("Single sign-on ended at the provider: %s", error[:200])
+        return _to_sign_in("cancelled" if error == "access_denied" else "failed")
+    engine = engine_of(request)
+    try:
+        account_id, next_path = sso.finish(
+            engine,
+            config,
+            provider,
+            state=state,
+            browser_state=request.cookies.get(SSO_COOKIE),
+            code=code,
+            redirect_uri=_redirect_uri(request),
+            secret=os.environ.get(config.auth.oidc.client_secret_env, ""),
+        )
+    except sso.SignInRefused as exc:
+        log.warning("Single sign-on refused: %s", exc)
+        return _to_sign_in(exc.reason)
+    except OIDCError as exc:
+        log.warning("Single sign-on failed: %s", exc)
+        return _to_sign_in("failed")
+    token, _, _ = create_session(
+        engine,
+        account_id,
+        idle_hours=config.server.session_idle_hours,
+        max_days=config.server.session_max_days,
+        user_agent=request.headers.get("user-agent"),
+    )
+    response = RedirectResponse(next_path, status_code=303)
+    _set_cookie(request, response, token, config.server.session_max_days * 86400)
+    response.delete_cookie(SSO_COOKIE, path=SSO_PATH)
+    return response

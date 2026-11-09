@@ -74,6 +74,10 @@ def meta(request: Request) -> dict[str, Any]:
             "mode": {
                 "accounts": config.server.accounts,
                 "operator": None if config.server.accounts else config.server.operator,
+                # The sign-in page's single sign-on button, when it is set up.
+                "sso": {"label": config.auth.oidc.label}
+                if config.server.accounts and config.auth.oidc.enabled
+                else None,
             },
             # Before sign-in, only what the sign-in page shows (name, branding).
             "sources": _freshness(request, config) if signed_in else [],

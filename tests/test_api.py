@@ -46,7 +46,7 @@ def test_meta(client: TestClient) -> None:
     assert data["product"]["name"] == "Tessera"
     assert data["product"]["version"] == __version__
     assert data["organization"] == {"name": "Example University", "short_name": "EXU"}
-    assert data["mode"] == {"accounts": False, "operator": "Operator"}
+    assert data["mode"] == {"accounts": False, "operator": "Operator", "sso": None}
     sources = {s["name"]: s for s in data["sources"]}
     assert set(sources) == {"pubmed", "icite", "reporter", "ctgov", "orcid", "mesh", "grants_gov"}
     assert sources["pubmed"] == {

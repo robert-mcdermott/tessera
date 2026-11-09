@@ -18,6 +18,7 @@ from dataclasses import dataclass, field, fields, replace
 from importlib import resources
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from tessera.core.errors import ConfigError
 
@@ -215,6 +216,47 @@ class AIConfig:
         return self.api_key_env or AI_DEFAULT_KEYS.get(self.provider, "")
 
 
+OIDC_ROLES = ("admin", "curator", "manager", "researcher", "viewer")
+
+
+@dataclass(frozen=True)
+class OIDCConfig:
+    """Single sign-on through an OpenID Connect provider (wave 7). Off unless ``issuer`` is set.
+
+    The client secret is never written here: ``client_secret_env`` names the environment
+    variable that holds it. ``roles`` maps values of the ``roles_claim`` (app roles or groups)
+    to Tessera roles, written as for ``tessera users add --role``: "curator",
+    "curator=group:Division of Immunology", "manager=group:okafor-lab+below"."""
+
+    issuer: str = ""  # the provider's issuer URL; its discovery document says the rest
+    client_id: str = ""
+    client_secret_env: str = "TESSERA_OIDC_CLIENT_SECRET"  # noqa: S105 (a variable's name)
+    scopes: tuple[str, ...] = ("openid", "profile", "email")
+    label: str = "Sign in with single sign-on"  # the button on the sign-in page
+    redirect_url: str = ""  # empty: <this site>/api/v1/auth/sso/callback
+    username_claim: str = "preferred_username"
+    name_claim: str = "name"
+    email_claim: str = "email"
+    roles_claim: str = ""  # "roles" for Entra ID app roles, "groups", …; empty: no mapping
+    roles: tuple[tuple[str, str], ...] = ()  # (claim value, role) from [auth.oidc.roles]
+    default_role: str = "viewer"  # given when no mapped role applies; "" refuses sign-in
+    researchers: bool = True  # an account linked to a person may review and keep their own
+    create_accounts: bool = True  # create an account at first sign-in
+    link_people: bool = True  # link an account to the person with the same email address
+    trust_email: bool = False  # trust the email claim even when not marked verified
+
+    @property
+    def enabled(self) -> bool:
+        return bool(self.issuer)
+
+
+@dataclass(frozen=True)
+class AuthConfig:
+    """How people sign in, beside local accounts (which [server] accounts turns on)."""
+
+    oidc: OIDCConfig = field(default_factory=OIDCConfig)
+
+
 @dataclass(frozen=True)
 class AlertsConfig:
     """Who hears when something goes wrong (PLT-12), by email through [mail]."""
@@ -314,6 +356,7 @@ class Config:
     insight: InsightConfig = field(default_factory=InsightConfig)
     alerts: AlertsConfig = field(default_factory=AlertsConfig)
     ai: AIConfig = field(default_factory=AIConfig)
+    auth: AuthConfig = field(default_factory=AuthConfig)
     path: Path | None = None  # the file this configuration was loaded from
 
     @property
@@ -339,6 +382,7 @@ _SECTIONS: dict[str, type] = {
     "insight": InsightConfig,
     "alerts": AlertsConfig,
     "ai": AIConfig,
+    "auth": AuthConfig,
 }
 _SOURCE_NAMES = ("pubmed", "icite", "reporter", "ctgov", "orcid", "mesh", "grants_gov")
 _PATH_FIELDS = {
@@ -412,6 +456,8 @@ def parse_config(
             sections[name] = _build_vocabulary(table, problems)
         elif cls is BrandingConfig:
             sections[name] = _build_branding(table, problems)
+        elif cls is AuthConfig:
+            sections[name] = _build_auth(table, problems)
         else:
             sections[name] = _build(cls, name, table, problems)
 
@@ -559,6 +605,35 @@ PALETTE_COLORS = (
 _HEX = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
 
+def _build_auth(table: dict[str, Any], problems: list[str]) -> AuthConfig:
+    """[auth], with [auth.oidc] and its [auth.oidc.roles] mapping."""
+    unknown = sorted(set(table) - {"oidc"})
+    problems += [f"unknown setting auth.{k}" for k in unknown]
+    raw = table.get("oidc", {})
+    if not isinstance(raw, dict):
+        problems.append("[auth.oidc] must be a table")
+        return AuthConfig()
+    raw = dict(raw)
+    mapping = raw.pop("roles", {})
+    roles: list[tuple[str, str]] = []
+    if not isinstance(mapping, dict):
+        problems.append("[auth.oidc.roles] must be a table of claim value = role")
+    else:
+        for value, role in mapping.items():
+            if not isinstance(role, str) or not role.strip():
+                problems.append(f'auth.oidc.roles.{value} must be a role, such as "curator"')
+                continue
+            roles.append((str(value), role.strip()))
+    if "client_secret" in raw:
+        raw.pop("client_secret")
+        problems.append(
+            "auth.oidc.client_secret: secrets are never written in this file; put it in an "
+            "environment variable and name it with client_secret_env"
+        )
+    built = _build(OIDCConfig, "auth.oidc", raw, problems)
+    return AuthConfig(oidc=replace(built, roles=tuple(roles)))
+
+
 def _build_branding(table: dict[str, Any], problems: list[str]) -> BrandingConfig:
     """[branding], with its palette table and footer links."""
     table = dict(table)
@@ -678,6 +753,39 @@ def _resolve_paths(config: Config, base_dir: Path) -> Config:
     return replace(config, data=data, branding=branding, publish=publish)
 
 
+def _validate_oidc(config: Config) -> list[str]:
+    oidc = config.auth.oidc
+    if not oidc.enabled:
+        return []
+    problems = []
+    if not config.server.accounts:
+        problems.append("auth.oidc needs accounts: set server.accounts = true")
+    parts = urlsplit(oidc.issuer)
+    local = (parts.hostname or "") in LOOPBACK_HOSTS
+    if parts.scheme != "https" and not (parts.scheme == "http" and local):
+        problems.append("auth.oidc.issuer must be an https:// address (http:// only on this "
+                        "machine, for testing)")  # fmt: skip
+    if not oidc.client_id:
+        problems.append("auth.oidc.client_id is required")
+    if not oidc.client_secret_env:
+        problems.append("auth.oidc.client_secret_env must name an environment variable")
+    if "openid" not in oidc.scopes:
+        problems.append("auth.oidc.scopes must include openid")
+    if oidc.redirect_url and urlsplit(oidc.redirect_url).scheme not in ("https", "http"):
+        problems.append("auth.oidc.redirect_url must be a full web address")
+    if oidc.default_role and oidc.default_role not in OIDC_ROLES:
+        problems.append(f"auth.oidc.default_role must be one of {', '.join(OIDC_ROLES)}, or "
+                        "empty to refuse sign-in without a mapped role")  # fmt: skip
+    if oidc.roles and not oidc.roles_claim:
+        problems.append("auth.oidc.roles needs roles_claim: the claim that holds the values")
+    for value, role in oidc.roles:
+        name = role.partition("=")[0].strip().lower()
+        if name not in OIDC_ROLES:
+            problems.append(f"auth.oidc.roles.{value}: {name!r} is not a role "
+                            f"({', '.join(OIDC_ROLES)})")  # fmt: skip
+    return problems
+
+
 def validate(config: Config) -> list[str]:
     """Semantic checks beyond types. Returns human-readable problems (empty if valid)."""
     problems: list[str] = []
@@ -730,6 +838,7 @@ def validate(config: Config) -> list[str]:
         problems.append("server.host is required")
     if not server.operator:
         problems.append("server.operator is required (it is recorded on curation actions)")
+    problems += _validate_oidc(config)
     if not server.accounts and server.host not in LOOPBACK_HOSTS:
         problems.append(
             f"server.host is {server.host!r}, which other machines can reach, but accounts "

@@ -93,8 +93,11 @@ def make_grant(
     return Grant(role.strip().lower(), scope_type, scope_id, below and scope_type == "unit")
 
 
-def _check_grants(conn: Connection, grants: list[Grant], person_id: str | None) -> None:
-    if not grants:
+def _check_grants(
+    conn: Connection, grants: list[Grant], person_id: str | None, *, others: bool = False
+) -> None:
+    """``others``: the account has roles from single sign-on besides these."""
+    if not grants and not others:
         raise AccountError("An account needs at least one role.")
     for g in grants:
         if g.role not in ROLES:
@@ -194,6 +197,38 @@ def scope_labels(conn: Connection, grants: list[Grant]) -> dict[str, str]:
     return labels
 
 
+def grant_sources(conn: Connection, account_id: str) -> list[str]:
+    """Where each of ``grants_of``'s grants came from, in the same order: "local" (given in
+    Tessera) or "provider" (mapped from single sign-on, and replaced at each sign-in)."""
+    return [
+        r[0]
+        for r in conn.execute(
+            select(role_grant.c.source)
+            .where(role_grant.c.account_id == account_id)
+            .order_by(role_grant.c.id)
+        )
+    ]
+
+
+def _sign_in(conn: Connection, row: dict[str, Any]) -> dict[str, Any]:
+    from tessera.auth.sessions import NO_PASSWORD
+    from tessera.ledger.tables import account_identity
+
+    sso = conn.execute(
+        select(func.max(account_identity.c.last_sign_in_at)).where(
+            account_identity.c.account_id == row["id"]
+        )
+    ).first()
+    linked = conn.execute(
+        select(account_identity.c.id).where(account_identity.c.account_id == row["id"])
+    ).first()
+    return {
+        "password": row["password_hash"] != NO_PASSWORD,
+        "single_sign_on": linked is not None,
+        "single_sign_on_at": sso[0] if sso else None,
+    }
+
+
 def grants_of(conn: Connection, account_id: str) -> list[Grant]:
     rows = conn.execute(
         select(
@@ -221,7 +256,13 @@ def find_account(engine: Engine, key: str) -> dict[str, Any] | None:
         if row is None:
             return None
         grants = grants_of(conn, row["id"])
-        return {**dict(row), "grants": grants, "labels": scope_labels(conn, grants)}
+        return {
+            **dict(row),
+            "grants": grants,
+            "sources": grant_sources(conn, row["id"]),
+            "labels": scope_labels(conn, grants),
+            "sign_in": _sign_in(conn, dict(row)),
+        }
 
 
 def list_accounts(engine: Engine) -> list[dict[str, Any]]:
@@ -231,7 +272,9 @@ def list_accounts(engine: Engine) -> list[dict[str, Any]]:
         ]
         for r in rows:
             r["grants"] = grants_of(conn, r["id"])
+            r["sources"] = grant_sources(conn, r["id"])
             r["labels"] = scope_labels(conn, r["grants"])
+            r["sign_in"] = _sign_in(conn, r)
         return rows
 
 
@@ -318,12 +361,20 @@ def update_account(
                 raise AccountError(f"No person {person_id!r}.")
             values["person_id"] = person_id or None
         if grants is not None:
-            _check_grants(conn, grants, new_person)
-            was_admin = any(g.role == "admin" for g in grants_of(conn, account_id))
-            losing = was_admin and not any(g.role == "admin" for g in grants)
+            # Only the roles given in Tessera: those from single sign-on are the provider's.
+            pairs = zip(grants_of(conn, account_id), grant_sources(conn, account_id), strict=True)
+            current = list(pairs)
+            provider = [g for g, source in current if source == "provider"]
+            _check_grants(conn, grants, new_person, others=bool(provider))
+            was_admin = any(g.role == "admin" for g, _ in current)
+            losing = was_admin and not any(g.role == "admin" for g in [*grants, *provider])
             if losing and row["status"] == "active" and not _active_admins(conn, account_id):
                 raise AccountError("This is the last active admin; add another admin first.")
-            conn.execute(delete(role_grant).where(role_grant.c.account_id == account_id))
+            conn.execute(
+                delete(role_grant).where(
+                    role_grant.c.account_id == account_id, role_grant.c.source == "local"
+                )
+            )
             _insert_grants(conn, account_id, grants, actor)  # in effect from the next request
         conn.execute(update(account).where(account.c.id == account_id).values(**values))
 
@@ -346,9 +397,16 @@ def describe(row: dict[str, Any]) -> dict[str, Any]:
         "status": row["status"],
         "person_id": row["person_id"],
         "roles": [
-            {**g.to_json(), "scope_label": row.get("labels", {}).get(g.scope_id)}
-            for g in row["grants"]
+            {
+                **g.to_json(),
+                "scope_label": row.get("labels", {}).get(g.scope_id),
+                "source": source,
+            }
+            for g, source in zip(
+                row["grants"], row.get("sources") or ["local"] * len(row["grants"]), strict=True
+            )
         ],
+        "sign_in": row.get("sign_in"),
         "created_at": row["created_at"],
         "last_sign_in_at": row["last_sign_in_at"],
     }
@@ -361,6 +419,7 @@ __all__ = [
     "create_account",
     "describe",
     "find_account",
+    "grant_sources",
     "grants_of",
     "list_accounts",
     "normalize_username",

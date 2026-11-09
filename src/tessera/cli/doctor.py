@@ -69,6 +69,8 @@ def run_checks(config_path: str | None, *, online: bool = False) -> list[Check]:
     )
     if config.ai.enabled:  # nothing is said of the assistant unless it is turned on
         checks.append(_check_ai(config))
+    if config.auth.oidc.enabled:
+        checks += _check_sso(config, online=online)
     if online:
         checks += _check_sources(config)
     return checks
@@ -92,6 +94,35 @@ def _check_ai(config: Config) -> Check:
                      "needs a key)")  # fmt: skip
     keyed = "with a key" if os.environ.get(ai.key_env) else "without a key"
     return Check("Assistant", OK, f"{where} ({keyed}); `tessera ai check` tries it")
+
+
+def _check_sso(config: Config, *, online: bool) -> list[Check]:
+    """Single sign-on: its secret in the environment, and (online) the provider's discovery
+    document and signing keys."""
+    oidc = config.auth.oidc
+    out = []
+    if os.environ.get(oidc.client_secret_env):
+        detail = f"{oidc.issuer}; the secret is in {oidc.client_secret_env}"
+        out.append(Check("Single sign-on", OK, detail))
+    else:
+        detail = f"{oidc.client_secret_env} is not set: only a public client can sign in"
+        out.append(Check("Single sign-on", WARN, detail))
+    if not online:
+        return out
+    from tessera.auth.oidc import OIDCError, Provider
+
+    provider = Provider(oidc.issuer)
+    try:
+        meta = provider.metadata()
+        keys = [k for k in provider.signing_keys() if k.get("kty") == "RSA"]
+    except OIDCError as exc:
+        return [*out, Check("Single sign-on provider", FAIL, str(exc))]
+    algs = meta.get("id_token_signing_alg_values_supported") or ["RS256"]
+    if not keys or not any(a in ("RS256", "RS384", "RS512") for a in algs):
+        detail = "the provider offers no RSA keys for ID tokens; set it to sign them with RS256"
+        return [*out, Check("Single sign-on provider", FAIL, detail)]
+    detail = f"discovery and {len(keys)} RSA key(s) read; ID tokens signed with {', '.join(algs)}"
+    return [*out, Check("Single sign-on provider", OK, detail)]
 
 
 def _check_backup(config: Config) -> Check:

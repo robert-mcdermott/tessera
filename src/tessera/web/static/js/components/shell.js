@@ -204,7 +204,8 @@ function userMenu() {
   const menu = h("div", { class: "user-menu", role: "menu", hidden: true },
     h("div", { class: "user-menu-who" }, h("strong", {}, me.name), h("span", { class: "subtle" }, `${me.username} · ${roles}`)),
     kept,
-    h("button", { type: "button", role: "menuitem", class: "user-menu-item", onclick: () => { close(); changePassword(); } }, icon("keyboard", "icon icon-sm"), "Change password…"),
+    me.has_password === false ? null
+      : h("button", { type: "button", role: "menuitem", class: "user-menu-item", onclick: () => { close(); changePassword(); } }, icon("keyboard", "icon icon-sm"), "Change password…"),
     h("button", { type: "button", role: "menuitem", class: "user-menu-item", onclick: () => signOut() }, icon("arrowRight", "icon icon-sm"), "Sign out"));
   const button = h("button", { type: "button", class: "operator user-button", "aria-haspopup": "menu", "aria-expanded": "false",
     onclick: () => (menu.hidden ? open() : close()) },
