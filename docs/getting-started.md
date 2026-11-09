@@ -110,6 +110,7 @@ Run `sync` again afterward so the new people's papers are found.
 
 ## Next steps
 
+- [Adopting Tessera](adopting.md): for an organization, the whole path from installation to a curated, published site, in order.
 - [Describing your organization](organization-profile.md): tune what counts as "us".
 - [Curating](curation.md): clear the review queue and promote discovered people.
 - [Finding experts](discovery.md): expert search, similar people, and the graphs.

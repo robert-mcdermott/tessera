@@ -1486,6 +1486,24 @@ def cmd_eval_authorship(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _port_free(host: str, port: int) -> bool:
+    """Whether a server could listen on host:port now (as uvicorn will, reusing the address)."""
+    import socket
+
+    try:
+        infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    except OSError:
+        return True  # let the server report an address it cannot use
+    for family, kind, proto, _, address in infos[:1]:
+        with socket.socket(family, kind, proto) as probe:
+            probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                probe.bind(address)
+            except OSError:
+                return False
+    return True
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
@@ -1514,8 +1532,17 @@ def cmd_serve(args: argparse.Namespace) -> int:
                 "tessera users add <username> --role admin"
             )
     assert config.path is not None
+    if not args.reload and not _port_free(host, port):
+        other = port + 1000 if port < 64535 else 8080
+        raise TesseraError(
+            f"Something else is already listening on {host}:{port}. Stop it, or choose another "
+            f"port: `tessera serve --port {other}` (or [server] port)."
+        )
     os.environ[ENV_CONFIG_PATH] = str(Path(config.path).resolve())
-    print(f"{config.branding.product_name} running at http://{host}:{port}/  (Ctrl-C to stop)")
+    print(
+        f"{config.branding.product_name} running at http://{host}:{port}/  (Ctrl-C to stop)",
+        flush=True,
+    )
     uvicorn.run(
         "tessera.api.app:create_app_from_env",
         factory=True,

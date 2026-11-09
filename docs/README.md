@@ -7,6 +7,7 @@ Tessera assembles a research organization's footprint from public sources, conne
 | Guide | Read it to |
 |---|---|
 | [Getting started](getting-started.md) | Install Tessera, describe your organization, run the first sync, and open the app |
+| [Adopting Tessera](adopting.md) | Take an organization from nothing to a signed-in, curated, published installation: what to decide, in what order, and the first weeks of curation |
 | [Describing your organization](organization-profile.md) | Choose the names Tessera uses to find your people and records, and check the result |
 | [Curating](curation.md) | Work through suggestions, promote discovered people, and understand what decisions do |
 | [Finding experts](discovery.md) | Find who works on a topic, see similar people and connections, and understand what drives a profile |

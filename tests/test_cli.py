@@ -90,6 +90,22 @@ def test_doctor_checks_what_a_production_server_needs(
     assert "✓ Production: sign-in" in out and "✓ Production: NCBI key" in out
 
 
+def test_serve_says_when_the_port_is_taken(
+    instance: Instance, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Rather than saying it is running and then failing to listen."""
+    import socket
+
+    with socket.socket() as taken:
+        taken.bind(("127.0.0.1", 0))
+        taken.listen()
+        port = taken.getsockname()[1]
+        code, out = run(capsys, "--config", str(instance.path), "serve", "--port", str(port))
+    assert code == EXIT_ERROR
+    assert f"already listening on 127.0.0.1:{port}" in out and "--port" in out
+    assert "running at" not in out
+
+
 def test_doctor_reports_missing_config(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     code, out = run(capsys, "--config", str(tmp_path / "absent.toml"), "doctor")
     assert code == EXIT_ERROR
