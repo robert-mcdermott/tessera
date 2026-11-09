@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Look and words · Tessera</title>
+<meta name="description" content="Tessera can carry your organization's name, colors, and logos, and call groups and the roles in them what your organization calls them. Admins set the look in the app, under Admin → Branding ; the wor">
+<meta property="og:title" content="Look and words">
+<meta property="og:description" content="Tessera can carry your organization's name, colors, and logos, and call groups and the roles in them what your organization calls them. Admins set the look in the app, under Admin → Branding ; the wor">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://robert-mcdermott.github.io/tessera/images/social-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="assets/tessera-mark.svg">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/site.css">
+<script src="assets/theme.js"></script>
+<script src="assets/site.js" defer></script>
+</head>
+<body class="page-branding">
+<a class="skip" href="#content">Skip to content</a>
+<header class="top">
+  <button class="menu-button" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu">☰</button>
+  <a class="brand" href="index.html"><img src="assets/tessera-mark.svg" alt="" width="26" height="26"><span>Tessera</span><span class="version">v0.7.0</span></a>
+  <div class="search" role="search">
+    <input id="search" type="search" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off" spellcheck="false">
+    <kbd>/</kbd>
+    <div class="results" id="results" role="listbox" hidden></div>
+  </div>
+  <div class="theme" role="group" aria-label="Theme">
+    <button type="button" data-theme-choice="light" title="Light">☀</button><button type="button" data-theme-choice="system" title="System">◐</button><button type="button" data-theme-choice="dark" title="Dark">☾</button>
+  </div>
+  <a class="github" href="https://github.com/robert-mcdermott/tessera" rel="noopener">GitHub</a>
+</header>
+<div class="layout">
+  <nav class="menu" id="menu" aria-label="Documentation"><div class="menu-group"><div class="menu-title">Start</div><ul><li><a href="index.html">Overview</a></li><li><a href="getting-started.html">Getting started</a></li><li><a href="adopting.html">Adopting Tessera</a></li><li><a href="organization-profile.html">Describing your organization</a></li></ul></div><div class="menu-group"><div class="menu-title">Use</div><ul><li><a href="curation.html">Curating</a></li><li><a href="discovery.html">Finding experts</a></li><li><a href="groups.html">Groups</a></li><li><a href="profiles.html">Profiles</a></li><li><a href="insight.html">Insight</a></li><li><a href="opportunities.html">Opportunities</a></li><li><a href="public-site.html">The public site</a></li></ul></div><div class="menu-group"><div class="menu-title">Run</div><ul><li><a href="branding.html" aria-current="page">Look and words</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="operations.html">Running Tessera</a></li><li><a href="assistant.html">The assistant</a></li></ul></div><div class="menu-group"><div class="menu-title">Reference</div><ul><li><a href="api.html">The API</a></li><li><a href="api-reference.html">API reference</a></li><li><a href="cli.html">Command reference</a></li><li><a href="changelog.html">Changelog</a></li></ul></div></nav>
+  <main id="content" class="content">
+<h1 id="look-and-words">Look and words</h1>
+<p>Tessera can carry your organization's name, colors, and logos, and call groups and the roles in them what your organization calls them. Admins set the look in the app, under <strong>Admin → Branding</strong>; the words are set in the configuration file, starting from a preset for your kind of organization.</p>
+<h2 id="the-look">The look<a class="anchor" href="#the-look" aria-label="Link to this section">#</a></h2>
+<p><strong>Admin → Branding</strong> shows everything about how Tessera looks, with a preview of the app and the public site by day and after dark that changes as you edit:</p>
+<ul><li>the <strong>product name</strong>, in the sidebar and page titles, and whether &quot;Powered by Tessera&quot; appears under it;</li><li>the <strong>palette</strong> everyone sees first (Tessera, Harbor, or Cassette; each person can still choose another under <strong>Appearance</strong>), and an <strong>accent</strong> that replaces the palette's;</li><li><strong>your colors</strong>, by day and after dark: the page, cards, text, secondary text, lines, the accent and the text on it, the header stripe, and the colors of people, publications, grants, and studies; any you leave empty keep Tessera's;</li><li><strong>logos</strong> for light and dark backgrounds, the <strong>browser icon</strong>, and the <strong>link preview</strong> shown when someone shares a page of the public site;</li><li><strong>footer links</strong>, such as privacy and accessibility statements, at the foot of the sidebar and of every public page.</li></ul>
+<figure><img src="images/branding-light.webp" alt="Admin, Branding: the editor beside a live preview of the app and the public site, by day and after dark, and the contrast of every pair of colors" loading="lazy" class="only-light"><img src="images/branding-dark.webp" alt="Admin, Branding: the editor beside a live preview of the app and the public site, by day and after dark, and the contrast of every pair of colors" loading="lazy" class="only-dark"><figcaption>Admin → Branding</figcaption></figure>
+<p><strong>Saving</strong> writes the <code>[branding]</code> section of <code>tessera.toml</code> (with its <code>[branding.palette.day]</code> and <code>[branding.palette.night]</code> tables) and changes nothing else in the file. The file as it was is kept beside it as <code>tessera.toml.bak</code>, and uploaded images in a <code>brand/</code> folder beside it. Comments inside the branding tables are not kept, since the app writes them afresh; comments elsewhere are. Everyone sees the new look on their next page load, and the public site on its next <code>tessera publish</code>.</p>
+<p>If the server cannot write the configuration file (it is on a read-only volume, say), the page says so and shows the section to copy into the file by hand. Configuration stays the record of how Tessera is set up: the app keeps no second copy.</p>
+<h3 id="contrast">Contrast<a class="anchor" href="#contrast" aria-label="Link to this section">#</a></h3>
+<p>Every pair of colors that carries text must meet <a href="https://www.w3.org/TR/WCAG22/#contrast-minimum" rel="noopener">WCAG 2.2</a> level AA, by day and after dark. The editor shows each pair's contrast as you change a color, and will not save while any is too low; <code>tessera doctor</code> checks the same pairs, and <code>tessera publish</code> will not publish a site whose colors fail.</p>
+<div class="table-wrap"><table><thead><tr><th>Pair</th><th>Needs</th></tr></thead><tbody><tr><td>Text and secondary text, on the page and on cards</td><td>4.5:1</td></tr><tr><td>Links (the accent), on the page and on cards</td><td>4.5:1</td></tr><tr><td>Text on the accent, such as a button's label</td><td>4.5:1</td></tr><tr><td>The colors of people, publications, grants, and studies, on cards</td><td>4.5:1</td></tr><tr><td>The header stripe against the page</td><td>3:1</td></tr></tbody></table></div>
+<p>A brand's own colors often need a darker shade for text by day and a lighter one after dark: a mid-blue that is right for a logo may be too light for links on white. Yellows and light greens rarely reach 4.5:1 on white; use them for the stripe or keep them for the logo. An accent alone is used as given by day and lightened after dark; set the accent in both columns to choose both yourself.</p>
+<h3 id="logos-and-images">Logos and images<a class="anchor" href="#logos-and-images" aria-label="Link to this section">#</a></h3>
+<div class="table-wrap"><table><thead><tr><th>Image</th><th>Formats</th><th>Size</th></tr></thead><tbody><tr><td>Logo, and logo after dark</td><td>SVG best; PNG, JPEG, or WebP</td><td>Shown at most 190 by 30 pixels in the sidebar; for PNG, export at twice that (380 by 60) or more</td></tr><tr><td>Browser icon</td><td>SVG, PNG, or ICO</td><td>Square; PNG at least 64 by 64 pixels</td></tr><tr><td>Link preview</td><td>PNG or JPEG</td><td>1200 by 630 pixels</td></tr></tbody></table></div>
+<ul><li><strong>Shape.</strong> A horizontal logo (the mark beside the name) reads best in the sidebar. A stacked one is shown small, and when someone collapses the sidebar the logo is shown at most 40 pixels wide, so a logo that starts with its mark stays recognizable.</li><li><strong>Clear space.</strong> Trim the canvas to the artwork, leaving clear space around it about the height of a capital letter of the name; the sidebar adds its own margin. Your organization's brand guide wins where it says otherwise, as it does on minimum sizes.</li><li><strong>Light and dark.</strong> The logo is drawn on the sidebar's color. Give a version for dark backgrounds (usually light or white artwork) under <strong>Logo after dark</strong>; without one, the light logo is shown after dark too, so check that it reads there in the preview.</li><li><strong>The browser icon</strong> is shown at 16 to 32 pixels: use the mark alone, not the name.</li><li><strong>The link preview</strong> is cropped differently by each site that shows it: keep what matters in the middle, and text large.</li><li><strong>Safety.</strong> Images are up to 2 MB. An SVG with scripts, event handlers, embedded documents, or links to other files is refused (export it again as a plain image), and every branding image is served so that nothing in it can run.</li></ul>
+<p>Logos and colors can also be set in the configuration file by hand; see <a href="configuration.html#branding">Configuration</a>.</p>
+<h2 id="the-words">The words<a class="anchor" href="#the-words" aria-label="Link to this section">#</a></h2>
+<p>What the app calls groups, the kinds of group it offers, and the roles people hold in them are set under <code>[vocabulary]</code> in the configuration file. Start from the preset nearest your organization:</p>
+<div class="code"><pre><code class="language-toml">[vocabulary]
+preset = &quot;university&quot;</code></pre></div>
+<div class="table-wrap"><table><thead><tr><th>Preset</th><th>Groups are called</th><th>Kinds of group</th><th>Roles</th></tr></thead><tbody><tr><td><code>academic_medical_center</code></td><td>Groups</td><td>Division, Department, Research program, Center, Institute, Shared resource, Clinical service, Lab, Team</td><td>Lead, Co-lead, Member, Clinical member, Staff, Trainee, Affiliate</td></tr><tr><td><code>university</code></td><td>Units</td><td>School, College, Department, Institute, Center, Program, Core facility, Lab, Team</td><td>Director, Co-director, Faculty member, Staff, Student or postdoc, Affiliate</td></tr><tr><td><code>research_institute</code></td><td>Groups</td><td>Division, Department, Program, Center, Core facility, Lab, Team</td><td>Principal investigator, Co-investigator, Scientist, Staff, Trainee, Affiliate</td></tr></tbody></table></div>
+<p>Without a preset, Tessera's own words apply: Division, Department, Program, Center, Institute, Shared resource, Lab, and Team; Lead, Co-lead, Member, Staff, Trainee, and Affiliate.</p>
+<p>A preset is a starting point. Any setting beside it replaces the preset's, and <code>[vocabulary.kinds]</code> or <code>[vocabulary.roles]</code> replace its lists entirely:</p>
+<div class="code"><pre><code class="language-toml">[vocabulary]
+preset = &quot;university&quot;
+group = &quot;Department&quot;
+groups = &quot;Departments&quot;</code></pre></div>
+<p>Groups and memberships store each kind's and role's key (<code>lab</code>, <code>lead</code>), not its label, so labels can change at any time. The presets share keys wherever they mean the same thing, so moving from one to another keeps every group's kind and every member's role; a kind the new preset does not list is shown with its key, capitalized, until you add it back. See <a href="configuration.html#vocabulary">Configuration</a> for every setting.</p>
+    <nav class="pager" aria-label="Pages"><a class="prev" href="public-site.html"><span>Previous</span>The public site</a><a class="next" href="configuration.html"><span>Next</span>Configuration</a></nav>
+    <footer class="foot">Describes Tessera 0.7.0. Apache License 2.0. Screenshots show an invented organization; every person and record in them is fictional.</footer>
+  </main>
+  <aside class="toc" aria-label="On this page"><div class="menu-title">On this page</div><ul><li class="l2"><a href="#the-look">The look</a></li><li class="l3"><a href="#contrast">Contrast</a></li><li class="l3"><a href="#logos-and-images">Logos and images</a></li><li class="l2"><a href="#the-words">The words</a></li></ul></aside>
+</div>
+</body>
+</html>

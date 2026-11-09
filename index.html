@@ -20,7 +20,7 @@
 <a class="skip" href="#content">Skip to content</a>
 <header class="top">
   <button class="menu-button" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu">☰</button>
-  <a class="brand" href="index.html"><img src="assets/tessera-mark.svg" alt="" width="26" height="26"><span>Tessera</span><span class="version">v0.6.0</span></a>
+  <a class="brand" href="index.html"><img src="assets/tessera-mark.svg" alt="" width="26" height="26"><span>Tessera</span><span class="version">v0.7.0</span></a>
   <div class="search" role="search">
     <input id="search" type="search" placeholder="Search the docs" aria-label="Search the docs" autocomplete="off" spellcheck="false">
     <kbd>/</kbd>
@@ -32,7 +32,7 @@
   <a class="github" href="https://github.com/robert-mcdermott/tessera" rel="noopener">GitHub</a>
 </header>
 <div class="layout">
-  <nav class="menu" id="menu" aria-label="Documentation"><div class="menu-group"><div class="menu-title">Start</div><ul><li><a href="index.html" aria-current="page">Overview</a></li><li><a href="getting-started.html">Getting started</a></li><li><a href="organization-profile.html">Describing your organization</a></li></ul></div><div class="menu-group"><div class="menu-title">Use</div><ul><li><a href="curation.html">Curating</a></li><li><a href="discovery.html">Finding experts</a></li><li><a href="groups.html">Groups</a></li><li><a href="profiles.html">Profiles</a></li><li><a href="insight.html">Insight</a></li><li><a href="opportunities.html">Opportunities</a></li><li><a href="public-site.html">The public site</a></li></ul></div><div class="menu-group"><div class="menu-title">Run</div><ul><li><a href="configuration.html">Configuration</a></li><li><a href="operations.html">Running Tessera</a></li><li><a href="assistant.html">The assistant</a></li></ul></div><div class="menu-group"><div class="menu-title">Reference</div><ul><li><a href="api.html">The API</a></li><li><a href="api-reference.html">API reference</a></li><li><a href="cli.html">Command reference</a></li><li><a href="changelog.html">Changelog</a></li></ul></div></nav>
+  <nav class="menu" id="menu" aria-label="Documentation"><div class="menu-group"><div class="menu-title">Start</div><ul><li><a href="index.html" aria-current="page">Overview</a></li><li><a href="getting-started.html">Getting started</a></li><li><a href="adopting.html">Adopting Tessera</a></li><li><a href="organization-profile.html">Describing your organization</a></li></ul></div><div class="menu-group"><div class="menu-title">Use</div><ul><li><a href="curation.html">Curating</a></li><li><a href="discovery.html">Finding experts</a></li><li><a href="groups.html">Groups</a></li><li><a href="profiles.html">Profiles</a></li><li><a href="insight.html">Insight</a></li><li><a href="opportunities.html">Opportunities</a></li><li><a href="public-site.html">The public site</a></li></ul></div><div class="menu-group"><div class="menu-title">Run</div><ul><li><a href="branding.html">Look and words</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="operations.html">Running Tessera</a></li><li><a href="assistant.html">The assistant</a></li></ul></div><div class="menu-group"><div class="menu-title">Reference</div><ul><li><a href="api.html">The API</a></li><li><a href="api-reference.html">API reference</a></li><li><a href="cli.html">Command reference</a></li><li><a href="changelog.html">Changelog</a></li></ul></div></nav>
   <main id="content" class="content">
 <section class="hero">
   <p class="eyebrow">Open research intelligence for academic research organizations</p>
@@ -193,6 +193,23 @@
   <figure class="shot"><img src="images/public-group-light.webp" alt="A program on the public site: what it does, its people, and its topics" loading="lazy" class="only-light"><img src="images/public-group-dark.webp" alt="A program on the public site: what it does, its people, and its topics" loading="lazy" class="only-dark"></figure>
 </section>
 
+<section class="feature">
+  <div class="feature-text">
+    <p class="eyebrow">Yours</p>
+    <h2 id="branding">In your colors and words</h2>
+    <p>Set the product's name, your colors by day and after dark, your logos, and the links at the foot of every page from <strong>Admin → Branding</strong>, with a live preview of the app and the public site and the contrast of every pair of colors checked as you go: it will not save a pair below WCAG AA. Presets name groups and roles the way an academic medical center, a university, or a research institute does.</p>
+    <p><a href="branding.html">Look and words →</a></p>
+  </div>
+  <figure class="shot"><img src="images/branding-light.webp" alt="Admin → Branding: the editor beside a live preview of the app and the public site, by day and after dark, and the contrast of every pair of colors" loading="lazy" class="only-light"><img src="images/branding-dark.webp" alt="Admin → Branding: the editor beside a live preview of the app and the public site, by day and after dark, and the contrast of every pair of colors" loading="lazy" class="only-dark"></figure>
+</section>
+
+<section class="pillars adopt">
+  <div><h3>Your sign-in</h3><p>Single sign-on with Microsoft Entra ID, Okta, Google, Keycloak, or any OpenID Connect provider, with roles from its groups. <a href="operations.html#single-sign-on">Single sign-on →</a></p></div>
+  <div><h3>Your server</h3><p>SQLite or PostgreSQL; a container image, a compose file, systemd units, and proxy examples, with health checks. <a href="operations.html#running-it-as-a-service">Running it as a service →</a></p></div>
+  <div><h3>Your size</h3><p>Measured at 10,000 people and a million papers, with a benchmark you can run on your own server. <a href="operations.html#sizing-a-server">Sizing a server →</a></p></div>
+  <div><h3>Checked</h3><p>Every page audited for WCAG 2.2 AA in both themes, and a security review against OWASP ASVS level 1. <a href="adopting.html">Adopting Tessera →</a></p></div>
+</section>
+
 <section class="how">
   <h2 id="how-it-works">How it works</h2>
   <p>Connectors fetch public records into a Parquet lake. The evidence engine builds the directory and suggests links, each with its evidence; curators decide in the ledger; and the search index and discovery data feed a JSON API and a fast, accessible web app.</p>
@@ -207,13 +224,14 @@ cd tessera
 uv sync
 uv run tessera demo
 uv run tessera --config demo/tessera.toml serve</code></pre></div>
-  <p>Then open <a href="http://127.0.0.1:8000" rel="noopener">http://127.0.0.1:8000</a>. To try the assistant there too, see <a href="assistant.html#trying-it-on-the-demo">Trying it on the demo</a>. To set Tessera up for your own organization, start with <a href="getting-started.html">Getting started</a>.</p>
+  <p>Then open <a href="http://127.0.0.1:8000" rel="noopener">http://127.0.0.1:8000</a>. To try the assistant there too, see <a href="assistant.html#trying-it-on-the-demo">Trying it on the demo</a>. To set Tessera up for your own organization, start with <a href="getting-started.html">Getting started</a>, and for the whole path to a curated, published site, <a href="adopting.html">Adopting Tessera</a>.</p>
 </section>
 
 <section class="guides">
   <h2 id="guides">The guides</h2>
   <div class="cards">
     <a href="getting-started.html"><strong>Getting started</strong><span>Install, describe your organization, run the first sync, and open the app.</span></a>
+    <a href="adopting.html"><strong>Adopting Tessera</strong><span>From nothing to a signed-in, curated, published installation, in order.</span></a>
     <a href="organization-profile.html"><strong>Describing your organization</strong><span>Choose the names Tessera uses to find your people and records.</span></a>
     <a href="curation.html"><strong>Curating</strong><span>Work through suggestions, discovered people, duplicates, and ORCID iDs.</span></a>
     <a href="discovery.html"><strong>Finding experts</strong><span>Expert search, similar people, the graphs, and the unit matrix.</span></a>
@@ -222,8 +240,9 @@ uv run tessera --config demo/tessera.toml serve</code></pre></div>
     <a href="insight.html"><strong>Insight</strong><span>Portfolio figures, cohorts, reports, snapshots, exports, and impact.</span></a>
     <a href="opportunities.html"><strong>Opportunities</strong><span>Funding that fits, whether you may apply, and building a team.</span></a>
     <a href="public-site.html"><strong>The public site</strong><span>Publish pages for the groups and people who opt in.</span></a>
+    <a href="branding.html"><strong>Look and words</strong><span>Your name, colors, and logos, set in the app; presets for groups and roles.</span></a>
     <a href="configuration.html"><strong>Configuration</strong><span>Every setting, including palettes, your logo, and thresholds.</span></a>
-    <a href="operations.html"><strong>Running Tessera</strong><span>Syncs, accounts, backups, upgrades, and PostgreSQL.</span></a>
+    <a href="operations.html"><strong>Running Tessera</strong><span>Syncs, sign-in, service files, sizing, backups, upgrades, and PostgreSQL.</span></a>
     <a href="assistant.html"><strong>The assistant</strong><span>Turn on the optional assistant: providers, what it sees, the log.</span></a>
     <a href="api.html"><strong>The API</strong><span>Build on the JSON API; every endpoint is in the API reference.</span></a>
     <a href="cli.html"><strong>Command reference</strong><span>Every command and its options.</span></a>
@@ -231,9 +250,9 @@ uv run tessera --config demo/tessera.toml serve</code></pre></div>
 </section>
 
     <nav class="pager" aria-label="Pages"><span></span><a class="next" href="getting-started.html"><span>Next</span>Getting started</a></nav>
-    <footer class="foot">Describes Tessera 0.6.0. Apache License 2.0. Screenshots show an invented organization; every person and record in them is fictional.</footer>
+    <footer class="foot">Describes Tessera 0.7.0. Apache License 2.0. Screenshots show an invented organization; every person and record in them is fictional.</footer>
   </main>
-  <aside class="toc" aria-label="On this page"><div class="menu-title">On this page</div><ul><li class="l2"><a href="#evidence">See why, every time</a></li><li class="l2"><a href="#curate">Curate in minutes, not months</a></li><li class="l2"><a href="#experts">Who works on what</a></li><li class="l2"><a href="#connections">See the shape of your organization</a></li><li class="l2"><a href="#missed">Who should meet</a></li><li class="l2"><a href="#groups">A home for every lab and program</a></li><li class="l2"><a href="#profiles">A profile they keep</a></li><li class="l2"><a href="#biosketches">A CV that stays current, a biosketch NIH accepts</a></li><li class="l2"><a href="#insight">The portfolio, honestly</a></li><li class="l2"><a href="#impact">What followed the work</a></li><li class="l2"><a href="#opportunities">Funding that fits</a></li><li class="l2"><a href="#assistant">Ask, and see the sources</a></li><li class="l2"><a href="#summaries">Summaries people approve</a></li><li class="l2"><a href="#public">A public site, checked</a></li><li class="l2"><a href="#how-it-works">How it works</a></li><li class="l2"><a href="#try">Try it in a minute</a></li><li class="l2"><a href="#guides">The guides</a></li></ul></aside>
+  <aside class="toc" aria-label="On this page"><div class="menu-title">On this page</div><ul><li class="l2"><a href="#evidence">See why, every time</a></li><li class="l2"><a href="#curate">Curate in minutes, not months</a></li><li class="l2"><a href="#experts">Who works on what</a></li><li class="l2"><a href="#connections">See the shape of your organization</a></li><li class="l2"><a href="#missed">Who should meet</a></li><li class="l2"><a href="#groups">A home for every lab and program</a></li><li class="l2"><a href="#profiles">A profile they keep</a></li><li class="l2"><a href="#biosketches">A CV that stays current, a biosketch NIH accepts</a></li><li class="l2"><a href="#insight">The portfolio, honestly</a></li><li class="l2"><a href="#impact">What followed the work</a></li><li class="l2"><a href="#opportunities">Funding that fits</a></li><li class="l2"><a href="#assistant">Ask, and see the sources</a></li><li class="l2"><a href="#summaries">Summaries people approve</a></li><li class="l2"><a href="#public">A public site, checked</a></li><li class="l2"><a href="#branding">In your colors and words</a></li><li class="l2"><a href="#how-it-works">How it works</a></li><li class="l2"><a href="#try">Try it in a minute</a></li><li class="l2"><a href="#guides">The guides</a></li></ul></aside>
 </div>
 </body>
 </html>
