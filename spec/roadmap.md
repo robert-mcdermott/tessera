@@ -110,7 +110,7 @@ Detail: [waves/wave-3.md](waves/wave-3.md)
 
 Released as [v0.4.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0.4.0) on 2026-11-08. Detail: [waves/wave-4.md](waves/wave-4.md)
 
-## Wave 5: Impact (v0.5.0) ◐
+## Wave 5: Impact (v0.5.0) ☑
 
 **Goal:** connect discovery to outcomes and opportunities.
 
@@ -123,9 +123,9 @@ Released as [v0.4.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0
 | 5 | The AI layer | Optional, **off by default and invisible until enabled** (no menu item, setting, route, or mention in the app, the API document, or the public site); any OpenAI-compatible or Anthropic-compatible endpoint, official or self-hosted (including local models), and Amazon Bedrock, with credentials from the environment; full model, prompt, and source logging | ☑ |
 | 6 | Grounded questions and answers | Answers that cite Tessera records and decline what the records don't support; the assistant reads only what the signed-in person may read | ☑ |
 | 7 | Plain-language summaries | Reviewable lay summaries for profiles and group pages, approved before they are shown | ☑ |
-| 8 | Release prep | Guides, screenshots, evaluation, changelog, release | ◐ |
+| 8 | Release prep | Guides, screenshots, evaluation, changelog, release | ☑ |
 
-Detail: [waves/wave-5.md](waves/wave-5.md)
+Released as [v0.5.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0.5.0) on 2026-11-08. Detail: [waves/wave-5.md](waves/wave-5.md)
 
 ## Wave 6: Profiles (v0.6.0) ☐
 

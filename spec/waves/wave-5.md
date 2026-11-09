@@ -2,7 +2,7 @@
 
 **Goal:** connect discovery to outcomes and opportunities. Follow a grant forward to the papers, studies, and clinical citations that came after it; see which open funding opportunities fit the organization's people and groups, and whether the organization can apply; assemble a team for one; and, where an organization chooses to turn it on, ask questions answered from Tessera's own records.
 
-**Branch:** `wave-5` · **Target version:** `0.5.0` · **Status:** ◐ slices 1 to 5 done
+**Branch:** `wave-5` · **Target version:** `0.5.0` · **Status:** ☑ released as 0.5.0 on 2026-11-08
 
 ## Exit criteria
 
@@ -120,12 +120,12 @@ Requirements: INT-08 to INT-12, AI-01 to AI-08.
 
 **Acceptance:** a drafted summary is visible to no one but its reviewers until approved; an edited approval keeps both the draft and the edit; turning AI off hides approved summaries everywhere, the public site included, and turning it back on shows them again.
 
-## Slice 8: Release prep ◐
+## Slice 8: Release prep ☑
 
 - [x] Guides for impact threads, opportunities, and the team builder; a guide to the assistant: providers and their settings (OpenAI-compatible, Anthropic-compatible, Amazon Bedrock), what is sent and what is not, the log, and turning it on; screenshots retaken from the demo, with the AI screens taken with AI enabled against the demo
 - [x] Evaluation, dependency and license review (Grants.gov's terms included), private-terms check over the whole repository
 - [x] `CHANGELOG.md` for 0.5.0; version bump
-- [ ] PR, merge, tag `v0.5.0`, release, and the documentation site published, on the maintainer's go-ahead
+- [x] PR, merge, tag `v0.5.0`, release, and the documentation site published, on the maintainer's go-ahead
 
 **Acceptance:** the ORCID works-list check on the pilot reproduces 0.4.0's result; a grant's thread answers in 300 ms or less on the pilot's data; the pilot's first Grants.gov sync is timed and recorded; the full suite passes on SQLite and PostgreSQL 16; no dependencies were added; the AI-off crawl is clean; the private-terms check and a scan of every change since 0.4.0 for pilot names are clean.
 
@@ -135,6 +135,7 @@ Requirements: INT-08 to INT-12, AI-01 to AI-08.
 
 | Date | Note |
 |---|---|
+| 2026-11-08 | Released as 0.5.0 on the maintainer's go-ahead. The documentation site's home page gains sections for Insight (missing since 0.4.0), impact threads, funding opportunities, the assistant, and plain-language summaries, each with a screenshot from the demo, and its guide cards list Insight, Opportunities, and The assistant. |
 | 2026-11-08 | At the maintainer's request, the example configuration (and so the `tessera.toml` that `tessera init` writes) now ends with the `[ai]` section, commented out, listing every setting. The assistant must leave no trace in the app, the API document, or the public site while it is off; the configuration file is for whoever runs the installation, and without the section there the assistant could be found only in the guides. Explanation lines in it start `# #`, so removing one `# ` from each line turns the section on and leaves them as comments. The example also gains the two settings it lacked, `[evidence] store_threshold` and `[mail] ssl`. |
 | 2026-11-08 | Slice 8 prepared; the PR, merge, tag, release, and documentation site wait for the maintainer's go-ahead. The ORCID works-list check, rebuilt from its description in the evidence spec, reads 49 people's public works lists as they are today: 196 papers from 2025 on are listed by 39 people, 94.9% are found as candidates, 97.3% of those strong. The ledger from before this wave (a 0.4.0-era backup) gives exactly the same numbers against the same lists, so authorship is unchanged; the three more listed papers than 0.4.0's 193 are people's own additions since. Migrations 0014 to 0018 run up and down on PostgreSQL 16, and a SQLite backup restores into it. `pyproject.toml` and `uv.lock` are unchanged apart from the version; Grants.gov and iCite are U.S. government information, free to reuse. The demo now starts a team for one opportunity, so Teams has something to show, and the screenshot script takes the assistant's screens with `--ai MODEL` against a local model, in a second pass: every other screen is taken with the assistant off, as an installation starts, so none shows **Ask**. |
 | 2026-11-08 | Slice 7 done. A summary's facts are read the way the assistant reads anything: through the API, as the reviewer, with the `work_of` and `open_record` tools, so they hold confirmed records only (and a group's published page, never its draft). The model writes from those facts alone (`summary/v1`), and each draft keeps the facts' SHA-256 digest and the counts it was drafted from; a summary is out of date when confirmed papers change by five or a fifth (whichever is more), any grant or study changes, or a group's members change by two or a quarter. Approvals record the reviewer's display name, since it is shown beside the summary, the public site included. The core pages show summaries through named slots (`person:intro`, `group:summary`, `group:aside`, `group:inbox`, `inbox:waiting`) that only the assistant's module fills, so no page names the assistant; the Summary block type is offered only while it is on, and a page that has one shows nothing there when it is off. On the demo, `gemma4:31b-cloud` drafts a profile summary in about a second, in plain words and with "they". Tests cover reviewers only seeing drafts, edits kept beside drafts, replacement only on approval, the inbox suggestion, and the assistant turned off and on again across the app, the inbox, and the public site. |
