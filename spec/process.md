@@ -2,7 +2,7 @@
 
 ## Waves and slices
 
-- A **wave** is a release. Wave *n* becomes version `0.n.0`.
+- A **wave** is a release. Waves 1 to 7 became versions `0.1.0` to `0.7.0`, and wave 8 is `1.0.0`; after it, each wave is a minor release (wave 9 becomes `1.1.0`).
 - A wave is planned in [`waves/wave-n.md`](waves/) as a set of **slices**: coherent chunks of related work with a goal, a checklist, and acceptance criteria.
 - The **last slice** of every wave is release prep: documentation, changelog, version bump, final checks.
 - Slices are done in order unless the wave file says otherwise. A slice may be split if it grows. It is not left half-finished at the end of a wave.

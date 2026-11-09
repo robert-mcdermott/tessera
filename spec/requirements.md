@@ -120,8 +120,11 @@ The capability catalog. IDs are stable: code, tests, and changelog entries can c
 | PLT-11 | S | Configurable vocabulary | Unit kinds, role names, and labels are configurable | 3 |
 | PLT-12 | S | Operational visibility | Job metrics, run history, and failure alerts in the admin area | 4 |
 | PLT-13 | S | Brand kit | An organization's own palette (core colors by day and night), footer links, favicon, and social preview image are configuration; `tessera doctor` fails any configured color pair below WCAG AA | 3 |
-| PLT-14 | M | Runs at the size of a large institution | At 10,000 people and 1,000,000 publications, pages and builds meet the budgets in the wave 7 plan, measured with a benchmark any adopter can run | 7 |
+| PLT-14 | M | Runs at the size of a large institution | Measured with a benchmark any adopter can run: up to a few thousand people and about 300,000 publications, pages and builds meet the budgets in the wave 7 plan; at 10,000 people and 1,000,000 publications, every miss is recorded with what would fix it | 7 |
 | PLT-15 | M | Security review | A threat model and a review against OWASP ASVS level 1 before adoption, with every finding fixed or recorded | 7 |
+| PLT-16 | M | Steady under many users at once | With 20 people using it at once, the server stays within the page budgets, at a realistic pace and without pause, as the wave 8 plan sets out; an expensive result is built once however many ask for it | 8 |
+| PLT-17 | M | A compatibility promise | The stable API, the command line, the configuration file, the data home, the export, and the public site's addresses change only by adding, except in a major release; retiring anything gives notice | 8 |
+| PLT-18 | M | Upgrades from any earlier release | A data home made by any earlier release upgrades with every record kept | 8 |
 
 ## User experience (UX)
 
