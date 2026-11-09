@@ -175,7 +175,7 @@ Released as [v0.6.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0
 
 Detail: [waves/wave-7.md](waves/wave-7.md)
 
-## Wave 8: Stable (v1.0.0) ◐
+## Wave 8: Stable (v1.0.0) ☑
 
 **Goal:** make Tessera dependable to run and to build on, ready to demonstrate and to pilot.
 
@@ -193,9 +193,9 @@ Detail: [waves/wave-7.md](waves/wave-7.md)
 | 2 | The 1.0 promise | Stable and experimental routes, a test against breaking changes, a deprecation policy, a compatibility guide | ☑ |
 | 3 | Upgrades from every earlier release | Each 0.x release's data home upgraded to 1.0 with every record kept, on SQLite and PostgreSQL | ☑ |
 | 4 | Hardened | A soak, failure drills, a review of the code that decides or protects things, dependencies current | ☑ |
-| 5 | Release prep | Guides, screenshots, checks, changelog, release | ◐ |
+| 5 | Release prep | Guides, screenshots, checks, changelog, release | ☑ |
 
-Detail: [waves/wave-8.md](waves/wave-8.md)
+Released as [v1.0.0](https://github.com/robert-mcdermott/tessera/releases/tag/v1.0.0) on 2026-11-09. Detail: [waves/wave-8.md](waves/wave-8.md)
 
 ## Later, for much larger organizations
 
