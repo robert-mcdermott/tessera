@@ -302,6 +302,84 @@ DEFAULT_ROLES: tuple[tuple[str, str], ...] = (
 _KEY = re.compile(r"^[a-z][a-z0-9_]{0,39}$")
 
 
+# Starting points for common kinds of organization ([vocabulary] preset): what groups, their
+# kinds, and roles are called. Keys stay the defaults' wherever the meaning is the same, so an
+# installation can change preset without its groups and memberships losing their kinds or roles.
+VOCABULARY_PRESETS: dict[str, dict[str, Any]] = {
+    "academic_medical_center": {
+        "group": "Group",
+        "groups": "Groups",
+        "kinds": (
+            ("division", "Division"),
+            ("department", "Department"),
+            ("program", "Research program"),
+            ("center", "Center"),
+            ("institute", "Institute"),
+            ("core", "Shared resource"),
+            ("clinical_service", "Clinical service"),
+            ("lab", "Lab"),
+            ("team", "Team"),
+        ),
+        "roles": (
+            ("lead", "Lead"),
+            ("co_lead", "Co-lead"),
+            ("member", "Member"),
+            ("clinical", "Clinical member"),
+            ("staff", "Staff"),
+            ("trainee", "Trainee"),
+            ("affiliate", "Affiliate"),
+        ),
+        "attributable_kinds": ("program", "center", "core", "lab", "team"),
+    },
+    "university": {
+        "group": "Unit",
+        "groups": "Units",
+        "kinds": (
+            ("school", "School"),
+            ("college", "College"),
+            ("department", "Department"),
+            ("institute", "Institute"),
+            ("center", "Center"),
+            ("program", "Program"),
+            ("core", "Core facility"),
+            ("lab", "Lab"),
+            ("team", "Team"),
+        ),
+        "roles": (
+            ("lead", "Director"),
+            ("co_lead", "Co-director"),
+            ("member", "Faculty member"),
+            ("staff", "Staff"),
+            ("trainee", "Student or postdoc"),
+            ("affiliate", "Affiliate"),
+        ),
+        "attributable_kinds": ("institute", "center", "program", "core", "lab", "team"),
+    },
+    "research_institute": {
+        "group": "Group",
+        "groups": "Groups",
+        "kinds": (
+            ("division", "Division"),
+            ("department", "Department"),
+            ("program", "Program"),
+            ("center", "Center"),
+            ("core", "Core facility"),
+            ("lab", "Lab"),
+            ("team", "Team"),
+        ),
+        "roles": (
+            ("lead", "Principal investigator"),
+            ("co_lead", "Co-investigator"),
+            ("member", "Scientist"),
+            ("staff", "Staff"),
+            ("trainee", "Trainee"),
+            ("affiliate", "Affiliate"),
+        ),
+        "attributable_kinds": ("program", "center", "core", "lab", "team"),
+    },
+}
+
+
 @dataclass(frozen=True)
 class VocabularyConfig:
     """What the app calls groups, their kinds, and membership roles (PLT-11)."""
@@ -697,8 +775,18 @@ def _pairs(value: Any, label: str, problems: list[str]) -> tuple[tuple[str, str]
 
 
 def _build_vocabulary(table: dict[str, Any], problems: list[str]) -> VocabularyConfig:
+    """[vocabulary]: a preset, if one is named, with any settings given here over it."""
     kwargs: dict[str, Any] = {}
+    preset = table.get("preset")
+    if preset is not None:
+        if preset not in VOCABULARY_PRESETS:
+            names = ", ".join(sorted(VOCABULARY_PRESETS))
+            problems.append(f"vocabulary.preset: {preset!r} is not one of {names}")
+        else:
+            kwargs.update(VOCABULARY_PRESETS[preset])
     for key, value in table.items():
+        if key == "preset":
+            continue
         if key in ("kinds", "roles"):
             pairs = _pairs(value, f"vocabulary.{key}", problems)
             if pairs:

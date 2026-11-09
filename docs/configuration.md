@@ -64,6 +64,8 @@ A private university is usually `["20"]`; an independent nonprofit research inst
 
 ## `[branding]`
 
+Admins can set all of this in the app, with a live preview and contrast checks, under **Admin → Branding**; see [Look and words](branding.md), which also has guidance for logos.
+
 | Setting | Type | Default | Meaning |
 |---|---|---|---|
 | `product_name` | text | `"Tessera"` | The product's name in the sidebar and page titles |
@@ -205,6 +207,7 @@ What the app calls groups, the kinds of group it offers, and the roles people ho
 
 | Setting | Type | Default | Meaning |
 |---|---|---|---|
+| `preset` | text | (none) | Start from the words of a kind of organization: `academic_medical_center`, `university`, or `research_institute`; settings given beside it replace the preset's. See [Look and words](branding.md#the-words) |
 | `group`, `groups` | text | `Group`, `Groups` | What the app calls one group and several |
 | `leader_roles` | list of role keys | `["lead", "co_lead"]` | Roles listed as a group's leaders |
 | `default_role` | role key | `member` | The role of a membership that names none |

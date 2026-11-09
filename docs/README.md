@@ -16,6 +16,7 @@ Tessera assembles a research organization's footprint from public sources, conne
 | [Opportunities](opportunities.md) | Find funding that fits the organization's people and groups, see whether the organization may apply, and track foundation and internal calls |
 | [The assistant](assistant.md) | Turn on the optional assistant, with any OpenAI-compatible or Anthropic-compatible endpoint or Amazon Bedrock |
 | [The public site](public-site.md) | Publish pages for the groups and people who opt in, as a static site any web server can serve |
+| [Look and words](branding.md) | Give Tessera your organization's name, colors, and logos in the app, and call groups and roles what you call them |
 | [Configuration](configuration.md) | Look up any setting, including palettes, your logo, and evidence thresholds |
 | [Running Tessera](operations.md) | Schedule syncs, back up, upgrade, use PostgreSQL, and diagnose problems |
 | [The API](api.md) | Build on Tessera's JSON API |

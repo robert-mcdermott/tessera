@@ -97,15 +97,21 @@ def readable_on(color: str) -> str:
 
 def palette(config: Config) -> tuple[Colors, Colors]:
     """(day, night): the defaults, with the organization's own colors over them."""
+    return colors_for(config.branding.accent_color, config.branding.palette)
+
+
+def colors_for(
+    accent_color: str | None, entries: tuple[tuple[str, str, str], ...] | list[tuple[str, str, str]]
+) -> tuple[Colors, Colors]:
+    """(day, night) from an accent and (mode, name, hex) entries, as the app draws them."""
     day, night = DAY, NIGHT
-    brand = config.branding
-    if brand.accent_color and HEX.match(brand.accent_color):
+    if accent_color and HEX.match(accent_color):
         # By night the accent is lightened so it reads on dark surfaces, as in the app.
-        lighter = mix(brand.accent_color, "#ffffff", 0.42)
-        day = replace(day, accent=brand.accent_color, stripe=brand.accent_color,
-                      on_accent=readable_on(brand.accent_color))  # fmt: skip
+        lighter = mix(accent_color, "#ffffff", 0.42)
+        day = replace(day, accent=accent_color, stripe=accent_color,
+                      on_accent=readable_on(accent_color))  # fmt: skip
         night = replace(night, accent=lighter, stripe=lighter, on_accent=readable_on(lighter))
-    for mode, name, value in brand.palette:
+    for mode, name, value in entries:
         if HEX.match(value):
             if mode == "day":
                 day = replace(day, **{name: value})
@@ -139,5 +145,5 @@ def contrast_problems(config: Config) -> list[str]:
 
 COLOR_NAMES = tuple(f.name for f in fields(Colors))
 
-__all__ = ["COLOR_NAMES", "DAY", "NIGHT", "PAIRS", "Colors", "configured", "contrast",
+__all__ = ["COLOR_NAMES", "DAY", "NIGHT", "PAIRS", "Colors", "colors_for", "configured", "contrast",
            "contrast_problems", "luminance", "palette"]  # fmt: skip

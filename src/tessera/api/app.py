@@ -13,6 +13,7 @@ from tessera.api.access import authorize, install_access
 from tessera.api.problems import install_problem_handlers
 from tessera.api.routers import (
     access,
+    branding,
     candidates,
     curation,
     discovery,
@@ -98,6 +99,7 @@ def create_app(config: Config) -> FastAPI:
         insight,
         saved,
         operations,
+        branding,
     ):
         app.include_router(module.router)
     app.include_router(profiles.me_router)

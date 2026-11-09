@@ -35,7 +35,8 @@ exclusions = ["Example University of Technology"]
 # by hand.
 applicant_types = []
 
-# Re-branding. Everything here is optional.
+# Re-branding. Everything here is optional, and admins can set it in the app instead, with a
+# live preview and contrast checks (Admin → Branding), which rewrites this section.
 [branding]
 product_name = "Tessera"
 # The color palette everyone sees by default: "tessera" (calm neutrals, indigo accent),
@@ -142,6 +143,9 @@ similar_per_person = 25
 [vocabulary]
 # What the app calls groups, the kinds of group it offers, and the roles people hold in them.
 # Keys are stored with each group and membership: rename a label freely, but keep its key.
+# Or start from a preset and change only what differs (remove the tables below to use its
+# kinds and roles): "academic_medical_center", "university", or "research_institute".
+# preset = "academic_medical_center"
 group = "Group"
 groups = "Groups"
 leader_roles = ["lead", "co_lead"]   # listed as a group's leaders

@@ -550,3 +550,47 @@ tr[data-stale] th { color: var(--warn); }
 .ops-issues .icon { color: var(--warn); flex: none; }
 .text-danger { color: var(--danger); }
 .embed-code { font-size: var(--fs-xs); min-height: 96px; }
+
+/* Admin → Branding: the editor beside a live preview of each mode. The preview's colors are
+   CSS variables set from the checked palette (--pv-*), never inline styles. */
+.brand-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 440px); gap: var(--space-5); align-items: start; }
+.brand-aside { position: sticky; top: calc(var(--signature-height) + var(--topbar-height) + var(--space-5)); }
+@media (max-width: 1100px) { .brand-layout { grid-template-columns: minmax(0, 1fr); } .brand-aside { position: static; } }
+.color-field { display: inline-flex; align-items: center; gap: var(--space-2); }
+.color-swatch { inline-size: 32px; block-size: 32px; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-s); background: none; cursor: pointer; }
+.color-hex { inline-size: 12ch; }
+.brand-color-name { font-weight: 550; }
+.brand-aside .table { font-size: var(--fs-sm, 0.86rem); }
+.brand-aside .table td, .brand-aside .table th { padding-inline: var(--space-2); }
+.brand-aside .table td:first-child { white-space: normal; }
+.brand-colors td, .brand-colors th { vertical-align: middle; }
+.brand-image { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: var(--space-4); align-items: center; }
+.brand-thumb { display: grid; place-items: center; inline-size: 112px; block-size: 64px; border: 1px dashed var(--border); border-radius: var(--radius-s); background: var(--surface-2, var(--surface-1)); overflow: hidden; }
+.brand-thumb img { max-inline-size: 100%; max-block-size: 100%; object-fit: contain; }
+.brand-preview {
+  border: 1px solid var(--pv-border); border-radius: var(--radius-m); overflow: hidden; background: var(--pv-bg); color: var(--pv-text);
+  font-size: 0.82rem; line-height: 1.35;
+}
+.brand-preview .bp-stripe { block-size: 4px; background: var(--pv-stripe); }
+.brand-preview .bp-body { display: grid; grid-template-columns: 112px minmax(0, 1fr); min-block-size: 168px; }
+.brand-preview .bp-side { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-inline-end: 1px solid var(--pv-border); background: var(--pv-surface); }
+.brand-preview .bp-logo img, .brand-preview .bp-logo svg { max-inline-size: 92px; max-block-size: 22px; }
+.brand-preview .bp-name { font-weight: 650; }
+.brand-preview .bp-nav { color: var(--pv-muted); padding: 2px 6px; border-radius: 6px; }
+.brand-preview .bp-nav-on { color: var(--pv-text); background: color-mix(in oklch, var(--pv-accent) 16%, transparent); }
+.brand-preview .bp-main { display: flex; flex-direction: column; gap: 10px; padding: 10px; }
+.brand-preview .bp-card { display: flex; flex-direction: column; gap: 4px; padding: 10px; border: 1px solid var(--pv-border); border-radius: 8px; background: var(--pv-surface); }
+.brand-preview .bp-muted { color: var(--pv-muted); }
+.brand-preview .bp-link { color: var(--pv-accent); text-decoration: underline; }
+.brand-preview .bp-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.brand-preview .bp-chip { font-weight: 600; }
+.brand-preview .bp-person { color: var(--pv-person); }
+.brand-preview .bp-publication { color: var(--pv-publication); }
+.brand-preview .bp-grant { color: var(--pv-grant); }
+.brand-preview .bp-study { color: var(--pv-study); }
+.brand-preview .bp-button { align-self: flex-start; padding: 4px 10px; border-radius: 6px; background: var(--pv-accent); color: var(--pv-on-accent); font-weight: 600; }
+.brand-preview .bp-site { border: 1px solid var(--pv-border); border-radius: 8px; overflow: hidden; background: var(--pv-bg); }
+.brand-preview .bp-site-head { padding: 6px 10px; font-weight: 650; }
+td[data-fails] { color: var(--danger-text, var(--danger)); }
+.code-block { margin: var(--space-3) 0 0; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-s); background: var(--surface-2, var(--surface-1)); overflow-x: auto; white-space: pre; }
+.card-details > summary { cursor: pointer; font-weight: 600; }

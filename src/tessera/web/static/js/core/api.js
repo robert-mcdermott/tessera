@@ -92,6 +92,22 @@ export async function post(path, body, { keep = null } = {}) {
   return value;
 }
 
+/** Send a file as the request's body (an image for Admin → Branding, say). */
+export async function upload(path, file) {
+  const headers = { Accept: "application/json", "Content-Type": file.type || "application/octet-stream" };
+  const token = csrfToken();
+  if (token) headers["X-CSRF-Token"] = token;
+  const response = await fetch(buildUrl(path), { method: "POST", credentials: "same-origin", headers, body: file });
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
+  }
+  if (!response.ok) throw new ApiError(response.status, payload?.title, payload?.detail, payload);
+  return payload;
+}
+
 export function invalidate(keep = null) {
   for (const key of [...cache.keys()]) {
     if (!keep?.(key)) cache.delete(key);

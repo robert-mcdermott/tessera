@@ -71,6 +71,7 @@ export const SCENES = [
   { name: "insight-snapshot", url: "/insight/snapshots/{snapshot}", ...WIDE, wait: FIGURES },
   { name: "saved-search", url: "/publications?q=lymphoma&saved={saved}", ...WIDE, wait: "document.querySelector('.saved-panel .saved-lead')" },
   { name: "operations", url: "/admin/operations", ...WIDE },
+  { name: "branding", url: "/admin/branding", ...WIDE },
   { name: "embed", file: "groups/cancer-immunotherapy-program/embed/publications.html", width: 760, height: 560, ready: "document.querySelector('main h1')" },
   { name: "duplicates", url: "/review/duplicates", ...WIDE },
   { name: "discovered", url: "/review/people", ...WIDE },

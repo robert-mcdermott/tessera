@@ -203,6 +203,10 @@ POLICIES: dict[tuple[str, str], Level] = {
     ("GET", "/api/v1/accounts"): Level.ADMIN,
     ("POST", "/api/v1/accounts"): Level.ADMIN,
     ("POST", "/api/v1/accounts/{account_id}"): Level.ADMIN,
+    ("GET", "/api/v1/admin/branding"): Level.ADMIN,
+    ("POST", "/api/v1/admin/branding"): Level.ADMIN,
+    ("POST", "/api/v1/admin/branding/check"): Level.ADMIN,
+    ("POST", "/api/v1/admin/branding/images/{image}"): Level.ADMIN,
 }
 UNSAFE = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 

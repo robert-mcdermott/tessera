@@ -12,6 +12,10 @@ All notable changes to Tessera are recorded here. Versions follow [semantic vers
 
 - `tessera bench` (PLT-14): measures Tessera on this machine with a simulated organization of any size (`--people`, `--papers`), shaped like a real one and written straight to the lake and ledger with no network: it times every local step of a first sync and of a nightly one, then starts the server and times the app's main requests (first, p50, p95) against their budgets, with each step's peak memory, the server's memory, the data's size on disk, and the machine it ran on, and saves the report as JSON. *Running Tessera* has sizing advice from its results. A folder built once is reused, so the nightly and app timings can be rerun.
 
+- **Admin → Branding** (PLT-13): admins set the product name, the palette everyone sees first, an accent, the organization's own colors by day and after dark, logos for light and dark backgrounds, the browser icon, the link-preview image, and footer links, with a live preview of the app and the public site in both modes and the contrast of every pair of colors shown as it changes. Saving writes the `[branding]` section of `tessera.toml` (keeping the file before as `tessera.toml.bak`, and images in `brand/` beside it), takes effect at once, and is refused while any pair is below WCAG 2.2 AA. SVGs with scripts or links to other files are refused, and branding images are served so nothing in them can run. A new guide, *Look and words*, covers it, with guidance for logos.
+
+- Vocabulary presets (PLT-11): `[vocabulary] preset = "academic_medical_center"`, `"university"`, or `"research_institute"` names groups, their kinds, and roles as that kind of organization does; settings beside it adjust the preset.
+
 ### Changed
 
 - Faster at scale, measured at 10,000 people and 1,000,000 papers:

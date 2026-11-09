@@ -111,6 +111,7 @@ async function boot() {
   if (can("admin")) {
     route("/admin/accounts", async (_, ctx) => (await import("./pages/accounts.js")).accounts(main, ctx));
     route("/admin/operations", async () => (await import("./pages/operations.js")).operations(main));
+    route("/admin/branding", async () => (await import("./pages/branding.js")).branding(main));
     // Loaded on first use, like the graph views.
     const groupsPage = () => import("./pages/groups-admin.js");
     route("/admin/groups", async (_, ctx) => (await groupsPage()).groupsAdmin(main, ctx));

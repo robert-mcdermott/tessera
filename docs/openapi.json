@@ -8909,6 +8909,111 @@
         }
       }
     },
+    "/api/v1/admin/branding": {
+      "get": {
+        "tags": [
+          "branding"
+        ],
+        "summary": "The organization's branding as configured, with its contrast checks",
+        "operationId": "get_branding_api_v1_admin_branding_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Get Branding Api V1 Admin Branding Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "branding"
+        ],
+        "summary": "Save branding to the configuration file (refused below WCAG AA)",
+        "operationId": "save_branding_api_v1_admin_branding_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Save Branding Api V1 Admin Branding Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/branding/check": {
+      "post": {
+        "tags": [
+          "branding"
+        ],
+        "summary": "Check proposed branding: contrast by day and night, and problems",
+        "operationId": "check_branding_api_v1_admin_branding_check_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Check Branding Api V1 Admin Branding Check Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/branding/images/{image}": {
+      "post": {
+        "tags": [
+          "branding"
+        ],
+        "summary": "Upload a logo, favicon, or link-preview image",
+        "operationId": "upload_image_api_v1_admin_branding_images__image__post",
+        "parameters": [
+          {
+            "name": "image",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Image"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Upload Image Api V1 Admin Branding Images  Image  Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/me/profiles": {
       "get": {
         "tags": [

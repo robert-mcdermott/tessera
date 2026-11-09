@@ -167,7 +167,7 @@ Released as [v0.6.0](https://github.com/robert-mcdermott/tessera/releases/tag/v0
 | 1 | Both databases | The full suite on SQLite and PostgreSQL, with one command for both | ☑ |
 | 2 | Single sign-on | OpenID Connect with PKCE, account linking, role mapping, a local admin always | ☑ |
 | 3 | At scale | A simulated 10,000 people and 1,000,000 publications, a benchmark command, and the fixes | ☑ |
-| 4 | The organization's look and words | A theme builder in the app, logo guidance, vocabulary presets | ☐ |
+| 4 | The organization's look and words | A theme builder in the app, logo guidance, vocabulary presets | ☑ |
 | 5 | Running it as a service | Container image, systemd units, reverse-proxy examples, health checks | ☐ |
 | 6 | Accessible and reviewed | A WCAG 2.2 AA audit and a security review, with fixes | ☐ |
 | 7 | The adopter's guide | From installation to a curated, published site | ☐ |
