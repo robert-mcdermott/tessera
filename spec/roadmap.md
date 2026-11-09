@@ -180,7 +180,19 @@ Detail: [waves/wave-7.md](waves/wave-7.md)
 - API stability guarantee for `/api/v1`; documented deprecation policy
 - Upgrade path tested across all 0.x schemas
 - Hardening from pilot feedback
-- A nightly sync whose work follows what changed: resolve only the new papers and the people whose records or decisions changed, rather than the whole organization, checked against a full resolve and measured with `tessera bench` (wave 7 recorded the miss: about 15 minutes at 1,000,000 publications)
+- Steady under many users at once, for the size Tessera is built for: a few thousand people and up to about 300,000 publications, where wave 7 measured a nightly sync of under two minutes and pages within their budgets. A load test after wave 7 (20 simulated users on one server process, at 100,000 publications) was fast at a realistic pace (median 33 ms, slowest 2 s), but with every user requesting without pause it showed two weaknesses, fixed here:
+  - **Each Insight figure built once.** When several people ask for the same figure, or the same inputs, before they are ready, one request builds them and the others wait for that result; today each builds its own at the same time, and under that load figures waited up to 93 seconds
+  - **Several server processes.** `tessera serve --workers`, with the service files running 2 to 4, so one slow request no longer holds up the rest (four processes served ten times the requests of one in the same test); first, the limit on failed sign-ins moves from each process's memory to the ledger, so it holds across processes
+  - **A load test in `tessera bench`.** Simulated users at once against the server, at a realistic pace and without pause, so an organization can check its own server before going live and after each upgrade
+
+## Later, for much larger organizations
+
+Wave 7 measured 10,000 people and 1,000,000 publications and recorded what misses its budgets there. None of it matters at the size above, and the first item changes how authorship is decided, so it waits until an organization of that size needs it:
+
+- A nightly sync whose work follows what changed: resolve only the new papers and the people whose records or decisions changed, rather than the whole organization, checked against a full resolve and measured with `tessera bench` (about 15 minutes at 1,000,000 publications, against 1 min 40 s at 100,000); the search index updated rather than rebuilt
+- The first Insight figure after a change computed from columnar inputs, or from a nightly snapshot (7 to 21 s at 1,000,000 publications)
+- Facet counts for very common search words from a columnar copy held in memory, and the review queue's counts kept by triggers
+- Evidence stored compactly in the ledger: each feature's code and numbers, with the explanation written when shown
 
 ## Later (after leadership commits resources)
 

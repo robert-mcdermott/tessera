@@ -23,7 +23,7 @@ Requirements: PLT-09, PLT-10, PLT-14, PLT-15, UX-06; PLT-05, PLT-11, and PLT-13 
 - **Sign-in** (2026-11-08, before wave 4): local accounts stay the default, and may be all a small organization needs. Single sign-on is optional, through OpenID Connect with any standards-based provider (Microsoft Entra ID is the example). Roles may optionally map from the provider's groups.
 - **Scale** (2026-11-08): the 10,000 people and 1,000,000 publications are simulated, not downloaded. Benchmarks run on the maintainer's laptop (a 10-core M4 with an SSD) to show how Tessera performs and scales; production runs on a different server, so the benchmark must be easy to rerun there.
 
-- **Incremental resolve** (2026-11-08): the nightly resolve recomputes every suggestion, so at 1,000,000 publications it misses its budget. The miss is recorded in slice 3, with what was made faster; resolving only what changed is its own slice later (under v1.0.0 in the roadmap), with its own design and tests, rather than part of this wave.
+- **Incremental resolve** (2026-11-08): the nightly resolve recomputes every suggestion, so at 1,000,000 publications it misses its budget. The miss is recorded in slice 3, with what was made faster; resolving only what changed is its own slice later (under v1.0.0 in the roadmap), with its own design and tests, rather than part of this wave. On 2026-11-09, after a load test with 20 simulated users, the maintainer moved it past 1.0, to *Later, for much larger organizations*, and put three smaller fixes in v1.0.0 instead: each Insight figure built once, several server processes, and a load test in `tessera bench`.
 
 ### Defaults taken (either can change)
 
