@@ -12,6 +12,7 @@ import sys
 from collections.abc import Sequence
 from datetime import date, timedelta
 from pathlib import Path
+from typing import Any
 
 from tessera import PRODUCT_NAME, TAGLINE, __version__
 from tessera.config import (
@@ -488,7 +489,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     eval_authorship.set_defaults(handler=cmd_eval_authorship)
 
-    runs_cmd = commands.add_parser("runs", help="recent ingest runs")
+    runs_cmd = commands.add_parser(
+        "runs", help="recent runs: each one's status, and how many records a fetch found"
+    )
     runs_cmd.add_argument("--source", help="only this source")
     runs_cmd.add_argument("--limit", type=int, default=20, help="at most this many (default: 20)")
     runs_cmd.set_defaults(handler=cmd_runs)
@@ -853,14 +856,22 @@ def cmd_runs(args: argparse.Namespace) -> int:
                 r["kind"],
                 (r.get("params") or {}).get("mode", "-"),
                 r["status"],
+                _found(r),
                 isoformat(r["started_at"])[:19].replace("T", " "),
                 (r.get("error") or "")[:60],
             )
             for r in rows
         ],
-        headers=("run", "source", "kind", "mode", "status", "started (UTC)", "error"),
+        headers=("run", "source", "kind", "mode", "status", "found", "started (UTC)", "error"),
     )
     return EXIT_OK
+
+
+def _found(run: dict[str, Any]) -> str:
+    """How many records a fetch found at its source, as the Sources page shows it ("-" for a
+    resolve, or a fetch still under way)."""
+    found = ((run.get("counts") or {}).get("report") or {}).get("total_found")
+    return f"{found:,}" if isinstance(found, int) else "-"
 
 
 def _print_resolve(result) -> None:  # type: ignore[no-untyped-def]
