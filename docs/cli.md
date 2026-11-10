@@ -710,7 +710,7 @@ usage: tessera eval authorship [-h] [--gold CSV]
 
 ## `tessera runs`
 
-Recent ingest runs.
+Recent runs: each one's status, and how many records a fetch found.
 
 ```text
 usage: tessera runs [-h] [--source SOURCE] [--limit LIMIT]

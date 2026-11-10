@@ -2,6 +2,10 @@
 
 All notable changes to Tessera are recorded here. Versions follow [semantic versioning](https://semver.org/). Waves 1 to 7 shipped as 0.1.0 to 0.7.0, and wave 8 ships as 1.0.0; from 1.0, [Compatibility](docs/compatibility.md) says what each kind of release may change.
 
+## Unreleased
+
+**Fixed:** `tessera runs` shows how many records each fetch found, in a new *found* column, as *Running Tessera* and *Describing your organization* said it did. Until now only **Admin → Sources** showed it.
+
 ## 1.0.0 (2026-11-09)
 
 Stable. Tessera now promises that what you build on it keeps working: its API, command line, configuration file, data, exports, and public site addresses change only by adding until a 2.0. It stays fast when many people use it at once, an installation of any earlier release upgrades in one step with nothing lost, and a review of the code that decides and protects things, with drills of the failures an installation will meet, found and fixed what a first pilot would have.

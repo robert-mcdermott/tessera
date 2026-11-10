@@ -393,9 +393,24 @@ def test_cli_ingest_runs_and_replay(
     assert main(["--config", str(instance.path), "runs", "--limit", "10"]) == EXIT_OK
     listing = capsys.readouterr().out
     assert "replay" in listing and "partial" in listing
+    # Each fetch shows how many records it found, as the Sources page does.
+    header, _, *lines = listing.splitlines()
+    assert header.split()[5] == "found"
+    rows = [line.split() for line in lines]
+    assert next(r for r in rows if r[1:3] == ["reporter", "fetch"])[5] == "3"
 
     assert main(["--config", str(instance.path), "ingest", "pubmed", "--ids", "abc"]) == 1
     assert main(["--config", str(instance.path), "ingest", "all", "--ids", "1"]) == 1
+
+
+def test_runs_show_what_each_fetch_found() -> None:
+    from tessera.cli import _found
+
+    assert _found({"counts": {"report": {"total_found": 37502}}}) == "37,502"
+    assert _found({"counts": {"report": {"total_found": 0}}}) == "0"
+    assert _found({"counts": {}}) == "-"  # a fetch still under way
+    assert _found({"counts": {"people": {"created": 4}}}) == "-"  # a resolve
+    assert _found({"counts": {"report": {"total_found": None}}}) == "-"  # ORCID's refresh
 
 
 def test_orcid_reads_directory_members_only(instance: Instance, engine, network: FakeApi) -> None:  # type: ignore[no-untyped-def]

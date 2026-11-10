@@ -49,7 +49,7 @@ Publish the public site after each sync, so openings that closed leave it and ne
 
 `tessera digest show` prints the digests instead, and `tessera digest send --dry-run` prints the messages it would send.
 
-`uv run tessera runs` lists recent runs with their status and counts. A run that ends *partial* fetched some but not all of its batches; the next sync retries from the last complete checkpoint, so nothing is skipped.
+`uv run tessera runs` lists recent runs: each one's status and, for a fetch, how many records the source found (the *Found* column of **Admin → Sources**). While a sync is under way, it shows which steps are done and which is running. A run that ends *partial* fetched some but not all of its batches; the next sync retries from the last complete checkpoint, so nothing is skipped.
 
 ![Admin, Sources: each source's last successful fetch, the evidence engine, and the search index](images/sources-light.webp "Admin → Sources: data health")
 
